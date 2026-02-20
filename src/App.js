@@ -584,7 +584,7 @@ export default function App() {
       {/* Sidebar */}
       <div className="sidebar">
         <div style={{ padding:'20px 16px', borderBottom:'1px solid var(--border)' }}>
-          {brand.logo_url ? <img src={brand.logo_url} alt="logo" style={{ maxHeight:36, maxWidth:150 }} onError={e=>e.target.style.display='none'} /> :
+          {brand.logo_url ? <img src={brand.logo_url} alt="logo" style={{ maxHeight:60, maxWidth:180 }} onError={e=>e.target.style.display='none'} /> :
             <div style={{ fontFamily:'Syne,sans-serif', fontWeight:800, fontSize:18, color:accentColor }} className="brand-name">⚡ {brand.company_name}</div>}
         </div>
         <nav style={{ flex:1, padding:'12px 0' }}>
