@@ -169,11 +169,26 @@ function AuthScreen({ onAuth }) {
   const [loading, setLoading] = useState(false);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
-  const handleSignIn = async () => {
-    setLoading(true); setErr('');
-    const { data, error } = await signIn({ email: form.email, password: form.password });
+  const handleSignup = async () => {
+    setErr(''); setLoading(true);
+    if (!form.name || !form.company || !form.email || !form.password) { 
+      setErr('All fields required'); setLoading(false); return; 
+    }
+    const { data, error } = await supabase.auth.signUp({
+      email: form.email, 
+      password: form.password,
+      options: { data: { full_name: form.name, company_name: form.company } }
+    });
     if (error) { setErr(error.message); setLoading(false); return; }
-    onAuth(data.user);
+    if (data.user) {
+      const { error: profileError } = await supabase.from('profiles').insert({
+        id: data.user.id, 
+        full_name: form.name, 
+        company_name: form.company, 
+        role: 'admin'
+      });
+      if (profileError) { setErr('Account created! Please sign in.'); setLoading(false); return; }
+    }
     setLoading(false);
   };
 
