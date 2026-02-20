@@ -107,13 +107,22 @@ function AuthScreen({ onAuth }) {
   const handleSignup = async () => {
     setErr(''); setLoading(true);
     if (!form.name || !form.company || !form.email || !form.password) { setErr('All fields required'); setLoading(false); return; }
-    const { data, error } = await supabase.auth.signUp({
-      email: form.email, password: form.password,
-      options: { data: { full_name: form.name, company_name: form.company } }
-    });
-    if (error) { setErr(error.message); setLoading(false); return; }
-    if (data.user) {
-      await supabase.from('profiles').upsert({ id: data.user.id, full_name: form.name, company_name: form.company, role: 'admin' });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: form.email, password: form.password,
+        options: { data: { full_name: form.name, company_name: form.company } }
+      });
+      if (error) { setErr(error.message); setLoading(false); return; }
+      if (data.user) {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          full_name: form.name,
+          company_name: form.company,
+          role: 'admin'
+        }, { onConflict: 'id' });
+      }
+    } catch(e) {
+      setErr('Signup failed: ' + e.message);
     }
     setLoading(false);
   };
