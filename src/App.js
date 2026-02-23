@@ -200,10 +200,13 @@ function ContactForm({ contact, onSave, onClose, companyId }) {
 }
 
 // ─── CONTACT DRAWER ───────────────────────────────────────────────────────────
-function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId }) {
+function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast }) {
   const [activities, setActivities] = useState([]);
   const [note, setNote] = useState('');
   const [noteType, setNoteType] = useState('note');
+  const [emailSubject, setEmailSubject] = useState('');
+  const [emailBody, setEmailBody] = useState('');
+  const [sendingEmail, setSendingEmail] = useState(false);
 
   useEffect(() => {
     if (!contact) return;
@@ -214,6 +217,28 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId }) {
     if (!note.trim()) return;
     await supabase.from('activities').insert([{ contact_id:contact.id, company_id:companyId, type:noteType, body:note }]);
     setNote(''); setActivities(a=>[{type:noteType, body:note, created_at:new Date().toISOString()}, ...a]);
+  };
+
+  const sendEmail = async () => {
+    if (!emailSubject.trim() || !emailBody.trim()) { toast('Please enter subject and message'); return; }
+    if (!contact.email) { toast('Contact has no email address'); return; }
+    setSendingEmail(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+        body: JSON.stringify({ to: contact.email, subject: emailSubject, body: emailBody })
+      });
+      const data = await res.json();
+      if (data.id) {
+        await supabase.from('activities').insert([{ contact_id:contact.id, company_id:companyId, type:'email', body:'Email sent: ' + emailSubject }]);
+        setActivities(a=>[{type:'email', body:'Email sent: ' + emailSubject, created_at:new Date().toISOString()}, ...a]);
+        setEmailSubject(''); setEmailBody('');
+        toast('Email sent successfully!');
+      } else { toast('Error: ' + (data.message||'Unknown error')); }
+    } catch(e) { toast('Error: ' + e.message); }
+    setSendingEmail(false);
   };
 
   const changeStage = async (stage) => {
@@ -270,8 +295,18 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId }) {
               <button key={t} onClick={()=>setNoteType(t)} style={{ padding:'5px 12px', borderRadius:6, fontSize:12, border:'1px solid', borderColor:noteType===t?'var(--accent)':'var(--border)', background:noteType===t?'rgba(59,130,246,.2)':'transparent', color:noteType===t?'var(--accent)':'var(--muted)', cursor:'pointer' }}>{t==='note'?'📝 Note':t==='call'?'📞 Call':'📧 Email'}</button>
             ))}
           </div>
-          <textarea rows={2} value={note} onChange={e=>setNote(e.target.value)} placeholder="Add a note..." style={{ marginBottom:8 }} />
-          <button className="btn-primary btn-sm" onClick={addActivity}>Add</button>
+          {noteType==='email' ? (
+            <div>
+              <input value={emailSubject} onChange={e=>setEmailSubject(e.target.value)} placeholder="Subject..." style={{ marginBottom:8 }} />
+              <textarea rows={4} value={emailBody} onChange={e=>setEmailBody(e.target.value)} placeholder="Write your email..." style={{ marginBottom:8 }} />
+              <button className="btn-primary btn-sm" onClick={sendEmail} disabled={sendingEmail}>{sendingEmail?'Sending...':'📧 Send Email'}</button>
+            </div>
+          ) : (
+            <div>
+              <textarea rows={2} value={note} onChange={e=>setNote(e.target.value)} placeholder="Add a note..." style={{ marginBottom:8 }} />
+              <button className="btn-primary btn-sm" onClick={addActivity}>Add</button>
+            </div>
+          )}
         </div>
 
         <div>
@@ -584,7 +619,7 @@ export default function App() {
       {/* Sidebar */}
       <div className="sidebar">
         <div style={{ padding:'20px 16px', borderBottom:'1px solid var(--border)' }}>
-          {brand.logo_url ? <img src={brand.logo_url} alt="logo" style={{ maxHeight:60, maxWidth:180 }} onError={e=>e.target.style.display='none'} /> :
+          {brand.logo_url ? <img src={brand.logo_url} alt="logo" style={{ maxHeight:36, maxWidth:150 }} onError={e=>e.target.style.display='none'} /> :
             <div style={{ fontFamily:'Syne,sans-serif', fontWeight:800, fontSize:18, color:accentColor }} className="brand-name">⚡ {brand.company_name}</div>}
         </div>
         <nav style={{ flex:1, padding:'12px 0' }}>
@@ -622,6 +657,7 @@ export default function App() {
         onEdit={()=>{ setEditContact(selectedContact); setSelectedContact(null); setShowForm(true); }}
         onDelete={async()=>{ await supabase.from('contacts').delete().eq('id',selectedContact.id); setSelectedContact(null); refresh(); toast('Contact deleted'); }}
         companyId={profile.company_name}
+        toast={toast}
       />
 
       {/* Contact Form Modal */}
