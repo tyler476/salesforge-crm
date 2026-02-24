@@ -3,64 +3,70 @@ import { supabase } from './lib/supabase';
 
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 const css = `
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
   :root {
-    --bg: #0f172a;
-    --surface: #1e293b;
-    --surface2: #263245;
-    --border: #334155;
-    --accent: #3b82f6;
-    --accent2: #06b6d4;
-    --success: #10b981;
-    --warning: #f59e0b;
-    --danger: #ef4444;
-    --text: #e2e8f0;
-    --muted: #94a3b8;
-    --brand: #3b82f6;
+    --bg: #f0f2f5;
+    --surface: #ffffff;
+    --surface2: #f8f9fb;
+    --border: #e2e6ea;
+    --accent: #1a56db;
+    --accent2: #1e429f;
+    --success: #057a55;
+    --warning: #b45309;
+    --danger: #c81e1e;
+    --text: #111928;
+    --muted: #6b7280;
+    --sidebar-bg: #0f1c3f;
+    --sidebar-text: #c9d3e8;
+    --sidebar-active: #1a56db;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; }
-  input,textarea,select { background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px 14px; border-radius:8px; font-size:14px; width:100%; outline:none; font-family:'Inter',sans-serif; }
-  input:focus,textarea:focus,select:focus { border-color:var(--accent); }
-  button { cursor:pointer; font-family:'Inter',sans-serif; border:none; border-radius:8px; font-size:14px; font-weight:500; transition:all .15s; }
-  .btn-primary { background:var(--accent); color:#fff; padding:10px 20px; }
-  .btn-primary:hover { background:#2563eb; }
-  .btn-secondary { background:var(--surface2); color:var(--text); padding:10px 20px; border:1px solid var(--border); }
-  .btn-secondary:hover { border-color:var(--accent); }
+  body { background:var(--bg); color:var(--text); font-family:'Source Sans 3',sans-serif; }
+  h1,h2,h3 { font-family:'Playfair Display',serif; }
+  input,textarea,select { background:#fff; border:1px solid var(--border); color:var(--text); padding:10px 14px; border-radius:6px; font-size:14px; width:100%; outline:none; font-family:'Source Sans 3',sans-serif; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  input:focus,textarea:focus,select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(26,86,219,.1); }
+  button { cursor:pointer; font-family:'Source Sans 3',sans-serif; border:none; border-radius:6px; font-size:14px; font-weight:600; transition:all .15s; letter-spacing:.01em; }
+  .btn-primary { background:var(--accent); color:#fff; padding:10px 20px; box-shadow:0 1px 3px rgba(26,86,219,.3); }
+  .btn-primary:hover { background:#1648c5; box-shadow:0 2px 6px rgba(26,86,219,.4); }
+  .btn-secondary { background:#fff; color:var(--text); padding:10px 20px; border:1px solid var(--border); box-shadow:0 1px 2px rgba(0,0,0,.05); }
+  .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
   .btn-danger { background:var(--danger); color:#fff; padding:8px 16px; }
-  .btn-sm { padding:6px 12px; font-size:13px; }
-  label { font-size:13px; color:var(--muted); display:block; margin-bottom:5px; }
+  .btn-sm { padding:6px 14px; font-size:13px; }
+  label { font-size:12px; color:var(--muted); display:block; margin-bottom:5px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
   .form-group { margin-bottom:16px; }
-  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; }
-  .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
-  .badge-blue { background:rgba(59,130,246,.2); color:#60a5fa; }
-  .badge-green { background:rgba(16,185,129,.2); color:#34d399; }
-  .badge-yellow { background:rgba(245,158,11,.2); color:#fbbf24; }
-  .badge-red { background:rgba(239,68,68,.2); color:#f87171; }
-  .badge-purple { background:rgba(139,92,246,.2); color:#a78bfa; }
-  .tag { display:inline-block; background:rgba(59,130,246,.15); color:#60a5fa; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px; }
-  ::-webkit-scrollbar { width:6px; height:6px; }
-  ::-webkit-scrollbar-track { background:var(--surface); }
-  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
-  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:100; display:flex; align-items:center; justify-content:center; }
-  .modal { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px; width:90%; max-width:520px; max-height:90vh; overflow-y:auto; }
-  .toast { position:fixed; bottom:24px; right:24px; background:var(--surface2); border:1px solid var(--border); padding:14px 20px; border-radius:10px; z-index:999; font-size:14px; animation:slideIn .2s ease; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .badge { display:inline-block; padding:3px 10px; border-radius:4px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; }
+  .badge-blue { background:#e1effe; color:#1a56db; }
+  .badge-green { background:#def7ec; color:#057a55; }
+  .badge-yellow { background:#fdf6b2; color:#92400e; }
+  .badge-red { background:#fde8e8; color:#c81e1e; }
+  .badge-purple { background:#edebfe; color:#5521b5; }
+  .badge-accent { background:#e1effe; color:#1a56db; }
+  .badge-warning { background:#fdf6b2; color:#92400e; }
+  .tag { display:inline-block; background:#e1effe; color:#1a56db; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px; font-weight:600; }
+  ::-webkit-scrollbar { width:5px; height:5px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
+  .overlay { position:fixed; inset:0; background:rgba(15,28,63,.5); z-index:100; display:flex; align-items:center; justify-content:center; }
+  .modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:32px; width:90%; max-width:540px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.15); }
+  .toast { position:fixed; bottom:24px; right:24px; background:var(--sidebar-bg); color:#fff; border-radius:8px; padding:14px 20px; z-index:999; font-size:14px; animation:slideIn .2s ease; box-shadow:0 8px 24px rgba(0,0,0,.2); }
   @keyframes slideIn { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
-  .sidebar { width:220px; min-height:100vh; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; position:fixed; top:0; left:0; z-index:50; }
-  .main { margin-left:220px; min-height:100vh; }
-  .nav-item { display:flex; align-items:center; gap:10px; padding:10px 16px; border-radius:8px; cursor:pointer; font-size:14px; color:var(--muted); transition:all .15s; margin:2px 8px; }
-  .nav-item:hover { background:var(--surface2); color:var(--text); }
-  .nav-item.active { background:rgba(59,130,246,.15); color:var(--accent); }
-  .header { padding:20px 28px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:var(--surface); }
-  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; }
+  .sidebar { width:240px; min-height:100vh; background:var(--sidebar-bg); display:flex; flex-direction:column; position:fixed; top:0; left:0; z-index:50; box-shadow:2px 0 12px rgba(0,0,0,.15); }
+  .main { margin-left:240px; min-height:100vh; background:var(--bg); }
+  .nav-item { display:flex; align-items:center; gap:12px; padding:10px 20px; cursor:pointer; font-size:14px; color:var(--sidebar-text); transition:all .15s; border-left:3px solid transparent; font-weight:500; }
+  .nav-item:hover { background:rgba(255,255,255,.07); color:#fff; }
+  .nav-item.active { background:rgba(26,86,219,.25); color:#fff; border-left-color:var(--sidebar-active); }
+  .header { padding:20px 32px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:var(--surface); box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:24px; box-shadow:0 1px 3px rgba(0,0,0,.06); border-top:3px solid var(--accent); }
   .table { width:100%; border-collapse:collapse; }
-  .table th { text-align:left; padding:10px 14px; font-size:12px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--border); }
-  .table td { padding:12px 14px; border-bottom:1px solid var(--border); font-size:14px; }
-  .table tr:hover td { background:rgba(255,255,255,.02); }
-  .drawer { position:fixed; top:0; right:0; width:420px; height:100vh; background:var(--surface); border-left:1px solid var(--border); z-index:200; overflow-y:auto; transform:translateX(100%); transition:transform .25s ease; }
+  .table th { text-align:left; padding:12px 16px; font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.08em; border-bottom:2px solid var(--border); background:var(--surface2); }
+  .table td { padding:13px 16px; border-bottom:1px solid var(--border); font-size:14px; }
+  .table tr:hover td { background:#f5f7ff; }
+  .drawer { position:fixed; top:0; right:0; width:440px; height:100vh; background:var(--surface); border-left:1px solid var(--border); z-index:200; overflow-y:auto; transform:translateX(100%); transition:transform .25s ease; box-shadow:-4px 0 20px rgba(0,0,0,.08); }
   .drawer.open { transform:translateX(0); }
-  .kanban-col { background:var(--surface); border:1px solid var(--border); border-radius:12px; min-width:240px; max-width:240px; }
-  .kanban-card { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:12px; margin:8px; cursor:pointer; transition:border-color .15s; }
-  .kanban-card:hover { border-color:var(--accent); }
+  .kanban-col { background:var(--surface2); border:1px solid var(--border); border-radius:8px; min-width:250px; max-width:250px; }
+  .kanban-card { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:14px; margin:8px; cursor:pointer; transition:all .15s; box-shadow:0 1px 3px rgba(0,0,0,.06); }
+  .kanban-card:hover { border-color:var(--accent); box-shadow:0 4px 12px rgba(26,86,219,.1); transform:translateY(-1px); }
   @media(max-width:768px) {
     .sidebar { width:60px; }
     .sidebar .nav-label, .sidebar .brand-name { display:none; }
@@ -128,11 +134,11 @@ function AuthScreen({ onAuth }) {
   };
 
   return (
-    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg)' }}>
+    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'linear-gradient(135deg, #0f1c3f 0%, #1a3a6e 100%)' }}>
       <div style={{ width:'100%', maxWidth:420, padding:20 }}>
         <div style={{ textAlign:'center', marginBottom:32 }}>
-          <div style={{ fontFamily:'Syne,sans-serif', fontSize:28, fontWeight:800, color:'var(--accent)', marginBottom:4 }}>⚡ SalesForge</div>
-          <div style={{ color:'var(--muted)', fontSize:14 }}>Your team's sales command center</div>
+          <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ maxHeight:70, maxWidth:220, marginBottom:12, filter:'brightness(0) invert(1)' }} />
+          <div style={{ color:'rgba(255,255,255,.7)', fontSize:14, marginTop:4 }}>CRM — Team Sales Platform</div>
         </div>
         <div className="card">
           <div style={{ display:'flex', gap:8, marginBottom:24 }}>
@@ -286,7 +292,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
             <div style={{ width:48, height:48, borderRadius:'50%', background:avatarColor(contact.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:16, fontFamily:'Syne,sans-serif' }}>{initials(contact.full_name)}</div>
             <div>
-              <div style={{ fontWeight:700, fontSize:18, fontFamily:'Syne,sans-serif' }}>{contact.full_name}</div>
+              <div style={{ fontWeight:700, fontSize:18, fontFamily:'Playfair Display,serif' }}>{contact.full_name}</div>
               <div style={{ color:'var(--muted)', fontSize:13 }}>{contact.title} {contact.company && `@ ${contact.company}`}</div>
             </div>
           </div>
@@ -381,8 +387,8 @@ function Dashboard({ contacts }) {
   const maxCount = Math.max(...stageCounts.map(s=>s.count),1);
 
   return (
-    <div style={{ padding:28 }}>
-      <div style={{ fontFamily:'Syne,sans-serif', fontSize:22, fontWeight:800, marginBottom:24 }}>Dashboard</div>
+    <div style={{ padding:32 }}>
+      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:24, color:'var(--text)' }}>Dashboard</div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom:28 }}>
         {[['Total Contacts',total,'👥','blue'],['Pipeline Value',fmt(pipeline),'💰','green'],['Win Rate',`${winRate}%`,'🎯','yellow'],['Revenue Won',fmt(closed),'🏆','purple']].map(([label,val,icon,color])=>(
           <div key={label} className="stat-card">
@@ -505,9 +511,9 @@ function ContactsView({ contacts, onAdd, onSelect, toast }) {
   const selectedContacts = contacts.filter(c => selected.includes(c.id));
 
   return (
-    <div style={{ padding:28 }}>
+    <div style={{ padding:32 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-        <div style={{ fontFamily:'Syne,sans-serif', fontSize:22, fontWeight:800 }}>Contacts</div>
+        <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700 }}>Contacts</div>
         <div style={{ display:'flex', gap:10 }}>
           {selected.length > 0 && <button className="btn-secondary" onClick={()=>setShowMassEmail(true)}>📧 Email {selected.length} Selected</button>}
           <button className="btn-primary" onClick={onAdd}>+ Add Contact</button>
@@ -557,8 +563,8 @@ function ContactsView({ contacts, onAdd, onSelect, toast }) {
 // ─── PIPELINE VIEW ────────────────────────────────────────────────────────────
 function PipelineView({ contacts, onSelect }) {
   return (
-    <div style={{ padding:28 }}>
-      <div style={{ fontFamily:'Syne,sans-serif', fontSize:22, fontWeight:800, marginBottom:20 }}>Pipeline Board</div>
+    <div style={{ padding:32 }}>
+      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:20 }}>Pipeline Board</div>
       <div style={{ display:'flex', gap:16, overflowX:'auto', paddingBottom:16 }}>
         {STAGES.map(stage=>{
           const cols = contacts.filter(c=>c.stage===stage);
@@ -609,7 +615,7 @@ function TeamView({ profile, toast }) {
 
   return (
     <div style={{ padding:28, maxWidth:700 }}>
-      <div style={{ fontFamily:'Syne,sans-serif', fontSize:22, fontWeight:800, marginBottom:24 }}>Team</div>
+      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:24 }}>Team</div>
       <div className="card" style={{ marginBottom:20 }}>
         <div style={{ fontWeight:600, marginBottom:12 }}>Invite Team Member</div>
         <div style={{ display:'flex', gap:10 }}>
@@ -658,7 +664,7 @@ function BrandingView({ profile, onBrandUpdate, toast }) {
 
   return (
     <div style={{ padding:28, maxWidth:500 }}>
-      <div style={{ fontFamily:'Syne,sans-serif', fontSize:22, fontWeight:800, marginBottom:24 }}>🎨 Branding</div>
+      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:24 }}>Branding</div>
       <div className="card">
         <div className="form-group"><label>Company Name</label><input value={form.company_name} onChange={e=>set('company_name',e.target.value)} /></div>
         <div className="form-group"><label>Logo URL (direct image link)</label><input value={form.logo_url} onChange={e=>set('logo_url',e.target.value)} placeholder="https://yoursite.com/logo.png" /></div>
@@ -734,9 +740,12 @@ export default function App() {
 
       {/* Sidebar */}
       <div className="sidebar">
-        <div style={{ padding:'20px 16px', borderBottom:'1px solid var(--border)' }}>
+        <div style={{ padding:'20px 20px', borderBottom:'1px solid rgba(255,255,255,.1)' }}>
           {brand.logo_url ? <img src={brand.logo_url} alt="logo" style={{ maxHeight:36, maxWidth:150 }} onError={e=>e.target.style.display='none'} /> :
-            <div style={{ fontFamily:'Syne,sans-serif', fontWeight:800, fontSize:18, color:accentColor }} className="brand-name">⚡ {brand.company_name}</div>}
+            {brand.logo_url ? 
+              <img src={brand.logo_url} alt="logo" style={{ maxHeight:60, maxWidth:180, filter:'brightness(0) invert(1)' }} onError={e=>e.target.style.display='none'} /> :
+              <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ maxHeight:60, maxWidth:180, filter:'brightness(0) invert(1)' }} className="brand-name" />
+            }}
         </div>
         <nav style={{ flex:1, padding:'12px 0' }}>
           {navItems.map(n=>(
@@ -745,15 +754,15 @@ export default function App() {
             </div>
           ))}
         </nav>
-        <div style={{ padding:16, borderTop:'1px solid var(--border)' }}>
+        <div style={{ padding:16, borderTop:'1px solid rgba(255,255,255,.1)' }}>
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
             <div style={{ width:30, height:30, borderRadius:'50%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700 }}>{initials(profile.full_name||'?')}</div>
             <div className="nav-label" style={{ fontSize:13 }}>
-              <div style={{ fontWeight:500, color:'var(--text)' }}>{profile.full_name}</div>
-              <div style={{ color:'var(--muted)', fontSize:11 }}>{profile.role}</div>
+              <div style={{ fontWeight:600, color:'#fff' }}>{profile.full_name}</div>
+              <div style={{ color:'var(--sidebar-text)', fontSize:11, textTransform:'capitalize' }}>{profile.role}</div>
             </div>
           </div>
-          <button className="btn-secondary btn-sm" style={{ width:'100%' }} onClick={logout}>Sign Out</button>
+          <button style={{ width:'100%', padding:'8px', borderRadius:6, background:'rgba(255,255,255,.1)', color:'#c9d3e8', border:'1px solid rgba(255,255,255,.15)', fontSize:13, cursor:'pointer', fontWeight:500 }} onClick={logout}>Sign Out</button>
         </div>
       </div>
 
