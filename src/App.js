@@ -4,17 +4,17 @@ import { supabase } from './lib/supabase';
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 const css = `
   :root {
-    --bg: #f0f2f5;
-    --surface: #ffffff;
-    --surface2: #f8f9fb;
-    --border: #e2e6ea;
-    --accent: #1a56db;
+    --bg: #2d3f54;
+    --surface: #344a61;
+    --surface2: #2a3b50;
+    --border: #3d5270;
+    --accent: #4d8ef0;
     --accent2: #1e429f;
-    --success: #057a55;
-    --warning: #b45309;
-    --danger: #c81e1e;
-    --text: #111928;
-    --muted: #6b7280;
+    --success: #2ecc8a;
+    --warning: #f0b429;
+    --danger: #e05252;
+    --text: #ffffff;
+    --muted: #9db8d4;
     --sidebar-bg: #0f1c3f;
     --sidebar-text: #c9d3e8;
     --sidebar-active: #1a56db;
@@ -22,12 +22,12 @@ const css = `
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Libre Baskerville',Georgia,serif; }
   h1,h2,h3 { font-family:'Playfair Display',serif; }
-  input,textarea,select { background:#fff; border:1px solid var(--border); color:var(--text); padding:10px 14px; border-radius:6px; font-size:14px; width:100%; outline:none; font-family:'Libre Baskerville',Georgia,serif; box-shadow:0 1px 2px rgba(0,0,0,.04); }
+  input,textarea,select { background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px 14px; border-radius:6px; font-size:14px; width:100%; outline:none; font-family:'Libre Baskerville',Georgia,serif; box-shadow:0 1px 2px rgba(0,0,0,.1); }
   input:focus,textarea:focus,select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(26,86,219,.1); }
   button { cursor:pointer; font-family:'Libre Baskerville',Georgia,serif; border:none; border-radius:6px; font-size:14px; font-weight:700; transition:all .15s; letter-spacing:.01em; }
   .btn-primary { background:var(--accent); color:#fff; padding:10px 20px; box-shadow:0 1px 3px rgba(26,86,219,.3); }
   .btn-primary:hover { background:#1648c5; box-shadow:0 2px 6px rgba(26,86,219,.4); }
-  .btn-secondary { background:#fff; color:var(--text); padding:10px 20px; border:1px solid var(--border); box-shadow:0 1px 2px rgba(0,0,0,.05); }
+  .btn-secondary { background:var(--surface2); color:var(--text); padding:10px 20px; border:1px solid var(--border); box-shadow:0 1px 2px rgba(0,0,0,.1); }
   .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
   .btn-danger { background:var(--danger); color:#fff; padding:8px 16px; }
   .btn-sm { padding:6px 14px; font-size:13px; }
@@ -47,7 +47,7 @@ const css = `
   ::-webkit-scrollbar-track { background:var(--bg); }
   ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
   .overlay { position:fixed; inset:0; background:rgba(15,28,63,.5); z-index:100; display:flex; align-items:center; justify-content:center; }
-  .modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:32px; width:90%; max-width:540px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.15); }
+  .modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:32px; width:90%; max-width:540px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.4); }
   .toast { position:fixed; bottom:24px; right:24px; background:var(--sidebar-bg); color:#fff; border-radius:8px; padding:14px 20px; z-index:999; font-size:14px; animation:slideIn .2s ease; box-shadow:0 8px 24px rgba(0,0,0,.2); }
   @keyframes slideIn { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
   .sidebar { width:240px; min-height:100vh; background:var(--sidebar-bg); display:flex; flex-direction:column; position:fixed; top:0; left:0; z-index:50; box-shadow:2px 0 12px rgba(0,0,0,.15); font-family:'Source Sans 3',system-ui,sans-serif; }
@@ -58,9 +58,9 @@ const css = `
   .header { padding:20px 32px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:var(--surface); box-shadow:0 1px 3px rgba(0,0,0,.06); }
   .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:24px; box-shadow:0 1px 3px rgba(0,0,0,.06); border-top:3px solid var(--accent); }
   .table { width:100%; border-collapse:collapse; }
-  .table th { text-align:left; padding:12px 16px; font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.08em; border-bottom:2px solid var(--border); background:var(--surface2); }
+  .table th { text-align:left; padding:12px 16px; font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.08em; border-bottom:2px solid var(--border); background:var(--surface2); color:#9db8d4; }
   .table td { padding:13px 16px; border-bottom:1px solid var(--border); font-size:14px; }
-  .table tr:hover td { background:#f5f7ff; }
+  .table tr:hover td { background:rgba(255,255,255,.05); }
   .drawer { position:fixed; top:0; right:0; width:440px; height:100vh; background:var(--surface); border-left:1px solid var(--border); z-index:200; overflow-y:auto; transform:translateX(100%); transition:transform .25s ease; box-shadow:-4px 0 20px rgba(0,0,0,.08); }
   .drawer.open { transform:translateX(0); }
   .kanban-col { background:var(--surface2); border:1px solid var(--border); border-radius:8px; min-width:250px; max-width:250px; }
@@ -75,8 +75,8 @@ const css = `
 `;
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
-const STAGES = ['New Lead','Contacted','Qualified','Proposal','Negotiation','Won','Lost'];
-const STAGE_COLORS = { 'New Lead':'blue','Contacted':'purple','Qualified':'yellow','Proposal':'accent','Negotiation':'warning','Won':'green','Lost':'red' };
+const STAGES = ['New Lead','Contacted','Qualified','Proposal','Negotiation','Converted','Non-Conversion'];
+const STAGE_COLORS = { 'New Lead':'blue','Contacted':'purple','Qualified':'yellow','Proposal':'accent','Negotiation':'warning','Converted':'green','Non-Conversion':'red' };
 const SOURCES = ['Website','Referral','Cold Outreach','LinkedIn','Event','Other'];
 const INDUSTRIES = ['Technology','Healthcare','Finance','Real Estate','Retail','Manufacturing','Other'];
 
@@ -377,10 +377,10 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 function Dashboard({ contacts }) {
   const total = contacts.length;
-  const pipeline = contacts.filter(c=>!['Won','Lost'].includes(c.stage)).reduce((s,c)=>s+(c.deal_value||0),0);
-  const won = contacts.filter(c=>c.stage==='Won').length;
+  const pipeline = contacts.filter(c=>!['Converted','Non-Conversion'].includes(c.stage)).reduce((s,c)=>s+(c.deal_value||0),0);
+  const won = contacts.filter(c=>c.stage==='Converted').length;
   const winRate = total > 0 ? Math.round((won/total)*100) : 0;
-  const closed = contacts.filter(c=>c.stage==='Won').reduce((s,c)=>s+(c.deal_value||0),0);
+  const closed = contacts.filter(c=>c.stage==='Converted').reduce((s,c)=>s+(c.deal_value||0),0);
 
   const stageCounts = STAGES.map(s=>({ stage:s, count:contacts.filter(c=>c.stage===s).length, value:contacts.filter(c=>c.stage===s).reduce((a,b)=>a+(b.deal_value||0),0) }));
   const maxCount = Math.max(...stageCounts.map(s=>s.count),1);
@@ -389,9 +389,14 @@ function Dashboard({ contacts }) {
     <div style={{ padding:32 }}>
       <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:24, color:'var(--text)' }}>Dashboard</div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom:28 }}>
-        {[['Total Contacts',total,'👥','blue'],['Pipeline Value',fmt(pipeline),'💰','green'],['Win Rate',`${winRate}%`,'🎯','yellow'],['Revenue Won',fmt(closed),'🏆','purple']].map(([label,val,icon,color])=>(
+        {[
+          ['Total Contacts',total,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4d8ef0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,'blue'],
+          ['Funnel Value',fmt(pipeline),<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2ecc8a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,'green'],
+          ['Conversion Rate',`${winRate}%`,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f0b429" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,'yellow'],
+          ['Total Revenue',fmt(closed),<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4d8ef0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>,'purple'],
+        ].map(([label,val,icon,color])=>(
           <div key={label} className="stat-card">
-            <div style={{ fontSize:24, marginBottom:6 }}>{icon}</div>
+            <div style={{ marginBottom:10 }}>{icon}</div>
             <div style={{ fontFamily:'JetBrains Mono,monospace', fontSize:24, fontWeight:700, color:`var(--${color==='blue'?'accent':color==='green'?'success':color==='yellow'?'warning':'accent2'})` }}>{val}</div>
             <div style={{ color:'var(--muted)', fontSize:13, marginTop:4 }}>{label}</div>
           </div>
@@ -399,7 +404,7 @@ function Dashboard({ contacts }) {
       </div>
 
       <div className="card" style={{ marginBottom:20 }}>
-        <div style={{ fontWeight:600, marginBottom:16 }}>Pipeline by Stage</div>
+        <div style={{ fontWeight:600, marginBottom:16 }}>Funnel by Stage</div>
         {stageCounts.map(({ stage, count, value })=>(
           <div key={stage} style={{ marginBottom:12 }}>
             <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
