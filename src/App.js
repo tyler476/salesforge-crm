@@ -740,11 +740,7 @@ export default function App() {
       {/* Sidebar */}
       <div className="sidebar">
         <div style={{ padding:'20px 20px', borderBottom:'1px solid rgba(255,255,255,.1)' }}>
-          {brand.logo_url ? <img src={brand.logo_url} alt="logo" style={{ maxHeight:36, maxWidth:150 }} onError={e=>e.target.style.display='none'} /> :
-            {brand.logo_url ? 
-              <img src={brand.logo_url} alt="logo" style={{ maxHeight:60, maxWidth:180, filter:'brightness(0) invert(1)' }} onError={e=>e.target.style.display='none'} /> :
-              <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ maxHeight:60, maxWidth:180, filter:'brightness(0) invert(1)' }} className="brand-name" />
-            }}
+          <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ maxHeight:60, maxWidth:180, filter:'brightness(0) invert(1)' }} className="brand-name" />
         </div>
         <nav style={{ flex:1, padding:'12px 0' }}>
           {navItems.map(n=>(
