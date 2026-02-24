@@ -769,6 +769,26 @@ function BrandingView({ profile, onBrandUpdate, toast }) {
 
 
 
+// ─── INPUT MODAL ──────────────────────────────────────────────────────────────
+function InputModal({ title, placeholder, defaultValue='', onConfirm, onClose }) {
+  const [value, setValue] = useState(defaultValue);
+  return (
+    <div className="overlay" style={{ zIndex:500 }}>
+      <div className="modal" style={{ maxWidth:420 }}>
+        <div style={{ fontFamily:"Playfair Display,serif", fontSize:18, fontWeight:700, marginBottom:16 }}>{title}</div>
+        <input autoFocus value={value} onChange={e=>setValue(e.target.value)}
+          placeholder={placeholder}
+          onKeyDown={e=>{ if(e.key==='Enter'&&value.trim()){onConfirm(value.trim());onClose();} if(e.key==='Escape')onClose(); }}
+          style={{ marginBottom:20 }} />
+        <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-primary" onClick={()=>{ if(value.trim()){onConfirm(value.trim());onClose();} }}>Confirm</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── WORKSPACE VIEW ───────────────────────────────────────────────────────────
 function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
   const [inputModal, setInputModal] = useState(null); // { title, placeholder, defaultValue, onConfirm }
