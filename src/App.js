@@ -413,7 +413,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWorkspace }) {
+function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWorkspace, onNavigate }) {
   const [showNewWs, setShowNewWs] = useState(false);
   const total = contacts.length;
   const pipeline = contacts.filter(c=>!['Converted','Non-Conversion'].includes(c.stage)).reduce((s,c)=>s+(c.deal_value||0),0);
@@ -427,23 +427,66 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
   return (
     <div style={{ padding:32 }}>
       <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:24, color:'var(--text)' }}>Dashboard</div>
+
+      {/* ── MAIN WORKSPACE SECTION (TOP) ── */}
+      <div style={{ marginBottom:32 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+          <div>
+            <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Main Workspace</div>
+            <div style={{ fontFamily:'Playfair Display,serif', fontSize:20, fontWeight:700 }}>Citizens Financial</div>
+          </div>
+          {profile?.role==='admin' && <button className="btn-primary btn-sm" onClick={()=>setShowNewWs(true)}>+ New Workspace</button>}
+        </div>
+        {workspaces.length===0 ? (
+          <div className="card" style={{ textAlign:'center', padding:40 }}>
+            <div style={{ fontSize:32, marginBottom:12 }}>📋</div>
+            <div style={{ fontWeight:600, marginBottom:6 }}>No workspaces yet</div>
+            <div style={{ color:'var(--muted)', fontSize:13, marginBottom:16 }}>Create workspaces to manage loans, tasks, and team projects</div>
+            {profile?.role==='admin' && <button className="btn-primary" onClick={()=>setShowNewWs(true)}>Create First Workspace</button>}
+          </div>
+        ) : (
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:14 }}>
+            {workspaces.map((w,i)=>{
+              const colors = ['#4d8ef0','#2ecc8a','#9b59b6','#f0b429','#e05252','#00b8c4'];
+              const color = colors[i % colors.length];
+              return (
+                <div key={w.id} onClick={()=>onOpenWorkspace(w)} style={{ cursor:'pointer', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:'20px 18px', transition:'all .2s', borderLeft:`4px solid ${color}`, position:'relative', overflow:'hidden' }}
+                  onMouseOver={e=>{ e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow=`0 8px 24px rgba(0,0,0,.2)`; }}
+                  onMouseOut={e=>{ e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }}>
+                  <div style={{ width:36, height:36, borderRadius:8, background:color+'22', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:12 }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                  </div>
+                  <div style={{ fontWeight:700, fontSize:14, marginBottom:4 }}>{w.name}</div>
+                  <div style={{ color:'var(--muted)', fontSize:12 }}>Open workspace →</div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ── STATS ── */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom:28 }}>
         {[
-          ['Total Contacts',total,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4d8ef0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,'blue'],
-          ['Funnel Value',fmt(pipeline),<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2ecc8a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,'green'],
-          ['Conversion Rate',`${winRate}%`,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f0b429" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,'yellow'],
-          ['Total Revenue',fmt(closed),<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4d8ef0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>,'purple'],
-        ].map(([label,val,icon,color])=>(
-          <div key={label} className="stat-card">
+          ['Total Contacts',total,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4d8ef0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,'blue','contacts'],
+          ['Funnel Value',fmt(pipeline),<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2ecc8a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,'green','pipeline'],
+          ['Conversion Rate',`${winRate}%`,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f0b429" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,'yellow','pipeline'],
+          ['Total Revenue',fmt(closed),<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4d8ef0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>,'purple','contacts'],
+        ].map(([label,val,icon,color,nav])=>(
+          <div key={label} className="stat-card" onClick={()=>nav&&onNavigate(nav)} style={{ cursor:nav?'pointer':'default', transition:'all .2s' }}
+            onMouseOver={e=>{ if(nav) e.currentTarget.style.transform='translateY(-2px)'; }}
+            onMouseOut={e=>{ e.currentTarget.style.transform='translateY(0)'; }}>
             <div style={{ marginBottom:10 }}>{icon}</div>
             <div style={{ fontFamily:'JetBrains Mono,monospace', fontSize:24, fontWeight:700, color:`var(--${color==='blue'?'accent':color==='green'?'success':color==='yellow'?'warning':'accent2'})` }}>{val}</div>
             <div style={{ color:'var(--muted)', fontSize:13, marginTop:4 }}>{label}</div>
+            {nav && <div style={{ fontSize:11, color:'var(--accent)', marginTop:6 }}>View →</div>}
           </div>
         ))}
       </div>
 
+      {/* ── FUNNEL BY STAGE ── */}
       <div className="card" style={{ marginBottom:20 }}>
-        <div style={{ fontWeight:600, marginBottom:16 }}>Funnel by Stage</div>
+        <div style={{ fontWeight:600, marginBottom:16, display:'flex', justifyContent:'space-between', alignItems:'center' }}><span>Funnel by Stage</span><span onClick={()=>onNavigate('pipeline')} style={{ fontSize:12, color:'var(--accent)', cursor:'pointer' }}>View Lead Funnel →</span></div>
         {stageCounts.map(({ stage, count, value })=>(
           <div key={stage} style={{ marginBottom:12 }}>
             <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
@@ -457,8 +500,9 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
         ))}
       </div>
 
+      {/* ── RECENT CONTACTS ── */}
       <div className="card">
-        <div style={{ fontWeight:600, marginBottom:14 }}>Recent Contacts</div>
+        <div style={{ fontWeight:600, marginBottom:14, display:'flex', justifyContent:'space-between', alignItems:'center' }}><span>Recent Contacts</span><span onClick={()=>onNavigate('contacts')} style={{ fontSize:12, color:'var(--accent)', cursor:'pointer' }}>View All →</span></div>
         {contacts.slice(0,5).map(c=>(
           <div key={c.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid var(--border)' }}>
             <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(c.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700 }}>{initials(c.full_name)}</div>
@@ -472,33 +516,6 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
         {contacts.length===0 && <div style={{ color:'var(--muted)', fontSize:13 }}>No contacts yet. Add your first lead!</div>}
       </div>
 
-      {/* Workspaces Section */}
-      <div style={{ marginTop:28 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-          <div style={{ fontFamily:'Playfair Display,serif', fontSize:20, fontWeight:700 }}>Workspaces</div>
-          {profile?.role==='admin' && <button className="btn-primary btn-sm" onClick={()=>setShowNewWs(true)}>+ New Workspace</button>}
-        </div>
-        {workspaces.length===0 ? (
-          <div className="card" style={{ textAlign:'center', padding:40 }}>
-            <div style={{ fontSize:32, marginBottom:12 }}>📋</div>
-            <div style={{ fontWeight:600, marginBottom:6 }}>No workspaces yet</div>
-            <div style={{ color:'var(--muted)', fontSize:13, marginBottom:16 }}>Create a workspace to manage loans, tasks, and team projects</div>
-            {profile?.role==='admin' && <button className="btn-primary" onClick={()=>setShowNewWs(true)}>Create First Workspace</button>}
-          </div>
-        ) : (
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:16 }}>
-            {workspaces.map(w=>(
-              <div key={w.id} onClick={()=>onOpenWorkspace(w)} className="card" style={{ cursor:'pointer', transition:'all .2s', borderTop:'3px solid var(--accent)' }}
-                onMouseOver={e=>e.currentTarget.style.transform='translateY(-2px)'}
-                onMouseOut={e=>e.currentTarget.style.transform='translateY(0)'}>
-                <div style={{ fontSize:24, marginBottom:10 }}>📋</div>
-                <div style={{ fontWeight:700, fontSize:15, marginBottom:4 }}>{w.name}</div>
-                <div style={{ color:'var(--muted)', fontSize:12 }}>Click to open</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
       {showNewWs && <InputModal title="New Workspace" placeholder="e.g. Loans In Process" onConfirm={name=>{ onCreateWorkspace(name); setShowNewWs(false); }} onClose={()=>setShowNewWs(false)} />}
     </div>
   );
@@ -1275,7 +1292,7 @@ export default function App() {
 
       {/* Main */}
       <div className="main">
-        {view==='dashboard' && <Dashboard contacts={contacts} workspaces={workspaces} onOpenWorkspace={w=>{ setActiveWorkspace(w); setView('workspace'); }} profile={profile} onCreateWorkspace={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setActiveWorkspace(data); setView('workspace');}}} />}
+        {view==='dashboard' && <Dashboard contacts={contacts} workspaces={workspaces} onOpenWorkspace={w=>{ setActiveWorkspace(w); setView('workspace'); }} profile={profile} onCreateWorkspace={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setActiveWorkspace(data); setView('workspace');}}} onNavigate={v=>{ setView(v); setActiveWorkspace(null); }} />}
         {view==='contacts' && <ContactsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} toast={toast} />}
         {view==='pipeline' && <PipelineView contacts={contacts} onSelect={c=>setSelectedContact(c)} />}
         {view==='team' && <TeamView profile={profile} toast={toast} />}
