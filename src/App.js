@@ -427,9 +427,71 @@ function Dashboard({ contacts }) {
 }
 
 // ─── CONTACTS VIEW ────────────────────────────────────────────────────────────
-function ContactsView({ contacts, onAdd, onSelect }) {
+function MassEmailModal({ contacts, onClose, onSent }) {
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [sending, setSending] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  const send = async () => {
+    const withEmail = contacts.filter(c => c.email);
+    if (!subject.trim() || !body.trim()) { alert('Please enter subject and message'); return; }
+    if (withEmail.length === 0) { alert('No contacts with email addresses selected'); return; }
+    setSending(true);
+    for (let i = 0; i < withEmail.length; i++) {
+      const c = withEmail[i];
+      try {
+        const firstName = (c.full_name || '').split(' ')[0];
+        const personalizedBody = body.replace(/{{name}}/gi, firstName);
+        const personalizedSubject = subject.replace(/{{name}}/gi, firstName);
+        await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + process.env.REACT_APP_SUPABASE_ANON_KEY },
+          body: JSON.stringify({ to: c.email, subject: personalizedSubject, body: personalizedBody })
+        });
+        await supabase.from('activities').insert([{ contact_id: c.id, company_id: c.company_id, type: 'email', body: 'Subject: ' + personalizedSubject + '\n\n' + personalizedBody }]);
+      } catch(e) { console.error('Failed to send to', c.email); }
+      setProgress(i + 1);
+    }
+    setSending(false);
+    onSent(withEmail.length);
+  };
+
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal">
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <h2 style={{ fontFamily:'Syne,sans-serif', fontWeight:700 }}>📧 Mass Email</h2>
+          <button onClick={onClose} style={{ background:'none', color:'var(--muted)', fontSize:20 }}>✕</button>
+        </div>
+        <div style={{ background:'rgba(59,130,246,.1)', border:'1px solid rgba(59,130,246,.3)', borderRadius:8, padding:12, marginBottom:16, fontSize:13, color:'#60a5fa' }}>
+          Sending to <strong>{contacts.filter(c=>c.email).length}</strong> contacts with email addresses ({contacts.length - contacts.filter(c=>c.email).length} skipped — no email)
+        </div>
+        <div style={{ background:"rgba(16,185,129,.1)", border:"1px solid rgba(16,185,129,.3)", borderRadius:8, padding:"8px 12px", marginBottom:12, fontSize:12, color:"#34d399" }}>💡 Tip: Use <strong>{"{{name}}"}</strong> anywhere to insert each contact's first name</div>
+        <div className="form-group"><label>Subject</label><input value={subject} onChange={e=>setSubject(e.target.value)} placeholder="Email subject..." /></div>
+        <div className="form-group"><label>Message</label><textarea rows={6} value={body} onChange={e=>setBody(e.target.value)} placeholder="Write your email..." /></div>
+        {sending && (
+          <div style={{ marginBottom:16 }}>
+            <div style={{ fontSize:13, color:'var(--muted)', marginBottom:6 }}>Sending {progress} of {contacts.filter(c=>c.email).length}...</div>
+            <div style={{ height:6, background:'var(--surface2)', borderRadius:3 }}>
+              <div style={{ height:'100%', width:`${(progress/contacts.filter(c=>c.email).length)*100}%`, background:'var(--accent)', borderRadius:3, transition:'width .3s' }} />
+            </div>
+          </div>
+        )}
+        <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-primary" onClick={send} disabled={sending}>{sending ? 'Sending...' : '📧 Send to All'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ContactsView({ contacts, onAdd, onSelect, toast }) {
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState('All');
+  const [selected, setSelected] = useState([]);
+  const [showMassEmail, setShowMassEmail] = useState(false);
 
   const filtered = contacts.filter(c => {
     const q = search.toLowerCase();
@@ -438,11 +500,18 @@ function ContactsView({ contacts, onAdd, onSelect }) {
     return match && stageMatch;
   });
 
+  const toggleSelect = (id, e) => { e.stopPropagation(); setSelected(s => s.includes(id) ? s.filter(x=>x!==id) : [...s, id]); };
+  const toggleAll = () => setSelected(s => s.length === filtered.length ? [] : filtered.map(c=>c.id));
+  const selectedContacts = contacts.filter(c => selected.includes(c.id));
+
   return (
     <div style={{ padding:28 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
         <div style={{ fontFamily:'Syne,sans-serif', fontSize:22, fontWeight:800 }}>Contacts</div>
-        <button className="btn-primary" onClick={onAdd}>+ Add Contact</button>
+        <div style={{ display:'flex', gap:10 }}>
+          {selected.length > 0 && <button className="btn-secondary" onClick={()=>setShowMassEmail(true)}>📧 Email {selected.length} Selected</button>}
+          <button className="btn-primary" onClick={onAdd}>+ Add Contact</button>
+        </div>
       </div>
       <div style={{ display:'flex', gap:12, marginBottom:20 }}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search contacts..." style={{ maxWidth:300 }} />
@@ -453,10 +522,14 @@ function ContactsView({ contacts, onAdd, onSelect }) {
       </div>
       <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, overflow:'hidden' }}>
         <table className="table">
-          <thead><tr><th>Name</th><th>Company</th><th>Stage</th><th>Deal Value</th><th>Source</th></tr></thead>
+          <thead><tr>
+            <th style={{ width:40 }}><input type="checkbox" checked={selected.length===filtered.length&&filtered.length>0} onChange={toggleAll} /></th>
+            <th>Name</th><th>Company</th><th>Stage</th><th>Deal Value</th><th>Source</th>
+          </tr></thead>
           <tbody>
             {filtered.map(c=>(
               <tr key={c.id} style={{ cursor:'pointer' }} onClick={()=>onSelect(c)}>
+                <td onClick={e=>toggleSelect(c.id,e)}><input type="checkbox" checked={selected.includes(c.id)} onChange={()=>{}} /></td>
                 <td>
                   <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                     <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(c.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700 }}>{initials(c.full_name)}</div>
@@ -476,6 +549,7 @@ function ContactsView({ contacts, onAdd, onSelect }) {
         </table>
         {filtered.length===0 && <div style={{ padding:40, textAlign:'center', color:'var(--muted)' }}>No contacts found</div>}
       </div>
+      {showMassEmail && <MassEmailModal contacts={selectedContacts} onClose={()=>setShowMassEmail(false)} onSent={(n)=>{ setShowMassEmail(false); setSelected([]); toast('Sent to ' + n + ' contacts!'); }} />}
     </div>
   );
 }
@@ -686,7 +760,7 @@ export default function App() {
       {/* Main */}
       <div className="main">
         {view==='dashboard' && <Dashboard contacts={contacts} />}
-        {view==='contacts' && <ContactsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} />}
+        {view==='contacts' && <ContactsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} toast={toast} />}
         {view==='pipeline' && <PipelineView contacts={contacts} onSelect={c=>setSelectedContact(c)} />}
         {view==='team' && <TeamView profile={profile} toast={toast} />}
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
