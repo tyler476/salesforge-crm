@@ -4,10 +4,10 @@ import { supabase } from './lib/supabase';
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 const css = `
   :root {
-    --bg: #1e3048;
-    --surface: #243850;
-    --surface2: #1a2b3f;
-    --border: #3d5270;
+    --bg: #152540;
+    --surface: #1a2e4a;
+    --surface2: #112036;
+    --border: #243d5e;
     --accent: #4d8ef0;
     --accent2: #1e429f;
     --success: #2ecc8a;
@@ -51,7 +51,7 @@ const css = `
   .toast { position:fixed; bottom:24px; right:24px; background:var(--sidebar-bg); color:#fff; border-radius:8px; padding:14px 20px; z-index:999; font-size:14px; animation:slideIn .2s ease; box-shadow:0 8px 24px rgba(0,0,0,.2); }
   @keyframes slideIn { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
   .sidebar { width:240px; min-height:100vh; background:var(--sidebar-bg); display:flex; flex-direction:column; position:fixed; top:0; left:0; z-index:50; box-shadow:2px 0 12px rgba(0,0,0,.15); font-family:'Source Sans 3',system-ui,sans-serif; }
-  .main { margin-left:240px; min-height:100vh; background:linear-gradient(135deg, #0f1c3f 0%, #1e3048 30%, #243d58 100%); }
+  .main { margin-left:240px; min-height:100vh; background:linear-gradient(to right, #0f1c3f 0%, #152540 20%, #1a2e4a 60%, #1e3350 100%); }
   .nav-item { display:flex; align-items:center; gap:12px; padding:10px 20px; cursor:pointer; font-size:14px; color:var(--sidebar-text); transition:all .15s; border-left:3px solid transparent; font-weight:500; }
   .nav-item:hover { background:rgba(255,255,255,.07); color:#fff; }
   .nav-item.active { background:rgba(26,86,219,.25); color:#fff; border-left-color:var(--sidebar-active); }
@@ -137,7 +137,8 @@ function AuthScreen({ onAuth }) {
       <div style={{ width:'100%', maxWidth:420, padding:20 }}>
         <div style={{ textAlign:'center', marginBottom:32 }}>
           <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ maxHeight:70, maxWidth:220, marginBottom:12, filter:'brightness(0) invert(1)' }} />
-          <div style={{ color:'rgba(255,255,255,.7)', fontSize:14, marginTop:4 }}>CRM — Team Sales Platform</div>
+          <div style={{ color:'#fff', fontSize:18, fontWeight:700, marginTop:8, fontFamily:'Playfair Display,serif' }}>Citizens Client Hub</div>
+          <div style={{ color:'rgba(255,255,255,.45)', fontSize:11, marginTop:6, letterSpacing:'.04em' }}>Powered by the Badges Broker</div>
         </div>
         <div className="card">
           <div style={{ display:'flex', gap:8, marginBottom:24 }}>
