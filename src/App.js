@@ -1262,21 +1262,40 @@ export default function App() {
               <span>{n.icon}</span><span className="nav-label">{n.label}</span>
             </div>
           ))}
-          <div className="nav-label" style={{ padding:'16px 20px 6px', fontSize:11, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:'.08em', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-            <span>Workspaces</span>
-            <div style={{ display:'flex', gap:6 }}>
-              <span onClick={()=>setWorkspacesOpen(o=>!o)} style={{ cursor:'pointer', color:'rgba(255,255,255,.4)', display:'flex' }}>{Icons.chevron}</span>
-              {profile.role==='admin' && <span onClick={()=>setSidebarNewWs(true)} style={{ cursor:'pointer', color:'rgba(255,255,255,.4)', display:'flex' }}>{Icons.plus}</span>}
+          {/* Main Workspace Dropdown */}
+          <div style={{ margin:'8px 0' }}>
+            {/* Main Workspace Header */}
+            <div onClick={()=>setWorkspacesOpen(o=>!o)} style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 16px', cursor:'pointer', borderRadius:6, margin:'0 8px' }}
+              onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.06)'}
+              onMouseOut={e=>e.currentTarget.style.background=''}>
+              <div style={{ width:24, height:24, borderRadius:6, background:'linear-gradient(135deg,#4d8ef0,#1a56db)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+              </div>
+              <span className="nav-label" style={{ flex:1, fontSize:13, fontWeight:600, color:'#fff' }}>Main Workspace</span>
+              <span className="nav-label" style={{ transform:workspacesOpen?'rotate(0)':'rotate(-90deg)', transition:'transform .2s', display:'flex', color:'rgba(255,255,255,.4)' }}>{Icons.chevron}</span>
             </div>
+            {/* Workspace Children */}
+            {workspacesOpen && (
+              <div style={{ marginLeft:8 }}>
+                {workspaces.map(w=>(
+                  <div key={w.id} className={`nav-item ${activeWorkspace?.id===w.id?'active':''}`}
+                    onClick={()=>{ setActiveWorkspace(w); setView('workspace'); }}
+                    style={{ paddingLeft:40, fontSize:13 }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                    <span className="nav-label">{w.name}</span>
+                  </div>
+                ))}
+                {profile.role==='admin' && (
+                  <div onClick={()=>setSidebarNewWs(true)} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 16px 6px 40px', cursor:'pointer', color:'rgba(255,255,255,.3)', fontSize:12, borderRadius:6, margin:'0 8px' }}
+                    onMouseOver={e=>e.currentTarget.style.color='rgba(255,255,255,.6)'}
+                    onMouseOut={e=>e.currentTarget.style.color='rgba(255,255,255,.3)'}>
+                    <span style={{ display:'flex' }}>{Icons.plus}</span>
+                    <span className="nav-label">Add Workspace</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          {workspacesOpen && workspaces.map(w=>(
-            <div key={w.id} className={`nav-item ${activeWorkspace?.id===w.id?'active':''}`} onClick={()=>{ setActiveWorkspace(w); setView('workspace'); }} style={{ paddingLeft:28 }}>
-              <span>{Icons.workspace}</span><span className="nav-label">{w.name}</span>
-            </div>
-          ))}
-          {workspacesOpen && workspaces.length===0 && profile.role==='admin' && (
-            <div className="nav-label" style={{ padding:'6px 28px', fontSize:12, color:'rgba(255,255,255,.25)', fontStyle:'italic' }}>No workspaces yet</div>
-          )}
         </nav>
         <div style={{ padding:16, borderTop:'1px solid rgba(255,255,255,.1)' }}>
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
