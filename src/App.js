@@ -918,6 +918,11 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
   const [inputModal, setInputModal] = useState(null);
   const [showStatusManager, setShowStatusManager] = useState(false);
   const [groups, setGroups] = useState([]);
+  const [selected, setSelected] = useState({}); // { groupId: Set of itemIds }
+  const [subItems, setSubItems] = useState({}); // { parentId: [subitems] }
+  const [expandedItems, setExpandedItems] = useState({});
+  const [editingGroupId, setEditingGroupId] = useState(null);
+  const [editingGroupName, setEditingGroupName] = useState('');
   const [items, setItems] = useState({});
   const [statuses, setStatuses] = useState([]);
   const [collapsed, setCollapsed] = useState({});
@@ -943,8 +948,13 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
   };
 
   const loadItems = async (groupId) => {
-    const {data} = await supabase.from('workspace_items').select('*').eq('group_id', groupId).order('position');
+    const {data} = await supabase.from('workspace_items').select('*').eq('group_id', groupId).is('parent_id', null).eq('archived', false).order('position');
     setItems(prev => ({...prev, [groupId]: data||[]}));
+  };
+
+  const loadSubItems = async (parentId) => {
+    const {data} = await supabase.from('workspace_items').select('*').eq('parent_id', parentId).order('position');
+    setSubItems(prev => ({...prev, [parentId]: data||[]}));
   };
 
   const loadStatuses = async () => {
@@ -968,13 +978,84 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
     }});
   };
 
+  const addSubItem = (parentId, groupId) => {
+    setInputModal({ title:'Add Sub-item', placeholder:'Sub-item name...', defaultValue:'', onConfirm: async(name) => {
+      const {data} = await supabase.from('workspace_items').insert([{group_id:groupId, company_id:profile.company_name, name, parent_id:parentId, position:(subItems[parentId]||[]).length}]).select().single();
+      if(data) { setSubItems(prev=>({...prev,[parentId]:[...(prev[parentId]||[]),data]})); setExpandedItems(prev=>({...prev,[parentId]:true})); }
+    }});
+  };
+
+  const duplicateItems = async (groupId, itemIds) => {
+    for(const id of itemIds) {
+      const original = (items[groupId]||[]).find(i=>i.id===id);
+      if(!original) continue;
+      const {id:_id, created_at, ...rest} = original;
+      const {data} = await supabase.from('workspace_items').insert([{...rest, name: original.name+' (copy)'}]).select().single();
+      if(data) setItems(prev=>({...prev,[groupId]:[...(prev[groupId]||[]),data]}));
+    }
+    setSelected({});
+  };
+
+  const archiveItems = async (groupId, itemIds) => {
+    for(const id of itemIds) await supabase.from('workspace_items').update({archived:true}).eq('id',id);
+    setItems(prev=>({...prev,[groupId]:(prev[groupId]||[]).filter(i=>!itemIds.includes(i.id))}));
+    setSelected({});
+  };
+
+  const deleteSelectedItems = async (groupId, itemIds) => {
+    for(const id of itemIds) await supabase.from('workspace_items').delete().eq('id',id);
+    setItems(prev=>({...prev,[groupId]:(prev[groupId]||[]).filter(i=>!itemIds.includes(i.id))}));
+    setSelected({});
+  };
+
+  const moveItemsToGroup = async (fromGroupId, itemIds, toGroupId) => {
+    for(const id of itemIds) await supabase.from('workspace_items').update({group_id:toGroupId}).eq('id',id);
+    const moved = (items[fromGroupId]||[]).filter(i=>itemIds.includes(i.id));
+    setItems(prev=>({
+      ...prev,
+      [fromGroupId]:(prev[fromGroupId]||[]).filter(i=>!itemIds.includes(i.id)),
+      [toGroupId]:[...(prev[toGroupId]||[]),...moved.map(i=>({...i,group_id:toGroupId}))]
+    }));
+    setSelected({});
+  };
+
+  const renameGroup = async (groupId, name) => {
+    await supabase.from('workspace_groups').update({name}).eq('id',groupId);
+    setGroups(g=>g.map(x=>x.id===groupId?{...x,name}:x));
+    setEditingGroupId(null);
+  };
+
+  const deleteGroup = async (groupId) => {
+    await supabase.from('workspace_groups').delete().eq('id',groupId);
+    setGroups(g=>g.filter(x=>x.id!==groupId));
+    setItems(prev=>{ const n={...prev}; delete n[groupId]; return n; });
+  };
+
+  const toggleSelect = (groupId, itemId) => {
+    setSelected(prev => {
+      const groupSet = new Set(prev[groupId]||[]);
+      if(groupSet.has(itemId)) groupSet.delete(itemId); else groupSet.add(itemId);
+      return {...prev, [groupId]: groupSet};
+    });
+  };
+
+  const toggleSelectAll = (groupId, groupItems) => {
+    setSelected(prev => {
+      const groupSet = new Set(prev[groupId]||[]);
+      const allSelected = groupItems.every(i=>groupSet.has(i.id));
+      if(allSelected) return {...prev, [groupId]: new Set()};
+      return {...prev, [groupId]: new Set(groupItems.map(i=>i.id))};
+    });
+  };
+
+  const totalSelected = Object.values(selected).reduce((sum,s)=>sum+(s.size||0),0);
+
   const updateItem = async (groupId, itemId, field, value) => {
     await supabase.from('workspace_items').update({[field]:value}).eq('id',itemId);
     setItems(prev=>({...prev,[groupId]:(prev[groupId]||[]).map(i=>i.id===itemId?{...i,[field]:value}:i)}));
   };
 
   const deleteItem = async (groupId, itemId) => {
-    if(!window.confirm('Delete this item?')) return;
     await supabase.from('workspace_items').delete().eq('id',itemId);
     setItems(prev=>({...prev,[groupId]:(prev[groupId]||[]).filter(i=>i.id!==itemId)}));
   };
@@ -1046,53 +1127,145 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
           const va=(a[sortCol]||'').toString().toLowerCase(), vb=(b[sortCol]||'').toString().toLowerCase();
           return sortDir==='asc'?va.localeCompare(vb):vb.localeCompare(va);
         });
-
         const isCollapsed = collapsed[group.id];
+        const groupSelected = selected[group.id]||new Set();
+        const allGroupSelected = groupItems.length>0 && groupItems.every(i=>groupSelected.has(i.id));
+
         return (
-          <div key={group.id} style={{ marginBottom:24 }}>
+          <div key={group.id} style={{ marginBottom:28 }}>
             {/* Group Header */}
-            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:0 }}>
-              <div style={{ width:4, height:28, background:group.color, borderRadius:2 }} />
-              <button onClick={()=>setCollapsed(c=>({...c,[group.id]:!c[group.id]}))} style={{ background:'none', color:'var(--text)', fontSize:13, fontWeight:700, padding:'4px 8px', border:'none', display:'flex', alignItems:'center', gap:6 }}>
-                <span style={{ transform:isCollapsed?'rotate(-90deg)':'rotate(0)', transition:'transform .2s', display:'inline-block' }}>▼</span>
-                {group.name} <span style={{ color:'var(--muted)', fontWeight:400 }}>({groupItems.length})</span>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:0, paddingLeft:4 }}>
+              <div style={{ width:4, height:22, background:group.color, borderRadius:2, flexShrink:0 }} />
+              <button onClick={()=>setCollapsed(c=>({...c,[group.id]:!c[group.id]}))} style={{ background:'none', border:'none', color:group.color, cursor:'pointer', padding:'2px 4px', display:'flex', alignItems:'center' }}>
+                <span style={{ transform:isCollapsed?'rotate(-90deg)':'rotate(0)', transition:'transform .2s', display:'inline-block', fontSize:10 }}>▼</span>
               </button>
-              <button onClick={()=>addItem(group.id)} style={{ background:'none', color:'var(--muted)', fontSize:12, border:'none', cursor:'pointer', padding:'4px 8px' }}>+ Add Item</button>
+              {editingGroupId===group.id ? (
+                <input autoFocus value={editingGroupName} onChange={e=>setEditingGroupName(e.target.value)}
+                  onBlur={()=>renameGroup(group.id, editingGroupName)}
+                  onKeyDown={e=>{ if(e.key==='Enter') renameGroup(group.id, editingGroupName); if(e.key==='Escape') setEditingGroupId(null); }}
+                  style={{ fontSize:14, fontWeight:700, background:'transparent', border:'none', borderBottom:'2px solid '+group.color, color:group.color, outline:'none', width:200, padding:'2px 0' }} />
+              ) : (
+                <span onDoubleClick={()=>{ setEditingGroupId(group.id); setEditingGroupName(group.name); }} style={{ fontSize:14, fontWeight:700, color:group.color, cursor:'pointer' }} title="Double-click to rename">{group.name}</span>
+              )}
+              <span style={{ color:'var(--muted)', fontSize:12 }}>{groupItems.length} items</span>
+              {profile.role==='admin' && <button onClick={()=>deleteGroup(group.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:12, opacity:0.5, marginLeft:4 }} title="Delete group">🗑️</button>}
             </div>
 
             {/* Table */}
             {!isCollapsed && (
-              <div style={{ overflowX:'auto', borderRadius:8, border:'1px solid var(--border)', marginTop:4 }}>
+              <div style={{ overflowX:'auto', border:'1px solid var(--border)', borderRadius:8, marginTop:6, borderLeft:`3px solid ${group.color}` }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                   <thead>
                     <tr style={{ background:'var(--surface2)' }}>
-                      <th style={{ width:32, padding:'8px 10px', borderBottom:'1px solid var(--border)' }}></th>
+                      <th style={{ width:36, padding:'8px 10px', borderBottom:'1px solid var(--border)', textAlign:'center' }}>
+                        <input type="checkbox" checked={allGroupSelected} onChange={()=>toggleSelectAll(group.id, groupItems)}
+                          style={{ cursor:'pointer', width:14, height:14, accentColor:'var(--accent)' }} />
+                      </th>
                       {COLUMNS.map(col=>(
                         <th key={col} style={{ padding:'8px 10px', textAlign:'left', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em', borderBottom:'1px solid var(--border)', whiteSpace:'nowrap', cursor:'pointer', minWidth:COL_WIDTHS[col] }}
                           onClick={()=>{ if(sortCol===col) setSortDir(d=>d==='asc'?'desc':'asc'); else { setSortCol(col); setSortDir('asc'); } }}>
                           {COL_LABELS[col]} {sortCol===col?(sortDir==='asc'?'↑':'↓'):''}
                         </th>
                       ))}
-                      <th style={{ width:60, padding:'8px 10px', borderBottom:'1px solid var(--border)' }}></th>
+                      <th style={{ width:40, padding:'8px 10px', borderBottom:'1px solid var(--border)' }}></th>
                     </tr>
                   </thead>
                   <tbody>
                     {groupItems.map(item=>(
-                      <WorkspaceItemRow key={item.id} item={item} group={group} statuses={statuses} teamMembers={teamMembers} profile={profile}
-                        onUpdate={(field,val)=>updateItem(group.id,item.id,field,val)}
-                        onDelete={()=>deleteItem(group.id,item.id)}
-                        onOpenUpdates={()=>setUpdatesPanel(item)}
-                        PRIORITY_COLORS={PRIORITY_COLORS}
-                      />
+                      <React.Fragment key={item.id}>
+                        <WorkspaceItemRow
+                          item={item} group={group} statuses={statuses} teamMembers={teamMembers} profile={profile}
+                          selected={groupSelected.has(item.id)}
+                          onSelect={()=>toggleSelect(group.id, item.id)}
+                          onUpdate={(field,val)=>updateItem(group.id,item.id,field,val)}
+                          onDelete={()=>deleteItem(group.id,item.id)}
+                          onOpenUpdates={()=>setUpdatesPanel(item)}
+                          onAddSubItem={()=>{ addSubItem(item.id, group.id); loadSubItems(item.id); }}
+                          onToggleExpand={()=>{ setExpandedItems(p=>({...p,[item.id]:!p[item.id]})); if(!expandedItems[item.id]) loadSubItems(item.id); }}
+                          isExpanded={!!expandedItems[item.id]}
+                          subItemCount={(subItems[item.id]||[]).length}
+                          PRIORITY_COLORS={PRIORITY_COLORS}
+                        />
+                        {/* Sub-items */}
+                        {expandedItems[item.id] && (subItems[item.id]||[]).map(sub=>(
+                          <tr key={sub.id} style={{ background:'rgba(0,0,0,.08)', borderBottom:'1px solid var(--border)' }}>
+                            <td style={{ padding:'4px 10px', paddingLeft:36, textAlign:'center' }}>
+                              <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--border)', margin:'0 auto' }} />
+                            </td>
+                            <td style={{ padding:'4px 10px', paddingLeft:24 }} colSpan={2}>
+                              <span style={{ fontSize:12, color:'var(--muted)', marginRight:8 }}>↳</span>
+                              <span style={{ fontSize:13 }}>{sub.name}</span>
+                            </td>
+                            <td colSpan={COLUMNS.length-1} style={{ padding:'4px 10px' }}>
+                              <div style={{ display:'inline-flex', alignItems:'center', background:sub.status_color||'#4d8ef0', color:'#fff', padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:600 }}>{sub.status||'—'}</div>
+                            </td>
+                            <td style={{ padding:'4px 10px' }}>
+                              <button onClick={async()=>{ await supabase.from('workspace_items').delete().eq('id',sub.id); setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).filter(s=>s.id!==sub.id)})); }} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:14 }}>×</button>
+                            </td>
+                          </tr>
+                        ))}
+                        {expandedItems[item.id] && (
+                          <tr style={{ background:'rgba(0,0,0,.05)' }}>
+                            <td colSpan={COLUMNS.length+2} style={{ padding:'6px 10px 6px 50px' }}>
+                              <button onClick={()=>addSubItem(item.id, group.id)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:12 }}>+ Add sub-item</button>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     ))}
-                    {groupItems.length===0 && <tr><td colSpan={COLUMNS.length+2} style={{ padding:'16px 10px', color:'var(--muted)', textAlign:'center', fontSize:13 }}>No items yet — click "+ Add Item" above</td></tr>}
+                    {groupItems.length===0 && <tr><td colSpan={COLUMNS.length+2} style={{ padding:'16px 10px', color:'var(--muted)', textAlign:'center', fontSize:13 }}>No items yet</td></tr>}
                   </tbody>
                 </table>
+                {/* Add item row */}
+                <div style={{ padding:'8px 10px 8px 46px', borderTop:'1px solid var(--border)', background:'var(--surface2)' }}>
+                  <button onClick={()=>addItem(group.id)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:13, display:'flex', alignItems:'center', gap:6 }}>
+                    <span style={{ fontSize:16, lineHeight:1 }}>+</span> Add Item
+                  </button>
+                </div>
               </div>
             )}
           </div>
         );
       })}
+
+      {/* Add new group button */}
+      <button onClick={addGroup} style={{ display:'flex', alignItems:'center', gap:8, background:'none', border:'1px dashed var(--border)', color:'var(--muted)', padding:'10px 20px', borderRadius:8, cursor:'pointer', fontSize:13, marginTop:8 }}>
+        + Add new group
+      </button>
+
+      {/* Bottom action bar when items selected */}
+      {totalSelected > 0 && (
+        <div style={{ position:'fixed', bottom:24, left:'50%', transform:'translateX(-50%)', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:'12px 20px', display:'flex', alignItems:'center', gap:16, boxShadow:'0 8px 32px rgba(0,0,0,.4)', zIndex:200, minWidth:500 }}>
+          <div style={{ background:'var(--accent)', color:'#fff', borderRadius:20, padding:'2px 10px', fontSize:13, fontWeight:700 }}>{totalSelected}</div>
+          <span style={{ fontSize:13, color:'var(--muted)' }}>item{totalSelected>1?'s':''} selected</span>
+          <div style={{ width:1, height:24, background:'var(--border)' }} />
+          {Object.entries(selected).map(([gId, gSet])=> gSet.size>0 ? (
+            <React.Fragment key={gId}>
+              <button onClick={()=>duplicateItems(gId,[...gSet])} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
+                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
+                onMouseOut={e=>e.currentTarget.style.background=''}>
+                <span style={{ fontSize:18 }}>⧉</span>Duplicate
+              </button>
+              <button onClick={()=>archiveItems(gId,[...gSet])} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
+                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
+                onMouseOut={e=>e.currentTarget.style.background=''}>
+                <span style={{ fontSize:18 }}>🗄️</span>Archive
+              </button>
+              <button onClick={()=>deleteSelectedItems(gId,[...gSet])} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--danger)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
+                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
+                onMouseOut={e=>e.currentTarget.style.background=''}>
+                <span style={{ fontSize:18 }}>🗑️</span>Delete
+              </button>
+              <select onChange={e=>{ if(e.target.value) moveItemsToGroup(gId,[...gSet],e.target.value); e.target.value=''; }}
+                style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', borderRadius:6, padding:'6px 10px', fontSize:12, cursor:'pointer' }}>
+                <option value="">Move to...</option>
+                {groups.filter(g=>g.id!==gId).map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </React.Fragment>
+          ) : null)}
+          <button onClick={()=>setSelected({})} style={{ marginLeft:'auto', background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18 }}>✕</button>
+        </div>
+      )}
 
       {/* Updates Panel */}
       {updatesPanel && <UpdatesPanel item={updatesPanel} profile={profile} onClose={()=>setUpdatesPanel(null)} toast={toast} />}
@@ -1105,10 +1278,11 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
 }
 
 // ─── WORKSPACE ITEM ROW ───────────────────────────────────────────────────────
-function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdate, onDelete, onOpenUpdates, PRIORITY_COLORS }) {
+function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdate, onDelete, onOpenUpdates, onAddSubItem, onToggleExpand, isExpanded, subItemCount, selected, onSelect, PRIORITY_COLORS }) {
   const [editing, setEditing] = useState(null);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showAssignPicker, setShowAssignPicker] = useState(false);
+  const [hovered, setHovered] = useState(false);
 
   const statusObj = statuses.find(s=>s.label===item.status);
   const statusColor = item.status_color || statusObj?.color || '#4d8ef0';
@@ -1125,13 +1299,25 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
   };
 
   return (
-    <tr style={{ borderBottom:'1px solid var(--border)' }} onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.03)'} onMouseOut={e=>e.currentTarget.style.background=''}>
+    <tr style={{ borderBottom:'1px solid var(--border)', background: selected?'rgba(77,142,240,.08)':'' }}
+      onMouseOver={e=>{ e.currentTarget.style.background=selected?'rgba(77,142,240,.12)':'rgba(255,255,255,.03)'; setHovered(true); }}
+      onMouseOut={e=>{ e.currentTarget.style.background=selected?'rgba(77,142,240,.08)':''; setHovered(false); }}>
       <td style={{ padding:'6px 10px', textAlign:'center' }}>
-        <button onClick={onOpenUpdates} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:4, display:'flex', alignItems:'center' }} title="Updates">
-          {Icons.comment}
-        </button>
+        <div style={{ display:'flex', alignItems:'center', gap:4, justifyContent:'center' }}>
+          <input type="checkbox" checked={!!selected} onChange={onSelect}
+            style={{ cursor:'pointer', width:14, height:14, accentColor:'var(--accent)' }} />
+          {(hovered||subItemCount>0) && (
+            <button onClick={onToggleExpand} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:2, fontSize:10, transform:isExpanded?'rotate(90deg)':'rotate(0)', transition:'transform .15s' }} title="Toggle sub-items">▶</button>
+          )}
+        </div>
       </td>
-      <td style={{ padding:'4px 10px', minWidth:200 }}><EditableCell field="name" style={{ fontWeight:500 }} /></td>
+      <td style={{ padding:'4px 10px', minWidth:200 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+          <div style={{ flex:1 }}><EditableCell field="name" style={{ fontWeight:500 }} /></div>
+          {hovered && <button onClick={onOpenUpdates} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:3, display:'flex', alignItems:'center', flexShrink:0, opacity:.7 }} title="Updates">{Icons.comment}</button>}
+          {hovered && subItemCount===0 && <button onClick={onAddSubItem} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:3, fontSize:10, flexShrink:0, opacity:.7 }} title="Add sub-item">⊕</button>}
+        </div>
+      </td>
       <td style={{ padding:'4px 10px', position:'relative' }}>
         <div onClick={()=>setShowStatusPicker(s=>!s)} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
           {item.status||'No Status'}
