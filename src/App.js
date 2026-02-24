@@ -245,6 +245,32 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
     setSendingEmail(false);
   };
 
+  const launchAICall = async () => {
+    if (!contact.phone) { toast('Contact has no phone number'); return; }
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/retell-call', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + process.env.REACT_APP_SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({ 
+          to_number: contact.phone, 
+          agent_id: 'agent_e379614ced2c13a6de7532b2ba',
+          contact_name: contact.full_name,
+          context: contact.notes || ''
+        })
+      });
+      const data = await res.json();
+      if (data.call_id) {
+        await supabase.from('activities').insert([{ contact_id:contact.id, company_id:companyId, type:'call', body:'AI call launched to ' + contact.phone }]);
+        setActivities(a=>[{type:'call', body:'AI call launched to ' + contact.phone, created_at:new Date().toISOString()}, ...a]);
+        toast('AI call launched successfully!');
+      } else { toast('Error: ' + (data.message || JSON.stringify(data))); }
+    } catch(e) { toast('Error: ' + e.message); }
+  };
+
   const changeStage = async (stage) => {
     await supabase.from('contacts').update({ stage }).eq('id', contact.id);
     contact.stage = stage;
@@ -267,9 +293,10 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
           <button onClick={onClose} style={{ background:'none', color:'var(--muted)', fontSize:20 }}>✕</button>
         </div>
 
-        <div style={{ display:'flex', gap:8, marginBottom:20 }}>
+        <div style={{ display:'flex', gap:8, marginBottom:20, flexWrap:'wrap' }}>
           <button className="btn-secondary btn-sm" onClick={onEdit}>✏️ Edit</button>
           <button className="btn-danger btn-sm" onClick={onDelete}>🗑️ Delete</button>
+          <button className="btn-sm" onClick={launchAICall} style={{ background:'linear-gradient(135deg,#6366f1,#8b5cf6)', color:'#fff', border:'none' }}>🤖 AI Call</button>
         </div>
 
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20 }}>
