@@ -318,9 +318,20 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
           {activities.map((a,i)=>(
             <div key={i} style={{ display:'flex', gap:10, marginBottom:12 }}>
               <div style={{ fontSize:16, marginTop:2 }}>{a.type==='call'?'📞':a.type==='email'?'📧':a.type==='stage'?'🔄':'📝'}</div>
-              <div>
-                <div style={{ fontSize:13 }}>{a.body}</div>
-                <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{new Date(a.created_at).toLocaleString()}</div>
+              <div style={{ flex:1 }}>
+                {a.type==='email' ? (
+                  <div style={{ background:'var(--surface2)', borderRadius:8, padding:10 }}>
+                    {a.body.split('\n\n').map((part, pi) => (
+                      <div key={pi} style={{ fontSize:13, marginBottom: pi===0?6:0, fontWeight: pi===0?600:400, color: pi===0?'var(--text)':'var(--muted)', lineHeight:1.6, whiteSpace:'pre-wrap' }}>{part}</div>
+                    ))}
+                    <div style={{ fontSize:11, color:'var(--muted)', marginTop:6 }}>{new Date(a.created_at).toLocaleString()}</div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontSize:13 }}>{a.body}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{new Date(a.created_at).toLocaleString()}</div>
+                  </div>
+                )}
               </div>
             </div>
           ))}
