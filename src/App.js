@@ -3,7 +3,6 @@ import { supabase } from './lib/supabase';
 
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 const css = `
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
   :root {
     --bg: #f0f2f5;
     --surface: #ffffff;
