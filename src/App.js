@@ -227,7 +227,10 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/send-email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + process.env.REACT_APP_SUPABASE_ANON_KEY
+        },
         body: JSON.stringify({ to: contact.email, subject: emailSubject, body: emailBody })
       });
       const data = await res.json();
