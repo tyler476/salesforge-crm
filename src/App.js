@@ -99,6 +99,9 @@ function AuthScreen({ onAuth }) {
   const [form, setForm] = useState({ name:'', company:'', email:'', password:'' });
   const [err, setErr] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [showReset, setShowReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
 
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
@@ -106,6 +109,16 @@ function AuthScreen({ onAuth }) {
     setErr(''); setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email:form.email, password:form.password });
     if (error) setErr(error.message);
+    setLoading(false);
+  };
+
+  const handleReset = async () => {
+    if (!resetEmail) { setErr('Please enter your email'); return; }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+      redirectTo: window.location.origin
+    });
+    if (error) { setErr(error.message); } else { setResetSent(true); }
     setLoading(false);
   };
 
@@ -154,10 +167,34 @@ function AuthScreen({ onAuth }) {
           </>}
           <div className="form-group"><label>Email</label><input type="email" value={form.email} onChange={e=>set('email',e.target.value)} placeholder="you@company.com" /></div>
           <div className="form-group"><label>Password</label><input type="password" value={form.password} onChange={e=>set('password',e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==='Enter'&&(tab==='login'?handleLogin():handleSignup())} /></div>
-          {err && <div style={{ color:'var(--danger)', fontSize:13, marginBottom:12 }}>{err}</div>}
-          <button className="btn-primary" style={{ width:'100%' }} onClick={tab==='login'?handleLogin:handleSignup} disabled={loading}>
-            {loading ? 'Please wait...' : tab==='login' ? 'Sign In' : 'Create Account'}
-          </button>
+          {showReset ? (
+            <div>
+              {resetSent ? (
+                <div style={{ textAlign:'center', padding:'10px 0' }}>
+                  <div style={{ fontSize:20, marginBottom:8 }}>📧</div>
+                  <div style={{ fontWeight:600, marginBottom:4 }}>Check your email</div>
+                  <div style={{ fontSize:13, color:'var(--muted)' }}>We sent a password reset link to {resetEmail}</div>
+                  <button onClick={()=>{ setShowReset(false); setResetSent(false); }} style={{ marginTop:16, background:'none', color:'var(--accent)', border:'none', cursor:'pointer', fontSize:13 }}>Back to Sign In</button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ fontWeight:600, marginBottom:16 }}>Reset Password</div>
+                  <div className="form-group"><label>Email</label><input type="email" value={resetEmail} onChange={e=>setResetEmail(e.target.value)} placeholder="you@company.com" /></div>
+                  {err && <div style={{ color:'var(--danger)', fontSize:13, marginBottom:12 }}>{err}</div>}
+                  <button className="btn-primary" style={{ width:'100%', marginBottom:10 }} onClick={handleReset} disabled={loading}>{loading ? 'Sending...' : 'Send Reset Link'}</button>
+                  <button onClick={()=>setShowReset(false)} style={{ width:'100%', background:'none', color:'var(--muted)', border:'none', cursor:'pointer', fontSize:13 }}>Back to Sign In</button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div>
+              {err && <div style={{ color:'var(--danger)', fontSize:13, marginBottom:12 }}>{err}</div>}
+              <button className="btn-primary" style={{ width:'100%' }} onClick={tab==='login'?handleLogin:handleSignup} disabled={loading}>
+                {loading ? 'Please wait...' : tab==='login' ? 'Sign In' : 'Create Account'}
+              </button>
+              {tab==='login' && <div style={{ textAlign:'center', marginTop:14 }}><button onClick={()=>{ setShowReset(true); setErr(''); }} style={{ background:'none', color:'var(--muted)', border:'none', cursor:'pointer', fontSize:13 }}>Forgot password?</button></div>}
+            </div>
+          )}
         </div>
       </div>
     </div>
