@@ -413,7 +413,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
 }
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({ contacts }) {
+function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWorkspace }) {
   const total = contacts.length;
   const pipeline = contacts.filter(c=>!['Converted','Non-Conversion'].includes(c.stage)).reduce((s,c)=>s+(c.deal_value||0),0);
   const won = contacts.filter(c=>c.stage==='Converted').length;
@@ -469,6 +469,34 @@ function Dashboard({ contacts }) {
           </div>
         ))}
         {contacts.length===0 && <div style={{ color:'var(--muted)', fontSize:13 }}>No contacts yet. Add your first lead!</div>}
+      </div>
+
+      {/* Workspaces Section */}
+      <div style={{ marginTop:28 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+          <div style={{ fontFamily:'Playfair Display,serif', fontSize:20, fontWeight:700 }}>Workspaces</div>
+          {profile?.role==='admin' && <button className="btn-primary btn-sm" onClick={()=>{ const name=prompt('New workspace name:'); if(name) onCreateWorkspace(name); }}>+ New Workspace</button>}
+        </div>
+        {workspaces.length===0 ? (
+          <div className="card" style={{ textAlign:'center', padding:40 }}>
+            <div style={{ fontSize:32, marginBottom:12 }}>📋</div>
+            <div style={{ fontWeight:600, marginBottom:6 }}>No workspaces yet</div>
+            <div style={{ color:'var(--muted)', fontSize:13, marginBottom:16 }}>Create a workspace to manage loans, tasks, and team projects</div>
+            {profile?.role==='admin' && <button className="btn-primary" onClick={()=>{ const name=prompt('New workspace name:'); if(name) onCreateWorkspace(name); }}>Create First Workspace</button>}
+          </div>
+        ) : (
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:16 }}>
+            {workspaces.map(w=>(
+              <div key={w.id} onClick={()=>onOpenWorkspace(w)} className="card" style={{ cursor:'pointer', transition:'all .2s', borderTop:'3px solid var(--accent)' }}
+                onMouseOver={e=>e.currentTarget.style.transform='translateY(-2px)'}
+                onMouseOut={e=>e.currentTarget.style.transform='translateY(0)'}>
+                <div style={{ fontSize:24, marginBottom:10 }}>📋</div>
+                <div style={{ fontWeight:700, fontSize:15, marginBottom:4 }}>{w.name}</div>
+                <div style={{ color:'var(--muted)', fontSize:12 }}>Click to open</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -738,6 +766,364 @@ function BrandingView({ profile, onBrandUpdate, toast }) {
 }
 
 
+
+// ─── WORKSPACE VIEW ───────────────────────────────────────────────────────────
+function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
+  const [groups, setGroups] = useState([]);
+  const [items, setItems] = useState({});
+  const [statuses, setStatuses] = useState([]);
+  const [collapsed, setCollapsed] = useState({});
+  const [activeItem, setActiveItem] = useState(null);
+  const [updatesPanel, setUpdatesPanel] = useState(null);
+  const [search, setSearch] = useState('');
+  const [filterOfficer, setFilterOfficer] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [sortCol, setSortCol] = useState('');
+  const [sortDir, setSortDir] = useState('asc');
+  const [teamMembers, setTeamMembers] = useState([]);
+
+  useEffect(() => {
+    loadGroups();
+    loadStatuses();
+    supabase.from('profiles').select('*').eq('company_name', profile.company_name).then(({data})=>setTeamMembers(data||[]));
+  }, [workspace.id]);
+
+  const loadGroups = async () => {
+    const {data:grps} = await supabase.from('workspace_groups').select('*').eq('workspace_id', workspace.id).order('position');
+    setGroups(grps||[]);
+    if(grps) grps.forEach(g => loadItems(g.id));
+  };
+
+  const loadItems = async (groupId) => {
+    const {data} = await supabase.from('workspace_items').select('*').eq('group_id', groupId).order('position');
+    setItems(prev => ({...prev, [groupId]: data||[]}));
+  };
+
+  const loadStatuses = async () => {
+    const {data} = await supabase.from('workspace_statuses').select('*').or(`workspace_id.eq.${workspace.id},workspace_id.is.null`).order('position');
+    setStatuses(data||[]);
+  };
+
+  const addGroup = async () => {
+    const name = prompt('Group name (e.g. New Apps/Pre-Qual):');
+    if(!name) return;
+    const colors = ['#4d8ef0','#2ecc8a','#9b59b6','#f0b429','#e05252','#00b8c4'];
+    const color = colors[groups.length % colors.length];
+    const {data} = await supabase.from('workspace_groups').insert([{workspace_id:workspace.id, name, color, position:groups.length}]).select().single();
+    if(data) { setGroups(g=>[...g,data]); setItems(prev=>({...prev,[data.id]:[]})); }
+  };
+
+  const addItem = async (groupId) => {
+    const name = prompt('Item name:');
+    if(!name) return;
+    const {data} = await supabase.from('workspace_items').insert([{group_id:groupId, company_id:profile.company_name, name, position:(items[groupId]||[]).length}]).select().single();
+    if(data) setItems(prev=>({...prev,[groupId]:[...(prev[groupId]||[]),data]}));
+  };
+
+  const updateItem = async (groupId, itemId, field, value) => {
+    await supabase.from('workspace_items').update({[field]:value}).eq('id',itemId);
+    setItems(prev=>({...prev,[groupId]:(prev[groupId]||[]).map(i=>i.id===itemId?{...i,[field]:value}:i)}));
+  };
+
+  const deleteItem = async (groupId, itemId) => {
+    if(!window.confirm('Delete this item?')) return;
+    await supabase.from('workspace_items').delete().eq('id',itemId);
+    setItems(prev=>({...prev,[groupId]:(prev[groupId]||[]).filter(i=>i.id!==itemId)}));
+  };
+
+  const exportCSV = () => {
+    const rows = [['Name','Status','Priority','Date','Lender','Loan Officer','Processor','Lock Expiration','Processor Contact','Escrow Email','Assigned Officers']];
+    groups.forEach(g => {
+      (items[g.id]||[]).forEach(item => {
+        rows.push([item.name,item.status,item.priority,item.date,item.lender,item.loan_officer,item.processor,item.lock_expiration,item.processor_contact,item.escrow_email,(item.assigned_officers||[]).join(';')]);
+      });
+    });
+    const csv = rows.map(r=>r.map(c=>`"${(c||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv],{type:'text/csv'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${workspace.name}.csv`; a.click();
+  };
+
+  const PRIORITY_COLORS = { High:'#e05252', Medium:'#f0b429', Low:'#2ecc8a', Critical:'#9b59b6' };
+  const COLUMNS = ['name','status','priority','date','lender','loan_officer','processor','lock_expiration','processor_contact','escrow_email','assigned_officers'];
+  const COL_LABELS = { name:'Item', status:'Status', priority:'Priority', date:'Date', lender:'Lender', loan_officer:'Loan Officer', processor:'Processor', lock_expiration:'Lock Exp.', processor_contact:'Processor Contact', escrow_email:'Escrow Email', assigned_officers:'Assigned Officers' };
+  const COL_WIDTHS = { name:200, status:160, priority:100, date:110, lender:120, loan_officer:130, processor:130, lock_expiration:110, processor_contact:150, escrow_email:160, assigned_officers:180 };
+
+  const allItems = Object.values(items).flat();
+  const officers = [...new Set(allItems.flatMap(i=>i.assigned_officers||[]))];
+
+  return (
+    <div style={{ padding:28, minHeight:'100vh' }}>
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <div style={{ fontFamily:"Playfair Display,serif", fontSize:26, fontWeight:700 }}>{workspace.name}</div>
+          {profile.role==='admin' && <>
+            <button className="btn-sm btn-secondary" onClick={()=>{ const n=prompt('Rename workspace:',workspace.name); if(n) onRename(n); }}>✏️</button>
+            <button className="btn-sm btn-danger" onClick={onDelete}>🗑️</button>
+          </>}
+        </div>
+        <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search items..." style={{ width:200 }} />
+          <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{ width:'auto' }}>
+            <option value="">All Statuses</option>
+            {statuses.map(s=><option key={s.id}>{s.label}</option>)}
+          </select>
+          <select value={filterOfficer} onChange={e=>setFilterOfficer(e.target.value)} style={{ width:'auto' }}>
+            <option value="">All Officers</option>
+            {officers.map(o=><option key={o}>{o}</option>)}
+          </select>
+          <button className="btn-secondary btn-sm" onClick={exportCSV}>⬇️ Export</button>
+          {profile.role==='admin' && <button className="btn-primary btn-sm" onClick={addGroup}>+ Add Group</button>}
+        </div>
+      </div>
+
+      {/* Groups */}
+      {groups.length===0 && (
+        <div className="card" style={{ textAlign:'center', padding:40 }}>
+          <div style={{ color:'var(--muted)', marginBottom:16 }}>No groups yet. Add a group to get started.</div>
+          {profile.role==='admin' && <button className="btn-primary" onClick={addGroup}>+ Add First Group</button>}
+        </div>
+      )}
+
+      {groups.map(group => {
+        let groupItems = (items[group.id]||[]).filter(item => {
+          const q = search.toLowerCase();
+          const matchSearch = !q || item.name?.toLowerCase().includes(q) || item.lender?.toLowerCase().includes(q) || item.loan_officer?.toLowerCase().includes(q);
+          const matchStatus = !filterStatus || item.status===filterStatus;
+          const matchOfficer = !filterOfficer || (item.assigned_officers||[]).includes(filterOfficer);
+          return matchSearch && matchStatus && matchOfficer;
+        });
+        if(sortCol) groupItems = [...groupItems].sort((a,b)=>{
+          const va=(a[sortCol]||'').toString().toLowerCase(), vb=(b[sortCol]||'').toString().toLowerCase();
+          return sortDir==='asc'?va.localeCompare(vb):vb.localeCompare(va);
+        });
+
+        const isCollapsed = collapsed[group.id];
+        return (
+          <div key={group.id} style={{ marginBottom:24 }}>
+            {/* Group Header */}
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:0 }}>
+              <div style={{ width:4, height:28, background:group.color, borderRadius:2 }} />
+              <button onClick={()=>setCollapsed(c=>({...c,[group.id]:!c[group.id]}))} style={{ background:'none', color:'var(--text)', fontSize:13, fontWeight:700, padding:'4px 8px', border:'none', display:'flex', alignItems:'center', gap:6 }}>
+                <span style={{ transform:isCollapsed?'rotate(-90deg)':'rotate(0)', transition:'transform .2s', display:'inline-block' }}>▼</span>
+                {group.name} <span style={{ color:'var(--muted)', fontWeight:400 }}>({groupItems.length})</span>
+              </button>
+              <button onClick={()=>addItem(group.id)} style={{ background:'none', color:'var(--muted)', fontSize:12, border:'none', cursor:'pointer', padding:'4px 8px' }}>+ Add Item</button>
+            </div>
+
+            {/* Table */}
+            {!isCollapsed && (
+              <div style={{ overflowX:'auto', borderRadius:8, border:'1px solid var(--border)', marginTop:4 }}>
+                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+                  <thead>
+                    <tr style={{ background:'var(--surface2)' }}>
+                      <th style={{ width:32, padding:'8px 10px', borderBottom:'1px solid var(--border)' }}></th>
+                      {COLUMNS.map(col=>(
+                        <th key={col} style={{ padding:'8px 10px', textAlign:'left', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em', borderBottom:'1px solid var(--border)', whiteSpace:'nowrap', cursor:'pointer', minWidth:COL_WIDTHS[col] }}
+                          onClick={()=>{ if(sortCol===col) setSortDir(d=>d==='asc'?'desc':'asc'); else { setSortCol(col); setSortDir('asc'); } }}>
+                          {COL_LABELS[col]} {sortCol===col?(sortDir==='asc'?'↑':'↓'):''}
+                        </th>
+                      ))}
+                      <th style={{ width:60, padding:'8px 10px', borderBottom:'1px solid var(--border)' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupItems.map(item=>(
+                      <WorkspaceItemRow key={item.id} item={item} group={group} statuses={statuses} teamMembers={teamMembers} profile={profile}
+                        onUpdate={(field,val)=>updateItem(group.id,item.id,field,val)}
+                        onDelete={()=>deleteItem(group.id,item.id)}
+                        onOpenUpdates={()=>setUpdatesPanel(item)}
+                        PRIORITY_COLORS={PRIORITY_COLORS}
+                      />
+                    ))}
+                    {groupItems.length===0 && <tr><td colSpan={COLUMNS.length+2} style={{ padding:'16px 10px', color:'var(--muted)', textAlign:'center', fontSize:13 }}>No items yet — click "+ Add Item" above</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Updates Panel */}
+      {updatesPanel && <UpdatesPanel item={updatesPanel} profile={profile} onClose={()=>setUpdatesPanel(null)} toast={toast} />}
+    </div>
+  );
+}
+
+// ─── WORKSPACE ITEM ROW ───────────────────────────────────────────────────────
+function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdate, onDelete, onOpenUpdates, PRIORITY_COLORS }) {
+  const [editing, setEditing] = useState(null);
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
+  const [showAssignPicker, setShowAssignPicker] = useState(false);
+
+  const statusObj = statuses.find(s=>s.label===item.status);
+  const statusColor = item.status_color || statusObj?.color || '#4d8ef0';
+
+  const EditableCell = ({field, type='text', style={}}) => {
+    const [val, setVal] = useState(item[field]||'');
+    if(editing===field) return (
+      <input autoFocus value={val} onChange={e=>setVal(e.target.value)} type={type}
+        onBlur={()=>{ onUpdate(field,val); setEditing(null); }}
+        onKeyDown={e=>{ if(e.key==='Enter'){onUpdate(field,val);setEditing(null);} if(e.key==='Escape')setEditing(null); }}
+        style={{ width:'100%', padding:'4px 6px', fontSize:13, background:'var(--surface2)', border:'1px solid var(--accent)', borderRadius:4, color:'var(--text)', ...style }} />
+    );
+    return <div onClick={()=>setEditing(field)} style={{ cursor:'text', padding:'4px 6px', minHeight:24, borderRadius:4, ...style }}>{item[field]||<span style={{color:'var(--border)'}}>—</span>}</div>;
+  };
+
+  return (
+    <tr style={{ borderBottom:'1px solid var(--border)' }} onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.03)'} onMouseOut={e=>e.currentTarget.style.background=''}>
+      <td style={{ padding:'6px 10px', textAlign:'center' }}>
+        <button onClick={onOpenUpdates} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:4, display:'flex', alignItems:'center' }} title="Updates">
+          {Icons.comment}
+        </button>
+      </td>
+      <td style={{ padding:'4px 10px', minWidth:200 }}><EditableCell field="name" style={{ fontWeight:500 }} /></td>
+      <td style={{ padding:'4px 10px', position:'relative' }}>
+        <div onClick={()=>setShowStatusPicker(s=>!s)} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+          {item.status||'No Status'}
+        </div>
+        {showStatusPicker && (
+          <div style={{ position:'absolute', top:'100%', left:0, zIndex:999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:220, maxHeight:300, overflowY:'auto', boxShadow:'0 8px 24px rgba(0,0,0,.3)' }}>
+            {statuses.map(s=>(
+              <div key={s.id} onClick={()=>{ onUpdate('status',s.label); onUpdate('status_color',s.color); setShowStatusPicker(false); }}
+                style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:4, cursor:'pointer' }}
+                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
+                onMouseOut={e=>e.currentTarget.style.background=''}>
+                <div style={{ width:12, height:12, borderRadius:2, background:s.color, flexShrink:0 }} />
+                <span style={{ fontSize:12 }}>{s.label}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </td>
+      <td style={{ padding:'4px 10px' }}>
+        <select value={item.priority||'Medium'} onChange={e=>onUpdate('priority',e.target.value)} style={{ background:'transparent', border:'none', color:PRIORITY_COLORS[item.priority||'Medium'], fontWeight:700, fontSize:12, cursor:'pointer', width:'auto', padding:'2px 4px' }}>
+          {['Low','Medium','High','Critical'].map(p=><option key={p} style={{ background:'#1a2e4a', color:PRIORITY_COLORS[p] }}>{p}</option>)}
+        </select>
+      </td>
+      <td style={{ padding:'4px 10px' }}><EditableCell field="date" type="date" /></td>
+      <td style={{ padding:'4px 10px' }}><EditableCell field="lender" /></td>
+      <td style={{ padding:'4px 10px' }}><EditableCell field="loan_officer" /></td>
+      <td style={{ padding:'4px 10px' }}><EditableCell field="processor" /></td>
+      <td style={{ padding:'4px 10px' }}><EditableCell field="lock_expiration" type="date" /></td>
+      <td style={{ padding:'4px 10px' }}><EditableCell field="processor_contact" /></td>
+      <td style={{ padding:'4px 10px' }}><EditableCell field="escrow_email" /></td>
+      <td style={{ padding:'4px 10px', position:'relative' }}>
+        <div onClick={()=>setShowAssignPicker(s=>!s)} style={{ cursor:'pointer', fontSize:12, color:'var(--muted)', whiteSpace:'nowrap' }}>
+          {(item.assigned_officers||[]).length>0 ? (item.assigned_officers||[]).join(', ') : <span style={{color:'var(--border)'}}>+ Assign</span>}
+        </div>
+        {showAssignPicker && (
+          <div style={{ position:'absolute', top:'100%', right:0, zIndex:999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:220, boxShadow:'0 8px 24px rgba(0,0,0,.3)' }}>
+            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:6, fontWeight:600 }}>ASSIGN OFFICERS</div>
+            {teamMembers.map(m=>{
+              const assigned = (item.assigned_officers||[]).includes(m.email||m.full_name);
+              return (
+                <div key={m.id} onClick={()=>{
+                  const name = m.email||m.full_name;
+                  const curr = item.assigned_officers||[];
+                  const updated = assigned ? curr.filter(x=>x!==name) : [...curr,name];
+                  onUpdate('assigned_officers',updated);
+                }} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:4, cursor:'pointer', background: assigned?'rgba(77,142,240,.15)':'' }}
+                  onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
+                  onMouseOut={e=>e.currentTarget.style.background=assigned?'rgba(77,142,240,.15)':''}>
+                  <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700 }}>{initials(m.full_name)}</div>
+                  <div style={{ fontSize:12 }}>{m.full_name}</div>
+                  {assigned && <span style={{ marginLeft:'auto', color:'var(--accent)', fontSize:12 }}>✓</span>}
+                </div>
+              );
+            })}
+            <div style={{ borderTop:'1px solid var(--border)', marginTop:6, paddingTop:6 }}>
+              <input placeholder="Or type email..." style={{ fontSize:12, padding:'4px 8px' }} onKeyDown={e=>{ if(e.key==='Enter'&&e.target.value){ onUpdate('assigned_officers',[...(item.assigned_officers||[]),e.target.value]); e.target.value=''; }}} />
+            </div>
+            <button onClick={()=>setShowAssignPicker(false)} style={{ width:'100%', marginTop:6, background:'var(--surface2)', color:'var(--muted)', border:'1px solid var(--border)', borderRadius:4, padding:'4px 8px', fontSize:12 }}>Done</button>
+          </div>
+        )}
+      </td>
+      <td style={{ padding:'4px 10px' }}>
+        <button onClick={onDelete} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:14, padding:4 }}>×</button>
+      </td>
+    </tr>
+  );
+}
+
+// ─── UPDATES PANEL ────────────────────────────────────────────────────────────
+function UpdatesPanel({ item, profile, onClose, toast }) {
+  const [tab, setTab] = useState('updates');
+  const [updates, setUpdates] = useState([]);
+  const [newUpdate, setNewUpdate] = useState('');
+  const [posting, setPosting] = useState(false);
+
+  useEffect(() => { loadUpdates(); }, [item.id]);
+
+  const loadUpdates = async () => {
+    const {data} = await supabase.from('workspace_updates').select('*').eq('item_id', item.id).order('created_at', {ascending:false});
+    setUpdates(data||[]);
+  };
+
+  const postUpdate = async () => {
+    if(!newUpdate.trim()) return;
+    setPosting(true);
+    const {data} = await supabase.from('workspace_updates').insert([{ item_id:item.id, author_name:profile.full_name, author_id:profile.id, body:newUpdate }]).select().single();
+    if(data) { setUpdates(u=>[data,...u]); setNewUpdate(''); toast('Update posted!'); }
+    setPosting(false);
+  };
+
+  return (
+    <div style={{ position:'fixed', top:0, right:0, width:480, height:'100vh', background:'var(--surface)', borderLeft:'1px solid var(--border)', zIndex:300, display:'flex', flexDirection:'column', boxShadow:'-4px 0 20px rgba(0,0,0,.3)' }}>
+      {/* Header */}
+      <div style={{ padding:'20px 24px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+        <div>
+          <div style={{ fontWeight:700, fontSize:16, fontFamily:"Playfair Display,serif", marginBottom:4 }}>{item.name}</div>
+          <div style={{ display:'flex', gap:8 }}>
+            {['updates','activity'].map(t=>(
+              <button key={t} onClick={()=>setTab(t)} style={{ padding:'4px 12px', borderRadius:20, fontSize:12, border:'1px solid', borderColor:tab===t?'var(--accent)':'var(--border)', background:tab===t?'rgba(77,142,240,.2)':'transparent', color:tab===t?'var(--accent)':'var(--muted)', cursor:'pointer', fontWeight:600 }}>
+                {t==='updates'?'💬 Updates':'📋 Activity'}
+              </button>
+            ))}
+          </div>
+        </div>
+        <button onClick={onClose} style={{ background:'none', color:'var(--muted)', fontSize:20, border:'none', cursor:'pointer' }}>✕</button>
+      </div>
+
+      {/* Content */}
+      <div style={{ flex:1, overflowY:'auto', padding:24 }}>
+        {tab==='updates' && (
+          <>
+            {/* Post update */}
+            <div style={{ background:'var(--surface2)', borderRadius:8, padding:12, marginBottom:20 }}>
+              <textarea rows={3} value={newUpdate} onChange={e=>setNewUpdate(e.target.value)} placeholder="Write an update... Use @ to mention team members" style={{ marginBottom:8, resize:'vertical' }} />
+              <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting}>{posting?'Posting...':'Post Update'}</button>
+            </div>
+            {updates.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:20 }}>No updates yet. Be the first to post!</div>}
+            {updates.map(u=>(
+              <div key={u.id} style={{ display:'flex', gap:12, marginBottom:16 }}>
+                <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(u.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, flexShrink:0 }}>{initials(u.author_name||'?')}</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                    <span style={{ fontWeight:600, fontSize:13 }}>{u.author_name}</span>
+                    <span style={{ fontSize:11, color:'var(--muted)' }}>{new Date(u.created_at).toLocaleString()}</span>
+                  </div>
+                  <div style={{ background:'var(--surface2)', borderRadius:8, padding:'10px 14px', fontSize:13, lineHeight:1.6, whiteSpace:'pre-wrap' }}>{u.body}</div>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+        {tab==='activity' && (
+          <div style={{ color:'var(--muted)', fontSize:13 }}>
+            <div style={{ marginBottom:12 }}>
+              <div style={{ fontWeight:600, color:'var(--text)', marginBottom:4 }}>Item created</div>
+              <div style={{ fontSize:11 }}>{new Date(item.created_at).toLocaleString()}</div>
+            </div>
+            <div style={{ color:'var(--muted)', fontSize:12, fontStyle:'italic' }}>Full activity tracking coming soon</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // SVG Icons
 const Icons = {
   dashboard: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
@@ -745,6 +1131,10 @@ const Icons = {
   pipeline: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
   team: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>,
   branding: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  workspace: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>,
+  chevron: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
+  plus: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  comment: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
 };
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
@@ -758,6 +1148,9 @@ export default function App() {
   const [selectedContact, setSelectedContact] = useState(null);
   const [toastMsg, setToastMsg] = useState('');
   const [brand, setBrand] = useState({ company_name:'SalesForge', logo_url:'', brand_color:'#3b82f6' });
+  const [workspaces, setWorkspaces] = useState([]);
+  const [workspacesOpen, setWorkspacesOpen] = useState(true);
+  const [activeWorkspace, setActiveWorkspace] = useState(null);
 
   const toast = (msg) => { setToastMsg(msg); };
 
@@ -780,6 +1173,7 @@ export default function App() {
       setProfile(data);
       setBrand({ company_name: data.company_name||'SalesForge', logo_url: data.logo_url||'', brand_color: data.brand_color||'#3b82f6' });
       loadContacts(data.company_name);
+      loadWorkspaces(data.company_name);
     }
   };
 
@@ -788,7 +1182,12 @@ export default function App() {
     setContacts(data||[]);
   }, []);
 
-  const refresh = () => profile && loadContacts(profile.company_name);
+  const loadWorkspaces = useCallback(async (company) => {
+    const { data } = await supabase.from('workspaces').select('*').eq('company_id', company).order('created_at', { ascending:true });
+    setWorkspaces(data||[]);
+  }, []);
+
+  const refresh = () => { if(profile) { loadContacts(profile.company_name); loadWorkspaces(profile.company_name); } };
 
   const logout = async () => { await supabase.auth.signOut(); };
 
@@ -814,12 +1213,27 @@ export default function App() {
         <div style={{ padding:'20px 20px', borderBottom:'1px solid rgba(255,255,255,.1)' }}>
           <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ maxHeight:60, maxWidth:180, filter:'brightness(0) invert(1)' }} className="brand-name" />
         </div>
-        <nav style={{ flex:1, padding:'12px 0' }}>
+        <nav style={{ flex:1, padding:'12px 0', overflowY:'auto' }}>
           {navItems.map(n=>(
-            <div key={n.id} className={`nav-item ${view===n.id?'active':''}`} onClick={()=>setView(n.id)}>
+            <div key={n.id} className={`nav-item ${view===n.id&&!activeWorkspace?'active':''}`} onClick={()=>{ setView(n.id); setActiveWorkspace(null); }}>
               <span>{n.icon}</span><span className="nav-label">{n.label}</span>
             </div>
           ))}
+          <div className="nav-label" style={{ padding:'16px 20px 6px', fontSize:11, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:'.08em', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <span>Workspaces</span>
+            <div style={{ display:'flex', gap:6 }}>
+              <span onClick={()=>setWorkspacesOpen(o=>!o)} style={{ cursor:'pointer', color:'rgba(255,255,255,.4)', display:'flex' }}>{Icons.chevron}</span>
+              {profile.role==='admin' && <span onClick={async()=>{ const name=prompt('Workspace name:'); if(!name) return; const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setActiveWorkspace(data); setView('workspace');}}} style={{ cursor:'pointer', color:'rgba(255,255,255,.4)', display:'flex' }}>{Icons.plus}</span>}
+            </div>
+          </div>
+          {workspacesOpen && workspaces.map(w=>(
+            <div key={w.id} className={`nav-item ${activeWorkspace?.id===w.id?'active':''}`} onClick={()=>{ setActiveWorkspace(w); setView('workspace'); }} style={{ paddingLeft:28 }}>
+              <span>{Icons.workspace}</span><span className="nav-label">{w.name}</span>
+            </div>
+          ))}
+          {workspacesOpen && workspaces.length===0 && profile.role==='admin' && (
+            <div className="nav-label" style={{ padding:'6px 28px', fontSize:12, color:'rgba(255,255,255,.25)', fontStyle:'italic' }}>No workspaces yet</div>
+          )}
         </nav>
         <div style={{ padding:16, borderTop:'1px solid rgba(255,255,255,.1)' }}>
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
@@ -835,11 +1249,12 @@ export default function App() {
 
       {/* Main */}
       <div className="main">
-        {view==='dashboard' && <Dashboard contacts={contacts} />}
+        {view==='dashboard' && <Dashboard contacts={contacts} workspaces={workspaces} onOpenWorkspace={w=>{ setActiveWorkspace(w); setView('workspace'); }} profile={profile} onCreateWorkspace={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setActiveWorkspace(data); setView('workspace');}}} />}
         {view==='contacts' && <ContactsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} toast={toast} />}
         {view==='pipeline' && <PipelineView contacts={contacts} onSelect={c=>setSelectedContact(c)} />}
         {view==='team' && <TeamView profile={profile} toast={toast} />}
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
+        {view==='workspace' && activeWorkspace && <WorkspaceView workspace={activeWorkspace} profile={profile} toast={toast} onRename={async(name)=>{ await supabase.from('workspaces').update({name}).eq('id',activeWorkspace.id); setWorkspaces(w=>w.map(x=>x.id===activeWorkspace.id?{...x,name}:x)); setActiveWorkspace(a=>({...a,name})); }} onDelete={async()=>{ if(!window.confirm('Delete this workspace?')) return; await supabase.from('workspaces').delete().eq('id',activeWorkspace.id); setWorkspaces(w=>w.filter(x=>x.id!==activeWorkspace.id)); setActiveWorkspace(null); setView('dashboard'); }} />}
       </div>
 
       {/* Contact Drawer */}
