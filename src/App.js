@@ -414,6 +414,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWorkspace }) {
+  const [showNewWs, setShowNewWs] = useState(false);
   const total = contacts.length;
   const pipeline = contacts.filter(c=>!['Converted','Non-Conversion'].includes(c.stage)).reduce((s,c)=>s+(c.deal_value||0),0);
   const won = contacts.filter(c=>c.stage==='Converted').length;
@@ -475,14 +476,14 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
       <div style={{ marginTop:28 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
           <div style={{ fontFamily:'Playfair Display,serif', fontSize:20, fontWeight:700 }}>Workspaces</div>
-          {profile?.role==='admin' && <button className="btn-primary btn-sm" onClick={()=>{ const name=prompt('New workspace name:'); if(name) onCreateWorkspace(name); }}>+ New Workspace</button>}
+          {profile?.role==='admin' && <button className="btn-primary btn-sm" onClick={()=>setShowNewWs(true)}>+ New Workspace</button>}
         </div>
         {workspaces.length===0 ? (
           <div className="card" style={{ textAlign:'center', padding:40 }}>
             <div style={{ fontSize:32, marginBottom:12 }}>📋</div>
             <div style={{ fontWeight:600, marginBottom:6 }}>No workspaces yet</div>
             <div style={{ color:'var(--muted)', fontSize:13, marginBottom:16 }}>Create a workspace to manage loans, tasks, and team projects</div>
-            {profile?.role==='admin' && <button className="btn-primary" onClick={()=>{ const name=prompt('New workspace name:'); if(name) onCreateWorkspace(name); }}>Create First Workspace</button>}
+            {profile?.role==='admin' && <button className="btn-primary" onClick={()=>setShowNewWs(true)}>Create First Workspace</button>}
           </div>
         ) : (
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:16 }}>
@@ -498,6 +499,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
           </div>
         )}
       </div>
+      {showNewWs && <InputModal title="New Workspace" placeholder="e.g. Loans In Process" onConfirm={name=>{ onCreateWorkspace(name); setShowNewWs(false); }} onClose={()=>setShowNewWs(false)} />}
     </div>
   );
 }
@@ -769,6 +771,7 @@ function BrandingView({ profile, onBrandUpdate, toast }) {
 
 // ─── WORKSPACE VIEW ───────────────────────────────────────────────────────────
 function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
+  const [inputModal, setInputModal] = useState(null); // { title, placeholder, defaultValue, onConfirm }
   const [groups, setGroups] = useState([]);
   const [items, setItems] = useState({});
   const [statuses, setStatuses] = useState([]);
@@ -804,20 +807,20 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
     setStatuses(data||[]);
   };
 
-  const addGroup = async () => {
-    const name = prompt('Group name (e.g. New Apps/Pre-Qual):');
-    if(!name) return;
+  const addGroup = () => {
+    setInputModal({ title:'Add Group', placeholder:'e.g. New Apps/Pre-Qual', defaultValue:'', onConfirm: async(name) => {
     const colors = ['#4d8ef0','#2ecc8a','#9b59b6','#f0b429','#e05252','#00b8c4'];
     const color = colors[groups.length % colors.length];
-    const {data} = await supabase.from('workspace_groups').insert([{workspace_id:workspace.id, name, color, position:groups.length}]).select().single();
-    if(data) { setGroups(g=>[...g,data]); setItems(prev=>({...prev,[data.id]:[]})); }
+      const {data} = await supabase.from('workspace_groups').insert([{workspace_id:workspace.id, name, color, position:groups.length}]).select().single();
+      if(data) { setGroups(g=>[...g,data]); setItems(prev=>({...prev,[data.id]:[]})); }
+    }});
   };
 
-  const addItem = async (groupId) => {
-    const name = prompt('Item name:');
-    if(!name) return;
-    const {data} = await supabase.from('workspace_items').insert([{group_id:groupId, company_id:profile.company_name, name, position:(items[groupId]||[]).length}]).select().single();
-    if(data) setItems(prev=>({...prev,[groupId]:[...(prev[groupId]||[]),data]}));
+  const addItem = (groupId) => {
+    setInputModal({ title:'Add Item', placeholder:'e.g. John & Jane Smith', defaultValue:'', onConfirm: async(name) => {
+      const {data} = await supabase.from('workspace_items').insert([{group_id:groupId, company_id:profile.company_name, name, position:(items[groupId]||[]).length}]).select().single();
+      if(data) setItems(prev=>({...prev,[groupId]:[...(prev[groupId]||[]),data]}));
+    }});
   };
 
   const updateItem = async (groupId, itemId, field, value) => {
@@ -858,7 +861,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <div style={{ fontFamily:"Playfair Display,serif", fontSize:26, fontWeight:700 }}>{workspace.name}</div>
           {profile.role==='admin' && <>
-            <button className="btn-sm btn-secondary" onClick={()=>{ const n=prompt('Rename workspace:',workspace.name); if(n) onRename(n); }}>✏️</button>
+            <button className="btn-sm btn-secondary" onClick={()=>setInputModal({ title:'Rename Workspace', placeholder:'Workspace name', defaultValue:workspace.name, onConfirm:onRename })}>✏️</button>
             <button className="btn-sm btn-danger" onClick={onDelete}>🗑️</button>
           </>}
         </div>
@@ -947,6 +950,8 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
 
       {/* Updates Panel */}
       {updatesPanel && <UpdatesPanel item={updatesPanel} profile={profile} onClose={()=>setUpdatesPanel(null)} toast={toast} />}
+      {/* Input Modal */}
+      {inputModal && <InputModal title={inputModal.title} placeholder={inputModal.placeholder} defaultValue={inputModal.defaultValue||''} onConfirm={inputModal.onConfirm} onClose={()=>setInputModal(null)} />}
     </div>
   );
 }
@@ -1151,6 +1156,7 @@ export default function App() {
   const [workspaces, setWorkspaces] = useState([]);
   const [workspacesOpen, setWorkspacesOpen] = useState(true);
   const [activeWorkspace, setActiveWorkspace] = useState(null);
+  const [sidebarNewWs, setSidebarNewWs] = useState(false);
 
   const toast = (msg) => { setToastMsg(msg); };
 
@@ -1223,7 +1229,7 @@ export default function App() {
             <span>Workspaces</span>
             <div style={{ display:'flex', gap:6 }}>
               <span onClick={()=>setWorkspacesOpen(o=>!o)} style={{ cursor:'pointer', color:'rgba(255,255,255,.4)', display:'flex' }}>{Icons.chevron}</span>
-              {profile.role==='admin' && <span onClick={async()=>{ const name=prompt('Workspace name:'); if(!name) return; const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setActiveWorkspace(data); setView('workspace');}}} style={{ cursor:'pointer', color:'rgba(255,255,255,.4)', display:'flex' }}>{Icons.plus}</span>}
+              {profile.role==='admin' && <span onClick={()=>setSidebarNewWs(true)} style={{ cursor:'pointer', color:'rgba(255,255,255,.4)', display:'flex' }}>{Icons.plus}</span>}
             </div>
           </div>
           {workspacesOpen && workspaces.map(w=>(
@@ -1277,6 +1283,7 @@ export default function App() {
         />
       )}
 
+      {sidebarNewWs && <InputModal title="New Workspace" placeholder="e.g. Loans In Process" onConfirm={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setActiveWorkspace(data); setView('workspace'); setSidebarNewWs(false);}}} onClose={()=>setSidebarNewWs(false)} />}
       <Toast msg={toastMsg} onClose={()=>setToastMsg('')} />
     </>
   );
