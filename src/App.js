@@ -235,8 +235,9 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
       });
       const data = await res.json();
       if (data.id) {
-        await supabase.from('activities').insert([{ contact_id:contact.id, company_id:companyId, type:'email', body:'Email sent: ' + emailSubject }]);
-        setActivities(a=>[{type:'email', body:'Email sent: ' + emailSubject, created_at:new Date().toISOString()}, ...a]);
+        const activityBody = 'Subject: ' + emailSubject + '\n\n' + emailBody;
+        await supabase.from('activities').insert([{ contact_id:contact.id, company_id:companyId, type:'email', body:activityBody }]);
+        setActivities(a=>[{type:'email', body:activityBody, created_at:new Date().toISOString()}, ...a]);
         setEmailSubject(''); setEmailBody('');
         toast('Email sent successfully!');
       } else { toast('Error: ' + (data.message||'Unknown error')); }
