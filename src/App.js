@@ -4,9 +4,9 @@ import { supabase } from './lib/supabase';
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 const css = `
   :root {
-    --bg: #2d3f54;
-    --surface: #344a61;
-    --surface2: #2a3b50;
+    --bg: #1e3048;
+    --surface: #243850;
+    --surface2: #1a2b3f;
     --border: #3d5270;
     --accent: #4d8ef0;
     --accent2: #1e429f;
@@ -51,7 +51,7 @@ const css = `
   .toast { position:fixed; bottom:24px; right:24px; background:var(--sidebar-bg); color:#fff; border-radius:8px; padding:14px 20px; z-index:999; font-size:14px; animation:slideIn .2s ease; box-shadow:0 8px 24px rgba(0,0,0,.2); }
   @keyframes slideIn { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
   .sidebar { width:240px; min-height:100vh; background:var(--sidebar-bg); display:flex; flex-direction:column; position:fixed; top:0; left:0; z-index:50; box-shadow:2px 0 12px rgba(0,0,0,.15); font-family:'Source Sans 3',system-ui,sans-serif; }
-  .main { margin-left:240px; min-height:100vh; background:var(--bg); }
+  .main { margin-left:240px; min-height:100vh; background:linear-gradient(135deg, #0f1c3f 0%, #1e3048 30%, #243d58 100%); }
   .nav-item { display:flex; align-items:center; gap:12px; padding:10px 20px; cursor:pointer; font-size:14px; color:var(--sidebar-text); transition:all .15s; border-left:3px solid transparent; font-weight:500; }
   .nav-item:hover { background:rgba(255,255,255,.07); color:#fff; }
   .nav-item.active { background:rgba(26,86,219,.25); color:#fff; border-left-color:var(--sidebar-active); }
@@ -566,27 +566,46 @@ function ContactsView({ contacts, onAdd, onSelect, toast }) {
 
 // ─── PIPELINE VIEW ────────────────────────────────────────────────────────────
 function PipelineView({ contacts, onSelect }) {
+  const total = contacts.length || 1;
+  const stageColors = {
+    'New Lead':'#4d8ef0','Contacted':'#7c5cbf','Qualified':'#f0b429',
+    'Proposal':'#4d8ef0','Negotiation':'#e07b2a','Converted':'#2ecc8a','Non-Conversion':'#e05252'
+  };
   return (
-    <div style={{ padding:32 }}>
-      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:20 }}>Lead Funnel</div>
-      <div style={{ display:'flex', gap:16, overflowX:'auto', paddingBottom:16 }}>
-        {STAGES.map(stage=>{
-          const cols = contacts.filter(c=>c.stage===stage);
+    <div style={{ padding:32, maxWidth:900, margin:'0 auto' }}>
+      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:28 }}>Lead Funnel</div>
+      <div style={{ display:'flex', flexDirection:'column', gap:8, alignItems:'center' }}>
+        {STAGES.map((stage, i) => {
+          const stageContacts = contacts.filter(c=>c.stage===stage);
+          const count = stageContacts.length;
+          const pct = Math.max(20, Math.round((count / total) * 100));
+          const maxWidth = 100 - (i * 6);
+          const width = Math.max(40, maxWidth) + '%';
+          const color = stageColors[stage] || '#4d8ef0';
           return (
-            <div key={stage} className="kanban-col">
-              <div style={{ padding:'12px 14px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontWeight:600, fontSize:13 }}>{stage}</span>
-                <span style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:20, padding:'2px 8px', fontSize:12, color:'var(--muted)' }}>{cols.length}</span>
-              </div>
-              <div style={{ padding:8, minHeight:80 }}>
-                {cols.map(c=>(
-                  <div key={c.id} className="kanban-card" onClick={()=>onSelect(c)}>
-                    <div style={{ fontWeight:600, fontSize:13, marginBottom:4 }}>{c.full_name}</div>
-                    <div style={{ color:'var(--muted)', fontSize:12, marginBottom:6 }}>{c.company}</div>
-                    {c.deal_value>0 && <div style={{ fontFamily:'JetBrains Mono,monospace', fontSize:12, color:'var(--success)' }}>{fmt(c.deal_value)}</div>}
+            <div key={stage} style={{ width:'100%', display:'flex', flexDirection:'column', alignItems:'center' }}>
+              <div style={{ width, background:color, borderRadius:8, padding:'14px 20px', cursor:'pointer', transition:'all .2s', boxShadow:`0 2px 12px ${color}44`, position:'relative' }}
+                onClick={()=>{}}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: count>0?10:0 }}>
+                  <span style={{ fontWeight:700, fontSize:14, color:'#fff', letterSpacing:'.02em' }}>{stage}</span>
+                  <span style={{ background:'rgba(255,255,255,.25)', color:'#fff', borderRadius:20, padding:'2px 10px', fontSize:13, fontWeight:700 }}>{count}</span>
+                </div>
+                {count > 0 && (
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                    {stageContacts.map(c=>(
+                      <div key={c.id} onClick={e=>{e.stopPropagation();onSelect(c);}} style={{ background:'rgba(255,255,255,.15)', borderRadius:6, padding:'5px 10px', cursor:'pointer', transition:'background .15s' }}
+                        onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.3)'}
+                        onMouseOut={e=>e.currentTarget.style.background='rgba(255,255,255,.15)'}>
+                        <div style={{ fontSize:12, fontWeight:600, color:'#fff' }}>{c.full_name}</div>
+                        {c.deal_value>0 && <div style={{ fontSize:11, color:'rgba(255,255,255,.8)' }}>{fmt(c.deal_value)}</div>}
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
+              {i < STAGES.length - 1 && (
+                <div style={{ width:2, height:16, background:'var(--border)' }} />
+              )}
             </div>
           );
         })}
