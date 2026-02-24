@@ -807,8 +807,116 @@ function InputModal({ title, placeholder, defaultValue='', onConfirm, onClose })
 }
 
 // ─── WORKSPACE VIEW ───────────────────────────────────────────────────────────
+
+// ─── STATUS MANAGER ───────────────────────────────────────────────────────────
+function StatusManager({ workspaceId, companyId, statuses, onUpdate, onClose }) {
+  const [list, setList] = useState(statuses);
+  const [newLabel, setNewLabel] = useState('');
+  const [newColor, setNewColor] = useState('#4d8ef0');
+  const [saving, setSaving] = useState(false);
+
+  const PRESET_COLORS = [
+    '#4d8ef0','#2ecc8a','#9b59b6','#f0b429','#e05252','#00b8c4',
+    '#e07b2a','#2c3e50','#1abc9c','#e91e63','#795548','#607d8b'
+  ];
+
+  const addStatus = async () => {
+    if(!newLabel.trim()) return;
+    setSaving(true);
+    const {data} = await supabase.from('workspace_statuses').insert([{
+      company_id: companyId,
+      workspace_id: workspaceId,
+      label: newLabel.trim(),
+      color: newColor,
+      position: list.length
+    }]).select().single();
+    if(data) {
+      const updated = [...list, data];
+      setList(updated);
+      onUpdate(updated);
+      setNewLabel('');
+    }
+    setSaving(false);
+  };
+
+  const updateStatus = async (id, field, value) => {
+    await supabase.from('workspace_statuses').update({[field]:value}).eq('id',id);
+    const updated = list.map(s=>s.id===id?{...s,[field]:value}:s);
+    setList(updated);
+    onUpdate(updated);
+  };
+
+  const deleteStatus = async (id) => {
+    await supabase.from('workspace_statuses').delete().eq('id',id);
+    const updated = list.filter(s=>s.id!==id);
+    setList(updated);
+    onUpdate(updated);
+  };
+
+  return (
+    <div className="overlay" style={{ zIndex:400 }}>
+      <div className="modal" style={{ maxWidth:560, maxHeight:'85vh', overflowY:'auto' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <div style={{ fontFamily:"Playfair Display,serif", fontSize:20, fontWeight:700 }}>Manage Statuses</div>
+          <button onClick={onClose} style={{ background:'none', color:'var(--muted)', fontSize:20, border:'none', cursor:'pointer' }}>✕</button>
+        </div>
+
+        {/* Existing statuses */}
+        <div style={{ marginBottom:24 }}>
+          {list.map(s=>(
+            <div key={s.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom:'1px solid var(--border)' }}>
+              {/* Color picker */}
+              <div style={{ position:'relative', flexShrink:0 }}>
+                <div style={{ width:28, height:28, borderRadius:6, background:s.color, cursor:'pointer', border:'2px solid rgba(255,255,255,.2)' }}
+                  onClick={e=>{ e.currentTarget.nextSibling.style.display=e.currentTarget.nextSibling.style.display==='block'?'none':'block'; }} />
+                <div style={{ display:'none', position:'absolute', top:34, left:0, zIndex:10, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:10, width:180, boxShadow:'0 8px 24px rgba(0,0,0,.3)' }}>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:8 }}>
+                    {PRESET_COLORS.map(c=>(
+                      <div key={c} onClick={()=>updateStatus(s.id,'color',c)} style={{ width:24, height:24, borderRadius:4, background:c, cursor:'pointer', border:s.color===c?'2px solid #fff':'2px solid transparent' }} />
+                    ))}
+                  </div>
+                  <input type="color" value={s.color} onChange={e=>updateStatus(s.id,'color',e.target.value)} style={{ width:'100%', height:32, padding:2, borderRadius:4 }} />
+                </div>
+              </div>
+              {/* Label */}
+              <div style={{ flex:1 }}>
+                <input value={s.label} onChange={e=>updateStatus(s.id,'label',e.target.value)}
+                  style={{ background:'transparent', border:'none', borderBottom:'1px solid var(--border)', borderRadius:0, padding:'4px 0', fontSize:13, width:'100%' }} />
+              </div>
+              {/* Preview */}
+              <div style={{ background:s.color, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>{s.label}</div>
+              {/* Delete */}
+              <button onClick={()=>deleteStatus(s.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:16, padding:'0 4px', flexShrink:0 }}>×</button>
+            </div>
+          ))}
+        </div>
+
+        {/* Add new status */}
+        <div style={{ borderTop:'1px solid var(--border)', paddingTop:20 }}>
+          <div style={{ fontSize:13, fontWeight:600, marginBottom:12, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em' }}>Add New Status</div>
+          <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:10 }}>
+            <input value={newLabel} onChange={e=>setNewLabel(e.target.value)} placeholder="Status label..." onKeyDown={e=>e.key==='Enter'&&addStatus()} style={{ flex:1 }} />
+            <input type="color" value={newColor} onChange={e=>setNewColor(e.target.value)} style={{ width:44, height:44, padding:2, borderRadius:6, cursor:'pointer', flexShrink:0 }} />
+          </div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:12 }}>
+            {PRESET_COLORS.map(c=>(
+              <div key={c} onClick={()=>setNewColor(c)} style={{ width:24, height:24, borderRadius:4, background:c, cursor:'pointer', border:newColor===c?'2px solid #fff':'2px solid transparent' }} />
+            ))}
+          </div>
+          {newLabel && <div style={{ background:newColor, color:'#fff', display:'inline-block', padding:'4px 12px', borderRadius:4, fontSize:12, fontWeight:600, marginBottom:12 }}>{newLabel}</div>}
+          <div style={{ display:'flex', gap:10 }}>
+            <button className="btn-primary" onClick={addStatus} disabled={saving||!newLabel.trim()}>{saving?'Adding...':'+ Add Status'}</button>
+            <button className="btn-secondary" onClick={onClose}>Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
-  const [inputModal, setInputModal] = useState(null); // { title, placeholder, defaultValue, onConfirm }
+  const [inputModal, setInputModal] = useState(null);
+  const [showStatusManager, setShowStatusManager] = useState(false);
   const [groups, setGroups] = useState([]);
   const [items, setItems] = useState({});
   const [statuses, setStatuses] = useState([]);
@@ -913,6 +1021,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
             {officers.map(o=><option key={o}>{o}</option>)}
           </select>
           <button className="btn-secondary btn-sm" onClick={exportCSV}>⬇️ Export</button>
+          {profile.role==='admin' && <button className="btn-secondary btn-sm" onClick={()=>setShowStatusManager(true)}>🎨 Statuses</button>}
           {profile.role==='admin' && <button className="btn-primary btn-sm" onClick={addGroup}>+ Add Group</button>}
         </div>
       </div>
@@ -989,6 +1098,8 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
       {updatesPanel && <UpdatesPanel item={updatesPanel} profile={profile} onClose={()=>setUpdatesPanel(null)} toast={toast} />}
       {/* Input Modal */}
       {inputModal && <InputModal title={inputModal.title} placeholder={inputModal.placeholder} defaultValue={inputModal.defaultValue||''} onConfirm={inputModal.onConfirm} onClose={()=>setInputModal(null)} />}
+      {/* Status Manager */}
+      {showStatusManager && <StatusManager workspaceId={workspace.id} companyId={profile.company_name} statuses={statuses} onUpdate={setStatuses} onClose={()=>setShowStatusManager(false)} />}
     </div>
   );
 }
@@ -1095,70 +1206,188 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
   const [updates, setUpdates] = useState([]);
   const [newUpdate, setNewUpdate] = useState('');
   const [posting, setPosting] = useState(false);
+  const [files, setFiles] = useState([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [activityLog, setActivityLog] = useState([]);
+  const fileInputRef = React.useRef();
 
-  useEffect(() => { loadUpdates(); }, [item.id]);
+  useEffect(() => { loadUpdates(); loadFiles(); buildActivityLog(); }, [item.id]);
 
   const loadUpdates = async () => {
-    const {data} = await supabase.from('workspace_updates').select('*').eq('item_id', item.id).order('created_at', {ascending:false});
+    const {data} = await supabase.from('workspace_updates').select('*').eq('item_id', item.id).order('created_at', {ascending:true});
     setUpdates(data||[]);
+  };
+
+  const loadFiles = async () => {
+    try {
+      const {data} = await supabase.storage.from('workspace-files').list(`items/${item.id}`);
+      setFiles(data||[]);
+    } catch(e) { setFiles([]); }
+  };
+
+  const buildActivityLog = () => {
+    const log = [{ type:'created', text:'Item created', date: item.created_at }];
+    if(item.status) log.push({ type:'status', text:`Status set to "${item.status}"`, date: item.created_at });
+    setActivityLog(log);
   };
 
   const postUpdate = async () => {
     if(!newUpdate.trim()) return;
     setPosting(true);
-    const {data} = await supabase.from('workspace_updates').insert([{ item_id:item.id, author_name:profile.full_name, author_id:profile.id, body:newUpdate }]).select().single();
-    if(data) { setUpdates(u=>[data,...u]); setNewUpdate(''); toast('Update posted!'); }
+    const {data} = await supabase.from('workspace_updates').insert([{
+      item_id:item.id, author_name:profile.full_name, author_id:profile.id, body:newUpdate
+    }]).select().single();
+    if(data) { setUpdates(u=>[...u, data]); setNewUpdate(''); toast('Update posted!'); }
     setPosting(false);
   };
 
+  const deleteUpdate = async (id) => {
+    await supabase.from('workspace_updates').delete().eq('id',id);
+    setUpdates(u=>u.filter(x=>x.id!==id));
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    setUploadingFile(true);
+    try {
+      const path = `items/${item.id}/${Date.now()}_${file.name}`;
+      const {error} = await supabase.storage.from('workspace-files').upload(path, file);
+      if(!error) { toast('File uploaded!'); loadFiles(); }
+      else { toast('Upload failed — storage may need setup'); }
+    } catch(err) { toast('File upload requires Supabase Storage setup'); }
+    setUploadingFile(false);
+  };
+
+  const getFileUrl = (fileName) => {
+    const {data} = supabase.storage.from('workspace-files').getPublicUrl(`items/${item.id}/${fileName}`);
+    return data?.publicUrl;
+  };
+
+  const formatFileSize = (bytes) => {
+    if(!bytes) return '';
+    if(bytes < 1024) return bytes + ' B';
+    if(bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/1048576).toFixed(1) + ' MB';
+  };
+
+  const getFileIcon = (name) => {
+    const ext = name.split('.').pop().toLowerCase();
+    if(['jpg','jpeg','png','gif','webp'].includes(ext)) return '🖼️';
+    if(['pdf'].includes(ext)) return '📄';
+    if(['doc','docx'].includes(ext)) return '📝';
+    if(['xls','xlsx','csv'].includes(ext)) return '📊';
+    return '📎';
+  };
+
   return (
-    <div style={{ position:'fixed', top:0, right:0, width:480, height:'100vh', background:'var(--surface)', borderLeft:'1px solid var(--border)', zIndex:300, display:'flex', flexDirection:'column', boxShadow:'-4px 0 20px rgba(0,0,0,.3)' }}>
+    <div style={{ position:'fixed', top:0, right:0, width:500, height:'100vh', background:'var(--surface)', borderLeft:'1px solid var(--border)', zIndex:300, display:'flex', flexDirection:'column', boxShadow:'-4px 0 24px rgba(0,0,0,.4)' }}>
       {/* Header */}
-      <div style={{ padding:'20px 24px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-        <div>
-          <div style={{ fontWeight:700, fontSize:16, fontFamily:"Playfair Display,serif", marginBottom:4 }}>{item.name}</div>
-          <div style={{ display:'flex', gap:8 }}>
-            {['updates','activity'].map(t=>(
-              <button key={t} onClick={()=>setTab(t)} style={{ padding:'4px 12px', borderRadius:20, fontSize:12, border:'1px solid', borderColor:tab===t?'var(--accent)':'var(--border)', background:tab===t?'rgba(77,142,240,.2)':'transparent', color:tab===t?'var(--accent)':'var(--muted)', cursor:'pointer', fontWeight:600 }}>
-                {t==='updates'?'💬 Updates':'📋 Activity'}
-              </button>
-            ))}
-          </div>
+      <div style={{ padding:'20px 24px', borderBottom:'1px solid var(--border)' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
+          <div style={{ fontWeight:700, fontSize:16, fontFamily:"Playfair Display,serif" }}>{item.name}</div>
+          <button onClick={onClose} style={{ background:'none', color:'var(--muted)', fontSize:20, border:'none', cursor:'pointer' }}>✕</button>
         </div>
-        <button onClick={onClose} style={{ background:'none', color:'var(--muted)', fontSize:20, border:'none', cursor:'pointer' }}>✕</button>
+        {item.status && <div style={{ display:'inline-block', background:item.status_color||'#4d8ef0', color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, marginBottom:10 }}>{item.status}</div>}
+        <div style={{ display:'flex', gap:6 }}>
+          {['updates','files','activity'].map(t=>(
+            <button key={t} onClick={()=>setTab(t)} style={{ padding:'5px 14px', borderRadius:20, fontSize:12, border:'1px solid', borderColor:tab===t?'var(--accent)':'var(--border)', background:tab===t?'rgba(77,142,240,.2)':'transparent', color:tab===t?'var(--accent)':'var(--muted)', cursor:'pointer', fontWeight:600 }}>
+              {t==='updates'?'💬 Updates':t==='files'?'📁 Files':'📋 Activity'}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Content */}
-      <div style={{ flex:1, overflowY:'auto', padding:24 }}>
+      <div style={{ flex:1, overflowY:'auto', padding:20 }}>
+
+        {/* UPDATES TAB */}
         {tab==='updates' && (
-          <>
-            {/* Post update */}
-            <div style={{ background:'var(--surface2)', borderRadius:8, padding:12, marginBottom:20 }}>
-              <textarea rows={3} value={newUpdate} onChange={e=>setNewUpdate(e.target.value)} placeholder="Write an update... Use @ to mention team members" style={{ marginBottom:8, resize:'vertical' }} />
-              <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting}>{posting?'Posting...':'Post Update'}</button>
+          <div>
+            {/* Post box */}
+            <div style={{ background:'var(--surface2)', borderRadius:10, padding:14, marginBottom:20, border:'1px solid var(--border)' }}>
+              <div style={{ display:'flex', gap:10, marginBottom:8 }}>
+                <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(profile.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(profile.full_name)}</div>
+                <textarea rows={3} value={newUpdate} onChange={e=>setNewUpdate(e.target.value)}
+                  placeholder="Write an update... mention teammates with @name"
+                  onKeyDown={e=>{ if(e.key==='Enter'&&e.ctrlKey) postUpdate(); }}
+                  style={{ flex:1, resize:'vertical', background:'transparent', border:'none', outline:'none', fontSize:13, color:'var(--text)', lineHeight:1.6 }} />
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:11, color:'var(--muted)' }}>Ctrl+Enter to post</span>
+                <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Post Update'}</button>
+              </div>
             </div>
-            {updates.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:20 }}>No updates yet. Be the first to post!</div>}
+
+            {updates.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No updates yet — be the first to post!</div>}
             {updates.map(u=>(
-              <div key={u.id} style={{ display:'flex', gap:12, marginBottom:16 }}>
-                <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(u.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, flexShrink:0 }}>{initials(u.author_name||'?')}</div>
+              <div key={u.id} style={{ display:'flex', gap:10, marginBottom:16 }}>
+                <div style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(u.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(u.author_name||'?')}</div>
                 <div style={{ flex:1 }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                    <span style={{ fontWeight:600, fontSize:13 }}>{u.author_name}</span>
-                    <span style={{ fontSize:11, color:'var(--muted)' }}>{new Date(u.created_at).toLocaleString()}</span>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:5 }}>
+                    <span style={{ fontWeight:700, fontSize:13 }}>{u.author_name}</span>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <span style={{ fontSize:11, color:'var(--muted)' }}>{new Date(u.created_at).toLocaleString()}</span>
+                      {u.author_id===profile.id && <button onClick={()=>deleteUpdate(u.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:13, padding:0 }}>×</button>}
+                    </div>
                   </div>
-                  <div style={{ background:'var(--surface2)', borderRadius:8, padding:'10px 14px', fontSize:13, lineHeight:1.6, whiteSpace:'pre-wrap' }}>{u.body}</div>
+                  <div style={{ background:'var(--surface2)', borderRadius:8, padding:'10px 14px', fontSize:13, lineHeight:1.7, whiteSpace:'pre-wrap', border:'1px solid var(--border)' }}>{u.body}</div>
                 </div>
               </div>
             ))}
-          </>
+          </div>
         )}
-        {tab==='activity' && (
-          <div style={{ color:'var(--muted)', fontSize:13 }}>
-            <div style={{ marginBottom:12 }}>
-              <div style={{ fontWeight:600, color:'var(--text)', marginBottom:4 }}>Item created</div>
-              <div style={{ fontSize:11 }}>{new Date(item.created_at).toLocaleString()}</div>
+
+        {/* FILES TAB */}
+        {tab==='files' && (
+          <div>
+            <input type="file" ref={fileInputRef} onChange={handleFileUpload} style={{ display:'none' }} />
+            <button className="btn-primary btn-sm" onClick={()=>fileInputRef.current?.click()} disabled={uploadingFile} style={{ marginBottom:16, width:'100%', padding:12 }}>
+              {uploadingFile ? '⏳ Uploading...' : '⬆️ Upload File'}
+            </button>
+            {files.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No files attached yet</div>}
+            {files.map(f=>(
+              <div key={f.name} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', background:'var(--surface2)', borderRadius:8, marginBottom:8, border:'1px solid var(--border)' }}>
+                <span style={{ fontSize:20 }}>{getFileIcon(f.name)}</span>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.name.replace(/^\d+_/,'')}</div>
+                  <div style={{ fontSize:11, color:'var(--muted)' }}>{formatFileSize(f.metadata?.size)}</div>
+                </div>
+                <a href={getFileUrl(f.name)} target="_blank" rel="noreferrer" style={{ color:'var(--accent)', fontSize:12, textDecoration:'none', fontWeight:600 }}>Download</a>
+              </div>
+            ))}
+            <div style={{ marginTop:16, padding:12, background:'rgba(77,142,240,.08)', borderRadius:8, fontSize:12, color:'var(--muted)', border:'1px solid rgba(77,142,240,.2)' }}>
+              💡 To enable file uploads, create a <strong>workspace-files</strong> storage bucket in Supabase with public access.
             </div>
-            <div style={{ color:'var(--muted)', fontSize:12, fontStyle:'italic' }}>Full activity tracking coming soon</div>
+          </div>
+        )}
+
+        {/* ACTIVITY TAB */}
+        {tab==='activity' && (
+          <div>
+            <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:16 }}>Item History</div>
+            {activityLog.map((entry,i)=>(
+              <div key={i} style={{ display:'flex', gap:12, marginBottom:14 }}>
+                <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--accent)', marginTop:5, flexShrink:0 }} />
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13 }}>{entry.text}</div>
+                  <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{new Date(entry.date).toLocaleString()}</div>
+                </div>
+              </div>
+            ))}
+            {updates.length > 0 && <>
+              <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', margin:'20px 0 12px' }}>Updates ({updates.length})</div>
+              {updates.map((u,i)=>(
+                <div key={i} style={{ display:'flex', gap:12, marginBottom:14 }}>
+                  <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--success)', marginTop:5, flexShrink:0 }} />
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontSize:13 }}><strong>{u.author_name}</strong> posted an update</div>
+                    <div style={{ fontSize:12, color:'var(--muted)', marginTop:2, fontStyle:'italic', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{u.body}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{new Date(u.created_at).toLocaleString()}</div>
+                  </div>
+                </div>
+              ))}
+            </>}
           </div>
         )}
       </div>
