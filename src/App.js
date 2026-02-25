@@ -1982,7 +1982,7 @@ export default function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [contacts, setContacts] = useState([]);
-  const [view, setView] = useState('dashboard');
+  const [view, setViewRaw] = useState('dashboard');
   const [showForm, setShowForm] = useState(false);
   const [editContact, setEditContact] = useState(null);
   const [selectedContact, setSelectedContact] = useState(null);
@@ -1994,6 +1994,38 @@ export default function App() {
   const [sidebarNewWs, setSidebarNewWs] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+
+  // Browser history navigation
+  const setView = useCallback((newView, workspace=null) => {
+    const state = { view: newView, workspaceId: workspace?.id||null, workspaceName: workspace?.name||null };
+    window.history.pushState(state, '', `#${newView}${workspace?'-'+workspace.id:''}`);
+    setViewRaw(newView);
+    if(workspace !== undefined) setActiveWorkspace(workspace);
+  }, []);
+
+  useEffect(() => {
+    const handlePop = (e) => {
+      if(e.state) {
+        setViewRaw(e.state.view||'dashboard');
+        if(e.state.workspaceId) {
+          setWorkspaces(prev => {
+            const ws = prev.find(w=>w.id===e.state.workspaceId);
+            setActiveWorkspace(ws||null);
+            return prev;
+          });
+        } else {
+          setActiveWorkspace(null);
+        }
+      } else {
+        setViewRaw('dashboard');
+        setActiveWorkspace(null);
+      }
+    };
+    window.addEventListener('popstate', handlePop);
+    // Set initial history state
+    window.history.replaceState({ view:'dashboard', workspaceId:null }, '', '#dashboard');
+    return () => window.removeEventListener('popstate', handlePop);
+  }, []);
 
   const toast = (msg) => { setToastMsg(msg); };
 
@@ -2058,7 +2090,7 @@ export default function App() {
         </div>
         <nav style={{ flex:1, padding:'12px 0', overflowY:'auto' }}>
           {navItems.map(n=>(
-            <div key={n.id} className={`nav-item ${view===n.id&&!activeWorkspace?'active':''}`} onClick={()=>{ setView(n.id); setActiveWorkspace(null); }}>
+            <div key={n.id} className={`nav-item ${view===n.id&&!activeWorkspace?'active':''}`} onClick={()=>{ setView(n.id, null); }}>
               <span>{n.icon}</span><span className="nav-label">{n.label}</span>
             </div>
           ))}
@@ -2079,7 +2111,7 @@ export default function App() {
               <div style={{ marginLeft:8 }}>
                 {workspaces.map(w=>(
                   <div key={w.id} className={`nav-item ${activeWorkspace?.id===w.id?'active':''}`}
-                    onClick={()=>{ setActiveWorkspace(w); setView('workspace'); }}
+                    onClick={()=>{ setView('workspace', w); }}
                     style={{ paddingLeft:40, fontSize:13 }}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
                     <span className="nav-label">{w.name}</span>
@@ -2110,16 +2142,16 @@ export default function App() {
       </div>
 
       {/* Top Bar */}
-      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>{ setView(v); setActiveWorkspace(null); }} onLogout={logout} />
+      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>setView(v,null)} onLogout={logout} />
 
       {/* Main */}
       <div className="main">
-        {view==='dashboard' && <Dashboard contacts={contacts} workspaces={workspaces} onOpenWorkspace={w=>{ setActiveWorkspace(w); setView('workspace'); }} profile={profile} onCreateWorkspace={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setActiveWorkspace(data); setView('workspace');}}} onNavigate={v=>{ setView(v); setActiveWorkspace(null); }} />}
+        {view==='dashboard' && <Dashboard contacts={contacts} workspaces={workspaces} onOpenWorkspace={w=>{ setView('workspace', w); }} profile={profile} onCreateWorkspace={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setView('workspace',data);}}} onNavigate={v=>setView(v,null)} />}
         {view==='contacts' && <ContactsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} toast={toast} />}
         {view==='pipeline' && <PipelineView contacts={contacts} onSelect={c=>setSelectedContact(c)} />}
         {view==='team' && <TeamView profile={profile} toast={toast} />}
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
-        {view==='workspace' && activeWorkspace && <WorkspaceView workspace={activeWorkspace} profile={profile} toast={toast} onRename={async(name)=>{ await supabase.from('workspaces').update({name}).eq('id',activeWorkspace.id); setWorkspaces(w=>w.map(x=>x.id===activeWorkspace.id?{...x,name}:x)); setActiveWorkspace(a=>({...a,name})); }} onDelete={async()=>{ if(!window.confirm('Delete this workspace?')) return; await supabase.from('workspaces').delete().eq('id',activeWorkspace.id); setWorkspaces(w=>w.filter(x=>x.id!==activeWorkspace.id)); setActiveWorkspace(null); setView('dashboard'); }} />}
+        {view==='workspace' && activeWorkspace && <WorkspaceView workspace={activeWorkspace} profile={profile} toast={toast} onRename={async(name)=>{ await supabase.from('workspaces').update({name}).eq('id',activeWorkspace.id); setWorkspaces(w=>w.map(x=>x.id===activeWorkspace.id?{...x,name}:x)); setActiveWorkspace(a=>({...a,name})); }} onDelete={async()=>{ if(!window.confirm('Delete this workspace?')) return; await supabase.from('workspaces').delete().eq('id',activeWorkspace.id); setWorkspaces(w=>w.filter(x=>x.id!==activeWorkspace.id)); setView('dashboard', null); }} />}
       </div>
 
       {/* Contact Drawer */}
@@ -2142,7 +2174,7 @@ export default function App() {
         />
       )}
 
-      {sidebarNewWs && <InputModal title="New Workspace" placeholder="e.g. Loans In Process" onConfirm={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setActiveWorkspace(data); setView('workspace'); setSidebarNewWs(false);}}} onClose={()=>setSidebarNewWs(false)} />}
+      {sidebarNewWs && <InputModal title="New Workspace" placeholder="e.g. Loans In Process" onConfirm={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setView('workspace',data); setSidebarNewWs(false);}}} onClose={()=>setSidebarNewWs(false)} />}
       <Toast msg={toastMsg} onClose={()=>setToastMsg('')} />
     </>
   );
