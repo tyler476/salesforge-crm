@@ -1242,10 +1242,12 @@ function StatusManager({ workspaceId, companyId, statuses, onUpdate, onClose }) 
   );
 }
 
-function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
+function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorkspaces, onSwitchWorkspace, onAddWorkspace }) {
   const [inputModal, setInputModal] = useState(null);
   const [showStatusManager, setShowStatusManager] = useState(false);
   const [viewMode, setViewMode] = useState('table');
+  const [showWsSwitcher, setShowWsSwitcher] = useState(false);
+  const [showAddView, setShowAddView] = useState(false);
   const [groups, setGroups] = useState([]);
   const [selected, setSelected] = useState({}); // { groupId: Set of itemIds }
   const [subItems, setSubItems] = useState({}); // { parentId: [subitems] }
@@ -1269,6 +1271,20 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
     loadStatuses();
     supabase.from('profiles').select('*').eq('company_name', profile.company_name).then(({data})=>setTeamMembers(data||[]));
   }, [workspace.id]);
+
+  useEffect(() => {
+    if(!showWsSwitcher) return;
+    const close = () => setShowWsSwitcher(false);
+    setTimeout(()=>document.addEventListener('click', close), 0);
+    return ()=>document.removeEventListener('click', close);
+  }, [showWsSwitcher]);
+
+  useEffect(() => {
+    if(!showAddView) return;
+    const close = () => setShowAddView(false);
+    setTimeout(()=>document.addEventListener('click', close), 0);
+    return ()=>document.removeEventListener('click', close);
+  }, [showAddView]);
 
   const loadGroups = async () => {
     const {data:grps} = await supabase.from('workspace_groups').select('*').eq('workspace_id', workspace.id).order('position');
@@ -1414,9 +1430,14 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
   return (
     <div style={{ minHeight:'100vh' }}>
       {/* Workspace Title Bar */}
-      <div style={{ padding:'16px 28px 0', display:'flex', alignItems:'center', gap:12 }}>
-        <div style={{ fontFamily:"Playfair Display,serif", fontSize:24, fontWeight:700 }}>{workspace.name}</div>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+      <div style={{ padding:'16px 28px 0', display:'flex', alignItems:'center', gap:10, position:'relative' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer', padding:'4px 10px', borderRadius:8, border:'1px solid transparent' }}
+          onClick={()=>setShowWsSwitcher(o=>!o)}
+          onMouseOver={e=>{ e.currentTarget.style.background='rgba(255,255,255,.06)'; e.currentTarget.style.borderColor='var(--border)'; }}
+          onMouseOut={e=>{ e.currentTarget.style.background=''; e.currentTarget.style.borderColor='transparent'; }}>
+          <div style={{ fontFamily:"Playfair Display,serif", fontSize:24, fontWeight:700 }}>{workspace.name}</div>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" style={{ transform:showWsSwitcher?'rotate(180deg)':'rotate(0)', transition:'transform .2s' }}><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
         {profile.role==='admin' && <>
           <button className="topbar-btn" onClick={()=>setInputModal({ title:'Rename Workspace', placeholder:'Workspace name', defaultValue:workspace.name, onConfirm:onRename })} title="Rename" style={{ padding:6 }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -1425,6 +1446,35 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
           </button>
         </>}
+        {/* Workspace switcher dropdown */}
+        {showWsSwitcher && (
+          <div style={{ position:'absolute', top:'100%', left:0, marginTop:4, width:260, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 12px 32px rgba(0,0,0,.4)', zIndex:9999, overflow:'hidden' }}>
+            <div style={{ padding:'8px 12px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', borderBottom:'1px solid var(--border)', background:'var(--surface2)' }}>Switch Workspace</div>
+            {allWorkspaces.map(w=>(
+              <div key={w.id} onClick={()=>{ onSwitchWorkspace(w); setShowWsSwitcher(false); }}
+                style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', cursor:'pointer', background:w.id===workspace.id?'rgba(77,142,240,.12)':'' }}
+                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.06)'}
+                onMouseOut={e=>e.currentTarget.style.background=w.id===workspace.id?'rgba(77,142,240,.12)':''}>
+                <div style={{ width:28, height:28, borderRadius:6, background:'linear-gradient(135deg,#4d8ef0,#1a56db)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:12 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontSize:13, fontWeight:w.id===workspace.id?700:400 }}>{w.name}</div>
+                </div>
+                {w.id===workspace.id && <span style={{ color:'var(--accent)', fontSize:12 }}>✓</span>}
+              </div>
+            ))}
+            {profile.role==='admin' && (
+              <div onClick={()=>{ onAddWorkspace(); setShowWsSwitcher(false); }}
+                style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', cursor:'pointer', borderTop:'1px solid var(--border)', color:'var(--accent)' }}
+                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'}
+                onMouseOut={e=>e.currentTarget.style.background=''}>
+                <span style={{ fontSize:18 }}>+</span>
+                <span style={{ fontSize:13, fontWeight:600 }}>New Workspace</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Tab bar */}
@@ -1436,9 +1486,34 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
           </div>
         ))}
         <div style={{ width:1, height:20, background:'var(--border)', margin:'0 8px' }} />
-        <div style={{ display:'flex', alignItems:'center', gap:4, padding:'8px 12px', color:'var(--muted)', cursor:'pointer', fontSize:13 }}
-          onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-          <span style={{ fontSize:16 }}>+</span> Add view
+        <div style={{ position:'relative' }}>
+          <div onClick={()=>setShowAddView(o=>!o)} style={{ display:'flex', alignItems:'center', gap:4, padding:'8px 12px', color:'var(--muted)', cursor:'pointer', fontSize:13, borderRadius:6 }}
+            onMouseOver={e=>{ e.currentTarget.style.color='var(--text)'; e.currentTarget.style.background='rgba(255,255,255,.06)'; }}
+            onMouseOut={e=>{ e.currentTarget.style.color='var(--muted)'; e.currentTarget.style.background=''; }}>
+            <span style={{ fontSize:16 }}>+</span> Add view
+          </div>
+          {showAddView && (
+            <div style={{ position:'absolute', top:'100%', left:0, marginTop:4, width:220, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 12px 32px rgba(0,0,0,.4)', zIndex:9999, overflow:'hidden' }}>
+              <div style={{ padding:'8px 12px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', borderBottom:'1px solid var(--border)', background:'var(--surface2)' }}>Choose View Type</div>
+              {[
+                {id:'table', icon:'⊞', label:'Main Table', desc:'Spreadsheet-style rows'},
+                {id:'kanban', icon:'▦', label:'Kanban Board', desc:'Cards by status column'},
+                {id:'chart', icon:'📊', label:'Chart / Stats', desc:'Visual charts & metrics'},
+              ].map(v=>(
+                <div key={v.id} onClick={()=>{ setViewMode(v.id); setShowAddView(false); }}
+                  style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', cursor:'pointer', background:viewMode===v.id?'rgba(77,142,240,.12)':'' }}
+                  onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.06)'}
+                  onMouseOut={e=>e.currentTarget.style.background=viewMode===v.id?'rgba(77,142,240,.12)':''}>
+                  <span style={{ fontSize:20, width:24, textAlign:'center' }}>{v.icon}</span>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:600 }}>{v.label}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)' }}>{v.desc}</div>
+                  </div>
+                  {viewMode===v.id && <span style={{ marginLeft:'auto', color:'var(--accent)' }}>✓</span>}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1644,36 +1719,61 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
         const allWsItems = Object.values(items).flat();
         const statusGroups = {};
         statuses.forEach(s=>{ statusGroups[s.label]=[]; });
-        statusGroups['No Status'] = [];
+        if(allWsItems.some(i=>!i.status)) statusGroups['No Status'] = [];
         allWsItems.forEach(item=>{ const k=item.status||'No Status'; if(!statusGroups[k]) statusGroups[k]=[]; statusGroups[k].push(item); });
+        const cols = Object.entries(statusGroups).filter(([k,v])=>v.length>0||k!=='No Status');
         return (
-          <div style={{ display:'flex', gap:16, overflowX:'auto', paddingBottom:16 }}>
-            {Object.entries(statusGroups).filter(([,items])=>items.length>0||statuses.find(s=>s.label===status)).map(([status, sitems])=>{
-              const s = statuses.find(x=>x.label===status);
-              return (
-                <div key={status} style={{ minWidth:260, maxWidth:260, flexShrink:0 }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, padding:'6px 0' }}>
-                    <div style={{ width:10, height:10, borderRadius:2, background:s?.color||'#666' }} />
-                    <span style={{ fontWeight:700, fontSize:13 }}>{status}</span>
-                    <span style={{ color:'var(--muted)', fontSize:12 }}>{sitems.length}</span>
-                  </div>
-                  {sitems.map(item=>(
-                    <div key={item.id} className="kanban-card">
-                      <div style={{ fontWeight:500, fontSize:13, marginBottom:8 }}>{item.name}</div>
-                      {item.lender && <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4 }}>🏦 {item.lender}</div>}
-                      {item.loan_officer && <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4 }}>👤 {item.loan_officer}</div>}
-                      {(item.assigned_officers||[]).length>0 && (
-                        <div style={{ display:'flex', gap:4, marginTop:8 }}>
-                          {(item.assigned_officers||[]).map((name,i)=>(
-                            <div key={i} title={name} style={{ width:22, height:22, borderRadius:'50%', background:avatarColor(name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, color:'#fff' }}>{initials(name)}</div>
-                          ))}
-                        </div>
-                      )}
+          <div style={{ overflowX:'auto', paddingBottom:24 }}>
+            <div style={{ display:'flex', gap:14, minWidth:'max-content' }}>
+              {cols.map(([status, sitems])=>{
+                const s = statuses.find(x=>x.label===status);
+                const colColor = s?.color||'#4d8ef0';
+                return (
+                  <div key={status} style={{ width:270, flexShrink:0 }}>
+                    {/* Column header */}
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, padding:'8px 10px', borderRadius:6, background:'var(--surface2)', borderTop:`3px solid ${colColor}` }}>
+                      <div style={{ width:10, height:10, borderRadius:2, background:colColor, flexShrink:0 }} />
+                      <span style={{ fontWeight:700, fontSize:13, flex:1 }}>{status}</span>
+                      <span style={{ background:'rgba(255,255,255,.1)', color:'var(--muted)', fontSize:11, fontWeight:600, padding:'1px 7px', borderRadius:10 }}>{sitems.length}</span>
                     </div>
-                  ))}
-                </div>
-              );
-            })}
+                    {/* Cards */}
+                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                      {sitems.map(item=>{
+                        const grp = groups.find(g=>g.id===item.group_id);
+                        return (
+                          <div key={item.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'12px 14px', cursor:'pointer', transition:'all .15s', borderLeft:`3px solid ${grp?.color||colColor}` }}
+                            onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.transform='translateY(-1px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,.2)'; }}
+                            onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow=''; }}
+                            onClick={()=>setUpdatesPanel(item)}>
+                            {grp && <div style={{ fontSize:10, color:grp.color, fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em', marginBottom:5 }}>{grp.name}</div>}
+                            <div style={{ fontWeight:600, fontSize:13, marginBottom:8, lineHeight:1.4 }}>{item.name}</div>
+                            {item.lender && <div style={{ fontSize:11, color:'var(--muted)', marginBottom:3, display:'flex', alignItems:'center', gap:4 }}>🏦 {item.lender}</div>}
+                            {item.loan_officer && <div style={{ fontSize:11, color:'var(--muted)', marginBottom:3, display:'flex', alignItems:'center', gap:4 }}>👤 {item.loan_officer}</div>}
+                            {item.date && <div style={{ fontSize:11, color:'var(--muted)', marginBottom:3, display:'flex', alignItems:'center', gap:4 }}>📅 {new Date(item.date).toLocaleDateString()}</div>}
+                            {item.priority && <div style={{ display:'inline-block', fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:3, marginTop:6, background:PRIORITY_COLORS[item.priority]+'22', color:PRIORITY_COLORS[item.priority] }}>{item.priority}</div>}
+                            {(item.assigned_officers||[]).length>0 && (
+                              <div style={{ display:'flex', gap:3, marginTop:8, paddingTop:8, borderTop:'1px solid var(--border)' }}>
+                                {(item.assigned_officers||[]).map((name,i)=>(
+                                  <div key={i} title={name} style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, color:'#fff', border:'2px solid var(--surface)' }}>{initials(name)}</div>
+                                ))}
+                                <span style={{ fontSize:11, color:'var(--muted)', marginLeft:4, lineHeight:'24px' }}>{(item.assigned_officers||[]).join(', ')}</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {/* Add item to this status */}
+                      <div onClick={()=>{ if(groups.length>0) addItem(groups[0].id); }}
+                        style={{ padding:'10px', borderRadius:8, border:'1px dashed var(--border)', color:'var(--muted)', fontSize:13, cursor:'pointer', textAlign:'center' }}
+                        onMouseOver={e=>{ e.currentTarget.style.background='rgba(255,255,255,.04)'; e.currentTarget.style.color='var(--text)'; }}
+                        onMouseOut={e=>{ e.currentTarget.style.background=''; e.currentTarget.style.color='var(--muted)'; }}>
+                        + Add item
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         );
       })()}
@@ -1681,35 +1781,105 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
       {/* CHART VIEW */}
       {viewMode==='chart' && (() => {
         const allWsItems = Object.values(items).flat();
+        const total = allWsItems.length;
         const statusCounts = {};
         allWsItems.forEach(item=>{ const k=item.status||'No Status'; statusCounts[k]=(statusCounts[k]||0)+1; });
-        const max = Math.max(...Object.values(statusCounts), 1);
+        const priorityCounts = {High:0,Medium:0,Low:0,Critical:0};
+        allWsItems.forEach(item=>{ if(item.priority) priorityCounts[item.priority]=(priorityCounts[item.priority]||0)+1; });
+        const maxStatus = Math.max(...Object.values(statusCounts),1);
+        const lenderCounts = {};
+        allWsItems.forEach(item=>{ if(item.lender) lenderCounts[item.lender]=(lenderCounts[item.lender]||0)+1; });
+        const maxLender = Math.max(...Object.values(lenderCounts),1);
         return (
           <div style={{ padding:'20px 0' }}>
-            <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700, marginBottom:20 }}>Items by Status</div>
-            <div style={{ display:'flex', flexDirection:'column', gap:10, maxWidth:600 }}>
-              {Object.entries(statusCounts).map(([status, count])=>{
-                const s = statuses.find(x=>x.label===status);
-                return (
-                  <div key={status} style={{ display:'flex', alignItems:'center', gap:12 }}>
-                    <div style={{ width:160, fontSize:12, color:'var(--muted)', textAlign:'right', flexShrink:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{status}</div>
-                    <div style={{ flex:1, background:'var(--surface2)', borderRadius:4, height:28, overflow:'hidden' }}>
-                      <div style={{ width:`${(count/max)*100}%`, height:'100%', background:s?.color||'#4d8ef0', borderRadius:4, display:'flex', alignItems:'center', justifyContent:'flex-end', paddingRight:8, transition:'width .5s' }}>
-                        <span style={{ color:'#fff', fontSize:12, fontWeight:700 }}>{count}</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{ marginTop:32, fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700, marginBottom:20 }}>Items by Group</div>
-            <div style={{ display:'flex', gap:16, flexWrap:'wrap' }}>
-              {groups.map(g=>(
-                <div key={g.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'16px 20px', borderTop:`3px solid ${g.color}`, minWidth:140, textAlign:'center' }}>
-                  <div style={{ fontSize:28, fontWeight:700, color:g.color }}>{(items[g.id]||[]).length}</div>
-                  <div style={{ fontSize:12, color:'var(--muted)', marginTop:4 }}>{g.name}</div>
+            {/* Summary cards */}
+            <div style={{ display:'flex', gap:16, marginBottom:32, flexWrap:'wrap' }}>
+              {[
+                {label:'Total Items', value:total, icon:'📋', color:'#4d8ef0'},
+                {label:'Completed', value:allWsItems.filter(i=>['Funded','Closed','Clear To Close','Converted'].some(s=>i.status?.includes(s))).length, icon:'✅', color:'#2ecc8a'},
+                {label:'In Progress', value:allWsItems.filter(i=>i.status&&!['No Status',''].includes(i.status)).length, icon:'⏳', color:'#f0b429'},
+                {label:'High Priority', value:(priorityCounts.High||0)+(priorityCounts.Critical||0), icon:'🔴', color:'#e05252'},
+              ].map(card=>(
+                <div key={card.label} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:'18px 22px', borderTop:`3px solid ${card.color}`, minWidth:150, flex:1 }}>
+                  <div style={{ fontSize:24, marginBottom:6 }}>{card.icon}</div>
+                  <div style={{ fontSize:28, fontWeight:700, color:card.color }}>{card.value}</div>
+                  <div style={{ fontSize:12, color:'var(--muted)', marginTop:4 }}>{card.label}</div>
                 </div>
               ))}
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24 }}>
+              {/* Items by Status */}
+              <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
+                <div style={{ fontFamily:'Playfair Display,serif', fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Status</div>
+                {Object.entries(statusCounts).length===0 && <div style={{ color:'var(--muted)', fontSize:13 }}>No items yet</div>}
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {Object.entries(statusCounts).sort((a,b)=>b[1]-a[1]).map(([status,count])=>{
+                    const s = statuses.find(x=>x.label===status);
+                    return (
+                      <div key={status}>
+                        <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:4 }}>
+                          <span style={{ color:'var(--text)' }}>{status}</span>
+                          <span style={{ color:'var(--muted)' }}>{count} ({Math.round(count/total*100)}%)</span>
+                        </div>
+                        <div style={{ background:'var(--surface2)', borderRadius:4, height:22, overflow:'hidden' }}>
+                          <div style={{ width:`${(count/maxStatus)*100}%`, height:'100%', background:s?.color||'#4d8ef0', borderRadius:4, transition:'width .6s ease' }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Items by Priority */}
+              <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
+                <div style={{ fontFamily:'Playfair Display,serif', fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Priority</div>
+                <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                  {Object.entries(PRIORITY_COLORS).map(([p,color])=>(
+                    <div key={p} style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:10, height:10, borderRadius:2, background:color, flexShrink:0 }} />
+                      <span style={{ fontSize:13, width:70 }}>{p}</span>
+                      <div style={{ flex:1, background:'var(--surface2)', borderRadius:4, height:22, overflow:'hidden' }}>
+                        <div style={{ width:`${((priorityCounts[p]||0)/Math.max(...Object.values(priorityCounts),1))*100}%`, height:'100%', background:color+'aa', borderRadius:4, transition:'width .6s ease' }} />
+                      </div>
+                      <span style={{ fontSize:12, color:'var(--muted)', width:24, textAlign:'right' }}>{priorityCounts[p]||0}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Items by Group */}
+              <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
+                <div style={{ fontFamily:'Playfair Display,serif', fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Group</div>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
+                  {groups.map(g=>(
+                    <div key={g.id} style={{ background:'var(--surface2)', borderRadius:8, padding:'12px 16px', borderLeft:`4px solid ${g.color}`, flex:'1 1 120px', minWidth:120 }}>
+                      <div style={{ fontSize:24, fontWeight:700, color:g.color }}>{(items[g.id]||[]).length}</div>
+                      <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>{g.name}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Items by Lender */}
+              {Object.keys(lenderCounts).length>0 && (
+                <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
+                  <div style={{ fontFamily:'Playfair Display,serif', fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Lender</div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    {Object.entries(lenderCounts).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([lender,count])=>(
+                      <div key={lender}>
+                        <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:3 }}>
+                          <span style={{ color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', maxWidth:180 }}>{lender}</span>
+                          <span style={{ color:'var(--muted)', flexShrink:0 }}>{count}</span>
+                        </div>
+                        <div style={{ background:'var(--surface2)', borderRadius:4, height:18, overflow:'hidden' }}>
+                          <div style={{ width:`${(count/maxLender)*100}%`, height:'100%', background:'var(--accent)', borderRadius:4 }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -2543,7 +2713,12 @@ export default function App() {
         {view==='team' && <TeamView profile={profile} toast={toast} />}
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
         {view==='trash' && <TrashArchiveView profile={profile} workspaces={workspaces} toast={toast} />}
-        {view==='workspace' && activeWorkspace && <WorkspaceView workspace={activeWorkspace} profile={profile} toast={toast} onRename={async(name)=>{ await supabase.from('workspaces').update({name}).eq('id',activeWorkspace.id); setWorkspaces(w=>w.map(x=>x.id===activeWorkspace.id?{...x,name}:x)); setActiveWorkspace(a=>({...a,name})); }} onDelete={async()=>{ if(!window.confirm('Delete this workspace?')) return; await supabase.from('workspaces').delete().eq('id',activeWorkspace.id); setWorkspaces(w=>w.filter(x=>x.id!==activeWorkspace.id)); setView('dashboard', null); }} />}
+        {view==='workspace' && activeWorkspace && <WorkspaceView workspace={activeWorkspace} profile={profile} toast={toast}
+  allWorkspaces={workspaces}
+  onSwitchWorkspace={w=>setView('workspace',w)}
+  onAddWorkspace={()=>setSidebarNewWs(true)}
+  onRename={async(name)=>{ await supabase.from('workspaces').update({name}).eq('id',activeWorkspace.id); setWorkspaces(w=>w.map(x=>x.id===activeWorkspace.id?{...x,name}:x)); setActiveWorkspace(a=>({...a,name})); }}
+  onDelete={async()=>{ if(!window.confirm('Delete this workspace?')) return; await supabase.from('workspaces').delete().eq('id',activeWorkspace.id); setWorkspaces(w=>w.filter(x=>x.id!==activeWorkspace.id)); setView('dashboard', null); }} />}
       </div>
 
       {/* Contact Drawer */}
