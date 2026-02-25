@@ -1153,7 +1153,8 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
 
             {/* Table */}
             {!isCollapsed && (
-              <div style={{ overflowX:'auto', border:'1px solid var(--border)', borderRadius:8, marginTop:6, borderLeft:`3px solid ${group.color}` }}>
+              <div style={{ border:'1px solid var(--border)', borderRadius:8, marginTop:6, borderLeft:`3px solid ${group.color}`, position:'static' }}>
+              <div style={{ overflowX:'auto' }}>
                 <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
                   <thead>
                     <tr style={{ background:'var(--surface2)' }}>
@@ -1216,6 +1217,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
                     {groupItems.length===0 && <tr><td colSpan={COLUMNS.length+2} style={{ padding:'16px 10px', color:'var(--muted)', textAlign:'center', fontSize:13 }}>No items yet</td></tr>}
                   </tbody>
                 </table>
+              </div>{/* end overflowX wrapper */}
                 {/* Add item row */}
                 <div style={{ padding:'8px 10px 8px 46px', borderTop:'1px solid var(--border)', background:'var(--surface2)' }}>
                   <button onClick={()=>addItem(group.id)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:13, display:'flex', alignItems:'center', gap:6 }}>
@@ -1283,6 +1285,15 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showAssignPicker, setShowAssignPicker] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [pickerPos, setPickerPos] = useState({top:0,left:0});
+  const [assignPos, setAssignPos] = useState({top:0,left:0});
+
+  React.useEffect(()=>{
+    if(!showStatusPicker && !showAssignPicker) return;
+    const close = ()=>{ setShowStatusPicker(false); setShowAssignPicker(false); };
+    document.addEventListener('click', close, true);
+    return ()=>document.removeEventListener('click', close, true);
+  },[showStatusPicker, showAssignPicker]);
 
   const statusObj = statuses.find(s=>s.label===item.status);
   const statusColor = item.status_color || statusObj?.color || '#4d8ef0';
@@ -1319,20 +1330,29 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
         </div>
       </td>
       <td style={{ padding:'4px 10px', position:'relative' }}>
-        <div onClick={()=>setShowStatusPicker(s=>!s)} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+        <div onClick={e=>{ const r=e.currentTarget.getBoundingClientRect(); const spaceBelow=window.innerHeight-r.bottom; const dropH=Math.min(320, statuses.length*40+60); const top=spaceBelow<dropH ? r.top-dropH-4 : r.bottom+4; setPickerPos({top,left:r.left}); setShowStatusPicker(s=>!s); setShowAssignPicker(false); }} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
           {item.status||'No Status'}
         </div>
         {showStatusPicker && (
-          <div style={{ position:'absolute', top:'100%', left:0, zIndex:999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:220, maxHeight:300, overflowY:'auto', boxShadow:'0 8px 24px rgba(0,0,0,.3)' }}>
+          <div style={{ position:'fixed', top:pickerPos.top, left:pickerPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:240, maxHeight:400, overflowY:'auto', boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
+            {statuses.length===0 && <div style={{ padding:'8px', color:'var(--muted)', fontSize:12 }}>No statuses yet — click 🎨 Statuses to add some</div>}
             {statuses.map(s=>(
               <div key={s.id} onClick={()=>{ onUpdate('status',s.label); onUpdate('status_color',s.color); setShowStatusPicker(false); }}
-                style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:4, cursor:'pointer' }}
-                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
+                style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', borderRadius:4, cursor:'pointer' }}
+                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.07)'}
                 onMouseOut={e=>e.currentTarget.style.background=''}>
-                <div style={{ width:12, height:12, borderRadius:2, background:s.color, flexShrink:0 }} />
-                <span style={{ fontSize:12 }}>{s.label}</span>
+                <div style={{ width:14, height:14, borderRadius:3, background:s.color, flexShrink:0 }} />
+                <span style={{ fontSize:13 }}>{s.label}</span>
               </div>
             ))}
+            <div style={{ borderTop:'1px solid var(--border)', marginTop:4, paddingTop:4 }}>
+              <div onClick={()=>{ onUpdate('status',''); onUpdate('status_color',''); setShowStatusPicker(false); }}
+                style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 10px', borderRadius:4, cursor:'pointer', color:'var(--muted)', fontSize:12 }}
+                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
+                onMouseOut={e=>e.currentTarget.style.background=''}>
+                Clear status
+              </div>
+            </div>
           </div>
         )}
       </td>
@@ -1349,11 +1369,11 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
       <td style={{ padding:'4px 10px' }}><EditableCell field="processor_contact" /></td>
       <td style={{ padding:'4px 10px' }}><EditableCell field="escrow_email" /></td>
       <td style={{ padding:'4px 10px', position:'relative' }}>
-        <div onClick={()=>setShowAssignPicker(s=>!s)} style={{ cursor:'pointer', fontSize:12, color:'var(--muted)', whiteSpace:'nowrap' }}>
+        <div onClick={e=>{ const r=e.currentTarget.getBoundingClientRect(); setAssignPos({top:r.bottom+4,left:Math.max(0,r.right-240)}); setShowAssignPicker(s=>!s); setShowStatusPicker(false); }} style={{ cursor:'pointer', fontSize:12, color:'var(--muted)', whiteSpace:'nowrap' }}>
           {(item.assigned_officers||[]).length>0 ? (item.assigned_officers||[]).join(', ') : <span style={{color:'var(--border)'}}>+ Assign</span>}
         </div>
         {showAssignPicker && (
-          <div style={{ position:'absolute', top:'100%', right:0, zIndex:999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:220, boxShadow:'0 8px 24px rgba(0,0,0,.3)' }}>
+          <div style={{ position:'fixed', top:assignPos.top, left:assignPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:240, boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
             <div style={{ fontSize:11, color:'var(--muted)', marginBottom:6, fontWeight:600 }}>ASSIGN OFFICERS</div>
             {teamMembers.map(m=>{
               const assigned = (item.assigned_officers||[]).includes(m.email||m.full_name);
