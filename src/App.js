@@ -1682,45 +1682,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
           {hovered && subItemCount===0 && <button onClick={onAddSubItem} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:3, fontSize:10, flexShrink:0, opacity:.7 }} title="Add sub-item">⊕</button>}
         </div>
       </td>
-      <td style={{ padding:'4px 10px', position:'relative' }}>
-        <div onClick={e=>{ const r=e.currentTarget.getBoundingClientRect(); const spaceBelow=window.innerHeight-r.bottom; const dropH=Math.min(320, statuses.length*40+60); const top=spaceBelow<dropH ? r.top-dropH-4 : r.bottom+4; setPickerPos({top,left:r.left}); setShowStatusPicker(s=>!s); setShowAssignPicker(false); }} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
-          {item.status||'No Status'}
-        </div>
-        {showStatusPicker && (
-          <div style={{ position:'fixed', top:pickerPos.top, left:pickerPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:240, maxHeight:400, overflowY:'auto', boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
-            {statuses.length===0 && <div style={{ padding:'8px', color:'var(--muted)', fontSize:12 }}>No statuses yet — click 🎨 Statuses to add some</div>}
-            {statuses.map(s=>(
-              <div key={s.id} onClick={()=>{ onUpdate('status',s.label); onUpdate('status_color',s.color); setShowStatusPicker(false); }}
-                style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', borderRadius:4, cursor:'pointer' }}
-                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.07)'}
-                onMouseOut={e=>e.currentTarget.style.background=''}>
-                <div style={{ width:14, height:14, borderRadius:3, background:s.color, flexShrink:0 }} />
-                <span style={{ fontSize:13 }}>{s.label}</span>
-              </div>
-            ))}
-            <div style={{ borderTop:'1px solid var(--border)', marginTop:4, paddingTop:4 }}>
-              <div onClick={()=>{ onUpdate('status',''); onUpdate('status_color',''); setShowStatusPicker(false); }}
-                style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 10px', borderRadius:4, cursor:'pointer', color:'var(--muted)', fontSize:12 }}
-                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
-                onMouseOut={e=>e.currentTarget.style.background=''}>
-                Clear status
-              </div>
-            </div>
-          </div>
-        )}
-      </td>
-      <td style={{ padding:'4px 10px' }}>
-        <select value={item.priority||'Medium'} onChange={e=>onUpdate('priority',e.target.value)} style={{ background:'transparent', border:'none', color:PRIORITY_COLORS[item.priority||'Medium'], fontWeight:700, fontSize:12, cursor:'pointer', width:'auto', padding:'2px 4px' }}>
-          {['Low','Medium','High','Critical'].map(p=><option key={p} style={{ background:'#1a2e4a', color:PRIORITY_COLORS[p] }}>{p}</option>)}
-        </select>
-      </td>
-      <td style={{ padding:'4px 10px' }}><EditableCell field="date" type="date" /></td>
-      <td style={{ padding:'4px 10px' }}><EditableCell field="lender" /></td>
-      <td style={{ padding:'4px 10px' }}><EditableCell field="loan_officer" /></td>
-      <td style={{ padding:'4px 10px' }}><EditableCell field="processor" /></td>
-      <td style={{ padding:'4px 10px' }}><EditableCell field="lock_expiration" type="date" /></td>
-      <td style={{ padding:'4px 10px' }}><EditableCell field="processor_contact" /></td>
-      <td style={{ padding:'4px 10px' }}><EditableCell field="escrow_email" /></td>
+      {/* OWNER — right after name to match header order */}
       <td style={{ padding:'4px 10px', position:'relative' }}>
         <div onClick={e=>{ const r=e.currentTarget.getBoundingClientRect(); setAssignPos({top:r.bottom+4,left:Math.max(0,r.right-240)}); setShowAssignPicker(s=>!s); setShowStatusPicker(false); }} style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}>
           {(item.assigned_officers||[]).length===0 && (
@@ -1760,6 +1722,46 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
           </div>
         )}
       </td>
+      {/* STATUS */}
+      <td style={{ padding:'4px 10px', position:'relative' }}>
+        <div onClick={e=>{ const r=e.currentTarget.getBoundingClientRect(); const spaceBelow=window.innerHeight-r.bottom; const dropH=Math.min(320, statuses.length*40+60); const top=spaceBelow<dropH ? r.top-dropH-4 : r.bottom+4; setPickerPos({top,left:r.left}); setShowStatusPicker(s=>!s); setShowAssignPicker(false); }} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+          {item.status||'No Status'}
+        </div>
+        {showStatusPicker && (
+          <div style={{ position:'fixed', top:pickerPos.top, left:pickerPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:240, maxHeight:400, overflowY:'auto', boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
+            {statuses.length===0 && <div style={{ padding:'8px', color:'var(--muted)', fontSize:12 }}>No statuses yet — click 🎨 Statuses to add some</div>}
+            {statuses.map(s=>(
+              <div key={s.id} onClick={()=>{ onUpdate('status',s.label); onUpdate('status_color',s.color); setShowStatusPicker(false); }}
+                style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', borderRadius:4, cursor:'pointer' }}
+                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.07)'}
+                onMouseOut={e=>e.currentTarget.style.background=''}>
+                <div style={{ width:14, height:14, borderRadius:3, background:s.color, flexShrink:0 }} />
+                <span style={{ fontSize:13 }}>{s.label}</span>
+              </div>
+            ))}
+            <div style={{ borderTop:'1px solid var(--border)', marginTop:4, paddingTop:4 }}>
+              <div onClick={()=>{ onUpdate('status',''); onUpdate('status_color',''); setShowStatusPicker(false); }}
+                style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 10px', borderRadius:4, cursor:'pointer', color:'var(--muted)', fontSize:12 }}
+                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
+                onMouseOut={e=>e.currentTarget.style.background=''}>
+                Clear status
+              </div>
+            </div>
+          </div>
+        )}
+      </td>
+      <td style={{ padding:'4px 10px' }}>
+        <select value={item.priority||'Medium'} onChange={e=>onUpdate('priority',e.target.value)} style={{ background:'transparent', border:'none', color:PRIORITY_COLORS[item.priority||'Medium'], fontWeight:700, fontSize:12, cursor:'pointer', width:'auto', padding:'2px 4px' }}>
+          {['Low','Medium','High','Critical'].map(p=><option key={p} style={{ background:'#1a2e4a', color:PRIORITY_COLORS[p] }}>{p}</option>)}
+        </select>
+      </td>
+      <td style={{ padding:'4px 10px' }}><EditableCell field="date" type="date" /></td>
+      <td style={{ padding:'4px 10px' }}><EditableCell field="lender" /></td>
+      <td style={{ padding:'4px 10px' }}><EditableCell field="loan_officer" /></td>
+      <td style={{ padding:'4px 10px' }}><EditableCell field="processor" /></td>
+      <td style={{ padding:'4px 10px' }}><EditableCell field="lock_expiration" type="date" /></td>
+      <td style={{ padding:'4px 10px' }}><EditableCell field="processor_contact" /></td>
+      <td style={{ padding:'4px 10px' }}><EditableCell field="escrow_email" /></td>
       <td style={{ padding:'4px 10px' }}>
         <button onClick={onDelete} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:14, padding:4 }}>×</button>
       </td>
