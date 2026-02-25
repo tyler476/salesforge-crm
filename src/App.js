@@ -51,7 +51,13 @@ const css = `
   .toast { position:fixed; bottom:24px; right:24px; background:var(--sidebar-bg); color:#fff; border-radius:8px; padding:14px 20px; z-index:999; font-size:14px; animation:slideIn .2s ease; box-shadow:0 8px 24px rgba(0,0,0,.2); }
   @keyframes slideIn { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
   .sidebar { width:240px; min-height:100vh; background:var(--sidebar-bg); display:flex; flex-direction:column; position:fixed; top:0; left:0; z-index:50; box-shadow:2px 0 12px rgba(0,0,0,.15); font-family:'Source Sans 3',system-ui,sans-serif; }
-  .main { margin-left:240px; min-height:100vh; background:linear-gradient(to right, #0f1c3f 0%, #152540 20%, #1a2e4a 60%, #1e3350 100%); }
+  .main { margin-left:240px; min-height:100vh; background:linear-gradient(to right, #0f1c3f 0%, #152540 20%, #1a2e4a 60%, #1e3350 100%); padding-top:52px; }
+  .topbar { position:fixed; top:0; left:240px; right:0; height:52px; background:var(--sidebar-bg); border-bottom:1px solid rgba(255,255,255,.08); display:flex; align-items:center; justify-content:flex-end; padding:0 20px; gap:4px; z-index:49; }
+  .topbar-btn { background:none; border:none; color:var(--sidebar-text); cursor:pointer; padding:7px; border-radius:6px; display:flex; align-items:center; justify-content:center; transition:background .15s; }
+  .topbar-btn:hover { background:rgba(255,255,255,.1); color:#fff; }
+  .ws-toolbar { display:flex; align-items:center; gap:8px; padding:10px 28px; border-bottom:1px solid var(--border); background:var(--surface2); flex-wrap:wrap; }
+  .ws-toolbar-btn { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:6px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; font-family:'Libre Baskerville',Georgia,serif; transition:all .15s; }
+  .ws-toolbar-btn:hover { background:rgba(255,255,255,.07); color:var(--text); }
   .nav-item { display:flex; align-items:center; gap:12px; padding:10px 20px; cursor:pointer; font-size:14px; color:var(--sidebar-text); transition:all .15s; border-left:3px solid transparent; font-weight:500; }
   .nav-item:hover { background:rgba(255,255,255,.07); color:#fff; }
   .nav-item.active { background:rgba(26,86,219,.25); color:#fff; border-left-color:var(--sidebar-active); }
@@ -412,6 +418,70 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
   );
 }
 
+
+// ─── TOP BAR ─────────────────────────────────────────────────────────────────
+function TopBar({ profile, onSearch, searchOpen, setSearchOpen }) {
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [searchVal, setSearchVal] = useState('');
+
+  return (
+    <div className="topbar">
+      {/* Global search */}
+      {searchOpen && (
+        <div style={{ position:'relative', marginRight:'auto' }}>
+          <input autoFocus value={searchVal} onChange={e=>{ setSearchVal(e.target.value); onSearch(e.target.value); }}
+            placeholder="Search everything..." onBlur={()=>{ if(!searchVal) setSearchOpen(false); }}
+            style={{ width:280, paddingLeft:36, background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', fontSize:13 }} />
+          <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--muted)' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </span>
+        </div>
+      )}
+
+      {/* Notification bell */}
+      <button className="topbar-btn" onClick={()=>setNotifOpen(o=>!o)} title="Notifications" style={{ position:'relative' }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span style={{ position:'absolute', top:4, right:4, width:8, height:8, borderRadius:'50%', background:'var(--danger)', border:'2px solid var(--sidebar-bg)' }} />
+      </button>
+
+      {/* Search */}
+      <button className="topbar-btn" onClick={()=>setSearchOpen(o=>!o)} title="Search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </button>
+
+      {/* Invite */}
+      <button className="topbar-btn" title="Invite people">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+      </button>
+
+      {/* Help */}
+      <button className="topbar-btn" title="Help">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </button>
+
+      <div style={{ width:1, height:24, background:'rgba(255,255,255,.1)', margin:'0 4px' }} />
+
+      {/* Apps grid */}
+      <button className="topbar-btn" title="Apps">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      </button>
+
+      {/* Avatar */}
+      <div style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700, cursor:'pointer', marginLeft:4, border:'2px solid rgba(255,255,255,.2)' }} title={profile.full_name}>
+        {initials(profile.full_name||'?')}
+      </div>
+
+      {/* Notif dropdown */}
+      {notifOpen && (
+        <div style={{ position:'fixed', top:56, right:16, width:320, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 12px 32px rgba(0,0,0,.4)', zIndex:9999 }}>
+          <div style={{ padding:'14px 16px', borderBottom:'1px solid var(--border)', fontWeight:700, fontSize:14 }}>Notifications</div>
+          <div style={{ padding:'24px 16px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>You're all caught up! 🎉</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWorkspace, onNavigate }) {
   const [showNewWs, setShowNewWs] = useState(false);
@@ -583,7 +653,7 @@ function MassEmailModal({ contacts, onClose, onSent }) {
 }
 
 function ContactsView({ contacts, onAdd, onSelect, toast }) {
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(null);
   const [stageFilter, setStageFilter] = useState('All');
   const [selected, setSelected] = useState([]);
   const [showMassEmail, setShowMassEmail] = useState(false);
@@ -928,7 +998,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
   const [collapsed, setCollapsed] = useState({});
   const [activeItem, setActiveItem] = useState(null);
   const [updatesPanel, setUpdatesPanel] = useState(null);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(null);
   const [filterOfficer, setFilterOfficer] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [sortCol, setSortCol] = useState('');
@@ -1073,39 +1143,108 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
   };
 
   const PRIORITY_COLORS = { High:'#e05252', Medium:'#f0b429', Low:'#2ecc8a', Critical:'#9b59b6' };
-  const COLUMNS = ['name','status','priority','date','lender','loan_officer','processor','lock_expiration','processor_contact','escrow_email','assigned_officers'];
-  const COL_LABELS = { name:'Item', status:'Status', priority:'Priority', date:'Date', lender:'Lender', loan_officer:'Loan Officer', processor:'Processor', lock_expiration:'Lock Exp.', processor_contact:'Processor Contact', escrow_email:'Escrow Email', assigned_officers:'Assigned Officers' };
-  const COL_WIDTHS = { name:200, status:160, priority:100, date:110, lender:120, loan_officer:130, processor:130, lock_expiration:110, processor_contact:150, escrow_email:160, assigned_officers:180 };
+  const COLUMNS = ['name','assigned_officers','status','priority','date','lender','loan_officer','processor','lock_expiration','processor_contact','escrow_email'];
+  const COL_LABELS = { name:'Item', status:'Status', priority:'Priority', date:'Date', lender:'Lender', loan_officer:'Loan Officer', processor:'Processor', lock_expiration:'Lock Exp.', processor_contact:'Processor Contact', escrow_email:'Escrow Email', assigned_officers:'Owner' };
+  const COL_WIDTHS = { name:200, assigned_officers:100, status:180, priority:100, date:110, lender:120, loan_officer:130, processor:130, lock_expiration:110, processor_contact:150, escrow_email:160 };
 
   const allItems = Object.values(items).flat();
   const officers = [...new Set(allItems.flatMap(i=>i.assigned_officers||[]))];
 
   return (
-    <div style={{ padding:28, minHeight:'100vh' }}>
-      {/* Header */}
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-          <div style={{ fontFamily:"Playfair Display,serif", fontSize:26, fontWeight:700 }}>{workspace.name}</div>
-          {profile.role==='admin' && <>
-            <button className="btn-sm btn-secondary" onClick={()=>setInputModal({ title:'Rename Workspace', placeholder:'Workspace name', defaultValue:workspace.name, onConfirm:onRename })}>✏️</button>
-            <button className="btn-sm btn-danger" onClick={onDelete}>🗑️</button>
-          </>}
-        </div>
-        <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search items..." style={{ width:200 }} />
-          <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{ width:'auto' }}>
-            <option value="">All Statuses</option>
-            {statuses.map(s=><option key={s.id}>{s.label}</option>)}
-          </select>
-          <select value={filterOfficer} onChange={e=>setFilterOfficer(e.target.value)} style={{ width:'auto' }}>
-            <option value="">All Officers</option>
-            {officers.map(o=><option key={o}>{o}</option>)}
-          </select>
-          <button className="btn-secondary btn-sm" onClick={exportCSV}>⬇️ Export</button>
-          {profile.role==='admin' && <button className="btn-secondary btn-sm" onClick={()=>setShowStatusManager(true)}>🎨 Statuses</button>}
-          {profile.role==='admin' && <button className="btn-primary btn-sm" onClick={addGroup}>+ Add Group</button>}
-        </div>
+    <div style={{ minHeight:'100vh' }}>
+      {/* Workspace Title Bar */}
+      <div style={{ padding:'16px 28px 0', display:'flex', alignItems:'center', gap:12 }}>
+        <div style={{ fontFamily:"Playfair Display,serif", fontSize:24, fontWeight:700 }}>{workspace.name}</div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2"><polyline points="6 9 12 15 18 9"/></svg>
+        {profile.role==='admin' && <>
+          <button className="topbar-btn" onClick={()=>setInputModal({ title:'Rename Workspace', placeholder:'Workspace name', defaultValue:workspace.name, onConfirm:onRename })} title="Rename" style={{ padding:6 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button className="topbar-btn" onClick={onDelete} title="Delete workspace" style={{ padding:6 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          </button>
+        </>}
       </div>
+
+      {/* Tab bar */}
+      <div style={{ padding:'8px 28px 0', display:'flex', gap:0, borderBottom:'1px solid var(--border)' }}>
+        <div style={{ padding:'6px 16px', fontSize:13, fontWeight:600, color:'var(--accent)', borderBottom:'2px solid var(--accent)', cursor:'pointer', marginBottom:-1 }}>Main table</div>
+        <div style={{ padding:'6px 16px', fontSize:13, color:'var(--muted)', cursor:'pointer' }}>+ Add view</div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="ws-toolbar">
+        {/* New Item */}
+        <div style={{ display:'flex', borderRadius:6, overflow:'hidden', boxShadow:'0 1px 3px rgba(26,86,219,.3)' }}>
+          <button onClick={()=>{ if(groups.length>0) addItem(groups[0].id); else addGroup(); }} style={{ background:'var(--accent)', color:'#fff', border:'none', padding:'7px 16px', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
+            + New Item
+          </button>
+          <button onClick={addGroup} style={{ background:'#3a7de8', color:'#fff', border:'none', borderLeft:'1px solid rgba(255,255,255,.2)', padding:'7px 10px', cursor:'pointer' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </div>
+
+        <div style={{ width:1, height:24, background:'var(--border)', margin:'0 4px' }} />
+
+        {/* Search */}
+        <button className="ws-toolbar-btn" onClick={()=>setSearch(s=>s===null?'':null)} style={{ color: search!==null?'var(--accent)':'var(--muted)' }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          Search
+        </button>
+        {search!==null && <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search items..." autoFocus style={{ width:180, padding:'5px 10px', fontSize:13 }} onKeyDown={e=>e.key==='Escape'&&setSearch(null)} />}
+
+        {/* Person filter */}
+        <div style={{ position:'relative' }}>
+          <button className="ws-toolbar-btn" style={{ color:filterOfficer?'var(--accent)':'var(--muted)' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Person
+            <select value={filterOfficer} onChange={e=>setFilterOfficer(e.target.value)} style={{ position:'absolute', inset:0, opacity:0, cursor:'pointer', width:'100%' }}>
+              <option value="">All People</option>
+              {officers.map(o=><option key={o}>{o}</option>)}
+            </select>
+          </button>
+        </div>
+
+        {/* Filter */}
+        <div style={{ position:'relative' }}>
+          <button className="ws-toolbar-btn" style={{ color:filterStatus?'var(--accent)':'var(--muted)' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            Filter {filterStatus && `· ${filterStatus}`}
+            <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{ position:'absolute', inset:0, opacity:0, cursor:'pointer', width:'100%' }}>
+              <option value="">No filter</option>
+              {statuses.map(s=><option key={s.id}>{s.label}</option>)}
+            </select>
+          </button>
+        </div>
+
+        {/* Sort */}
+        <div style={{ position:'relative' }}>
+          <button className="ws-toolbar-btn" style={{ color:sortCol?'var(--accent)':'var(--muted)' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+            Sort {sortCol && `· ${COL_LABELS[sortCol]}`}
+            <select value={sortCol} onChange={e=>setSortCol(e.target.value)} style={{ position:'absolute', inset:0, opacity:0, cursor:'pointer', width:'100%' }}>
+              <option value="">None</option>
+              {COLUMNS.map(c=><option key={c} value={c}>{COL_LABELS[c]}</option>)}
+            </select>
+          </button>
+        </div>
+
+        {/* Statuses */}
+        {profile.role==='admin' && (
+          <button className="ws-toolbar-btn" onClick={()=>setShowStatusManager(true)}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Statuses
+          </button>
+        )}
+
+        {/* Export */}
+        <button className="ws-toolbar-btn" onClick={exportCSV} style={{ marginLeft:'auto' }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+      </div>
+
+      <div style={{ padding:'20px 28px' }}>
 
       {/* Groups */}
       {groups.length===0 && (
@@ -1117,8 +1256,8 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
 
       {groups.map(group => {
         let groupItems = (items[group.id]||[]).filter(item => {
-          const q = search.toLowerCase();
-          const matchSearch = !q || item.name?.toLowerCase().includes(q) || item.lender?.toLowerCase().includes(q) || item.loan_officer?.toLowerCase().includes(q);
+          const q = (search||'').toLowerCase();
+          const matchSearch = !search || !q || item.name?.toLowerCase().includes(q) || item.lender?.toLowerCase().includes(q) || item.loan_officer?.toLowerCase().includes(q);
           const matchStatus = !filterStatus || item.status===filterStatus;
           const matchOfficer = !filterOfficer || (item.assigned_officers||[]).includes(filterOfficer);
           return matchSearch && matchStatus && matchOfficer;
@@ -1234,6 +1373,8 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
       <button onClick={addGroup} style={{ display:'flex', alignItems:'center', gap:8, background:'none', border:'1px dashed var(--border)', color:'var(--muted)', padding:'10px 20px', borderRadius:8, cursor:'pointer', fontSize:13, marginTop:8 }}>
         + Add new group
       </button>
+
+      </div>{/* end padding wrapper */}
 
       {/* Bottom action bar when items selected */}
       {totalSelected > 0 && (
@@ -1369,8 +1510,16 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
       <td style={{ padding:'4px 10px' }}><EditableCell field="processor_contact" /></td>
       <td style={{ padding:'4px 10px' }}><EditableCell field="escrow_email" /></td>
       <td style={{ padding:'4px 10px', position:'relative' }}>
-        <div onClick={e=>{ const r=e.currentTarget.getBoundingClientRect(); setAssignPos({top:r.bottom+4,left:Math.max(0,r.right-240)}); setShowAssignPicker(s=>!s); setShowStatusPicker(false); }} style={{ cursor:'pointer', fontSize:12, color:'var(--muted)', whiteSpace:'nowrap' }}>
-          {(item.assigned_officers||[]).length>0 ? (item.assigned_officers||[]).join(', ') : <span style={{color:'var(--border)'}}>+ Assign</span>}
+        <div onClick={e=>{ const r=e.currentTarget.getBoundingClientRect(); setAssignPos({top:r.bottom+4,left:Math.max(0,r.right-240)}); setShowAssignPicker(s=>!s); setShowStatusPicker(false); }} style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}>
+          {(item.assigned_officers||[]).length===0 && (
+            <div style={{ width:28, height:28, borderRadius:'50%', border:'2px dashed var(--border)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--border)', fontSize:14 }}>+</div>
+          )}
+          {(item.assigned_officers||[]).map((name,i)=>(
+            <div key={i} title={name} style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', border:'2px solid var(--surface)', marginLeft: i>0?-8:0, zIndex: i, flexShrink:0 }}>
+              {initials(name)}
+            </div>
+          ))}
+          {(item.assigned_officers||[]).length>0 && hovered && <span style={{ fontSize:11, color:'var(--muted)', marginLeft:4 }}>+</span>}
         </div>
         {showAssignPicker && (
           <div style={{ position:'fixed', top:assignPos.top, left:assignPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:240, boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
@@ -1629,6 +1778,8 @@ export default function App() {
   const [workspacesOpen, setWorkspacesOpen] = useState(true);
   const [activeWorkspace, setActiveWorkspace] = useState(null);
   const [sidebarNewWs, setSidebarNewWs] = useState(false);
+  const [globalSearch, setGlobalSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
 
   const toast = (msg) => { setToastMsg(msg); };
 
@@ -1743,6 +1894,9 @@ export default function App() {
           <button style={{ width:'100%', padding:'8px', borderRadius:6, background:'rgba(255,255,255,.1)', color:'#c9d3e8', border:'1px solid rgba(255,255,255,.15)', fontSize:13, cursor:'pointer', fontWeight:500 }} onClick={logout}>Sign Out</button>
         </div>
       </div>
+
+      {/* Top Bar */}
+      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} />
 
       {/* Main */}
       <div className="main">
