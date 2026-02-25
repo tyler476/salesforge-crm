@@ -420,7 +420,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
 
 
 // ─── TOP BAR ─────────────────────────────────────────────────────────────────
-function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout }) {
+function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout, onGetResults }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -429,6 +429,12 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
   const [appsOpen, setAppsOpen] = useState(false);
   const [searchVal, setSearchVal] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
+
+  React.useEffect(()=>{
+    const esc = e => { if(e.key==='Escape') { setSearchOpen(false); setSearchVal(''); onSearch(''); setNotifOpen(false); setProfileOpen(false); setHelpOpen(false); setAppsOpen(false); setInviteOpen(false); }};
+    document.addEventListener('keydown', esc);
+    return ()=>document.removeEventListener('keydown', esc);
+  },[]);
   const [inviteRole, setInviteRole] = useState('member');
   const [inviteSending, setInviteSending] = useState(false);
 
@@ -488,15 +494,49 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
   return (
     <>
     <div className="topbar">
-      {/* Global search */}
+      {/* Global search overlay */}
       {searchOpen && (
-        <div style={{ position:'relative', marginRight:'auto' }} onClick={stop}>
-          <input autoFocus value={searchVal} onChange={e=>{ setSearchVal(e.target.value); onSearch(e.target.value); }}
-            placeholder="Search everything..." onBlur={()=>{ if(!searchVal) setSearchOpen(false); }}
-            style={{ width:280, paddingLeft:36, background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', fontSize:13 }} />
-          <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--muted)' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </span>
+        <div onClick={e=>{ stop(e); }} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', zIndex:99998, display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:80 }}>
+          <div onClick={stop} style={{ width:620, background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', boxShadow:'0 24px 60px rgba(0,0,0,.5)', overflow:'hidden' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:12, padding:'14px 20px', borderBottom:'1px solid var(--border)' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input autoFocus value={searchVal} onChange={e=>{ setSearchVal(e.target.value); onSearch(e.target.value); }}
+                placeholder="Search contacts, items, workspaces..."
+                style={{ flex:1, background:'transparent', border:'none', outline:'none', color:'#fff', fontSize:16 }} />
+              <span style={{ fontSize:12, color:'var(--muted)', background:'rgba(255,255,255,.1)', padding:'2px 8px', borderRadius:4 }}>ESC</span>
+            </div>
+            {searchVal && (
+              <div style={{ maxHeight:400, overflowY:'auto' }}>
+                {onGetResults(searchVal).length === 0 ? (
+                  <div style={{ padding:'32px', textAlign:'center', color:'var(--muted)', fontSize:14 }}>No results for "{searchVal}"</div>
+                ) : onGetResults(searchVal).map((r,i) => (
+                  <div key={i} onClick={()=>{ r.action(); setSearchOpen(false); setSearchVal(''); onSearch(''); }}
+                    style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 20px', cursor:'pointer', borderBottom:'1px solid var(--border)' }}
+                    onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
+                    onMouseOut={e=>e.currentTarget.style.background=''}>
+                    <span style={{ fontSize:20, flexShrink:0 }}>{r.icon}</span>
+                    <div>
+                      <div style={{ fontSize:14, fontWeight:500 }}>{r.title}</div>
+                      <div style={{ fontSize:12, color:'var(--muted)' }}>{r.subtitle}</div>
+                    </div>
+                    <span style={{ marginLeft:'auto', fontSize:11, color:'var(--muted)', background:'rgba(255,255,255,.08)', padding:'2px 8px', borderRadius:4 }}>{r.type}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!searchVal && (
+              <div style={{ padding:'16px 20px' }}>
+                <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>Quick Actions</div>
+                {[{icon:'👥',label:'Go to Contacts',nav:'contacts'},{icon:'〽️',label:'Go to Lead Funnel',nav:'pipeline'},{icon:'📋',label:'Go to Dashboard',nav:'dashboard'},{icon:'👤',label:'Go to Team',nav:'team'}].map(a=>(
+                  <div key={a.nav} onClick={()=>{ onNavigate(a.nav); setSearchOpen(false); }} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:6, cursor:'pointer', fontSize:13 }}
+                    onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
+                    onMouseOut={e=>e.currentTarget.style.background=''}>
+                    <span>{a.icon}</span><span>{a.label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -668,7 +708,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
           { icon:'👥', label:'Teams', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
           { icon:'🎨', label:'Branding & Settings', action:()=>{ onNavigate('branding'); setProfileOpen(false); } },
           { icon:'📋', label:'Workspaces', action:()=>{ onNavigate('dashboard'); setProfileOpen(false); } },
-          { icon:'🗑️', label:'Trash / Archive', action:()=>{ onNavigate('dashboard'); setProfileOpen(false); } },
+          { icon:'🗑️', label:'Trash / Archive', action:()=>{ onNavigate('trash'); setProfileOpen(false); } },
           { icon:'⚙️', label:'Administration', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
         ].map(item=>(
           <div key={item.label} onClick={item.action}
@@ -865,13 +905,13 @@ function MassEmailModal({ contacts, onClose, onSent }) {
 }
 
 function ContactsView({ contacts, onAdd, onSelect, toast }) {
-  const [search, setSearch] = useState(null);
+  const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState('All');
   const [selected, setSelected] = useState([]);
   const [showMassEmail, setShowMassEmail] = useState(false);
 
   const filtered = contacts.filter(c => {
-    const q = search.toLowerCase();
+    const q = (search||'').toLowerCase();
     const match = !q || c.full_name?.toLowerCase().includes(q) || c.company?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q);
     const stageMatch = stageFilter==='All' || c.stage===stageFilter;
     return match && stageMatch;
@@ -985,6 +1025,12 @@ function PipelineView({ contacts, onSelect }) {
 function TeamView({ profile, toast }) {
   const [members, setMembers] = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
+
+  React.useEffect(()=>{
+    const esc = e => { if(e.key==='Escape') { setSearchOpen(false); setSearchVal(''); onSearch(''); setNotifOpen(false); setProfileOpen(false); setHelpOpen(false); setAppsOpen(false); setInviteOpen(false); }};
+    document.addEventListener('keydown', esc);
+    return ()=>document.removeEventListener('keydown', esc);
+  },[]);
   const [inviteLink, setInviteLink] = useState('');
 
   useEffect(() => {
@@ -1199,6 +1245,7 @@ function StatusManager({ workspaceId, companyId, statuses, onUpdate, onClose }) 
 function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
   const [inputModal, setInputModal] = useState(null);
   const [showStatusManager, setShowStatusManager] = useState(false);
+  const [viewMode, setViewMode] = useState('table');
   const [groups, setGroups] = useState([]);
   const [selected, setSelected] = useState({}); // { groupId: Set of itemIds }
   const [subItems, setSubItems] = useState({}); // { parentId: [subitems] }
@@ -1230,7 +1277,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
   };
 
   const loadItems = async (groupId) => {
-    const {data} = await supabase.from('workspace_items').select('*').eq('group_id', groupId).is('parent_id', null).eq('archived', false).order('position');
+    const {data} = await supabase.from('workspace_items').select('*').eq('group_id', groupId).is('parent_id', null).eq('archived', false).neq('trashed', true).order('position');
     setItems(prev => ({...prev, [groupId]: data||[]}));
   };
 
@@ -1285,9 +1332,10 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
   };
 
   const deleteSelectedItems = async (groupId, itemIds) => {
-    for(const id of itemIds) await supabase.from('workspace_items').delete().eq('id',id);
+    for(const id of itemIds) await supabase.from('workspace_items').update({trashed:true, archived:false}).eq('id',id);
     setItems(prev=>({...prev,[groupId]:(prev[groupId]||[]).filter(i=>!itemIds.includes(i.id))}));
     setSelected({});
+    toast('Moved to trash — items deleted after 30 days');
   };
 
   const moveItemsToGroup = async (fromGroupId, itemIds, toGroupId) => {
@@ -1338,8 +1386,9 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
   };
 
   const deleteItem = async (groupId, itemId) => {
-    await supabase.from('workspace_items').delete().eq('id',itemId);
+    await supabase.from('workspace_items').update({trashed:true, archived:false}).eq('id',itemId);
     setItems(prev=>({...prev,[groupId]:(prev[groupId]||[]).filter(i=>i.id!==itemId)}));
+    toast('Moved to trash');
   };
 
   const exportCSV = () => {
@@ -1379,9 +1428,18 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
       </div>
 
       {/* Tab bar */}
-      <div style={{ padding:'8px 28px 0', display:'flex', gap:0, borderBottom:'1px solid var(--border)' }}>
-        <div style={{ padding:'6px 16px', fontSize:13, fontWeight:600, color:'var(--accent)', borderBottom:'2px solid var(--accent)', cursor:'pointer', marginBottom:-1 }}>Main table</div>
-        <div style={{ padding:'6px 16px', fontSize:13, color:'var(--muted)', cursor:'pointer' }}>+ Add view</div>
+      <div style={{ padding:'8px 28px 0', display:'flex', gap:0, borderBottom:'1px solid var(--border)', alignItems:'center' }}>
+        {[{id:'table',label:'Main table',icon:'⊞'},{id:'kanban',label:'Kanban',icon:'▦'},{id:'chart',label:'Chart',icon:'📊'}].map(v=>(
+          <div key={v.id} onClick={()=>setViewMode(v.id)}
+            style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px', fontSize:13, fontWeight:viewMode===v.id?600:400, color:viewMode===v.id?'var(--accent)':'var(--muted)', borderBottom:viewMode===v.id?'2px solid var(--accent)':'2px solid transparent', cursor:'pointer', marginBottom:-1, whiteSpace:'nowrap', transition:'color .15s' }}>
+            <span style={{ fontSize:14 }}>{v.icon}</span>{v.label}
+          </div>
+        ))}
+        <div style={{ width:1, height:20, background:'var(--border)', margin:'0 8px' }} />
+        <div style={{ display:'flex', alignItems:'center', gap:4, padding:'8px 12px', color:'var(--muted)', cursor:'pointer', fontSize:13 }}
+          onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+          <span style={{ fontSize:16 }}>+</span> Add view
+        </div>
       </div>
 
       {/* Toolbar */}
@@ -1466,7 +1524,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
         </div>
       )}
 
-      {groups.map(group => {
+      {viewMode==='table' && groups.map(group => {
         let groupItems = (items[group.id]||[]).filter(item => {
           const q = (search||'').toLowerCase();
           const matchSearch = !search || !q || item.name?.toLowerCase().includes(q) || item.lender?.toLowerCase().includes(q) || item.loan_officer?.toLowerCase().includes(q);
@@ -1581,8 +1639,87 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
         );
       })}
 
+      {/* KANBAN VIEW */}
+      {viewMode==='kanban' && (() => {
+        const allWsItems = Object.values(items).flat();
+        const statusGroups = {};
+        statuses.forEach(s=>{ statusGroups[s.label]=[]; });
+        statusGroups['No Status'] = [];
+        allWsItems.forEach(item=>{ const k=item.status||'No Status'; if(!statusGroups[k]) statusGroups[k]=[]; statusGroups[k].push(item); });
+        return (
+          <div style={{ display:'flex', gap:16, overflowX:'auto', paddingBottom:16 }}>
+            {Object.entries(statusGroups).filter(([,items])=>items.length>0||statuses.find(s=>s.label===status)).map(([status, sitems])=>{
+              const s = statuses.find(x=>x.label===status);
+              return (
+                <div key={status} style={{ minWidth:260, maxWidth:260, flexShrink:0 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, padding:'6px 0' }}>
+                    <div style={{ width:10, height:10, borderRadius:2, background:s?.color||'#666' }} />
+                    <span style={{ fontWeight:700, fontSize:13 }}>{status}</span>
+                    <span style={{ color:'var(--muted)', fontSize:12 }}>{sitems.length}</span>
+                  </div>
+                  {sitems.map(item=>(
+                    <div key={item.id} className="kanban-card">
+                      <div style={{ fontWeight:500, fontSize:13, marginBottom:8 }}>{item.name}</div>
+                      {item.lender && <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4 }}>🏦 {item.lender}</div>}
+                      {item.loan_officer && <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4 }}>👤 {item.loan_officer}</div>}
+                      {(item.assigned_officers||[]).length>0 && (
+                        <div style={{ display:'flex', gap:4, marginTop:8 }}>
+                          {(item.assigned_officers||[]).map((name,i)=>(
+                            <div key={i} title={name} style={{ width:22, height:22, borderRadius:'50%', background:avatarColor(name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, color:'#fff' }}>{initials(name)}</div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
+
+      {/* CHART VIEW */}
+      {viewMode==='chart' && (() => {
+        const allWsItems = Object.values(items).flat();
+        const statusCounts = {};
+        allWsItems.forEach(item=>{ const k=item.status||'No Status'; statusCounts[k]=(statusCounts[k]||0)+1; });
+        const max = Math.max(...Object.values(statusCounts), 1);
+        return (
+          <div style={{ padding:'20px 0' }}>
+            <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700, marginBottom:20 }}>Items by Status</div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10, maxWidth:600 }}>
+              {Object.entries(statusCounts).map(([status, count])=>{
+                const s = statuses.find(x=>x.label===status);
+                return (
+                  <div key={status} style={{ display:'flex', alignItems:'center', gap:12 }}>
+                    <div style={{ width:160, fontSize:12, color:'var(--muted)', textAlign:'right', flexShrink:0, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{status}</div>
+                    <div style={{ flex:1, background:'var(--surface2)', borderRadius:4, height:28, overflow:'hidden' }}>
+                      <div style={{ width:`${(count/max)*100}%`, height:'100%', background:s?.color||'#4d8ef0', borderRadius:4, display:'flex', alignItems:'center', justifyContent:'flex-end', paddingRight:8, transition:'width .5s' }}>
+                        <span style={{ color:'#fff', fontSize:12, fontWeight:700 }}>{count}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{ marginTop:32, fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700, marginBottom:20 }}>Items by Group</div>
+            <div style={{ display:'flex', gap:16, flexWrap:'wrap' }}>
+              {groups.map(g=>(
+                <div key={g.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'16px 20px', borderTop:`3px solid ${g.color}`, minWidth:140, textAlign:'center' }}>
+                  <div style={{ fontSize:28, fontWeight:700, color:g.color }}>{(items[g.id]||[]).length}</div>
+                  <div style={{ fontSize:12, color:'var(--muted)', marginTop:4 }}>{g.name}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* TABLE VIEW (default) */}
+      {viewMode==='table' && <></>}{/* groups render above handles table */}
+
       {/* Add new group button */}
-      <button onClick={addGroup} style={{ display:'flex', alignItems:'center', gap:8, background:'none', border:'1px dashed var(--border)', color:'var(--muted)', padding:'10px 20px', borderRadius:8, cursor:'pointer', fontSize:13, marginTop:8 }}>
+      {viewMode==='table' && <button onClick={addGroup} style={{ display:'flex', alignItems:'center', gap:8, background:'none', border:'1px dashed var(--border)', color:'var(--muted)', padding:'10px 20px', borderRadius:8, cursor:'pointer', fontSize:13, marginTop:8 }}>
         + Add new group
       </button>
 
@@ -1609,7 +1746,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
               <button onClick={()=>deleteSelectedItems(gId,[...gSet])} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--danger)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
                 onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
                 onMouseOut={e=>e.currentTarget.style.background=''}>
-                <span style={{ fontSize:18 }}>🗑️</span>Delete
+                <span style={{ fontSize:18 }}>🗑️</span>Trash
               </button>
               <select onChange={e=>{ if(e.target.value) moveItemsToGroup(gId,[...gSet],e.target.value); e.target.value=''; }}
                 style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', borderRadius:6, padding:'6px 10px', fontSize:12, cursor:'pointer' }}>
@@ -1641,11 +1778,19 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
   const [pickerPos, setPickerPos] = useState({top:0,left:0});
   const [assignPos, setAssignPos] = useState({top:0,left:0});
 
+  const statusPickerRef = React.useRef();
+  const assignPickerRef = React.useRef();
+
   React.useEffect(()=>{
     if(!showStatusPicker && !showAssignPicker) return;
-    const close = ()=>{ setShowStatusPicker(false); setShowAssignPicker(false); };
-    document.addEventListener('click', close, true);
-    return ()=>document.removeEventListener('click', close, true);
+    const close = (e)=>{
+      if(statusPickerRef.current && statusPickerRef.current.contains(e.target)) return;
+      if(assignPickerRef.current && assignPickerRef.current.contains(e.target)) return;
+      setShowStatusPicker(false);
+      setShowAssignPicker(false);
+    };
+    const t = setTimeout(()=>document.addEventListener('mousedown', close), 100);
+    return ()=>{ clearTimeout(t); document.removeEventListener('mousedown', close); };
   },[showStatusPicker, showAssignPicker]);
 
   const statusObj = statuses.find(s=>s.label===item.status);
@@ -1684,7 +1829,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
       </td>
       {/* OWNER — right after name to match header order */}
       <td style={{ padding:'4px 10px', position:'relative' }}>
-        <div onClick={e=>{ const r=e.currentTarget.getBoundingClientRect(); setAssignPos({top:r.bottom+4,left:Math.max(0,r.right-240)}); setShowAssignPicker(s=>!s); setShowStatusPicker(false); }} style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}>
+        <div onMouseDown={e=>{ e.stopPropagation(); const r=e.currentTarget.getBoundingClientRect(); setAssignPos({top:r.bottom+4,left:Math.max(0,r.right-240)}); setShowAssignPicker(s=>!s); setShowStatusPicker(false); }} style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}>
           {(item.assigned_officers||[]).length===0 && (
             <div style={{ width:28, height:28, borderRadius:'50%', border:'2px dashed var(--border)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--border)', fontSize:14 }}>+</div>
           )}
@@ -1696,7 +1841,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
           {(item.assigned_officers||[]).length>0 && hovered && <span style={{ fontSize:11, color:'var(--muted)', marginLeft:4 }}>+</span>}
         </div>
         {showAssignPicker && (
-          <div style={{ position:'fixed', top:assignPos.top, left:assignPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:240, boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
+          <div ref={assignPickerRef} style={{ position:'fixed', top:assignPos.top, left:assignPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:240, boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
             <div style={{ fontSize:11, color:'var(--muted)', marginBottom:6, fontWeight:600 }}>ASSIGN OFFICERS</div>
             {teamMembers.map(m=>{
               const assigned = (item.assigned_officers||[]).includes(m.email||m.full_name);
@@ -1724,11 +1869,11 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
       </td>
       {/* STATUS */}
       <td style={{ padding:'4px 10px', position:'relative' }}>
-        <div onClick={e=>{ const r=e.currentTarget.getBoundingClientRect(); const spaceBelow=window.innerHeight-r.bottom; const dropH=Math.min(320, statuses.length*40+60); const top=spaceBelow<dropH ? r.top-dropH-4 : r.bottom+4; setPickerPos({top,left:r.left}); setShowStatusPicker(s=>!s); setShowAssignPicker(false); }} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+        <div onMouseDown={e=>{ e.stopPropagation(); const r=e.currentTarget.getBoundingClientRect(); const spaceBelow=window.innerHeight-r.bottom; const dropH=Math.min(320, statuses.length*40+60); const top=spaceBelow<dropH ? r.top-dropH-4 : r.bottom+4; setPickerPos({top,left:r.left}); setShowStatusPicker(s=>!s); setShowAssignPicker(false); }} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
           {item.status||'No Status'}
         </div>
         {showStatusPicker && (
-          <div style={{ position:'fixed', top:pickerPos.top, left:pickerPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:240, maxHeight:400, overflowY:'auto', boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
+          <div ref={statusPickerRef} style={{ position:'fixed', top:pickerPos.top, left:pickerPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:240, maxHeight:400, overflowY:'auto', boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
             {statuses.length===0 && <div style={{ padding:'8px', color:'var(--muted)', fontSize:12 }}>No statuses yet — click 🎨 Statuses to add some</div>}
             {statuses.map(s=>(
               <div key={s.id} onClick={()=>{ onUpdate('status',s.label); onUpdate('status_color',s.color); setShowStatusPicker(false); }}
@@ -1778,9 +1923,71 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
   const [files, setFiles] = useState([]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [activityLog, setActivityLog] = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [mentionSearch, setMentionSearch] = useState('');
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionPos, setMentionPos] = useState({top:0,left:0});
+  const [mentionStart, setMentionStart] = useState(0);
+  const textareaRef = React.useRef();
   const fileInputRef = React.useRef();
 
-  useEffect(() => { loadUpdates(); loadFiles(); buildActivityLog(); }, [item.id]);
+  useEffect(() => {
+    loadUpdates(); loadFiles(); buildActivityLog();
+    supabase.from('profiles').select('*').eq('company_name', profile.company_name).then(({data})=>setTeamMembers(data||[]));
+  }, [item.id]);
+
+  const handleTextChange = (e) => {
+    const val = e.target.value;
+    setNewUpdate(val);
+    const cursor = e.target.selectionStart;
+    // Look back from cursor for @ symbol
+    const textBefore = val.slice(0, cursor);
+    const atIdx = textBefore.lastIndexOf('@');
+    if(atIdx !== -1) {
+      const after = textBefore.slice(atIdx+1);
+      // Only trigger if no space between @ and cursor
+      if(!after.includes(' ') && !after.includes('\n')) {
+        setMentionSearch(after.toLowerCase());
+        setMentionStart(atIdx);
+        setMentionOpen(true);
+        // Position the dropdown near cursor
+        const ta = textareaRef.current;
+        if(ta) {
+          const rect = ta.getBoundingClientRect();
+          setMentionPos({ top: rect.top - 8, left: rect.left + 16 });
+        }
+        return;
+      }
+    }
+    setMentionOpen(false);
+  };
+
+  const insertMention = (member) => {
+    const before = newUpdate.slice(0, mentionStart);
+    const after = newUpdate.slice(mentionStart + 1 + mentionSearch.length);
+    const mention = '@' + member.full_name;
+    const updated = before + mention + ' ' + after;
+    setNewUpdate(updated);
+    setMentionOpen(false);
+    setMentionSearch('');
+    setTimeout(()=>{ if(textareaRef.current) { textareaRef.current.focus(); const pos = (before+mention+' ').length; textareaRef.current.setSelectionRange(pos,pos); }}, 0);
+  };
+
+  const filteredMembers = teamMembers.filter(m=>
+    m.id !== profile.id &&
+    (mentionSearch==='' || m.full_name.toLowerCase().includes(mentionSearch))
+  );
+
+  // Render update body with highlighted @mentions
+  const renderBody = (body) => {
+    const parts = body.split(/(@\w[\w\s]*)/g);
+    return parts.map((part,i)=>{
+      if(part.startsWith('@') && teamMembers.some(m=>'@'+m.full_name===part.trim()||body.includes(part))) {
+        return <span key={i} style={{ color:'var(--accent)', fontWeight:600 }}>{part}</span>;
+      }
+      return part;
+    });
+  };
 
   const loadUpdates = async () => {
     const {data} = await supabase.from('workspace_updates').select('*').eq('item_id', item.id).order('created_at', {ascending:true});
@@ -1874,18 +2081,46 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
         {tab==='updates' && (
           <div>
             {/* Post box */}
-            <div style={{ background:'var(--surface2)', borderRadius:10, padding:14, marginBottom:20, border:'1px solid var(--border)' }}>
+            <div style={{ background:'var(--surface2)', borderRadius:10, padding:14, marginBottom:20, border:'1px solid var(--border)', position:'relative' }}>
               <div style={{ display:'flex', gap:10, marginBottom:8 }}>
                 <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(profile.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(profile.full_name)}</div>
-                <textarea rows={3} value={newUpdate} onChange={e=>setNewUpdate(e.target.value)}
-                  placeholder="Write an update... mention teammates with @name"
-                  onKeyDown={e=>{ if(e.key==='Enter'&&e.ctrlKey) postUpdate(); }}
+                <textarea ref={textareaRef} rows={3} value={newUpdate} onChange={handleTextChange}
+                  placeholder="Write an update... type @ to mention a teammate"
+                  onKeyDown={e=>{
+                    if(mentionOpen) {
+                      if(e.key==='Escape') { setMentionOpen(false); return; }
+                      if(e.key==='ArrowDown'||e.key==='ArrowUp') { e.preventDefault(); return; }
+                      if(e.key==='Enter' && filteredMembers.length>0) { e.preventDefault(); insertMention(filteredMembers[0]); return; }
+                    }
+                    if(e.key==='Enter'&&e.ctrlKey) postUpdate();
+                  }}
                   style={{ flex:1, resize:'vertical', background:'transparent', border:'none', outline:'none', fontSize:13, color:'var(--text)', lineHeight:1.6 }} />
               </div>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:11, color:'var(--muted)' }}>Ctrl+Enter to post</span>
+                <span style={{ fontSize:11, color:'var(--muted)' }}>Type <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>@</kbd> to mention · <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>Ctrl+Enter</kbd> to post</span>
                 <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Post Update'}</button>
               </div>
+
+              {/* @ Mention dropdown */}
+              {mentionOpen && filteredMembers.length>0 && (
+                <div style={{ position:'fixed', bottom: window.innerHeight - mentionPos.top + 8, left: mentionPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, width:240, boxShadow:'0 8px 24px rgba(0,0,0,.4)', overflow:'hidden' }}>
+                  <div style={{ padding:'6px 10px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em', borderBottom:'1px solid var(--border)', background:'var(--surface2)' }}>
+                    Team Members
+                  </div>
+                  {filteredMembers.slice(0,6).map(m=>(
+                    <div key={m.id} onMouseDown={e=>{ e.preventDefault(); insertMention(m); }}
+                      style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', cursor:'pointer' }}
+                      onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.15)'}
+                      onMouseOut={e=>e.currentTarget.style.background=''}>
+                      <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, flexShrink:0 }}>{initials(m.full_name)}</div>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:600 }}>{m.full_name}</div>
+                        <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {updates.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No updates yet — be the first to post!</div>}
@@ -1900,7 +2135,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
                       {u.author_id===profile.id && <button onClick={()=>deleteUpdate(u.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:13, padding:0 }}>×</button>}
                     </div>
                   </div>
-                  <div style={{ background:'var(--surface2)', borderRadius:8, padding:'10px 14px', fontSize:13, lineHeight:1.7, whiteSpace:'pre-wrap', border:'1px solid var(--border)' }}>{u.body}</div>
+                  <div style={{ background:'var(--surface2)', borderRadius:8, padding:'10px 14px', fontSize:13, lineHeight:1.7, whiteSpace:'pre-wrap', border:'1px solid var(--border)' }}>{renderBody(u.body)}</div>
                 </div>
               </div>
             ))}
@@ -1960,6 +2195,151 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+
+// ─── TRASH & ARCHIVE VIEW ────────────────────────────────────────────────────
+function TrashArchiveView({ profile, workspaces, toast }) {
+  const [tab, setTab] = useState('archive');
+  const [archivedItems, setArchivedItems] = useState([]);
+  const [trashedItems, setTrashedItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(()=>{ loadItems(); }, [tab]);
+
+  const loadItems = async () => {
+    setLoading(true);
+    if(tab==='archive') {
+      const {data} = await supabase.from('workspace_items').select('*').eq('company_id', profile.company_name).eq('archived', true).is('parent_id', null).order('created_at', {ascending:false});
+      setArchivedItems(data||[]);
+    } else {
+      const {data} = await supabase.from('workspace_items').select('*').eq('company_id', profile.company_name).eq('trashed', true).is('parent_id', null).order('created_at', {ascending:false});
+      setTrashedItems(data||[]);
+    }
+    setLoading(false);
+  };
+
+  const unarchive = async (item) => {
+    await supabase.from('workspace_items').update({archived:false}).eq('id',item.id);
+    setArchivedItems(p=>p.filter(i=>i.id!==item.id));
+    toast('Item restored to workspace');
+  };
+
+  const restore = async (item) => {
+    await supabase.from('workspace_items').update({trashed:false}).eq('id',item.id);
+    setTrashedItems(p=>p.filter(i=>i.id!==item.id));
+    toast('Item restored');
+  };
+
+  const deletePermanently = async (item) => {
+    await supabase.from('workspace_items').delete().eq('id',item.id);
+    setTrashedItems(p=>p.filter(i=>i.id!==item.id));
+    toast('Permanently deleted');
+  };
+
+  const emptyTrash = async () => {
+    for(const item of trashedItems) await supabase.from('workspace_items').delete().eq('id',item.id);
+    setTrashedItems([]);
+    toast('Trash emptied');
+  };
+
+  const getDaysLeft = (createdAt) => {
+    const trashDate = new Date(createdAt);
+    const deleteDate = new Date(trashDate.getTime() + 30*24*60*60*1000);
+    const days = Math.ceil((deleteDate - new Date()) / (1000*60*60*24));
+    return Math.max(0, days);
+  };
+
+  const getGroupName = (item) => {
+    return item.group_id ? 'Unknown Group' : 'No Group';
+  };
+
+  const items = tab==='archive' ? archivedItems : trashedItems;
+
+  return (
+    <div style={{ padding:32 }}>
+      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:6 }}>
+        {tab==='archive' ? '🗄️ Archive' : '🗑️ Trash'}
+      </div>
+      <div style={{ color:'var(--muted)', fontSize:13, marginBottom:24 }}>
+        {tab==='archive' ? 'Archived items are hidden from workspaces but preserved here. Unarchive to restore.' : 'Trashed items are permanently deleted after 30 days.'}
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display:'flex', gap:0, borderBottom:'1px solid var(--border)', marginBottom:24 }}>
+        {['archive','trash'].map(t=>(
+          <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 20px', background:'none', border:'none', borderBottom: tab===t?'2px solid var(--accent)':'2px solid transparent', color:tab===t?'var(--accent)':'var(--muted)', fontWeight:tab===t?700:400, cursor:'pointer', fontSize:14, fontFamily:'inherit', marginBottom:-1 }}>
+            {t==='archive'?'📦 Archive':'🗑️ Trash'}
+          </button>
+        ))}
+        {tab==='trash' && trashedItems.length>0 && (
+          <button onClick={emptyTrash} style={{ marginLeft:'auto', background:'var(--danger)', color:'#fff', border:'none', borderRadius:6, padding:'6px 14px', fontSize:13, cursor:'pointer', fontFamily:'inherit' }}>
+            Empty Trash
+          </button>
+        )}
+      </div>
+
+      {loading && <div style={{ color:'var(--muted)', textAlign:'center', padding:40 }}>Loading...</div>}
+      {!loading && items.length===0 && (
+        <div style={{ textAlign:'center', padding:'60px 0', color:'var(--muted)' }}>
+          <div style={{ fontSize:48, marginBottom:12 }}>{tab==='archive'?'📦':'🗑️'}</div>
+          <div style={{ fontSize:16, fontWeight:600, marginBottom:6 }}>{tab==='archive'?'Archive is empty':'Trash is empty'}</div>
+          <div style={{ fontSize:13 }}>{tab==='archive'?'Archived items from workspaces will appear here.':'Deleted items will appear here for 30 days.'}</div>
+        </div>
+      )}
+
+      {!loading && items.length>0 && (
+        <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, overflow:'hidden' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+            <thead>
+              <tr style={{ background:'var(--surface2)' }}>
+                <th style={{ padding:'10px 16px', textAlign:'left', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em', borderBottom:'1px solid var(--border)' }}>Item</th>
+                <th style={{ padding:'10px 16px', textAlign:'left', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em', borderBottom:'1px solid var(--border)' }}>Status</th>
+                <th style={{ padding:'10px 16px', textAlign:'left', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em', borderBottom:'1px solid var(--border)' }}>
+                  {tab==='trash'?'Days Until Deleted':'Date Archived'}
+                </th>
+                <th style={{ padding:'10px 16px', borderBottom:'1px solid var(--border)', width:200 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map(item=>(
+                <tr key={item.id} style={{ borderBottom:'1px solid var(--border)' }}
+                  onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.03)'}
+                  onMouseOut={e=>e.currentTarget.style.background=''}>
+                  <td style={{ padding:'12px 16px' }}>
+                    <div style={{ fontWeight:500 }}>{item.name}</div>
+                    {item.lender && <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>Lender: {item.lender}</div>}
+                  </td>
+                  <td style={{ padding:'12px 16px' }}>
+                    {item.status ? <span style={{ background:item.status_color||'#4d8ef0', color:'#fff', padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:600 }}>{item.status}</span> : <span style={{ color:'var(--muted)' }}>—</span>}
+                  </td>
+                  <td style={{ padding:'12px 16px', color:'var(--muted)', fontSize:12 }}>
+                    {tab==='trash' ? (
+                      <span style={{ color: getDaysLeft(item.created_at) < 7 ? 'var(--danger)' : 'var(--muted)' }}>
+                        {getDaysLeft(item.created_at)} days left
+                      </span>
+                    ) : new Date(item.created_at).toLocaleDateString()}
+                  </td>
+                  <td style={{ padding:'12px 16px' }}>
+                    <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
+                      {tab==='archive' ? (
+                        <button onClick={()=>unarchive(item)} style={{ background:'var(--accent)', color:'#fff', border:'none', borderRadius:5, padding:'5px 12px', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>Restore to Workspace</button>
+                      ) : (
+                        <>
+                          <button onClick={()=>restore(item)} style={{ background:'var(--accent)', color:'#fff', border:'none', borderRadius:5, padding:'5px 12px', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>Restore</button>
+                          <button onClick={()=>deletePermanently(item)} style={{ background:'var(--danger)', color:'#fff', border:'none', borderRadius:5, padding:'5px 12px', fontSize:12, cursor:'pointer', fontFamily:'inherit' }}>Delete Forever</button>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -2142,7 +2522,18 @@ export default function App() {
       </div>
 
       {/* Top Bar */}
-      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>setView(v,null)} onLogout={logout} />
+      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>setView(v,null)} onLogout={logout}
+        onGetResults={(q)=>{
+          const r = [];
+          const ql = q.toLowerCase();
+          contacts.filter(c=>(c.full_name||'').toLowerCase().includes(ql)||(c.email||'').toLowerCase().includes(ql)).slice(0,5).forEach(c=>r.push({icon:'👤',title:c.full_name,subtitle:c.email||c.company||'',type:'Contact',action:()=>setSelectedContact(c)}));
+          workspaces.filter(w=>(w.name||'').toLowerCase().includes(ql)).forEach(w=>r.push({icon:'📋',title:w.name,subtitle:'Workspace',type:'Workspace',action:()=>setView('workspace',w)}));
+          if('contacts'.includes(ql)) r.push({icon:'👥',title:'Contacts',subtitle:'View all contacts',type:'Page',action:()=>setView('contacts',null)});
+          if('pipeline'.includes(ql)||'funnel'.includes(ql)) r.push({icon:'〽️',title:'Lead Funnel',subtitle:'View pipeline',type:'Page',action:()=>setView('pipeline',null)});
+          if('team'.includes(ql)) r.push({icon:'🏢',title:'Team',subtitle:'Manage team members',type:'Page',action:()=>setView('team',null)});
+          return r;
+        }}
+      />
 
       {/* Main */}
       <div className="main">
@@ -2151,6 +2542,7 @@ export default function App() {
         {view==='pipeline' && <PipelineView contacts={contacts} onSelect={c=>setSelectedContact(c)} />}
         {view==='team' && <TeamView profile={profile} toast={toast} />}
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
+        {view==='trash' && <TrashArchiveView profile={profile} workspaces={workspaces} toast={toast} />}
         {view==='workspace' && activeWorkspace && <WorkspaceView workspace={activeWorkspace} profile={profile} toast={toast} onRename={async(name)=>{ await supabase.from('workspaces').update({name}).eq('id',activeWorkspace.id); setWorkspaces(w=>w.map(x=>x.id===activeWorkspace.id?{...x,name}:x)); setActiveWorkspace(a=>({...a,name})); }} onDelete={async()=>{ if(!window.confirm('Delete this workspace?')) return; await supabase.from('workspaces').delete().eq('id',activeWorkspace.id); setWorkspaces(w=>w.filter(x=>x.id!==activeWorkspace.id)); setView('dashboard', null); }} />}
       </div>
 
