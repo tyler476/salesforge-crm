@@ -1721,7 +1721,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete }) {
       {/* Add new group button */}
       {viewMode==='table' && <button onClick={addGroup} style={{ display:'flex', alignItems:'center', gap:8, background:'none', border:'1px dashed var(--border)', color:'var(--muted)', padding:'10px 20px', borderRadius:8, cursor:'pointer', fontSize:13, marginTop:8 }}>
         + Add new group
-      </button>
+      </button>}
 
       </div>{/* end padding wrapper */}
 
@@ -1980,7 +1980,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
 
   // Render update body with highlighted @mentions
   const renderBody = (body) => {
-    const parts = body.split(/(@\w[\w\s]*)/g);
+    const parts = body.split(/(@[a-zA-Z][a-zA-Z0-9 ]*)/g);
     return parts.map((part,i)=>{
       if(part.startsWith('@') && teamMembers.some(m=>'@'+m.full_name===part.trim()||body.includes(part))) {
         return <span key={i} style={{ color:'var(--accent)', fontWeight:600 }}>{part}</span>;
