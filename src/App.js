@@ -420,15 +420,77 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
 
 
 // ─── TOP BAR ─────────────────────────────────────────────────────────────────
-function TopBar({ profile, onSearch, searchOpen, setSearchOpen }) {
+function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout }) {
   const [notifOpen, setNotifOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [helpPage, setHelpPage] = useState(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [appsOpen, setAppsOpen] = useState(false);
   const [searchVal, setSearchVal] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('member');
+  const [inviteSending, setInviteSending] = useState(false);
+
+  // Close all when clicking outside
+  React.useEffect(() => {
+    const close = () => { setNotifOpen(false); setProfileOpen(false); setHelpOpen(false); setAppsOpen(false); setInviteOpen(false); };
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, []);
+  const stop = e => e.stopPropagation();
+
+  const sendInvite = async () => {
+    if (!inviteEmail.trim()) return;
+    setInviteSending(true);
+    try {
+      await supabase.auth.admin?.inviteUserByEmail(inviteEmail);
+    } catch(e) {}
+    setInviteSending(false);
+    setInviteEmail('');
+    setInviteOpen(false);
+  };
+
+  const HELP_ARTICLES = [
+    { id:'getting-started', title:'Getting Started', icon:'🚀', content: [
+      { q:'How do I create a workspace?', a:'From the Dashboard, click "+ New Workspace" or use the sidebar. Workspaces are like boards — create one per team or project type (e.g. Loans In Process, LO Resources).' },
+      { q:'How do I add items to a workspace?', a:'Open a workspace, then click "+ Add Item" at the bottom of any group. Type the item name and press Enter. You can then click any cell to edit inline.' },
+      { q:'How do I add team members?', a:'Go to Team in the sidebar. Admin users can invite team members by email. Use the invite button (person+ icon) in the top bar as well.' },
+    ]},
+    { id:'workspaces', title:'Workspaces & Groups', icon:'📋', content: [
+      { q:'What is a group?', a:'Groups are collapsible sections inside a workspace. Use them to categorize items — e.g. by stage, month, or team. Click "+ Add Group" in the toolbar.' },
+      { q:'How do I rename a group?', a:'Double-click the group name to edit it inline. Press Enter to save.' },
+      { q:'Can I move items between groups?', a:'Yes — select items using the checkboxes, then use the "Move to..." dropdown in the action bar at the bottom of the screen.' },
+      { q:'How do I reorder items?', a:'Select items and use Move to... to change groups. Drag-and-drop reordering is coming soon.' },
+    ]},
+    { id:'statuses', title:'Statuses & Columns', icon:'🎨', content: [
+      { q:'How do I customize statuses?', a:'Click "Statuses" in the workspace toolbar. Admins can add, rename, recolor, and delete status options. Changes apply to all items in that workspace.' },
+      { q:'What columns are available?', a:'Each item has: Name, Owner, Status, Priority, Date, Lender, Loan Officer, Processor, Lock Expiration, Processor Contact, and Escrow Email.' },
+      { q:'How do I assign someone to an item?', a:'Click the Owner column (the circle avatar area) on any row. Select team members from the dropdown or type an email address.' },
+    ]},
+    { id:'updates', title:'Updates & Comments', icon:'💬', content: [
+      { q:'How do I post an update on an item?', a:'Click the comment icon (💬) on any row to open the Updates Panel. Type your message and click "Post Update" or press Ctrl+Enter.' },
+      { q:'Can I delete my own updates?', a:'Yes — hover over your update and click the × button to remove it.' },
+      { q:'What is the Activity tab?', a:'The Activity tab shows a timeline of all updates posted on an item, so you can track conversation history.' },
+    ]},
+    { id:'contacts', title:'Contacts & Lead Funnel', icon:'👥', content: [
+      { q:'How do I add a contact?', a:'Click "Add Contact" on the Contacts page. Fill in their details including name, email, company, and deal value.' },
+      { q:'What is the Lead Funnel?', a:'The Lead Funnel shows all contacts organized by stage: New Lead → Contacted → Qualified → Proposal → Negotiation → Converted.' },
+      { q:'How do I send emails to contacts?', a:'Open a contact drawer by clicking on a contact. Go to the Email tab and compose your message. Emails are sent via your Resend integration.' },
+    ]},
+    { id:'admin', title:'Admin & Settings', icon:'⚙️', content: [
+      { q:'How do I change my company branding?', a:'Go to Branding in the sidebar (admin only). You can update your company name, logo URL, and brand accent color.' },
+      { q:'How do I manage team roles?', a:'On the Team page, admins can change member roles between Admin, Manager, and Member using the dropdown next to each person.' },
+      { q:'What can admins do that members cannot?', a:'Admins can: create/delete workspaces, manage statuses, add groups, invite members, access Branding settings, and see all items regardless of assignment.' },
+    ]},
+  ];
 
   return (
+    <>
     <div className="topbar">
       {/* Global search */}
       {searchOpen && (
-        <div style={{ position:'relative', marginRight:'auto' }}>
+        <div style={{ position:'relative', marginRight:'auto' }} onClick={stop}>
           <input autoFocus value={searchVal} onChange={e=>{ setSearchVal(e.target.value); onSearch(e.target.value); }}
             placeholder="Search everything..." onBlur={()=>{ if(!searchVal) setSearchOpen(false); }}
             style={{ width:280, paddingLeft:36, background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', fontSize:13 }} />
@@ -439,46 +501,196 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen }) {
       )}
 
       {/* Notification bell */}
-      <button className="topbar-btn" onClick={()=>setNotifOpen(o=>!o)} title="Notifications" style={{ position:'relative' }}>
+      <button className="topbar-btn" title="Notifications" style={{ position:'relative' }}
+        onClick={e=>{ stop(e); setNotifOpen(o=>!o); setProfileOpen(false); setHelpOpen(false); setAppsOpen(false); }}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        <span style={{ position:'absolute', top:4, right:4, width:8, height:8, borderRadius:'50%', background:'var(--danger)', border:'2px solid var(--sidebar-bg)' }} />
       </button>
 
       {/* Search */}
-      <button className="topbar-btn" onClick={()=>setSearchOpen(o=>!o)} title="Search">
+      <button className="topbar-btn" onClick={e=>{ stop(e); setSearchOpen(o=>!o); }} title="Search">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </button>
 
       {/* Invite */}
-      <button className="topbar-btn" title="Invite people">
+      <button className="topbar-btn" title="Invite people" onClick={e=>{ stop(e); setInviteOpen(o=>!o); setProfileOpen(false); setHelpOpen(false); }}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
       </button>
 
       {/* Help */}
-      <button className="topbar-btn" title="Help">
+      <button className="topbar-btn" title="Help & Documentation" onClick={e=>{ stop(e); setHelpOpen(o=>!o); setProfileOpen(false); setAppsOpen(false); }}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
       </button>
 
       <div style={{ width:1, height:24, background:'rgba(255,255,255,.1)', margin:'0 4px' }} />
 
       {/* Apps grid */}
-      <button className="topbar-btn" title="Apps">
+      <button className="topbar-btn" title="Quick Navigation" onClick={e=>{ stop(e); setAppsOpen(o=>!o); setProfileOpen(false); setHelpOpen(false); }}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
       </button>
 
       {/* Avatar */}
-      <div style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700, cursor:'pointer', marginLeft:4, border:'2px solid rgba(255,255,255,.2)' }} title={profile.full_name}>
+      <div onClick={e=>{ stop(e); setProfileOpen(o=>!o); setHelpOpen(false); setAppsOpen(false); setNotifOpen(false); }}
+        style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700, cursor:'pointer', marginLeft:4, border:'2px solid rgba(255,255,255,.2)' }}>
         {initials(profile.full_name||'?')}
       </div>
-
-      {/* Notif dropdown */}
-      {notifOpen && (
-        <div style={{ position:'fixed', top:56, right:16, width:320, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 12px 32px rgba(0,0,0,.4)', zIndex:9999 }}>
-          <div style={{ padding:'14px 16px', borderBottom:'1px solid var(--border)', fontWeight:700, fontSize:14 }}>Notifications</div>
-          <div style={{ padding:'24px 16px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>You're all caught up! 🎉</div>
-        </div>
-      )}
     </div>
+
+    {/* ── NOTIFICATION DROPDOWN ── */}
+    {notifOpen && (
+      <div onClick={stop} style={{ position:'fixed', top:56, right:56, width:320, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 12px 32px rgba(0,0,0,.4)', zIndex:9999 }}>
+        <div style={{ padding:'14px 16px', borderBottom:'1px solid var(--border)', fontWeight:700, fontSize:14 }}>Notifications</div>
+        <div style={{ padding:'32px 16px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>
+          <div style={{ fontSize:32, marginBottom:8 }}>🎉</div>
+          You're all caught up!
+        </div>
+      </div>
+    )}
+
+    {/* ── INVITE DROPDOWN ── */}
+    {inviteOpen && (
+      <div onClick={stop} style={{ position:'fixed', top:56, right:120, width:340, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 12px 32px rgba(0,0,0,.4)', zIndex:9999, padding:20 }}>
+        <div style={{ fontWeight:700, fontSize:15, marginBottom:4 }}>Invite Team Member</div>
+        <div style={{ color:'var(--muted)', fontSize:12, marginBottom:16 }}>They'll receive an email to join Citizens Client Hub</div>
+        <div className="form-group">
+          <label>Email Address</label>
+          <input value={inviteEmail} onChange={e=>setInviteEmail(e.target.value)} placeholder="colleague@company.com" onKeyDown={e=>e.key==='Enter'&&sendInvite()} />
+        </div>
+        <div className="form-group">
+          <label>Role</label>
+          <select value={inviteRole} onChange={e=>setInviteRole(e.target.value)} style={{ width:'100%' }}>
+            <option value="member">Member</option>
+            <option value="manager">Manager</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div style={{ display:'flex', gap:10 }}>
+          <button className="btn-primary" style={{ flex:1 }} onClick={sendInvite} disabled={inviteSending||!inviteEmail.trim()}>{inviteSending?'Sending...':'Send Invite'}</button>
+          <button className="btn-secondary" onClick={()=>setInviteOpen(false)}>Cancel</button>
+        </div>
+        <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid var(--border)', fontSize:12, color:'var(--muted)' }}>
+          Or go to <span onClick={()=>{ onNavigate('team'); setInviteOpen(false); }} style={{ color:'var(--accent)', cursor:'pointer' }}>Team page</span> to manage all members
+        </div>
+      </div>
+    )}
+
+    {/* ── APPS / QUICK NAV ── */}
+    {appsOpen && (
+      <div onClick={stop} style={{ position:'fixed', top:56, right:56, width:280, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 12px 32px rgba(0,0,0,.4)', zIndex:9999, padding:16 }}>
+        <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:12 }}>Quick Navigation</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+          {[
+            { label:'Dashboard', icon:'⊞', nav:'dashboard' },
+            { label:'Contacts', icon:'👥', nav:'contacts' },
+            { label:'Lead Funnel', icon:'〽️', nav:'pipeline' },
+            { label:'Team', icon:'🏢', nav:'team' },
+            { label:'Branding', icon:'🎨', nav:'branding' },
+            { label:'Workspaces', icon:'📋', nav:'dashboard' },
+          ].map(item=>(
+            <div key={item.nav+item.label} onClick={()=>{ onNavigate(item.nav); setAppsOpen(false); }}
+              style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6, padding:'14px 8px', borderRadius:8, cursor:'pointer', background:'var(--surface2)', border:'1px solid var(--border)', textAlign:'center' }}
+              onMouseOver={e=>e.currentTarget.style.borderColor='var(--accent)'}
+              onMouseOut={e=>e.currentTarget.style.borderColor='var(--border)'}>
+              <span style={{ fontSize:22 }}>{item.icon}</span>
+              <span style={{ fontSize:12, color:'var(--muted)' }}>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+
+    {/* ── HELP CENTER ── */}
+    {helpOpen && (
+      <div onClick={stop} style={{ position:'fixed', top:56, right:90, width:420, maxHeight:'80vh', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 12px 32px rgba(0,0,0,.4)', zIndex:9999, display:'flex', flexDirection:'column' }}>
+        <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          {helpPage ? (
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <button onClick={()=>setHelpPage(null)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18, padding:0 }}>←</button>
+              <span style={{ fontWeight:700, fontSize:15 }}>{helpPage.icon} {helpPage.title}</span>
+            </div>
+          ) : <span style={{ fontWeight:700, fontSize:15 }}>📚 Help Center</span>}
+          <button onClick={()=>setHelpOpen(false)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18 }}>✕</button>
+        </div>
+        <div style={{ overflowY:'auto', flex:1, padding:16 }}>
+          {!helpPage ? (
+            <>
+              <div style={{ background:'var(--surface2)', borderRadius:8, padding:'10px 14px', marginBottom:16, display:'flex', alignItems:'center', gap:8 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <span style={{ color:'var(--muted)', fontSize:13 }}>Search help articles...</span>
+              </div>
+              <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>Topics</div>
+              {HELP_ARTICLES.map(article=>(
+                <div key={article.id} onClick={()=>setHelpPage(article)}
+                  style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:8, cursor:'pointer', marginBottom:4, border:'1px solid var(--border)' }}
+                  onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'}
+                  onMouseOut={e=>e.currentTarget.style.background=''}>
+                  <span style={{ fontSize:20 }}>{article.icon}</span>
+                  <div>
+                    <div style={{ fontWeight:600, fontSize:13 }}>{article.title}</div>
+                    <div style={{ color:'var(--muted)', fontSize:12 }}>{article.content.length} articles</div>
+                  </div>
+                  <svg style={{ marginLeft:'auto' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>
+                </div>
+              ))}
+            </>
+          ) : (
+            <div>
+              {helpPage.content.map((item,i)=>(
+                <div key={i} style={{ marginBottom:20, paddingBottom:20, borderBottom: i<helpPage.content.length-1?'1px solid var(--border)':'' }}>
+                  <div style={{ fontWeight:700, fontSize:14, marginBottom:8, color:'var(--text)' }}>{item.q}</div>
+                  <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.7 }}>{item.a}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
+    {/* ── PROFILE MENU ── */}
+    {profileOpen && (
+      <div onClick={stop} style={{ position:'fixed', top:56, right:16, width:260, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 12px 32px rgba(0,0,0,.4)', zIndex:9999, overflow:'hidden' }}>
+        {/* Header */}
+        <div style={{ padding:'16px', background:'var(--surface2)', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', gap:12 }}>
+          <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="logo" style={{ height:28, filter:'brightness(0) invert(1)' }} onError={e=>e.target.style.display='none'} />
+          <span style={{ fontWeight:700, fontSize:14 }}>Citizens Financial</span>
+        </div>
+        {/* User info */}
+        <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700, flexShrink:0 }}>{initials(profile.full_name||'?')}</div>
+          <div>
+            <div style={{ fontWeight:600, fontSize:13 }}>{profile.full_name}</div>
+            <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{profile.role}</div>
+          </div>
+        </div>
+        {/* Menu items */}
+        {[
+          { icon:'👤', label:'My Profile', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
+          { icon:'👥', label:'Teams', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
+          { icon:'🎨', label:'Branding & Settings', action:()=>{ onNavigate('branding'); setProfileOpen(false); } },
+          { icon:'📋', label:'Workspaces', action:()=>{ onNavigate('dashboard'); setProfileOpen(false); } },
+          { icon:'🗑️', label:'Trash / Archive', action:()=>{ onNavigate('dashboard'); setProfileOpen(false); } },
+          { icon:'⚙️', label:'Administration', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
+        ].map(item=>(
+          <div key={item.label} onClick={item.action}
+            style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 16px', cursor:'pointer', fontSize:13 }}
+            onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.06)'}
+            onMouseOut={e=>e.currentTarget.style.background=''}>
+            <span style={{ fontSize:16, width:20, textAlign:'center' }}>{item.icon}</span>
+            <span>{item.label}</span>
+          </div>
+        ))}
+        <div style={{ borderTop:'1px solid var(--border)' }}>
+          <div onClick={()=>{ onLogout(); setProfileOpen(false); }}
+            style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 16px', cursor:'pointer', fontSize:13, color:'var(--danger)' }}
+            onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.06)'}
+            onMouseOut={e=>e.currentTarget.style.background=''}>
+            <span style={{ fontSize:16, width:20, textAlign:'center' }}>🚪</span>
+            <span>Log out</span>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -1896,7 +2108,7 @@ export default function App() {
       </div>
 
       {/* Top Bar */}
-      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} />
+      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>{ setView(v); setActiveWorkspace(null); }} onLogout={logout} />
 
       {/* Main */}
       <div className="main">
