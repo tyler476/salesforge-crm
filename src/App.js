@@ -52,7 +52,7 @@ const css = `
   @keyframes slideIn { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
   .sidebar { width:240px; min-height:100vh; background:var(--sidebar-bg); display:flex; flex-direction:column; position:fixed; top:0; left:0; z-index:50; box-shadow:2px 0 12px rgba(0,0,0,.15); font-family:'Source Sans 3',system-ui,sans-serif; }
   .main { margin-left:240px; min-height:100vh; background:linear-gradient(to right, #0f1c3f 0%, #152540 20%, #1a2e4a 60%, #1e3350 100%); padding-top:52px; }
-  .topbar { position:fixed; top:0; left:240px; right:0; height:52px; background:var(--sidebar-bg); border-bottom:1px solid rgba(255,255,255,.08); display:flex; align-items:center; justify-content:flex-end; padding:0 20px; gap:4px; z-index:49; }
+  .topbar { position:fixed; top:0; left:240px; right:0; height:52px; background:var(--sidebar-bg); border-bottom:1px solid rgba(255,255,255,.08); display:flex; align-items:center; justify-content:space-between; padding:0 16px 0 20px; gap:4px; z-index:49; }
   .topbar-btn { background:none; border:none; color:var(--sidebar-text); cursor:pointer; padding:7px; border-radius:6px; display:flex; align-items:center; justify-content:center; transition:background .15s; }
   .topbar-btn:hover { background:rgba(255,255,255,.1); color:#fff; }
   .ws-toolbar { display:flex; align-items:center; gap:8px; padding:10px 28px; border-bottom:1px solid var(--border); background:var(--surface2); flex-wrap:wrap; }
@@ -91,6 +91,7 @@ const css = `
   .cal-header-day { text-align:center; padding:10px 0; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); border-right:1px solid var(--border); border-bottom:2px solid var(--border); }
   .event-type-btn { padding:7px 14px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; font-family:inherit; }
   .event-type-btn.active { border-color:var(--accent); background:rgba(77,142,240,.15); color:var(--accent); }
+  @keyframes spin { to { transform:rotate(360deg); } }
 `;
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -583,6 +584,25 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
   return (
     <>
     <div className="topbar">
+      {/* ── LEFT: Company branding ── */}
+      <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
+        <img
+          src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png"
+          alt="Citizens Financial"
+          style={{ height:28, filter:'brightness(0) invert(1)', opacity:.9 }}
+          onError={e=>{ e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }}
+        />
+        <div style={{ display:'none', alignItems:'center', gap:8 }}>
+          <div style={{ width:28, height:28, borderRadius:7, background:'linear-gradient(135deg,#4d8ef0,#1a56db)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          </div>
+          <span style={{ fontWeight:700, fontSize:14, color:'#fff', letterSpacing:'.01em' }}>Citizens Financial</span>
+        </div>
+        <div style={{ width:1, height:22, background:'rgba(255,255,255,.12)', marginLeft:4 }} />
+        <span style={{ fontSize:11, color:'rgba(255,255,255,.35)', fontWeight:600, letterSpacing:'.06em', textTransform:'uppercase' }}>Client Hub</span>
+      </div>
+      {/* ── RIGHT: All topbar actions ── */}
+      <div style={{ display:'flex', alignItems:'center', gap:4 }}>
       {/* Global search overlay */}
       {searchOpen && (
         <div onClick={e=>{ stop(e); }} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', zIndex:99998, display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:80 }}>
@@ -669,6 +689,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
         style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700, cursor:'pointer', marginLeft:4, border:'2px solid rgba(255,255,255,.2)' }}>
         {initials(profile.full_name||'?')}
       </div>
+      </div>{/* end right actions */}
     </div>
 
     {/* ── NOTIFICATION DROPDOWN ── */}
@@ -876,220 +897,426 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWorkspace, onNavigate }) {
-  const [wsStats, setWsStats] = useState({});
-  const [myItems, setMyItems] = useState([]);
-  const [myItemsLoading, setMyItemsLoading] = useState(true);
+  const [allItems, setAllItems]         = useState([]);
+  const [myItems, setMyItems]           = useState([]);
+  const [activityFeed, setActivityFeed] = useState([]);
+  const [teamMembers, setTeamMembers]   = useState([]);
+  const [loading, setLoading]           = useState(true);
+  const [showNewWs, setShowNewWs]       = useState(false);
+  const [dismissedAlerts, setDismissedAlerts] = useState([]);
 
+  // Load everything in parallel
   React.useEffect(()=>{
     if(!profile?.company_name) return;
-    supabase.from('workspace_items').select('*').eq('company_id', profile.company_name).then(({data})=>{
-      if(!data) return;
-      const stats = {};
-      data.forEach(item=>{
-        if(!stats[item.group_id]) stats[item.group_id] = {total:0, overdue:0, highPri:0};
-        stats[item.group_id].total++;
-        const ds = dueDateStatus(item.date);
-        if(ds?.label==='Overdue') stats[item.group_id].overdue++;
-        if(item.priority==='High'||item.priority==='Critical') stats[item.group_id].highPri++;
+    Promise.all([
+      supabase.from('workspace_items').select('*, workspaces(name,id)').eq('company_id', profile.company_name).eq('archived', false).neq('trashed', true),
+      supabase.from('workspace_updates').select('*').eq('company_id', profile.company_name).order('created_at',{ascending:false}).limit(30),
+      supabase.from('profiles').select('*').eq('company_name', profile.company_name),
+    ]).then(([items, updates, members])=>{
+      const data = items.data||[];
+      setAllItems(data);
+      const mine = data.filter(i=>(i.assigned_officers||[]).some(o=>o===profile.full_name||o===profile.email||o?.toLowerCase()===profile.full_name?.toLowerCase()));
+      mine.sort((a,b)=>{
+        const da=dueDateStatus(a.date), db=dueDateStatus(b.date);
+        if(da?.label==='Overdue'&&db?.label!=='Overdue') return -1;
+        if(db?.label==='Overdue'&&da?.label!=='Overdue') return 1;
+        if(a.date&&b.date) return a.date.localeCompare(b.date);
+        return a.date?-1:b.date?1:0;
       });
-      setWsStats(stats);
+      setMyItems(mine);
+      setActivityFeed(updates.data||[]);
+      setTeamMembers(members.data||[]);
+      setLoading(false);
     });
+  },[profile?.company_name, profile?.full_name, profile?.email]);
+
+  // Real-time activity feed
+  React.useEffect(()=>{
+    if(!profile?.company_name) return;
+    const sub = supabase.channel('dash_activity')
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'workspace_updates'},
+        p=>{ if(p.new?.company_id===profile.company_name) setActivityFeed(f=>[p.new,...f].slice(0,30)); })
+      .subscribe();
+    return ()=>supabase.removeChannel(sub);
   },[profile?.company_name]);
 
-  React.useEffect(()=>{
-    if(!profile?.full_name && !profile?.email) return;
-    setMyItemsLoading(true);
-    supabase.from('workspace_items')
-      .select('*, workspaces(name)')
-      .eq('company_id', profile.company_name)
-      .eq('archived', false)
-      .neq('trashed', true)
-      .then(({data})=>{
-        if(!data) { setMyItemsLoading(false); return; }
-        const mine = data.filter(i=>
-          (i.assigned_officers||[]).some(o=>
-            o===profile.full_name || o===profile.email || o?.toLowerCase()===profile.full_name?.toLowerCase()
-          )
-        );
-        // Sort: overdue first, then by date ascending, then undated
-        mine.sort((a,b)=>{
-          const da = dueDateStatus(a.date);
-          const db = dueDateStatus(b.date);
-          if(da?.label==='Overdue' && db?.label!=='Overdue') return -1;
-          if(db?.label==='Overdue' && da?.label!=='Overdue') return 1;
-          if(a.date && b.date) return a.date.localeCompare(b.date);
-          if(a.date) return -1;
-          if(b.date) return 1;
-          return 0;
-        });
-        setMyItems(mine);
-        setMyItemsLoading(false);
-      });
-  },[profile?.full_name, profile?.email, profile?.company_name]);
-  const [showNewWs, setShowNewWs] = useState(false);
-  const total = contacts.length;
-  const pipeline = contacts.filter(c=>!['Converted','Non-Conversion'].includes(c.stage)).reduce((s,c)=>s+(c.deal_value||0),0);
-  const won = contacts.filter(c=>c.stage==='Converted').length;
-  const winRate = total > 0 ? Math.round((won/total)*100) : 0;
-  const closed = contacts.filter(c=>c.stage==='Converted').reduce((s,c)=>s+(c.deal_value||0),0);
+  // Derived data
+  const today       = new Date();
+  const hour        = today.getHours();
+  const greeting    = hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';
+  const firstName   = (profile?.full_name||'').split(' ')[0]||'there';
 
+  const overdue     = allItems.filter(i=>dueDateStatus(i.date)?.label==='Overdue');
+  const dueSoon     = allItems.filter(i=>{ const s=dueDateStatus(i.date); return s?.label==='Due soon'&&s.days<=7; });
+  const lockExpiring= allItems.filter(i=>{ if(!i.lock_expiration) return false; const d=Math.ceil((new Date(i.lock_expiration)-today)/(86400000)); return d>=0&&d<=7; });
+  const myOverdue   = myItems.filter(i=>dueDateStatus(i.date)?.label==='Overdue');
+
+  // This week's items
+  const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate()+7);
+  const thisWeek = allItems.filter(i=>{ if(!i.date) return false; const d=new Date(i.date); return d>=today&&d<=weekEnd; });
+
+  // Workspace stats map
+  const wsStats = React.useMemo(()=>{
+    const map = {};
+    workspaces.forEach(w=>{ map[w.id]={total:0,overdue:0,done:0,statuses:{}}; });
+    allItems.forEach(i=>{
+      const wsId = i.workspaces?.id||i.workspace_id;
+      if(!map[wsId]) return;
+      map[wsId].total++;
+      if(dueDateStatus(i.date)?.label==='Overdue') map[wsId].overdue++;
+      if(i.status) map[wsId].statuses[i.status]=(map[wsId].statuses[i.status]||0)+1;
+    });
+    return map;
+  },[allItems,workspaces]);
+
+  // Team workload
+  const workload = React.useMemo(()=>{
+    const map={};
+    teamMembers.forEach(m=>{ map[m.full_name]={member:m,total:0,overdue:0}; });
+    allItems.forEach(i=>{ (i.assigned_officers||[]).forEach(name=>{ if(map[name]){ map[name].total++; if(dueDateStatus(i.date)?.label==='Overdue') map[name].overdue++; } }); });
+    return Object.values(map).filter(x=>x.total>0).sort((a,b)=>b.total-a.total);
+  },[allItems,teamMembers]);
+
+  const maxWorkload = Math.max(...workload.map(w=>w.total),1);
+
+  // Contact stats
+  const total    = contacts.length;
+  const pipeline = contacts.filter(c=>!['Converted','Non-Conversion'].includes(c.stage)).reduce((s,c)=>s+(c.deal_value||0),0);
+  const won      = contacts.filter(c=>c.stage==='Converted').length;
+  const winRate  = total>0?Math.round((won/total)*100):0;
+  const closed   = contacts.filter(c=>c.stage==='Converted').reduce((s,c)=>s+(c.deal_value||0),0);
   const stageCounts = STAGES.map(s=>({ stage:s, count:contacts.filter(c=>c.stage===s).length, value:contacts.filter(c=>c.stage===s).reduce((a,b)=>a+(b.deal_value||0),0) }));
   const maxCount = Math.max(...stageCounts.map(s=>s.count),1);
 
-  return (
-    <div style={{ padding:32 }}>
-      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:24, color:'var(--text)' }}>Dashboard</div>
+  const WS_COLORS = ['#4d8ef0','#2ecc8a','#9b59b6','#f0b429','#e05252','#00b8c4','#f97316','#06b6d4'];
 
-      {/* ── MAIN WORKSPACE SECTION (TOP) ── */}
-      <div style={{ marginBottom:32 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-          <div>
-            <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Main Workspace</div>
-            <div style={{ fontFamily:'Playfair Display,serif', fontSize:20, fontWeight:700 }}>Citizens Financial</div>
+  const alerts = [
+    ...myOverdue.slice(0,3).map(i=>({ id:'ov_'+i.id, type:'overdue', msg:`"${i.name}" is overdue`, ws:workspaces.find(w=>w.id===i.workspaces?.id||w.name===i.workspaces?.name) })),
+    ...lockExpiring.slice(0,2).map(i=>({ id:'lk_'+i.id, type:'lock', msg:`Lock expires in ${Math.ceil((new Date(i.lock_expiration)-today)/86400000)}d — ${i.name}`, ws:workspaces.find(w=>w.id===i.workspaces?.id||w.name===i.workspaces?.name) })),
+  ].filter(a=>!dismissedAlerts.includes(a.id));
+
+  if(loading) return (
+    <div style={{ padding:40, display:'flex', alignItems:'center', justifyContent:'center', minHeight:'60vh', flexDirection:'column', gap:16 }}>
+      <div style={{ width:40, height:40, borderRadius:'50%', border:'3px solid var(--border)', borderTopColor:'var(--accent)', animation:'spin 1s linear infinite' }} />
+      <div style={{ color:'var(--muted)', fontSize:14 }}>Loading your dashboard...</div>
+    </div>
+  );
+
+  return (
+    <div style={{ padding:'28px 32px 60px', maxWidth:1400 }}>
+
+      {/* ── HERO GREETING ── */}
+      <div style={{ marginBottom:24, display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:20 }}>
+        <div>
+          <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.1em', marginBottom:6 }}>
+            {today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}
           </div>
-          {profile?.role==='admin' && <button className="btn-primary btn-sm" onClick={()=>setShowNewWs(true)}>+ New Workspace</button>}
+          <h1 style={{ fontFamily:'Playfair Display,serif', fontSize:30, fontWeight:700, marginBottom:8, lineHeight:1.2 }}>
+            {greeting}, {firstName} 👋
+          </h1>
+          <div style={{ color:'var(--muted)', fontSize:14, display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
+            {myOverdue.length>0 && <span style={{ color:'#e05252', fontWeight:600 }}>⚠️ {myOverdue.length} overdue item{myOverdue.length!==1?'s':''}</span>}
+            {thisWeek.length>0 && <span>📅 {thisWeek.length} due this week</span>}
+            {lockExpiring.length>0 && <span style={{ color:'#f0b429', fontWeight:600 }}>🔒 {lockExpiring.length} lock{lockExpiring.length!==1?'s':''} expiring soon</span>}
+            {myOverdue.length===0&&thisWeek.length===0&&lockExpiring.length===0 && <span style={{ color:'#2ecc8a' }}>✅ Everything is on track today</span>}
+          </div>
         </div>
-        {workspaces.length===0 ? (
-          <div className="card" style={{ textAlign:'center', padding:40 }}>
-            <div style={{ fontSize:32, marginBottom:12 }}>📋</div>
-            <div style={{ fontWeight:600, marginBottom:6 }}>No workspaces yet</div>
-            <div style={{ color:'var(--muted)', fontSize:13, marginBottom:16 }}>Create workspaces to manage loans, tasks, and team projects</div>
-            {profile?.role==='admin' && <button className="btn-primary" onClick={()=>setShowNewWs(true)}>Create First Workspace</button>}
-          </div>
-        ) : (
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:14 }}>
-            {workspaces.map((w,i)=>{
-              const colors = ['#4d8ef0','#2ecc8a','#9b59b6','#f0b429','#e05252','#00b8c4'];
-              const color = colors[i % colors.length];
-              return (
-                <div key={w.id} onClick={()=>onOpenWorkspace(w)} style={{ cursor:'pointer', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:'20px 18px', transition:'all .2s', borderLeft:`4px solid ${color}`, position:'relative', overflow:'hidden' }}
-                  onMouseOver={e=>{ e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow=`0 8px 24px rgba(0,0,0,.2)`; }}
-                  onMouseOut={e=>{ e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }}>
-                  <div style={{ width:36, height:36, borderRadius:8, background:color+'22', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:12 }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-                  </div>
-                  <div style={{ fontWeight:700, fontSize:14, marginBottom:4 }}>{w.name}</div>
-                  <div style={{ color:'var(--muted)', fontSize:12 }}>Open workspace →</div>
-                </div>
-              );
-            })}
-          </div>
+        {profile?.role==='admin' && (
+          <button className="btn-primary btn-sm" onClick={()=>setShowNewWs(true)} style={{ flexShrink:0, marginTop:4 }}>+ New Workspace</button>
         )}
       </div>
 
-      {/* ── MY WORK ── */}
-      <div style={{ marginBottom:32 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-          <div>
-            <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:3 }}>Your assignments</div>
-            <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700 }}>My Work</div>
-          </div>
-          {myItems.length > 0 && <span style={{ fontSize:12, color:'var(--muted)' }}>{myItems.length} item{myItems.length!==1?'s':''}</span>}
+      {/* ── ALERTS STRIP ── */}
+      {alerts.length>0 && (
+        <div style={{ marginBottom:24, display:'flex', flexDirection:'column', gap:8 }}>
+          {alerts.map(a=>(
+            <div key={a.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 16px', background:a.type==='overdue'?'rgba(224,82,82,.1)':'rgba(240,180,41,.1)', border:`1px solid ${a.type==='overdue'?'rgba(224,82,82,.3)':'rgba(240,180,41,.3)'}`, borderRadius:8, fontSize:13 }}>
+              <span style={{ fontSize:16 }}>{a.type==='overdue'?'⚠️':'🔒'}</span>
+              <span style={{ flex:1, color:a.type==='overdue'?'#e05252':'#f0b429', fontWeight:600 }}>{a.msg}</span>
+              {a.ws && <span onClick={()=>onOpenWorkspace(a.ws)} style={{ color:'var(--accent)', cursor:'pointer', fontSize:12, fontWeight:600, flexShrink:0 }}>Go to workspace →</span>}
+              <button onClick={()=>setDismissedAlerts(d=>[...d,a.id])} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18, padding:'0 4px', lineHeight:1 }}>×</button>
+            </div>
+          ))}
         </div>
-        {myItemsLoading ? (
-          <div style={{ color:'var(--muted)', fontSize:13, padding:'20px 0' }}>Loading your items...</div>
-        ) : myItems.length===0 ? (
-          <div className="card" style={{ textAlign:'center', padding:'28px 20px' }}>
-            <div style={{ fontSize:28, marginBottom:8 }}>✅</div>
-            <div style={{ fontWeight:600, marginBottom:4 }}>All clear!</div>
-            <div style={{ color:'var(--muted)', fontSize:13 }}>No items are currently assigned to you.</div>
+      )}
+
+      {/* ── KPI STRIP ── */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12, marginBottom:28 }}>
+        {[
+          { label:'Total Items',    val:allItems.length,              icon:'📋', sub:`across ${workspaces.length} workspace${workspaces.length!==1?'s':''}`, color:'#4d8ef0', action:null },
+          { label:'Overdue',        val:overdue.length,               icon:'⚠️', sub:'need immediate attention',       color:'#e05252', action:null },
+          { label:'Due This Week',  val:thisWeek.length,              icon:'📅', sub:'closing or expiring soon',       color:'#f0b429', action:()=>onNavigate('calendar') },
+          { label:'Total Contacts', val:total,                        icon:'👥', sub:`${winRate}% conversion rate`,   color:'#2ecc8a', action:()=>onNavigate('contacts') },
+          { label:'Funnel Value',   val:fmt(pipeline),                icon:'💰', sub:`${fmt(closed)} closed`,         color:'#9b59b6', action:()=>onNavigate('pipeline') },
+        ].map(kpi=>(
+          <div key={kpi.label} onClick={kpi.action||undefined}
+            style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:'16px 18px', borderLeft:`3px solid ${kpi.color}`, cursor:kpi.action?'pointer':'default', transition:'all .15s', position:'relative', overflow:'hidden' }}
+            onMouseOver={e=>{ if(kpi.action){ e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 6px 20px rgba(0,0,0,.2)'; } }}
+            onMouseOut={e=>{ e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow=''; }}>
+            <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em', marginBottom:6 }}>{kpi.label}</div>
+            <div style={{ fontSize:26, fontWeight:800, fontFamily:'JetBrains Mono,monospace', color:kpi.color, marginBottom:4 }}>{kpi.val}</div>
+            <div style={{ fontSize:11, color:'var(--muted)' }}>{kpi.sub}</div>
+            {kpi.action && <div style={{ fontSize:11, color:kpi.color, marginTop:6, fontWeight:600 }}>View →</div>}
           </div>
-        ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-            {myItems.slice(0,10).map(item=>{
-              const ds = dueDateStatus(item.date);
-              const ws = workspaces.find(w=>item.workspaces?.name===w.name || w.id===item.workspace_id);
-              const wsName = item.workspaces?.name || ws?.name || 'Workspace';
-              const isOverdue = ds?.label==='Overdue';
-              const isDueSoon = ds?.days<=3 && !isOverdue;
-              return (
-                <div key={item.id}
-                  onClick={()=>{ const w=workspaces.find(w=>w.name===wsName||w.id===item.workspace_id); if(w) onOpenWorkspace(w); }}
-                  style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', background:'var(--surface)', borderRadius:10, border:`1px solid ${isOverdue?'rgba(224,82,82,.35)':'var(--border)'}`, cursor:'pointer', transition:'all .15s' }}
-                  onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.transform='translateX(3px)'; }}
-                  onMouseOut={e=>{ e.currentTarget.style.borderColor=isOverdue?'rgba(224,82,82,.35)':'var(--border)'; e.currentTarget.style.transform=''; }}>
-                  {/* Priority dot */}
-                  <div style={{ width:8, height:8, borderRadius:'50%', flexShrink:0, background: item.priority==='Critical'?'#e05252':item.priority==='High'?'#f0b429':item.priority==='Low'?'#6c757d':'#4d8ef0' }} />
-                  {/* Name + workspace */}
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.name}</div>
-                    <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>📋 {wsName}</div>
-                  </div>
-                  {/* Status */}
-                  {item.status && (
-                    <div style={{ padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:600, background:item.status_color+'22'||'rgba(77,142,240,.15)', color:item.status_color||'var(--accent)', flexShrink:0 }}>{item.status}</div>
-                  )}
-                  {/* Due date */}
-                  {item.date && (
-                    <div style={{ fontSize:11, fontWeight:600, flexShrink:0, color: isOverdue?'#e05252':isDueSoon?'#f0b429':'var(--muted)', background: isOverdue?'rgba(224,82,82,.1)':isDueSoon?'rgba(240,180,41,.1)':'transparent', padding:'2px 6px', borderRadius:4 }}>
-                      {isOverdue ? `⚠️ ${ds.days}d overdue` : isDueSoon ? `🔥 ${ds.days}d left` : `📅 ${item.date}`}
+        ))}
+      </div>
+
+      {/* ── TWO COLUMN LAYOUT ── */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 380px', gap:24, marginBottom:28 }}>
+
+        {/* LEFT COLUMN */}
+        <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+
+          {/* ── WORKSPACES ── */}
+          <div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700 }}>Workspaces</div>
+              <span style={{ fontSize:12, color:'var(--muted)' }}>{workspaces.length} workspace{workspaces.length!==1?'s':''}</span>
+            </div>
+            {workspaces.length===0 ? (
+              <div className="card" style={{ textAlign:'center', padding:32 }}>
+                <div style={{ fontSize:28, marginBottom:8 }}>📋</div>
+                <div style={{ fontWeight:600, marginBottom:4 }}>No workspaces yet</div>
+                <div style={{ color:'var(--muted)', fontSize:13, marginBottom:14 }}>Create your first workspace to get started</div>
+                {profile?.role==='admin' && <button className="btn-primary btn-sm" onClick={()=>setShowNewWs(true)}>Create Workspace</button>}
+              </div>
+            ) : (
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:12 }}>
+                {workspaces.map((w,i)=>{
+                  const color  = WS_COLORS[i%WS_COLORS.length];
+                  const stats  = wsStats[w.id]||{total:0,overdue:0,statuses:{}};
+                  const statusEntries = Object.entries(stats.statuses).sort((a,b)=>b[1]-a[1]).slice(0,4);
+                  const lastActivity = activityFeed.find(a=>a.workspace_id===w.id||allItems.some(it=>it.workspaces?.id===w.id&&it.id===a.item_id));
+                  return (
+                    <div key={w.id} onClick={()=>onOpenWorkspace(w)}
+                      style={{ cursor:'pointer', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:'18px 16px', transition:'all .2s', borderTop:`3px solid ${color}`, position:'relative' }}
+                      onMouseOver={e=>{ e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow=`0 10px 28px rgba(0,0,0,.25)`; e.currentTarget.style.borderColor=color; }}
+                      onMouseOut={e=>{ e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow=''; e.currentTarget.style.borderColor='var(--border)'; }}>
+                      {/* Header */}
+                      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:12 }}>
+                        <div style={{ width:36, height:36, borderRadius:9, background:color+'20', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                        </div>
+                        {stats.overdue>0 && (
+                          <span style={{ background:'rgba(224,82,82,.15)', color:'#e05252', fontSize:10, fontWeight:800, padding:'2px 7px', borderRadius:10 }}>
+                            ⚠️ {stats.overdue} overdue
+                          </span>
+                        )}
+                      </div>
+                      {/* Name */}
+                      <div style={{ fontWeight:700, fontSize:14, marginBottom:6 }}>{w.name}</div>
+                      {/* Item count */}
+                      <div style={{ color:'var(--muted)', fontSize:12, marginBottom:10 }}>{stats.total} item{stats.total!==1?'s':''}</div>
+                      {/* Status distribution bar */}
+                      {stats.total>0 && (
+                        <div style={{ display:'flex', height:4, borderRadius:2, overflow:'hidden', gap:1, marginBottom:10 }}>
+                          {statusEntries.map(([status,count],si)=>{
+                            const pct = Math.round((count/stats.total)*100);
+                            const barColors=['#4d8ef0','#2ecc8a','#f0b429','#e05252','#9b59b6'];
+                            return <div key={status} title={`${status}: ${count}`} style={{ flex:pct, background:barColors[si%barColors.length], minWidth:2 }} />;
+                          })}
+                          <div style={{ flex:Math.max(0, 100-statusEntries.reduce((s,[,c])=>s+Math.round((c/stats.total)*100),0)), background:'var(--border)' }} />
+                        </div>
+                      )}
+                      {/* Bottom row */}
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <div style={{ fontSize:11, color:'var(--muted)' }}>
+                          {lastActivity ? `Updated ${timeAgo(lastActivity.created_at)}` : 'No recent activity'}
+                        </div>
+                        <span style={{ fontSize:11, color:color, fontWeight:600 }}>Open →</span>
+                      </div>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-            {myItems.length > 10 && (
-              <div style={{ textAlign:'center', fontSize:12, color:'var(--muted)', padding:'4px 0' }}>+{myItems.length-10} more items across your workspaces</div>
+                  );
+                })}
+              </div>
             )}
           </div>
-        )}
-      </div>
 
-      {/* ── STATS ── */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom:28 }}>
-        {[
-          ['Total Contacts',total,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4d8ef0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,'blue','contacts'],
-          ['Funnel Value',fmt(pipeline),<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2ecc8a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,'green','pipeline'],
-          ['Conversion Rate',`${winRate}%`,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f0b429" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,'yellow','pipeline'],
-          ['Total Revenue',fmt(closed),<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4d8ef0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>,'purple','contacts'],
-        ].map(([label,val,icon,color,nav])=>(
-          <div key={label} className="stat-card" onClick={()=>nav&&onNavigate(nav)} style={{ cursor:nav?'pointer':'default', transition:'all .2s' }}
-            onMouseOver={e=>{ if(nav) e.currentTarget.style.transform='translateY(-2px)'; }}
-            onMouseOut={e=>{ e.currentTarget.style.transform='translateY(0)'; }}>
-            <div style={{ marginBottom:10 }}>{icon}</div>
-            <div style={{ fontFamily:'JetBrains Mono,monospace', fontSize:24, fontWeight:700, color:`var(--${color==='blue'?'accent':color==='green'?'success':color==='yellow'?'warning':'accent2'})` }}>{val}</div>
-            <div style={{ color:'var(--muted)', fontSize:13, marginTop:4 }}>{label}</div>
-            {nav && <div style={{ fontSize:11, color:'var(--accent)', marginTop:6 }}>View →</div>}
+          {/* ── MY WORK ── */}
+          <div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div>
+                <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:3 }}>Assigned to you</div>
+                <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700 }}>My Work</div>
+              </div>
+              {myItems.length>0 && <span style={{ fontSize:12, color:'var(--muted)' }}>{myItems.length} item{myItems.length!==1?'s':''}</span>}
+            </div>
+            {myItems.length===0 ? (
+              <div className="card" style={{ textAlign:'center', padding:'24px 20px' }}>
+                <div style={{ fontSize:28, marginBottom:8 }}>✅</div>
+                <div style={{ fontWeight:600, marginBottom:4 }}>All clear!</div>
+                <div style={{ color:'var(--muted)', fontSize:13 }}>No items are currently assigned to you.</div>
+              </div>
+            ) : (
+              <div style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', overflow:'hidden' }}>
+                {myItems.slice(0,12).map((item,idx)=>{
+                  const ds       = dueDateStatus(item.date);
+                  const wsName   = item.workspaces?.name||'';
+                  const isOverdue = ds?.label==='Overdue';
+                  const isDueSoon = ds?.label==='Due soon'&&ds.days<=3;
+                  return (
+                    <div key={item.id}
+                      onClick={()=>{ const w=workspaces.find(w=>w.name===wsName||w.id===item.workspaces?.id); if(w) onOpenWorkspace(w); }}
+                      style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 16px', borderBottom: idx<Math.min(myItems.length,12)-1?'1px solid var(--border)':'none', cursor:'pointer', transition:'all .12s', background: isOverdue?'rgba(224,82,82,.04)':'transparent' }}
+                      onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.07)'}
+                      onMouseOut={e=>e.currentTarget.style.background=isOverdue?'rgba(224,82,82,.04)':'transparent'}>
+                      <div style={{ width:7, height:7, borderRadius:'50%', flexShrink:0, background: item.priority==='Critical'?'#e05252':item.priority==='High'?'#f0b429':item.priority==='Low'?'#6c757d':'#4d8ef0' }} />
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.name}</div>
+                        {wsName && <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>📋 {wsName}</div>}
+                      </div>
+                      {item.status && <div style={{ padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:600, background:(item.status_color||'#4d8ef0')+'25', color:item.status_color||'var(--accent)', flexShrink:0 }}>{item.status}</div>}
+                      {item.date && (
+                        <div style={{ fontSize:11, fontWeight:600, flexShrink:0, color:isOverdue?'#e05252':isDueSoon?'#f0b429':'var(--muted)', background:isOverdue?'rgba(224,82,82,.1)':isDueSoon?'rgba(240,180,41,.1)':'transparent', padding:'2px 6px', borderRadius:4, whiteSpace:'nowrap' }}>
+                          {isOverdue?`⚠️ ${ds.days}d late`:isDueSoon?`🔥 ${ds.days}d`:`📅 ${item.date}`}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {myItems.length>12 && (
+                  <div style={{ padding:'10px 16px', textAlign:'center', fontSize:12, color:'var(--muted)', borderTop:'1px solid var(--border)', background:'var(--surface2)' }}>
+                    +{myItems.length-12} more items across your workspaces
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        ))}
-      </div>
 
-      {/* ── FUNNEL BY STAGE ── */}
-      <div className="card" style={{ marginBottom:20 }}>
-        <div style={{ fontWeight:600, marginBottom:16, display:'flex', justifyContent:'space-between', alignItems:'center' }}><span>Funnel by Stage</span><span onClick={()=>onNavigate('pipeline')} style={{ fontSize:12, color:'var(--accent)', cursor:'pointer' }}>View Lead Funnel →</span></div>
-        {stageCounts.map(({ stage, count, value })=>(
-          <div key={stage} style={{ marginBottom:12 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-              <span style={{ fontSize:13 }}>{stage}</span>
-              <span style={{ fontSize:12, color:'var(--muted)', fontFamily:'JetBrains Mono,monospace' }}>{count} · {fmt(value)}</span>
+          {/* ── UPCOMING THIS WEEK ── */}
+          {thisWeek.length>0 && (
+            <div>
+              <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700, marginBottom:14 }}>Upcoming This Week</div>
+              <div style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', overflow:'hidden' }}>
+                {thisWeek.slice(0,8).map((item,idx)=>{
+                  const ws = workspaces.find(w=>w.id===item.workspaces?.id||w.name===item.workspaces?.name);
+                  const ds = dueDateStatus(item.date);
+                  const wsColor = ws ? WS_COLORS[workspaces.indexOf(ws)%WS_COLORS.length] : '#4d8ef0';
+                  return (
+                    <div key={item.id} onClick={()=>ws&&onOpenWorkspace(ws)}
+                      style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 16px', borderBottom:idx<Math.min(thisWeek.length,8)-1?'1px solid var(--border)':'none', cursor:'pointer' }}
+                      onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.07)'}
+                      onMouseOut={e=>e.currentTarget.style.background=''}>
+                      <div style={{ width:3, height:36, borderRadius:2, background:wsColor, flexShrink:0 }} />
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.name}</div>
+                        <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>{item.workspaces?.name||''}</div>
+                      </div>
+                      {item.status && <div style={{ padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:600, background:(item.status_color||'#4d8ef0')+'25', color:item.status_color||'var(--accent)', flexShrink:0 }}>{item.status}</div>}
+                      <div style={{ fontSize:11, color:ds?.days<=3?'#f0b429':'var(--muted)', fontWeight:ds?.days<=3?700:400, flexShrink:0 }}>
+                        {ds?.days===0?'Today':ds?.days===1?'Tomorrow':`${ds?.days}d`}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-            <div style={{ height:6, background:'var(--surface2)', borderRadius:3 }}>
-              <div style={{ height:'100%', width:`${(count/maxCount)*100}%`, background:'var(--accent)', borderRadius:3, transition:'width .5s' }} />
-            </div>
-          </div>
-        ))}
-      </div>
+          )}
 
-      {/* ── RECENT CONTACTS ── */}
-      <div className="card">
-        <div style={{ fontWeight:600, marginBottom:14, display:'flex', justifyContent:'space-between', alignItems:'center' }}><span>Recent Contacts</span><span onClick={()=>onNavigate('contacts')} style={{ fontSize:12, color:'var(--accent)', cursor:'pointer' }}>View All →</span></div>
-        {contacts.slice(0,5).map(c=>(
-          <div key={c.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid var(--border)' }}>
-            <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(c.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700 }}>{initials(c.full_name)}</div>
-            <div style={{ flex:1 }}>
-              <div style={{ fontWeight:500, fontSize:14 }}>{c.full_name}</div>
-              <div style={{ color:'var(--muted)', fontSize:12 }}>{c.company}</div>
+          {/* ── FUNNEL BY STAGE ── */}
+          <div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700 }}>Lead Funnel</div>
+              <span onClick={()=>onNavigate('pipeline')} style={{ fontSize:12, color:'var(--accent)', cursor:'pointer', fontWeight:600 }}>View all →</span>
             </div>
-            <span className={`badge badge-${STAGE_COLORS[c.stage]||'blue'}`} style={{ fontSize:11 }}>{c.stage}</span>
+            <div className="card">
+              {stageCounts.map(({ stage, count, value })=>(
+                <div key={stage} style={{ marginBottom:14 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
+                    <span style={{ fontSize:13, fontWeight:500 }}>{stage}</span>
+                    <span style={{ fontSize:12, color:'var(--muted)', fontFamily:'JetBrains Mono,monospace' }}>{count} · {fmt(value)}</span>
+                  </div>
+                  <div style={{ height:6, background:'var(--surface2)', borderRadius:3 }}>
+                    <div style={{ height:'100%', width:`${(count/maxCount)*100}%`, background:'var(--accent)', borderRadius:3, transition:'width .6s ease' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-        {contacts.length===0 && <div style={{ color:'var(--muted)', fontSize:13 }}>No contacts yet. Add your first lead!</div>}
+
+        </div>{/* end left column */}
+
+        {/* RIGHT COLUMN */}
+        <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+
+          {/* ── TEAM ACTIVITY FEED ── */}
+          <div>
+            <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700, marginBottom:14 }}>Team Activity</div>
+            <div style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', overflow:'hidden', maxHeight:420, overflowY:'auto' }}>
+              {activityFeed.length===0 ? (
+                <div style={{ padding:'32px 16px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>
+                  <div style={{ fontSize:28, marginBottom:8 }}>💬</div>
+                  No recent activity yet
+                </div>
+              ) : activityFeed.map((a,idx)=>(
+                <div key={a.id} style={{ display:'flex', gap:10, padding:'12px 14px', borderBottom:idx<activityFeed.length-1?'1px solid var(--border)':'none', alignItems:'flex-start' }}
+                  onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.03)'}
+                  onMouseOut={e=>e.currentTarget.style.background=''}>
+                  <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(a.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, flexShrink:0 }}>{initials(a.author_name||'?')}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:12, fontWeight:600 }}>{a.author_name} <span style={{ fontWeight:400, color:'var(--muted)' }}>posted an update</span></div>
+                    <div style={{ fontSize:11, color:'var(--muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', margin:'2px 0' }}>{a.body}</div>
+                    <div style={{ fontSize:10, color:'var(--muted)', marginTop:2 }}>{timeAgo(a.created_at)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── TEAM WORKLOAD (admin/manager only) ── */}
+          {(profile.role==='admin'||profile.role==='manager') && workload.length>0 && (
+            <div>
+              <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700, marginBottom:14 }}>Team Workload</div>
+              <div className="card" style={{ padding:'16px 18px' }}>
+                {workload.map(({member,total,overdue})=>(
+                  <div key={member.id} style={{ marginBottom:14 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
+                      <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(member.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, flexShrink:0 }}>{initials(member.full_name||'?')}</div>
+                      <span style={{ fontSize:13, fontWeight:600, flex:1 }}>{member.full_name}</span>
+                      <span style={{ fontSize:11, fontFamily:'JetBrains Mono,monospace', color:'var(--muted)' }}>{total}</span>
+                      {overdue>0 && <span style={{ background:'rgba(224,82,82,.15)', color:'#e05252', fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:8 }}>⚠️ {overdue}</span>}
+                    </div>
+                    <div style={{ height:5, background:'var(--surface2)', borderRadius:3, overflow:'hidden' }}>
+                      <div style={{ height:'100%', width:`${Math.round((total/maxWorkload)*100)}%`, background: overdue>0?'linear-gradient(90deg,#4d8ef0,#e05252)':'var(--accent)', borderRadius:3, transition:'width .5s ease' }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── RECENT CONTACTS ── */}
+          <div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700 }}>Recent Contacts</div>
+              <span onClick={()=>onNavigate('contacts')} style={{ fontSize:12, color:'var(--accent)', cursor:'pointer', fontWeight:600 }}>View all →</span>
+            </div>
+            <div style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', overflow:'hidden' }}>
+              {contacts.length===0 ? (
+                <div style={{ padding:'24px 16px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>No contacts yet</div>
+              ) : contacts.slice(0,6).map((c,idx)=>(
+                <div key={c.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderBottom:idx<Math.min(contacts.length,6)-1?'1px solid var(--border)':'none', cursor:'pointer' }}
+                  onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.07)'}
+                  onMouseOut={e=>e.currentTarget.style.background=''}>
+                  <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(c.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(c.full_name)}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:600, fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.full_name}</div>
+                    <div style={{ color:'var(--muted)', fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.company||c.email||''}</div>
+                  </div>
+                  <span className={`badge badge-${STAGE_COLORS[c.stage]||'blue'}`} style={{ fontSize:10, flexShrink:0 }}>{c.stage}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>{/* end right column */}
       </div>
 
       {showNewWs && <InputModal title="New Workspace" placeholder="e.g. Loans In Process" onConfirm={name=>{ onCreateWorkspace(name); setShowNewWs(false); }} onClose={()=>setShowNewWs(false)} />}
     </div>
   );
 }
+
 
 // ─── CONTACTS VIEW ────────────────────────────────────────────────────────────
 function MassEmailModal({ contacts, onClose, onSent }) {
