@@ -2372,8 +2372,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
     const atIdx = textBefore.lastIndexOf('@');
     if(atIdx !== -1) {
       const after = textBefore.slice(atIdx+1);
-      if(!after.includes(' ') && !after.includes('
-')) {
+      if(!after.includes(' ') && !after.includes('\n')) {
         setMentionSearch(after.toLowerCase());
         setMentionStart(atIdx);
         setMentionOpen(true);
