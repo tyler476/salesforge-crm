@@ -431,6 +431,21 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
 function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout, onGetResults }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notifsRead, setNotifsRead] = useState(false);
+
+  React.useEffect(()=>{
+    if(!profile?.full_name) return;
+    // Load updates that @mention this user
+    supabase.from('workspace_updates').select('*')
+      .ilike('body', '%@'+profile.full_name+'%')
+      .order('created_at',{ascending:false}).limit(20)
+      .then(({data})=>{ if(data) setNotifications(data); });
+    // Real-time subscription for new mentions
+    const sub = supabase.channel('notifs').on('postgres_changes',{event:'INSERT',schema:'public',table:'workspace_updates'},
+      (payload)=>{ if(payload.new?.body?.includes('@'+profile.full_name)) { setNotifications(n=>[payload.new,...n]); setNotifsRead(false); }}).subscribe();
+    return ()=>supabase.removeChannel(sub);
+  },[profile?.full_name]);
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpPage, setHelpPage] = useState(null);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -550,8 +565,11 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
 
       {/* Notification bell */}
       <button className="topbar-btn" title="Notifications" style={{ position:'relative' }}
-        onClick={e=>{ stop(e); setNotifOpen(o=>!o); setProfileOpen(false); setHelpOpen(false); setAppsOpen(false); }}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        onClick={e=>{ stop(e); setNotifOpen(o=>!o); setNotifsRead(true); setProfileOpen(false); setHelpOpen(false); setAppsOpen(false); }}>
+        <div style={{ position:'relative' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          {notifications.length>0 && !notifsRead && <div style={{ position:'absolute', top:-4, right:-4, width:8, height:8, borderRadius:'50%', background:'#e05252', border:'2px solid var(--sidebar-bg)' }} />}
+        </div>
       </button>
 
       {/* Search */}
@@ -585,11 +603,29 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
 
     {/* ── NOTIFICATION DROPDOWN ── */}
     {notifOpen && (
-      <div onClick={stop} style={{ position:'fixed', top:56, right:56, width:320, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 12px 32px rgba(0,0,0,.4)', zIndex:9999 }}>
-        <div style={{ padding:'14px 16px', borderBottom:'1px solid var(--border)', fontWeight:700, fontSize:14 }}>Notifications</div>
-        <div style={{ padding:'32px 16px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>
-          <div style={{ fontSize:32, marginBottom:8 }}>🎉</div>
-          You're all caught up!
+      <div onClick={stop} style={{ position:'fixed', top:56, right:56, width:340, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 12px 32px rgba(0,0,0,.4)', zIndex:9999, maxHeight:480, display:'flex', flexDirection:'column' }}>
+        <div style={{ padding:'14px 16px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <span style={{ fontWeight:700, fontSize:14 }}>Notifications</span>
+          {notifications.length>0 && <span onClick={()=>{setNotifications([]);setNotifsRead(true);}} style={{ fontSize:12, color:'var(--muted)', cursor:'pointer' }}>Clear all</span>}
+        </div>
+        <div style={{ overflowY:'auto', flex:1 }}>
+          {notifications.length===0 ? (
+            <div style={{ padding:'32px 16px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>
+              <div style={{ fontSize:32, marginBottom:8 }}>🎉</div>
+              You're all caught up!
+            </div>
+          ) : notifications.map(n=>(
+            <div key={n.id} style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', gap:10, alignItems:'flex-start' }}
+              onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'}
+              onMouseOut={e=>e.currentTarget.style.background=''}>
+              <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(n.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(n.author_name||'?')}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:600, marginBottom:2 }}>{n.author_name} <span style={{ fontWeight:400, color:'var(--muted)' }}>mentioned you</span></div>
+                <div style={{ fontSize:12, color:'var(--muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{n.body}</div>
+                <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>{new Date(n.created_at).toLocaleString()}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     )}
@@ -744,6 +780,23 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWorkspace, onNavigate }) {
+  const [wsStats, setWsStats] = useState({});
+
+  React.useEffect(()=>{
+    if(!profile?.company_name) return;
+    supabase.from('workspace_items').select('*').eq('company_id', profile.company_name).then(({data})=>{
+      if(!data) return;
+      const stats = {};
+      data.forEach(item=>{
+        if(!stats[item.group_id]) stats[item.group_id] = {total:0, overdue:0, highPri:0};
+        stats[item.group_id].total++;
+        const ds = dueDateStatus(item.date);
+        if(ds?.label==='Overdue') stats[item.group_id].overdue++;
+        if(item.priority==='High'||item.priority==='Critical') stats[item.group_id].highPri++;
+      });
+      setWsStats(stats);
+    });
+  },[profile?.company_name]);
   const [showNewWs, setShowNewWs] = useState(false);
   const total = contacts.length;
   const pipeline = contacts.filter(c=>!['Converted','Non-Conversion'].includes(c.stage)).reduce((s,c)=>s+(c.deal_value||0),0);
@@ -1273,6 +1326,11 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   const [sortCol, setSortCol] = useState('');
   const [sortDir, setSortDir] = useState('asc');
   const [teamMembers, setTeamMembers] = useState([]);
+  const [hiddenCols, setHiddenCols] = useState([]);
+  const [showHideCols, setShowHideCols] = useState(false);
+  const [dragOverGroup, setDragOverGroup] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
+  const [batchStatusOpen, setBatchStatusOpen] = useState(false);
 
   useEffect(() => {
     loadGroups();
@@ -1293,6 +1351,13 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
     setTimeout(()=>document.addEventListener('click', close), 0);
     return ()=>document.removeEventListener('click', close);
   }, [showAddView]);
+
+  useEffect(() => {
+    if(!showHideCols) return;
+    const close = () => setShowHideCols(false);
+    setTimeout(()=>document.addEventListener('click', close), 0);
+    return ()=>document.removeEventListener('click', close);
+  }, [showHideCols]);
 
   const loadGroups = async () => {
     const {data:grps} = await supabase.from('workspace_groups').select('*').eq('workspace_id', workspace.id).order('position');
@@ -1353,6 +1418,56 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
     for(const id of itemIds) await supabase.from('workspace_items').update({archived:true}).eq('id',id);
     setItems(prev=>({...prev,[groupId]:(prev[groupId]||[]).filter(i=>!itemIds.includes(i.id))}));
     setSelected({});
+  };
+
+  const batchUpdateStatus = async (statusLabel, statusColor) => {
+    const updates = [];
+    for(const [gId, gSet] of Object.entries(selected)) {
+      for(const iId of gSet) {
+        await supabase.from('workspace_items').update({status:statusLabel, status_color:statusColor}).eq('id',iId);
+        updates.push({gId, iId, statusLabel, statusColor});
+      }
+    }
+    updates.forEach(({gId,iId,statusLabel,statusColor})=>{
+      setItems(prev=>({...prev,[gId]:(prev[gId]||[]).map(i=>i.id===iId?{...i,status:statusLabel,status_color:statusColor}:i)}));
+    });
+    setSelected({});
+    setBatchStatusOpen(false);
+    toast('Status updated for '+updates.length+' items');
+  };
+
+  const handleDragStart = (e, groupId, itemId) => {
+    e.dataTransfer.setData('itemId', itemId);
+    e.dataTransfer.setData('fromGroup', groupId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDrop = async (e, toGroupId, toIdx) => {
+    e.preventDefault();
+    const itemId = e.dataTransfer.getData('itemId');
+    const fromGroupId = e.dataTransfer.getData('fromGroup');
+    if(!itemId) return;
+    setDragOverGroup(null); setDragOverIdx(null);
+    if(fromGroupId === toGroupId) {
+      // Reorder within same group
+      const grpItems = [...(items[fromGroupId]||[])];
+      const fromIdx = grpItems.findIndex(i=>i.id===itemId);
+      if(fromIdx === -1) return;
+      const [moved] = grpItems.splice(fromIdx,1);
+      grpItems.splice(toIdx,0,moved);
+      setItems(prev=>({...prev,[fromGroupId]:grpItems}));
+      for(let i=0;i<grpItems.length;i++) await supabase.from('workspace_items').update({position:i}).eq('id',grpItems[i].id);
+    } else {
+      // Move between groups
+      const item = (items[fromGroupId]||[]).find(i=>i.id===itemId);
+      if(!item) return;
+      await supabase.from('workspace_items').update({group_id:toGroupId, position:toIdx}).eq('id',itemId);
+      setItems(prev=>({
+        ...prev,
+        [fromGroupId]:(prev[fromGroupId]||[]).filter(i=>i.id!==itemId),
+        [toGroupId]:[...(prev[toGroupId]||[]).slice(0,toIdx),{...item,group_id:toGroupId},...(prev[toGroupId]||[]).slice(toIdx)]
+      }));
+    }
   };
 
   const deleteSelectedItems = async (groupId, itemIds) => {
@@ -1528,13 +1643,56 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
       {/* Toolbar */}
       <div className="ws-toolbar">
         {/* New Item */}
-        <div style={{ display:'flex', borderRadius:6, overflow:'hidden', boxShadow:'0 1px 3px rgba(26,86,219,.3)' }}>
+        <div style={{ display:'flex', borderRadius:6, overflow:'hidden', boxShadow:'0 1px 3px rgba(26,86,219,.3)', position:'relative' }}>
           <button onClick={()=>{ if(groups.length>0) addItem(groups[0].id); else addGroup(); }} style={{ background:'var(--accent)', color:'#fff', border:'none', padding:'7px 16px', fontSize:13, fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>
             + New Item
           </button>
-          <button onClick={addGroup} style={{ background:'#3a7de8', color:'#fff', border:'none', borderLeft:'1px solid rgba(255,255,255,.2)', padding:'7px 10px', cursor:'pointer' }}>
+          <button onClick={e=>{ e.stopPropagation(); setShowNewItemDrop(o=>!o); }} style={{ background:'#3a7de8', color:'#fff', border:'none', borderLeft:'1px solid rgba(255,255,255,.2)', padding:'7px 10px', cursor:'pointer' }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
+          {showNewItemDrop && (
+            <div onClick={e=>e.stopPropagation()} style={{ position:'absolute', top:'100%', left:0, marginTop:4, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, zIndex:9999, width:230, boxShadow:'0 8px 24px rgba(0,0,0,.4)' }}>
+              <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, padding:'4px 8px 8px', textTransform:'uppercase', letterSpacing:'.05em' }}>Add to Group</div>
+              {groups.map(g=>(
+                <div key={g.id} onClick={()=>{ addItem(g.id); setShowNewItemDrop(false); }}
+                  style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 10px', cursor:'pointer', borderRadius:4 }}
+                  onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.07)'}
+                  onMouseOut={e=>e.currentTarget.style.background=''}>
+                  <div style={{ width:10, height:10, borderRadius:2, background:g.color, flexShrink:0 }} />
+                  <span style={{ fontSize:13 }}>{g.name}</span>
+                </div>
+              ))}
+              <div style={{ borderTop:'1px solid var(--border)', marginTop:6, paddingTop:6 }}>
+                <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, padding:'4px 8px 6px', textTransform:'uppercase', letterSpacing:'.05em' }}>From Template</div>
+                {[
+                  {label:'Purchase Loan',     fields:{lender:'TBD', priority:'High',   status:'New Application'}},
+                  {label:'Refinance Loan',    fields:{lender:'TBD', priority:'Medium', status:'Pre-Qual'}},
+                  {label:'FHA Loan',          fields:{lender:'TBD', priority:'Medium', status:'New Application'}},
+                  {label:'VA Loan',           fields:{lender:'TBD', priority:'High',   status:'New Application'}},
+                ].map(t=>(
+                  <div key={t.label} onClick={()=>{
+                    if(!groups.length) return;
+                    const gId = groups[0].id;
+                    const statusObj = statuses.find(s=>s.label===t.fields.status);
+                    setInputModal({ title:'New '+t.label, placeholder:'Borrower name', defaultValue:'', onConfirm: async(name)=>{
+                      const {data} = await supabase.from('workspace_items').insert([{
+                        group_id:gId, company_id:profile.company_name, name,
+                        position:(items[gId]||[]).length,
+                        ...t.fields, status_color: statusObj?.color||'#4d8ef0'
+                      }]).select().single();
+                      if(data) setItems(prev=>({...prev,[gId]:[...(prev[gId]||[]),data]}));
+                    }});
+                    setShowNewItemDrop(false);
+                  }}
+                    style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 10px', cursor:'pointer', borderRadius:4, fontSize:13 }}
+                    onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.1)'}
+                    onMouseOut={e=>e.currentTarget.style.background=''}>
+                    <span style={{ fontSize:14 }}>📋</span>{t.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={{ width:1, height:24, background:'var(--border)', margin:'0 4px' }} />
@@ -1589,6 +1747,31 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
             Statuses
           </button>
         )}
+
+        {/* Hide Columns */}
+        <div style={{ position:'relative' }}>
+          <button className="ws-toolbar-btn" onClick={()=>setShowHideCols(o=>!o)} style={{ color:hiddenCols.length>0?'var(--accent)':'var(--muted)' }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            Hide {hiddenCols.length>0?`· ${hiddenCols.length}`:''}
+          </button>
+          {showHideCols && (
+            <div onClick={e=>e.stopPropagation()} style={{ position:'absolute', top:'100%', left:0, marginTop:4, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:10, zIndex:999, width:200, boxShadow:'0 8px 24px rgba(0,0,0,.4)' }}>
+              <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:8 }}>Toggle Columns</div>
+              {COLUMNS.filter(c=>c!=='name').map(c=>(
+                <div key={c} onClick={()=>setHiddenCols(h=>h.includes(c)?h.filter(x=>x!==c):[...h,c])}
+                  style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 4px', cursor:'pointer', borderRadius:4, fontSize:13 }}
+                  onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
+                  onMouseOut={e=>e.currentTarget.style.background=''}>
+                  <div style={{ width:16, height:16, borderRadius:3, border:'1px solid var(--border)', background:hiddenCols.includes(c)?'':'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    {!hiddenCols.includes(c) && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                  </div>
+                  {COL_LABELS[c]}
+                </div>
+              ))}
+              <div onClick={()=>setHiddenCols([])} style={{ marginTop:8, paddingTop:8, borderTop:'1px solid var(--border)', fontSize:12, color:'var(--accent)', cursor:'pointer', textAlign:'center' }}>Show all</div>
+            </div>
+          )}
+        </div>
 
         {/* Export */}
         <button className="ws-toolbar-btn" onClick={exportCSV} style={{ marginLeft:'auto' }}>
@@ -1654,7 +1837,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                         <input type="checkbox" checked={allGroupSelected} onChange={()=>toggleSelectAll(group.id, groupItems)}
                           style={{ cursor:'pointer', width:14, height:14, accentColor:'var(--accent)' }} />
                       </th>
-                      {COLUMNS.map(col=>(
+                      {COLUMNS.filter(c=>!hiddenCols.includes(c)).map(col=>(
                         <th key={col} style={{ padding:'8px 10px', textAlign:'left', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em', borderBottom:'1px solid var(--border)', whiteSpace:'nowrap', cursor:'pointer', minWidth:COL_WIDTHS[col] }}
                           onClick={()=>{ if(sortCol===col) setSortDir(d=>d==='asc'?'desc':'asc'); else { setSortCol(col); setSortDir('asc'); } }}>
                           {COL_LABELS[col]} {sortCol===col?(sortDir==='asc'?'↑':'↓'):''}
@@ -1664,8 +1847,9 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                     </tr>
                   </thead>
                   <tbody>
-                    {groupItems.map(item=>(
+                    {groupItems.map((item,idx)=>(
                       <React.Fragment key={item.id}>
+                        {dragOverGroup===group.id && dragOverIdx===idx && <tr><td colSpan={COLUMNS.filter(c=>!hiddenCols.includes(c)).length+2} style={{ padding:0 }}><div style={{ height:3, background:'var(--accent)', borderRadius:2 }} /></td></tr>}
                         <WorkspaceItemRow
                           item={item} group={group} statuses={statuses} teamMembers={teamMembers} profile={profile}
                           selected={groupSelected.has(item.id)}
@@ -1678,6 +1862,10 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                           isExpanded={!!expandedItems[item.id]}
                           subItemCount={(subItems[item.id]||[]).length}
                           PRIORITY_COLORS={PRIORITY_COLORS}
+                          hiddenCols={hiddenCols}
+                          onDragStart={e=>handleDragStart(e,group.id,item.id)}
+                          onDragOver={e=>{ e.preventDefault(); setDragOverGroup(group.id); setDragOverIdx(idx); }}
+                          onDrop={e=>handleDrop(e,group.id,idx)}
                         />
                         {/* Sub-items */}
                         {expandedItems[item.id] && (subItems[item.id]||[]).map(sub=>(
@@ -1911,6 +2099,27 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
           <div style={{ width:1, height:24, background:'var(--border)' }} />
           {Object.entries(selected).map(([gId, gSet])=> gSet.size>0 ? (
             <React.Fragment key={gId}>
+              <div style={{ position:'relative' }}>
+                <button onClick={()=>setBatchStatusOpen(o=>!o)} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
+                  onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
+                  onMouseOut={e=>e.currentTarget.style.background=''}>
+                  <span style={{ fontSize:18 }}>🏷️</span>Status
+                </button>
+                {batchStatusOpen && (
+                  <div onClick={e=>e.stopPropagation()} style={{ position:'absolute', bottom:'100%', left:0, marginBottom:8, width:200, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:6, boxShadow:'0 8px 24px rgba(0,0,0,.4)', zIndex:9999, maxHeight:260, overflowY:'auto' }}>
+                    <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, padding:'4px 8px 8px', textTransform:'uppercase', letterSpacing:'.05em' }}>Set Status For All</div>
+                    {statuses.map(s=>(
+                      <div key={s.id} onClick={()=>batchUpdateStatus(s.label, s.color)}
+                        style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 10px', borderRadius:4, cursor:'pointer' }}
+                        onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.07)'}
+                        onMouseOut={e=>e.currentTarget.style.background=''}>
+                        <div style={{ width:12, height:12, borderRadius:3, background:s.color, flexShrink:0 }} />
+                        <span style={{ fontSize:13 }}>{s.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button onClick={()=>duplicateItems(gId,[...gSet])} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
                 onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
                 onMouseOut={e=>e.currentTarget.style.background=''}>
@@ -1947,7 +2156,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
 }
 
 // ─── WORKSPACE ITEM ROW ───────────────────────────────────────────────────────
-function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdate, onDelete, onOpenUpdates, onAddSubItem, onToggleExpand, isExpanded, subItemCount, selected, onSelect, PRIORITY_COLORS }) {
+function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdate, onDelete, onOpenUpdates, onAddSubItem, onToggleExpand, isExpanded, subItemCount, selected, onSelect, PRIORITY_COLORS, hiddenCols=[], onDragStart, onDragOver, onDrop }) {
   const [editing, setEditing] = useState(null);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showAssignPicker, setShowAssignPicker] = useState(false);
@@ -1985,10 +2194,11 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
   };
 
   return (
-    <tr style={{ borderBottom:'1px solid var(--border)', background: selected?'rgba(77,142,240,.08)':'', cursor:'pointer' }}
-      onMouseOver={e=>{ e.currentTarget.style.background=selected?'rgba(77,142,240,.12)':'rgba(255,255,255,.03)'; setHovered(true); }}
-      onMouseOut={e=>{ e.currentTarget.style.background=selected?'rgba(77,142,240,.08)':''; setHovered(false); }}
-      onClick={onOpenUpdates}>
+    <tr draggable style={{ borderBottom:'1px solid var(--border)', background: selected?'rgba(77,142,240,.08)': (item.status_color ? item.status_color+'0d' : ''), cursor:'pointer', transition:'background .1s' }}
+      onMouseOver={e=>{ e.currentTarget.style.background=selected?'rgba(77,142,240,.12)':'rgba(255,255,255,.04)'; setHovered(true); }}
+      onMouseOut={e=>{ e.currentTarget.style.background=selected?'rgba(77,142,240,.08)':(item.status_color?item.status_color+'0d':''); setHovered(false); }}
+      onClick={onOpenUpdates}
+      onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} onDragLeave={()=>{}}>
       <td style={{ padding:'6px 10px', textAlign:'center' }}>
         <div style={{ display:'flex', alignItems:'center', gap:4, justifyContent:'center' }}>
           <input type="checkbox" checked={!!selected} onChange={onSelect} onClick={e=>e.stopPropagation()}
@@ -2046,7 +2256,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
         )}
       </td>
       {/* STATUS */}
-      <td style={{ padding:'4px 10px', position:'relative' }}>
+      {!hiddenCols.includes('status') && <td style={{ padding:'4px 10px', position:'relative' }}>
         <div onClick={e=>e.stopPropagation()} onMouseDown={e=>{ e.stopPropagation(); const r=e.currentTarget.getBoundingClientRect(); const spaceBelow=window.innerHeight-r.bottom; const dropH=Math.min(320, statuses.length*40+60); const top=spaceBelow<dropH ? r.top-dropH-4 : r.bottom+4; setPickerPos({top,left:r.left}); setShowStatusPicker(s=>!s); setShowAssignPicker(false); }} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
           {item.status||'No Status'}
         </div>
@@ -2072,12 +2282,12 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
             </div>
           </div>
         )}
-      </td>
-      <td style={{ padding:'4px 10px' }}>
+      </td>}
+      {!hiddenCols.includes('priority') && <td style={{ padding:'4px 10px' }}>
         <select value={item.priority||'Medium'} onClick={e=>e.stopPropagation()} onChange={e=>onUpdate('priority',e.target.value)} style={{ background:'transparent', border:'none', color:PRIORITY_COLORS[item.priority||'Medium'], fontWeight:700, fontSize:12, cursor:'pointer', width:'auto', padding:'2px 4px' }}>
           {['Low','Medium','High','Critical'].map(p=><option key={p} style={{ background:'#1a2e4a', color:PRIORITY_COLORS[p] }}>{p}</option>)}
         </select>
-      </td>
+      </td>}
       <td style={{ padding:'4px 10px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:6 }}>
           <EditableCell field="date" type="date" />
@@ -2086,12 +2296,12 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
           })()}
         </div>
       </td>
-      <td style={{ padding:'4px 10px' }}><EditableCell field="lender" /></td>
-      <td style={{ padding:'4px 10px' }}><EditableCell field="loan_officer" /></td>
-      <td style={{ padding:'4px 10px' }}><EditableCell field="processor" /></td>
-      <td style={{ padding:'4px 10px' }}><EditableCell field="lock_expiration" type="date" /></td>
-      <td style={{ padding:'4px 10px' }}><EditableCell field="processor_contact" /></td>
-      <td style={{ padding:'4px 10px' }}><EditableCell field="escrow_email" /></td>
+      {!hiddenCols.includes('lender') && <td style={{ padding:'4px 10px' }}><EditableCell field="lender" /></td>}
+      {!hiddenCols.includes('loan_officer') && <td style={{ padding:'4px 10px' }}><EditableCell field="loan_officer" /></td>}
+      {!hiddenCols.includes('processor') && <td style={{ padding:'4px 10px' }}><EditableCell field="processor" /></td>}
+      {!hiddenCols.includes('lock_expiration') && <td style={{ padding:'4px 10px' }}><EditableCell field="lock_expiration" type="date" /></td>}
+      {!hiddenCols.includes('processor_contact') && <td style={{ padding:'4px 10px' }}><EditableCell field="processor_contact" /></td>}
+      {!hiddenCols.includes('escrow_email') && <td style={{ padding:'4px 10px' }}><EditableCell field="escrow_email" /></td>}
       <td style={{ padding:'4px 10px' }}>
         <button onClick={onDelete} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:14, padding:4 }}>×</button>
       </td>
