@@ -82,6 +82,14 @@ const css = `
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const STAGES = ['New Lead','Contacted','Qualified','Proposal','Negotiation','Converted','Non-Conversion'];
+const dueDateStatus = (dateStr) => {
+  if(!dateStr) return null;
+  const d = new Date(dateStr); const now = new Date(); now.setHours(0,0,0,0);
+  const diff = Math.ceil((d-now)/(1000*60*60*24));
+  if(diff < 0) return { label:'Overdue', color:'#e05252', bg:'rgba(224,82,82,.12)', days: Math.abs(diff) };
+  if(diff <= 7) return { label:'Due soon', color:'#f0b429', bg:'rgba(240,180,41,.12)', days: diff };
+  return { label:'On track', color:'#2ecc8a', bg:'transparent', days: diff };
+};
 const STAGE_COLORS = { 'New Lead':'blue','Contacted':'purple','Qualified':'yellow','Proposal':'accent','Negotiation':'warning','Converted':'green','Non-Conversion':'red' };
 const SOURCES = ['Website','Referral','Cold Outreach','LinkedIn','Event','Other'];
 const INDUSTRIES = ['Technology','Healthcare','Finance','Real Estate','Retail','Manufacturing','Other'];
@@ -1258,7 +1266,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   const [statuses, setStatuses] = useState([]);
   const [collapsed, setCollapsed] = useState({});
   const [activeItem, setActiveItem] = useState(null);
-  const [updatesPanel, setUpdatesPanel] = useState(null);
+  const [itemDetailPanel, setItemDetailPanel] = useState(null);
   const [search, setSearch] = useState(null);
   const [filterOfficer, setFilterOfficer] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -1664,7 +1672,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                           onSelect={()=>toggleSelect(group.id, item.id)}
                           onUpdate={(field,val)=>updateItem(group.id,item.id,field,val)}
                           onDelete={()=>deleteItem(group.id,item.id)}
-                          onOpenUpdates={()=>setUpdatesPanel(item)}
+                          onOpenUpdates={()=>setItemDetailPanel(item)}
                           onAddSubItem={()=>{ addSubItem(item.id, group.id); loadSubItems(item.id); }}
                           onToggleExpand={()=>{ setExpandedItems(p=>({...p,[item.id]:!p[item.id]})); if(!expandedItems[item.id]) loadSubItems(item.id); }}
                           isExpanded={!!expandedItems[item.id]}
@@ -1744,7 +1752,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                           <div key={item.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'12px 14px', cursor:'pointer', transition:'all .15s', borderLeft:`3px solid ${grp?.color||colColor}` }}
                             onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.transform='translateY(-1px)'; e.currentTarget.style.boxShadow='0 4px 12px rgba(0,0,0,.2)'; }}
                             onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow=''; }}
-                            onClick={()=>setUpdatesPanel(item)}>
+                            onClick={()=>setItemDetailPanel(item)}>
                             {grp && <div style={{ fontSize:10, color:grp.color, fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em', marginBottom:5 }}>{grp.name}</div>}
                             <div style={{ fontWeight:600, fontSize:13, marginBottom:8, lineHeight:1.4 }}>{item.name}</div>
                             {item.lender && <div style={{ fontSize:11, color:'var(--muted)', marginBottom:3, display:'flex', alignItems:'center', gap:4 }}>🏦 {item.lender}</div>}
@@ -1929,8 +1937,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
         </div>
       )}
 
-      {/* Updates Panel */}
-      {updatesPanel && <UpdatesPanel item={updatesPanel} profile={profile} onClose={()=>setUpdatesPanel(null)} toast={toast} />}
+      {/* Item Detail Panel rendered from WorkspaceView level above */}
       {/* Input Modal */}
       {inputModal && <InputModal title={inputModal.title} placeholder={inputModal.placeholder} defaultValue={inputModal.defaultValue||''} onConfirm={inputModal.onConfirm} onClose={()=>setInputModal(null)} />}
       {/* Status Manager */}
@@ -1978,12 +1985,13 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
   };
 
   return (
-    <tr style={{ borderBottom:'1px solid var(--border)', background: selected?'rgba(77,142,240,.08)':'' }}
+    <tr style={{ borderBottom:'1px solid var(--border)', background: selected?'rgba(77,142,240,.08)':'', cursor:'pointer' }}
       onMouseOver={e=>{ e.currentTarget.style.background=selected?'rgba(77,142,240,.12)':'rgba(255,255,255,.03)'; setHovered(true); }}
-      onMouseOut={e=>{ e.currentTarget.style.background=selected?'rgba(77,142,240,.08)':''; setHovered(false); }}>
+      onMouseOut={e=>{ e.currentTarget.style.background=selected?'rgba(77,142,240,.08)':''; setHovered(false); }}
+      onClick={onOpenUpdates}>
       <td style={{ padding:'6px 10px', textAlign:'center' }}>
         <div style={{ display:'flex', alignItems:'center', gap:4, justifyContent:'center' }}>
-          <input type="checkbox" checked={!!selected} onChange={onSelect}
+          <input type="checkbox" checked={!!selected} onChange={onSelect} onClick={e=>e.stopPropagation()}
             style={{ cursor:'pointer', width:14, height:14, accentColor:'var(--accent)' }} />
           {(hovered||subItemCount>0) && (
             <button onClick={onToggleExpand} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:2, fontSize:10, transform:isExpanded?'rotate(90deg)':'rotate(0)', transition:'transform .15s' }} title="Toggle sub-items">▶</button>
@@ -1993,7 +2001,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
       <td style={{ padding:'4px 10px', minWidth:200 }}>
         <div style={{ display:'flex', alignItems:'center', gap:6 }}>
           <div style={{ flex:1 }}><EditableCell field="name" style={{ fontWeight:500 }} /></div>
-          {hovered && <button onClick={onOpenUpdates} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:3, display:'flex', alignItems:'center', flexShrink:0, opacity:.7 }} title="Updates">{Icons.comment}</button>}
+          {hovered && <button onClick={e=>{ e.stopPropagation(); onOpenUpdates(); }} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:3, display:'flex', alignItems:'center', flexShrink:0, opacity:.7 }} title="Open detail panel">{Icons.comment}</button>}
           {hovered && subItemCount===0 && <button onClick={onAddSubItem} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:3, fontSize:10, flexShrink:0, opacity:.7 }} title="Add sub-item">⊕</button>}
         </div>
       </td>
@@ -2039,7 +2047,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
       </td>
       {/* STATUS */}
       <td style={{ padding:'4px 10px', position:'relative' }}>
-        <div onMouseDown={e=>{ e.stopPropagation(); const r=e.currentTarget.getBoundingClientRect(); const spaceBelow=window.innerHeight-r.bottom; const dropH=Math.min(320, statuses.length*40+60); const top=spaceBelow<dropH ? r.top-dropH-4 : r.bottom+4; setPickerPos({top,left:r.left}); setShowStatusPicker(s=>!s); setShowAssignPicker(false); }} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
+        <div onClick={e=>e.stopPropagation()} onMouseDown={e=>{ e.stopPropagation(); const r=e.currentTarget.getBoundingClientRect(); const spaceBelow=window.innerHeight-r.bottom; const dropH=Math.min(320, statuses.length*40+60); const top=spaceBelow<dropH ? r.top-dropH-4 : r.bottom+4; setPickerPos({top,left:r.left}); setShowStatusPicker(s=>!s); setShowAssignPicker(false); }} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
           {item.status||'No Status'}
         </div>
         {showStatusPicker && (
@@ -2066,11 +2074,18 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
         )}
       </td>
       <td style={{ padding:'4px 10px' }}>
-        <select value={item.priority||'Medium'} onChange={e=>onUpdate('priority',e.target.value)} style={{ background:'transparent', border:'none', color:PRIORITY_COLORS[item.priority||'Medium'], fontWeight:700, fontSize:12, cursor:'pointer', width:'auto', padding:'2px 4px' }}>
+        <select value={item.priority||'Medium'} onClick={e=>e.stopPropagation()} onChange={e=>onUpdate('priority',e.target.value)} style={{ background:'transparent', border:'none', color:PRIORITY_COLORS[item.priority||'Medium'], fontWeight:700, fontSize:12, cursor:'pointer', width:'auto', padding:'2px 4px' }}>
           {['Low','Medium','High','Critical'].map(p=><option key={p} style={{ background:'#1a2e4a', color:PRIORITY_COLORS[p] }}>{p}</option>)}
         </select>
       </td>
-      <td style={{ padding:'4px 10px' }}><EditableCell field="date" type="date" /></td>
+      <td style={{ padding:'4px 10px' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+          <EditableCell field="date" type="date" />
+          {(() => { const ds = dueDateStatus(item.date); if(!ds||ds.label==='On track') return null;
+            return <span title={ds.label} style={{ fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:3, background:ds.bg, color:ds.color, whiteSpace:'nowrap', flexShrink:0 }}>{ds.label==='Overdue'?'⚠️':''} {ds.days}d {ds.label==='Overdue'?'late':'left'}</span>;
+          })()}
+        </div>
+      </td>
       <td style={{ padding:'4px 10px' }}><EditableCell field="lender" /></td>
       <td style={{ padding:'4px 10px' }}><EditableCell field="loan_officer" /></td>
       <td style={{ padding:'4px 10px' }}><EditableCell field="processor" /></td>
@@ -2085,6 +2100,344 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
 }
 
 // ─── UPDATES PANEL ────────────────────────────────────────────────────────────
+// ─── ITEM DETAIL PANEL ───────────────────────────────────────────────────────
+function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, profile, onClose, onUpdate, toast, allGroups }) {
+  const [item, setItem] = useState(initialItem);
+  const [tab, setTab] = useState('updates');
+  const [updates, setUpdates] = useState([]);
+  const [newUpdate, setNewUpdate] = useState('');
+  const [posting, setPosting] = useState(false);
+  const [files, setFiles] = useState([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [mentionSearch, setMentionSearch] = useState('');
+  const [mentionOpen, setMentionOpen] = useState(false);
+  const [mentionStart, setMentionStart] = useState(0);
+  const [editingField, setEditingField] = useState(null);
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
+  const [showAssignPicker, setShowAssignPicker] = useState(false);
+  const textareaRef = React.useRef();
+  const fileInputRef = React.useRef();
+  const panelRef = React.useRef();
+
+  useEffect(() => { loadUpdates(); loadFiles(); }, [item.id]);
+
+  // Sync item updates back to parent
+  const updateField = async (field, value) => {
+    const updated = { ...item, [field]: value };
+    setItem(updated);
+    await supabase.from('workspace_items').update({ [field]: value }).eq('id', item.id);
+    onUpdate(field, value);
+  };
+
+  const loadUpdates = async () => {
+    const { data } = await supabase.from('workspace_updates').select('*').eq('item_id', item.id).order('created_at', { ascending: true });
+    setUpdates(data||[]);
+  };
+
+  const loadFiles = async () => {
+    try {
+      const { data } = await supabase.storage.from('workspace-files').list(`items/${item.id}`);
+      setFiles(data||[]);
+    } catch(e) { setFiles([]); }
+  };
+
+  const postUpdate = async () => {
+    if(!newUpdate.trim()) return;
+    setPosting(true);
+    const { data } = await supabase.from('workspace_updates').insert([{ item_id: item.id, author_name: profile.full_name, author_id: profile.id, body: newUpdate }]).select().single();
+    if(data) { setUpdates(u=>[...u,data]); setNewUpdate(''); }
+    setPosting(false);
+  };
+
+  const deleteUpdate = async (id) => {
+    await supabase.from('workspace_updates').delete().eq('id', id);
+    setUpdates(u=>u.filter(x=>x.id!==id));
+  };
+
+  const handleTextChange = (e) => {
+    const val = e.target.value;
+    setNewUpdate(val);
+    const cursor = e.target.selectionStart;
+    const textBefore = val.slice(0, cursor);
+    const atIdx = textBefore.lastIndexOf('@');
+    if(atIdx !== -1) {
+      const after = textBefore.slice(atIdx+1);
+      if(!after.includes(' ') && !after.includes('
+')) {
+        setMentionSearch(after.toLowerCase());
+        setMentionStart(atIdx);
+        setMentionOpen(true);
+        return;
+      }
+    }
+    setMentionOpen(false);
+  };
+
+  const insertMention = (member) => {
+    const before = newUpdate.slice(0, mentionStart);
+    const after = newUpdate.slice(mentionStart + 1 + mentionSearch.length);
+    const mention = '@' + member.full_name;
+    setNewUpdate(before + mention + ' ' + after);
+    setMentionOpen(false);
+    setMentionSearch('');
+    setTimeout(()=>{ if(textareaRef.current) { textareaRef.current.focus(); const pos = (before+mention+' ').length; textareaRef.current.setSelectionRange(pos,pos); }},0);
+  };
+
+  const filteredMembers = teamMembers.filter(m=> m.id !== profile.id && (mentionSearch==='' || m.full_name.toLowerCase().includes(mentionSearch)));
+
+  const renderBody = (body) => {
+    const parts = body.split(/(@[a-zA-Z][a-zA-Z0-9 ]*)/g);
+    return parts.map((part,i)=>{ if(part.startsWith('@')) return <span key={i} style={{ color:'var(--accent)', fontWeight:600 }}>{part}</span>; return part; });
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0]; if(!file) return;
+    setUploadingFile(true);
+    try {
+      const path = `items/${item.id}/${Date.now()}_${file.name}`;
+      const { error } = await supabase.storage.from('workspace-files').upload(path, file);
+      if(!error) { toast('File uploaded!'); loadFiles(); } else toast('Upload failed — check Supabase storage setup');
+    } catch(e) { toast('Storage setup required'); }
+    setUploadingFile(false);
+  };
+
+  const getFileUrl = (fileName) => { const { data } = supabase.storage.from('workspace-files').getPublicUrl(`items/${item.id}/${fileName}`); return data?.publicUrl; };
+  const formatFileSize = (bytes) => { if(!bytes) return ''; if(bytes<1024) return bytes+'B'; if(bytes<1048576) return (bytes/1024).toFixed(1)+'KB'; return (bytes/1048576).toFixed(1)+'MB'; };
+  const getFileIcon = (name) => { const ext=name.split('.').pop().toLowerCase(); if(['jpg','jpeg','png','gif','webp'].includes(ext)) return '🖼️'; if(ext==='pdf') return '📄'; if(['doc','docx'].includes(ext)) return '📝'; if(['xls','xlsx','csv'].includes(ext)) return '📊'; return '📎'; };
+
+  const ds = dueDateStatus(item.date);
+  const PRIORITY_COLORS = { High:'#e05252', Medium:'#f0b429', Low:'#2ecc8a', Critical:'#9b59b6' };
+  const statusObj = statuses.find(s=>s.label===item.status);
+  const statusColor = item.status_color || statusObj?.color || '#4d8ef0';
+
+  const FieldRow = ({ label, children }) => (
+    <div style={{ display:'flex', alignItems:'flex-start', gap:16, padding:'10px 0', borderBottom:'1px solid var(--border)' }}>
+      <div style={{ width:130, fontSize:12, color:'var(--muted)', fontWeight:600, paddingTop:6, flexShrink:0 }}>{label}</div>
+      <div style={{ flex:1 }}>{children}</div>
+    </div>
+  );
+
+  return (
+    <div ref={panelRef} style={{ position:'fixed', top:52, right:0, width:560, height:'calc(100vh - 52px)', background:'var(--surface)', borderLeft:'1px solid var(--border)', zIndex:300, display:'flex', flexDirection:'column', boxShadow:'-8px 0 32px rgba(0,0,0,.3)' }}>
+
+      {/* ── HEADER ── */}
+      <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--border)', background:'var(--surface2)' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:12 }}>
+          {editingField==='name' ? (
+            <input autoFocus value={item.name} onChange={e=>setItem(i=>({...i,name:e.target.value}))}
+              onBlur={()=>{ updateField('name',item.name); setEditingField(null); }}
+              onKeyDown={e=>{ if(e.key==='Enter'){updateField('name',item.name);setEditingField(null);} if(e.key==='Escape')setEditingField(null); }}
+              style={{ flex:1, fontSize:18, fontWeight:700, fontFamily:'Playfair Display,serif', background:'transparent', border:'none', borderBottom:'2px solid var(--accent)', outline:'none', color:'var(--text)', padding:'2px 0' }} />
+          ) : (
+            <div onClick={()=>setEditingField('name')} style={{ flex:1, fontSize:18, fontWeight:700, fontFamily:'Playfair Display,serif', cursor:'text', lineHeight:1.3 }} title="Click to edit">{item.name}</div>
+          )}
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:20, cursor:'pointer', flexShrink:0, padding:4, borderRadius:4 }}
+            onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.1)'}
+            onMouseOut={e=>e.currentTarget.style.background=''}>✕</button>
+        </div>
+        {/* Status + Priority badges */}
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+          <div onClick={()=>setShowStatusPicker(s=>!s)} style={{ position:'relative', display:'inline-flex', alignItems:'center', gap:6, background:statusColor, color:'#fff', padding:'4px 12px', borderRadius:5, fontSize:12, fontWeight:700, cursor:'pointer' }}>
+            {item.status||'Set Status'}
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="6 9 12 15 18 9"/></svg>
+            {showStatusPicker && (
+              <div onClick={e=>e.stopPropagation()} style={{ position:'absolute', top:'calc(100% + 6px)', left:0, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:6, width:220, maxHeight:300, overflowY:'auto', boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
+                {statuses.map(s=>(
+                  <div key={s.id} onClick={()=>{ updateField('status',s.label); updateField('status_color',s.color); setShowStatusPicker(false); }}
+                    style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 10px', borderRadius:4, cursor:'pointer' }}
+                    onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.07)'}
+                    onMouseOut={e=>e.currentTarget.style.background=''}>
+                    <div style={{ width:12, height:12, borderRadius:3, background:s.color, flexShrink:0 }} />
+                    <span style={{ fontSize:13 }}>{s.label}</span>
+                  </div>
+                ))}
+                <div onClick={()=>{ updateField('status',''); updateField('status_color',''); setShowStatusPicker(false); }}
+                  style={{ padding:'6px 10px', fontSize:12, color:'var(--muted)', cursor:'pointer', borderTop:'1px solid var(--border)', marginTop:4 }}>Clear status</div>
+              </div>
+            )}
+          </div>
+          <select value={item.priority||'Medium'} onChange={e=>updateField('priority',e.target.value)}
+            style={{ background:PRIORITY_COLORS[item.priority||'Medium']+'22', color:PRIORITY_COLORS[item.priority||'Medium'], border:`1px solid ${PRIORITY_COLORS[item.priority||'Medium']}44`, borderRadius:5, padding:'4px 10px', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+            {['Low','Medium','High','Critical'].map(p=><option key={p} style={{ background:'var(--surface2)', color:PRIORITY_COLORS[p] }}>{p}</option>)}
+          </select>
+          {ds && ds.label!=='On track' && (
+            <span style={{ background:ds.bg, color:ds.color, border:`1px solid ${ds.color}44`, padding:'4px 10px', borderRadius:5, fontSize:12, fontWeight:700 }}>
+              {ds.label==='Overdue'?'⚠️ ':''}{ds.days}d {ds.label==='Overdue'?'overdue':'left'}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ── TABS ── */}
+      <div style={{ display:'flex', borderBottom:'1px solid var(--border)', background:'var(--surface2)', flexShrink:0 }}>
+        {[{id:'details',icon:'📋',label:'Details'},{id:'updates',icon:'💬',label:'Updates'},{id:'files',icon:'📁',label:'Files'}].map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{ flex:1, padding:'10px', background:'none', border:'none', borderBottom:tab===t.id?'2px solid var(--accent)':'2px solid transparent', color:tab===t.id?'var(--accent)':'var(--muted)', fontWeight:tab===t.id?700:400, cursor:'pointer', fontSize:13, fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+            <span>{t.icon}</span>{t.label}
+            {t.id==='updates' && updates.length>0 && <span style={{ background:'var(--accent)', color:'#fff', borderRadius:10, padding:'0 6px', fontSize:11, fontWeight:700 }}>{updates.length}</span>}
+          </button>
+        ))}
+      </div>
+
+      {/* ── SCROLLABLE CONTENT ── */}
+      <div style={{ flex:1, overflowY:'auto', padding:20 }}>
+
+        {/* DETAILS TAB */}
+        {tab==='details' && (
+          <div>
+            <FieldRow label="Owner">
+              <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                {(item.assigned_officers||[]).map((name,i)=>(
+                  <div key={i} style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(255,255,255,.06)', borderRadius:20, padding:'3px 10px 3px 4px' }}>
+                    <div style={{ width:22, height:22, borderRadius:'50%', background:avatarColor(name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700 }}>{initials(name)}</div>
+                    <span style={{ fontSize:12 }}>{name}</span>
+                    <span onClick={()=>updateField('assigned_officers',(item.assigned_officers||[]).filter(x=>x!==name))} style={{ cursor:'pointer', color:'var(--muted)', fontSize:14, lineHeight:1 }}>×</span>
+                  </div>
+                ))}
+                <div onClick={()=>setShowAssignPicker(s=>!s)} style={{ display:'flex', alignItems:'center', gap:4, cursor:'pointer', color:'var(--muted)', fontSize:12, padding:'3px 8px', borderRadius:20, border:'1px dashed var(--border)' }}>
+                  <span style={{ fontSize:16 }}>+</span> Add person
+                </div>
+              </div>
+              {showAssignPicker && (
+                <div style={{ marginTop:8, background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:8, padding:8, maxHeight:200, overflowY:'auto' }}>
+                  {teamMembers.map(m=>{
+                    const assigned = (item.assigned_officers||[]).includes(m.full_name);
+                    return (
+                      <div key={m.id} onClick={()=>{ const curr=item.assigned_officers||[]; updateField('assigned_officers', assigned?curr.filter(x=>x!==m.full_name):[...curr,m.full_name]); }}
+                        style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:4, cursor:'pointer', background:assigned?'rgba(77,142,240,.15)':'' }}
+                        onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
+                        onMouseOut={e=>e.currentTarget.style.background=assigned?'rgba(77,142,240,.15)':''}>
+                        <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700 }}>{initials(m.full_name)}</div>
+                        <div style={{ flex:1 }}>
+                          <div style={{ fontSize:13 }}>{m.full_name}</div>
+                          <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
+                        </div>
+                        {assigned && <span style={{ color:'var(--accent)' }}>✓</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </FieldRow>
+            <FieldRow label="Due Date">
+              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                <input type="date" value={item.date||''} onChange={e=>updateField('date',e.target.value)}
+                  style={{ width:'auto', padding:'4px 10px', fontSize:13, background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:5, color:'var(--text)' }} />
+                {ds && <span style={{ fontSize:12, fontWeight:700, color:ds.color }}>{ds.label}</span>}
+              </div>
+            </FieldRow>
+            <FieldRow label="Group">
+              <select value={item.group_id||''} onChange={e=>updateField('group_id',e.target.value)}
+                style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', fontSize:13, padding:'4px 10px', borderRadius:5, width:'auto' }}>
+                {allGroups.map(g=><option key={g.id} value={g.id}>{g.name}</option>)}
+              </select>
+            </FieldRow>
+            {[
+              {field:'lender',label:'Lender'},
+              {field:'loan_officer',label:'Loan Officer'},
+              {field:'processor',label:'Processor'},
+              {field:'lock_expiration',label:'Lock Expiration',type:'date'},
+              {field:'processor_contact',label:'Processor Contact'},
+              {field:'escrow_email',label:'Escrow Email'},
+            ].map(({field,label,type='text'})=>(
+              <FieldRow key={field} label={label}>
+                {editingField===field ? (
+                  <input autoFocus type={type} value={item[field]||''}
+                    onChange={e=>setItem(i=>({...i,[field]:e.target.value}))}
+                    onBlur={()=>{ updateField(field,item[field]); setEditingField(null); }}
+                    onKeyDown={e=>{ if(e.key==='Enter'){updateField(field,item[field]);setEditingField(null);} if(e.key==='Escape')setEditingField(null); }}
+                    style={{ width:'100%', padding:'5px 10px', fontSize:13, background:'var(--surface2)', border:'1px solid var(--accent)', borderRadius:5, color:'var(--text)' }} />
+                ) : (
+                  <div onClick={()=>setEditingField(field)} style={{ padding:'5px 10px', fontSize:13, borderRadius:5, cursor:'text', minHeight:30, border:'1px solid transparent' }}
+                    onMouseOver={e=>e.currentTarget.style.border='1px solid var(--border)'}
+                    onMouseOut={e=>e.currentTarget.style.border='1px solid transparent'}>
+                    {item[field]||<span style={{ color:'var(--border)' }}>Click to add...</span>}
+                  </div>
+                )}
+              </FieldRow>
+            ))}
+          </div>
+        )}
+
+        {/* UPDATES TAB */}
+        {tab==='updates' && (
+          <div>
+            <div style={{ background:'var(--surface2)', borderRadius:10, padding:14, marginBottom:20, border:'1px solid var(--border)', position:'relative' }}>
+              <div style={{ display:'flex', gap:10, marginBottom:8 }}>
+                <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(profile.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(profile.full_name)}</div>
+                <textarea ref={textareaRef} rows={3} value={newUpdate} onChange={handleTextChange}
+                  placeholder="Write an update... type @ to mention a teammate"
+                  onKeyDown={e=>{
+                    if(mentionOpen){ if(e.key==='Escape'){setMentionOpen(false);return;} if(e.key==='Enter'&&filteredMembers.length>0){e.preventDefault();insertMention(filteredMembers[0]);return;} }
+                    if(e.key==='Enter'&&e.ctrlKey) postUpdate();
+                  }}
+                  style={{ flex:1, resize:'vertical', background:'transparent', border:'none', outline:'none', fontSize:13, color:'var(--text)', lineHeight:1.6 }} />
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:11, color:'var(--muted)' }}>Type <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>@</kbd> to mention · <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>Ctrl+Enter</kbd> to post</span>
+                <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Post Update'}</button>
+              </div>
+              {mentionOpen && filteredMembers.length>0 && (
+                <div style={{ position:'absolute', bottom:'calc(100% + 4px)', left:0, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, width:240, boxShadow:'0 8px 24px rgba(0,0,0,.4)', overflow:'hidden' }}>
+                  <div style={{ padding:'6px 10px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--border)', background:'var(--surface2)' }}>Team Members</div>
+                  {filteredMembers.slice(0,6).map(m=>(
+                    <div key={m.id} onMouseDown={e=>{ e.preventDefault(); insertMention(m); }}
+                      style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', cursor:'pointer' }}
+                      onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.15)'}
+                      onMouseOut={e=>e.currentTarget.style.background=''}>
+                      <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, flexShrink:0 }}>{initials(m.full_name)}</div>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:600 }}>{m.full_name}</div>
+                        <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {updates.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No updates yet — be the first to post!</div>}
+            {updates.map(u=>(
+              <div key={u.id} style={{ display:'flex', gap:10, marginBottom:16 }}>
+                <div style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(u.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(u.author_name||'?')}</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:5 }}>
+                    <span style={{ fontWeight:700, fontSize:13 }}>{u.author_name}</span>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <span style={{ fontSize:11, color:'var(--muted)' }}>{new Date(u.created_at).toLocaleString()}</span>
+                      {u.author_id===profile.id && <button onClick={()=>deleteUpdate(u.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:13, padding:0 }}>×</button>}
+                    </div>
+                  </div>
+                  <div style={{ background:'var(--surface2)', borderRadius:8, padding:'10px 14px', fontSize:13, lineHeight:1.7, whiteSpace:'pre-wrap', border:'1px solid var(--border)' }}>{renderBody(u.body)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* FILES TAB */}
+        {tab==='files' && (
+          <div>
+            <input type="file" ref={fileInputRef} onChange={handleFileUpload} style={{ display:'none' }} />
+            <button className="btn-primary btn-sm" onClick={()=>fileInputRef.current?.click()} disabled={uploadingFile} style={{ marginBottom:16, width:'100%', padding:12 }}>
+              {uploadingFile ? '⏳ Uploading...' : '⬆️ Upload File'}
+            </button>
+            {files.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No files attached yet</div>}
+            {files.map(f=>(
+              <div key={f.name} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', background:'var(--surface2)', borderRadius:8, marginBottom:8, border:'1px solid var(--border)' }}>
+                <span style={{ fontSize:20 }}>{getFileIcon(f.name)}</span>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.name.replace(/^[0-9]+_/,'')}</div>
+                  <div style={{ fontSize:11, color:'var(--muted)' }}>{formatFileSize(f.metadata?.size)}</div>
+                </div>
+                <a href={getFileUrl(f.name)} target="_blank" rel="noreferrer" style={{ color:'var(--accent)', fontSize:12, textDecoration:'none', fontWeight:600 }}>⬇ Download</a>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function UpdatesPanel({ item, profile, onClose, toast }) {
   const [tab, setTab] = useState('updates');
   const [updates, setUpdates] = useState([]);
@@ -2324,7 +2677,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
               <div key={f.name} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', background:'var(--surface2)', borderRadius:8, marginBottom:8, border:'1px solid var(--border)' }}>
                 <span style={{ fontSize:20 }}>{getFileIcon(f.name)}</span>
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:13, fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.name.replace(/^\d+_/,'')}</div>
+                  <div style={{ fontSize:13, fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.name.replace(/^[0-9]+_/,'')}</div>
                   <div style={{ fontSize:11, color:'var(--muted)' }}>{formatFileSize(f.metadata?.size)}</div>
                 </div>
                 <a href={getFileUrl(f.name)} target="_blank" rel="noreferrer" style={{ color:'var(--accent)', fontSize:12, textDecoration:'none', fontWeight:600 }}>Download</a>
