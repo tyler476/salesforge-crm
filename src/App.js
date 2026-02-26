@@ -3609,7 +3609,7 @@ function CalendarView({ profile, workspaces, toast }) {
               onMouseOver={e=>{ if(gsiLoaded) e.currentTarget.style.background='rgba(66,133,244,.25)'; }}
               onMouseOut={e=>e.currentTarget.style.background='rgba(66,133,244,.12)'}>
               <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.5 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h12.1c-.5 2.7-2.1 5-4.5 6.5v5.4h7.3c4.3-3.9 6.6-9.7 6.6-15.6z"/><path fill="#34A853" d="M24 46c6.1 0 11.2-2 14.9-5.4l-7.3-5.4c-2 1.4-4.6 2.2-7.6 2.2-5.9 0-10.8-3.9-12.6-9.2H3.8v5.6C7.5 41.8 15.2 46 24 46z"/><path fill="#FBBC05" d="M11.4 28.2c-.5-1.4-.7-2.8-.7-4.2s.3-2.9.7-4.2v-5.6H3.8C2.3 17.1 1.5 20.4 1.5 24s.8 6.9 2.3 9.8l7.6-5.6z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35.1 4.1 29.9 2 24 2 15.2 2 7.5 6.2 3.8 12.8l7.6 5.6c1.8-5.3 6.7-7.6 12.6-7.6z"/></svg>
-              {gsiLoaded ? 'Connect Google Cal' : 'Loading...'}
+              {gsiLoaded ? 'Connect Google Calendar' : 'Loading...'}
             </button>
           )}
         </div>
