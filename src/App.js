@@ -358,8 +358,9 @@ function ContactForm({ contact, onSave, onClose, companyId }) {
 }
 
 // ─── CONTACT DRAWER ───────────────────────────────────────────────────────────
-function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast }) {
+function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, profile }) {
   const [activities, setActivities] = useState([]);
+  const [showPresBuilder, setShowPresBuilder] = useState(false);
   const [note, setNote] = useState('');
   const [noteType, setNoteType] = useState('note');
   const [emailSubject, setEmailSubject] = useState('');
@@ -452,10 +453,14 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
         </div>
 
         <div style={{ display:'flex', gap:8, marginBottom:20, flexWrap:'wrap' }}>
-          <button className="btn-secondary btn-sm" onClick={onEdit}>✏️ Edit</button>
+          <button className="btn-secondary btn-sm" onClick={onEdit}>Edit</button>
           <button className="btn-danger btn-sm" onClick={onDelete}><span style={{display:"flex",alignItems:"center",gap:5}}>{Icons.trash} Delete</span></button>
-          <button className="btn-sm" onClick={launchAICall} style={{ background:'linear-gradient(135deg,#6366f1,#8b5cf6)', color:'#fff', border:'none' }}>🤖 AI Call</button>
+          <button className="btn-sm" onClick={launchAICall} style={{ background:'linear-gradient(135deg,#6366f1,#8b5cf6)', color:'#fff', border:'none' }}>AI Call</button>
+          <button className="btn-sm" onClick={()=>setShowPresBuilder(true)} style={{ background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', display:'flex', alignItems:'center', gap:6 }}>
+            {React.cloneElement(Icons.file,{width:13,height:13,stroke:'#fff'})} Build Presentation
+          </button>
         </div>
+        {showPresBuilder && <PresentationBuilderModal contact={contact} profile={profile} onClose={()=>setShowPresBuilder(false)} toast={toast} onSent={()=>setShowPresBuilder(false)} />}
 
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20 }}>
           {[['📧','Email',contact.email],['📞','Phone',contact.phone],['💰','Deal Value',contact.deal_value?fmt(contact.deal_value):'—'],['🏭','Industry',contact.industry],['📌','Source',contact.source]].map(([icon,label,val])=>val&&(
@@ -1433,11 +1438,12 @@ function MassEmailModal({ contacts, onClose, onSent }) {
   );
 }
 
-function ContactsView({ contacts, onAdd, onSelect, toast }) {
+function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState('All');
   const [selected, setSelected] = useState([]);
   const [showMassEmail, setShowMassEmail] = useState(false);
+  const [showMassPresentation, setShowMassPresentation] = useState(false);
 
   const filtered = contacts.filter(c => {
     const q = (search||'').toLowerCase();
@@ -1455,7 +1461,8 @@ function ContactsView({ contacts, onAdd, onSelect, toast }) {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
         <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700 }}>Contacts</div>
         <div style={{ display:'flex', gap:10 }}>
-          {selected.length > 0 && <button className="btn-secondary" onClick={()=>setShowMassEmail(true)}>📧 Email {selected.length} Selected</button>}
+          {selected.length > 0 && <button className="btn-secondary" onClick={()=>setShowMassEmail(true)}>Email {selected.length} Selected</button>}
+          {selected.length > 0 && <button className="btn-secondary" onClick={()=>setShowMassPresentation(true)} style={{ display:'flex', alignItems:'center', gap:6 }}>{React.cloneElement(Icons.file,{width:14,height:14})} Send Presentation</button>}
           <button className="btn-primary" onClick={onAdd}>+ Add Contact</button>
         </div>
       </div>
@@ -1496,6 +1503,7 @@ function ContactsView({ contacts, onAdd, onSelect, toast }) {
         {filtered.length===0 && <div style={{ padding:40, textAlign:'center', color:'var(--muted)' }}>No contacts found</div>}
       </div>
       {showMassEmail && <MassEmailModal contacts={selectedContacts} onClose={()=>setShowMassEmail(false)} onSent={(n)=>{ setShowMassEmail(false); setSelected([]); toast('Sent to ' + n + ' contacts!'); }} />}
+      {showMassPresentation && <MassPresentationModal contacts={selectedContacts} profile={profile} onClose={()=>setShowMassPresentation(false)} toast={toast} onSent={(n)=>{ setShowMassPresentation(false); setSelected([]); toast('Presentations sent to '+n+' contacts!'); }} />}
     </div>
   );
 }
@@ -4364,6 +4372,918 @@ function CalendarView({ profile, workspaces, toast }) {
 
 // SVG Icons
 
+
+// ─── PRESENTATION SYSTEM ──────────────────────────────────────────────────────
+
+// Slide renderer — shared between builder preview and public viewer
+function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName='Citizens Financial' }) {
+  const bg = slide.bg || brandColor;
+  const isCover = slide.type === 'cover';
+  const isLight = slide.lightBg;
+  const textColor = isLight ? '#1a1a2e' : '#ffffff';
+  const mutedColor = isLight ? 'rgba(0,0,0,.55)' : 'rgba(255,255,255,.7)';
+
+  const base = {
+    width:'100%', height:'100%', position:'relative', overflow:'hidden',
+    background: isLight ? '#f8f9fc' : bg,
+    display:'flex', flexDirection:'column', justifyContent:'center',
+    padding:'52px 64px', boxSizing:'border-box', color:textColor,
+    fontFamily:"'Inter',system-ui,sans-serif",
+  };
+
+  // Accent bar left edge
+  const accentBar = (
+    <div style={{ position:'absolute', left:0, top:0, bottom:0, width:5, background:isLight?bg:'rgba(255,255,255,.18)' }} />
+  );
+
+  // Slide number
+  const slideNum = (
+    <div style={{ position:'absolute', bottom:22, right:36, fontSize:11, color:mutedColor, fontWeight:500 }}>
+      {index+1} / {total}
+    </div>
+  );
+
+  // Logo watermark
+  const logo = (
+    <div style={{ position:'absolute', top:22, right:36, fontSize:11, color:mutedColor, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase' }}>
+      {companyName}
+    </div>
+  );
+
+  if (slide.type === 'cover') {
+    return (
+      <div style={{ ...base, justifyContent:'flex-end', background:`linear-gradient(135deg, ${bg} 0%, #1a2e5a 100%)` }}>
+        <div style={{ position:'absolute', top:0, right:0, width:'45%', height:'100%', background:'rgba(255,255,255,.04)', clipPath:'polygon(20% 0, 100% 0, 100% 100%, 0% 100%)' }} />
+        <div style={{ position:'absolute', top:0, right:'5%', width:'35%', height:'100%', background:'rgba(255,255,255,.03)', clipPath:'polygon(25% 0, 100% 0, 100% 100%, 5% 100%)' }} />
+        {logo}
+        <div style={{ maxWidth:'65%' }}>
+          <div style={{ fontSize:11, letterSpacing:'.15em', textTransform:'uppercase', color:'rgba(255,255,255,.5)', marginBottom:16, fontWeight:600 }}>{slide.category || 'Mortgage Presentation'}</div>
+          <h1 style={{ fontSize:42, fontWeight:700, lineHeight:1.15, marginBottom:20, fontFamily:"'Cormorant Garamond',serif", color:'#fff' }}>{slide.title}</h1>
+          <div style={{ width:48, height:3, background:'rgba(255,255,255,.4)', marginBottom:20, borderRadius:2 }} />
+          <p style={{ fontSize:16, color:'rgba(255,255,255,.8)', lineHeight:1.7, marginBottom:28 }}>{slide.subtitle}</p>
+          {slide.preparedFor && <div style={{ fontSize:13, color:'rgba(255,255,255,.5)', borderTop:'1px solid rgba(255,255,255,.15)', paddingTop:16 }}>Prepared for <strong style={{ color:'rgba(255,255,255,.85)' }}>{slide.preparedFor}</strong></div>}
+        </div>
+        {slideNum}
+      </div>
+    );
+  }
+
+  if (slide.type === 'stats') {
+    return (
+      <div style={base}>
+        {accentBar}{logo}
+        <div style={{ fontSize:11, letterSpacing:'.12em', textTransform:'uppercase', color:mutedColor, marginBottom:10, fontWeight:600 }}>{slide.eyebrow||'At a Glance'}</div>
+        <h2 style={{ fontSize:32, fontWeight:700, marginBottom:40, fontFamily:"'Cormorant Garamond',serif" }}>{slide.title}</h2>
+        <div style={{ display:'grid', gridTemplateColumns:`repeat(${Math.min(slide.stats?.length||3, 4)}, 1fr)`, gap:20 }}>
+          {(slide.stats||[]).map((s,i)=>(
+            <div key={i} style={{ background: isLight?'rgba(0,0,0,.04)':'rgba(255,255,255,.08)', borderRadius:12, padding:'24px 20px', borderTop:`3px solid ${isLight?bg:'rgba(255,255,255,.3)'}` }}>
+              <div style={{ fontSize:36, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", color: isLight?bg:'#fff', marginBottom:8 }}>{s.value}</div>
+              <div style={{ fontSize:12, color:mutedColor, fontWeight:600, textTransform:'uppercase', letterSpacing:'.06em' }}>{s.label}</div>
+              {s.sub && <div style={{ fontSize:11, color:mutedColor, marginTop:4 }}>{s.sub}</div>}
+            </div>
+          ))}
+        </div>
+        {slideNum}
+      </div>
+    );
+  }
+
+  if (slide.type === 'bullets') {
+    return (
+      <div style={{ ...base, flexDirection:'row', gap:60, alignItems:'center' }}>
+        {accentBar}{logo}
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:11, letterSpacing:'.12em', textTransform:'uppercase', color:mutedColor, marginBottom:10, fontWeight:600 }}>{slide.eyebrow||''}</div>
+          <h2 style={{ fontSize:34, fontWeight:700, marginBottom:36, lineHeight:1.2, fontFamily:"'Cormorant Garamond',serif" }}>{slide.title}</h2>
+          <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+            {(slide.points||[]).map((p,i)=>(
+              <div key={i} style={{ display:'flex', gap:14, alignItems:'flex-start' }}>
+                <div style={{ width:24, height:24, borderRadius:'50%', background: isLight?bg:'rgba(255,255,255,.15)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:800, flexShrink:0, marginTop:1, color: isLight?'#fff':textColor }}>{i+1}</div>
+                <div style={{ fontSize:15, lineHeight:1.65, color:textColor }}>{p}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {slide.highlight && (
+          <div style={{ width:220, flexShrink:0, background: isLight?bg+'15':'rgba(255,255,255,.08)', borderRadius:16, padding:'28px 22px', textAlign:'center', border:`1px solid ${isLight?bg+'30':'rgba(255,255,255,.12)'}` }}>
+            <div style={{ fontSize:48, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", color: isLight?bg:'#fff', lineHeight:1 }}>{slide.highlight.value}</div>
+            <div style={{ fontSize:12, color:mutedColor, marginTop:8, fontWeight:600, textTransform:'uppercase', letterSpacing:'.06em' }}>{slide.highlight.label}</div>
+          </div>
+        )}
+        {slideNum}
+      </div>
+    );
+  }
+
+  if (slide.type === 'comparison') {
+    return (
+      <div style={base}>
+        {accentBar}{logo}
+        <h2 style={{ fontSize:32, fontWeight:700, marginBottom:32, fontFamily:"'Cormorant Garamond',serif" }}>{slide.title}</h2>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
+          {(slide.columns||[]).map((col,ci)=>(
+            <div key={ci} style={{ background: isLight?'rgba(0,0,0,.04)':'rgba(255,255,255,.07)', borderRadius:12, padding:'24px', border: ci===1?`2px solid ${isLight?bg:'rgba(255,255,255,.35)'}`:'1px solid rgba(255,255,255,.1)' }}>
+              <div style={{ fontSize:14, fontWeight:700, marginBottom:4, color: ci===1?(isLight?bg:'#fff'):textColor }}>{col.heading}</div>
+              {col.badge && <div style={{ display:'inline-block', background: isLight?bg:'rgba(255,255,255,.2)', color: isLight?'#fff':textColor, fontSize:10, padding:'2px 8px', borderRadius:10, marginBottom:14, fontWeight:700 }}>{col.badge}</div>}
+              {(col.items||[]).map((item,ii)=>(
+                <div key={ii} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, fontSize:14 }}>
+                  <div style={{ width:6, height:6, borderRadius:'50%', background: ci===1?(isLight?bg:'rgba(255,255,255,.7)'):'rgba(255,255,255,.3)', flexShrink:0 }} />
+                  {item}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+        {slideNum}
+      </div>
+    );
+  }
+
+  if (slide.type === 'closing') {
+    return (
+      <div style={{ ...base, alignItems:'center', textAlign:'center', background:`linear-gradient(135deg, ${bg} 0%, #0a1628 100%)` }}>
+        <div style={{ position:'absolute', top:0, left:0, right:0, bottom:0, background:'radial-gradient(ellipse at 50% 120%, rgba(77,142,240,.2) 0%, transparent 70%)' }} />
+        {logo}
+        <div style={{ position:'relative' }}>
+          <div style={{ fontSize:11, letterSpacing:'.15em', textTransform:'uppercase', color:'rgba(255,255,255,.45)', marginBottom:20, fontWeight:600 }}>{slide.eyebrow||'Next Steps'}</div>
+          <h2 style={{ fontSize:44, fontWeight:700, lineHeight:1.2, marginBottom:24, fontFamily:"'Cormorant Garamond',serif", color:'#fff' }}>{slide.title}</h2>
+          <div style={{ width:48, height:3, background:'rgba(255,255,255,.35)', margin:'0 auto 28px', borderRadius:2 }} />
+          <p style={{ fontSize:16, color:'rgba(255,255,255,.75)', lineHeight:1.75, maxWidth:520, marginBottom:36 }}>{slide.body}</p>
+          {slide.contact && (
+            <div style={{ display:'inline-flex', flexDirection:'column', gap:6, background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.15)', borderRadius:12, padding:'20px 32px' }}>
+              {slide.contact.name && <div style={{ fontWeight:700, fontSize:16, color:'#fff' }}>{slide.contact.name}</div>}
+              {slide.contact.phone && <div style={{ fontSize:14, color:'rgba(255,255,255,.7)' }}>{slide.contact.phone}</div>}
+              {slide.contact.email && <div style={{ fontSize:14, color:'rgba(255,255,255,.7)' }}>{slide.contact.email}</div>}
+            </div>
+          )}
+        </div>
+        {slideNum}
+      </div>
+    );
+  }
+
+  // Generic fallback
+  return (
+    <div style={base}>
+      {accentBar}{logo}
+      <h2 style={{ fontSize:32, fontWeight:700, marginBottom:16, fontFamily:"'Cormorant Garamond',serif" }}>{slide.title}</h2>
+      {slide.body && <p style={{ fontSize:15, color:mutedColor, lineHeight:1.75, maxWidth:640 }}>{slide.body}</p>}
+      {slideNum}
+    </div>
+  );
+}
+
+// ─── PUBLIC PRESENTATION VIEWER ───────────────────────────────────────────────
+function PublicPresentationViewer({ token }) {
+  const [pres, setPres]       = useState(null);
+  const [slide, setSlide]     = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+
+  useEffect(()=>{
+    if(!token) return;
+    supabase.from('presentations').select('*').eq('view_token', token).single()
+      .then(({ data, error })=>{
+        if(error||!data) { setError('Presentation not found.'); setLoading(false); return; }
+        setPres(data);
+        setLoading(false);
+        // Mark as opened if not already
+        if(!data.opened_at) supabase.from('presentations').update({ opened_at: new Date().toISOString() }).eq('id', data.id);
+      });
+  },[token]);
+
+  useEffect(()=>{
+    const handler = e => {
+      if(e.key==='ArrowRight'||e.key==='ArrowDown') setSlide(s=>Math.min(s+1,(pres?.slides?.length||1)-1));
+      if(e.key==='ArrowLeft'||e.key==='ArrowUp')   setSlide(s=>Math.max(s-1,0));
+    };
+    window.addEventListener('keydown', handler);
+    return ()=>window.removeEventListener('keydown', handler);
+  },[pres]);
+
+  if(loading) return <div style={{ background:'#0f1c3f', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,.5)', fontFamily:'Inter,sans-serif' }}>Loading presentation...</div>;
+  if(error)   return <div style={{ background:'#0f1c3f', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,.5)', fontFamily:'Inter,sans-serif' }}>{error}</div>;
+
+  const slides = pres.slides||[];
+  const curr   = slides[slide]||{};
+
+  return (
+    <div style={{ background:'#050d1a', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'20px 0' }}>
+      {/* Slide */}
+      <div style={{ width:'min(960px,96vw)', aspectRatio:'16/9', borderRadius:16, overflow:'hidden', boxShadow:'0 32px 80px rgba(0,0,0,.6)', position:'relative' }}>
+        <SlideRenderer slide={curr} index={slide} total={slides.length} brandColor={pres.brand_color||'#0f1c3f'} companyName={pres.company_name||'Citizens Financial'} />
+      </div>
+      {/* Controls */}
+      <div style={{ display:'flex', alignItems:'center', gap:20, marginTop:24 }}>
+        <button onClick={()=>setSlide(s=>Math.max(s-1,0))} disabled={slide===0}
+          style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', borderRadius:8, padding:'10px 20px', cursor:slide===0?'not-allowed':'pointer', opacity:slide===0?.4:1, fontFamily:'Inter,sans-serif', fontSize:13 }}>← Prev</button>
+        <div style={{ display:'flex', gap:6 }}>
+          {slides.map((_,i)=>(
+            <div key={i} onClick={()=>setSlide(i)} style={{ width: i===slide?24:8, height:8, borderRadius:4, background: i===slide?'#4d8ef0':'rgba(255,255,255,.25)', cursor:'pointer', transition:'all .2s' }} />
+          ))}
+        </div>
+        <button onClick={()=>setSlide(s=>Math.min(s+1,slides.length-1))} disabled={slide===slides.length-1}
+          style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', borderRadius:8, padding:'10px 20px', cursor:slide===slides.length-1?'not-allowed':'pointer', opacity:slide===slides.length-1?.4:1, fontFamily:'Inter,sans-serif', fontSize:13 }}>Next →</button>
+      </div>
+      <div style={{ marginTop:12, fontSize:11, color:'rgba(255,255,255,.25)', fontFamily:'Inter,sans-serif' }}>Use ← → arrow keys to navigate</div>
+    </div>
+  );
+}
+
+// ─── AI PRESENTATION BUILDER MODAL ────────────────────────────────────────────
+function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) {
+  const [step, setStep]         = useState('choose'); // choose | form | preview | sending
+  const [mode, setMode]         = useState(null);     // 'ai' | 'template'
+  const [templates, setTemplates] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [generating, setGenerating] = useState(false);
+  const [slides, setSlides]     = useState([]);
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [sending, setSending]   = useState(false);
+
+  // AI form fields — pre-fill from contact
+  const [form, setForm] = useState({
+    borrower_name: contact?.full_name || '',
+    loan_type: 'Purchase',
+    loan_amount: contact?.deal_value ? String(contact.deal_value) : '',
+    rate: '',
+    term: '30',
+    property_address: '',
+    lo_name: profile?.full_name || '',
+    lo_phone: '',
+    lo_email: profile?.email || '',
+    key_points: '',
+  });
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  useEffect(()=>{
+    supabase.from('presentation_templates').select('*').eq('company_id', profile.company_name).order('created_at',{ascending:false})
+      .then(({data})=>setTemplates(data||[]));
+  },[]);
+
+  const generateWithAI = async () => {
+    setGenerating(true);
+    setStep('preview');
+    try {
+      const prompt = `You are a mortgage presentation expert at ${profile.company_name||'Citizens Financial'}.
+
+Generate a professional mortgage presentation for:
+- Borrower: ${form.borrower_name}
+- Loan Type: ${form.loan_type}
+- Loan Amount: $${Number(form.loan_amount||0).toLocaleString()}
+- Interest Rate: ${form.rate}%
+- Term: ${form.term} years
+- Property: ${form.property_address||'TBD'}
+- Loan Officer: ${form.lo_name}
+${form.key_points ? '- Key Points: ' + form.key_points : ''}
+
+Return ONLY a JSON array of slides. No markdown, no explanation. Use this exact format:
+[
+  {"type":"cover","title":"Your Path to Homeownership","subtitle":"A personalized mortgage analysis","category":"Mortgage Presentation","preparedFor":"${form.borrower_name}","bg":"#0f1c3f"},
+  {"type":"stats","title":"Your Loan at a Glance","eyebrow":"Loan Summary","stats":[{"label":"Loan Amount","value":"$XXX,XXX"},{"label":"Interest Rate","value":"X.XX%"},{"label":"Monthly Payment","value":"$X,XXX"},{"label":"Loan Term","value":"XX Years"}]},
+  {"type":"bullets","eyebrow":"Why Choose Us","title":"The Citizens Financial Advantage","points":["point 1","point 2","point 3","point 4"],"highlight":{"value":"#1","label":"in Customer Satisfaction"}},
+  {"type":"stats","title":"Your Investment Over Time","eyebrow":"Financial Breakdown","lightBg":true,"stats":[{"label":"Total Interest","value":"$XXX,XXX","sub":"over loan term"},{"label":"Total Cost","value":"$X.XM","sub":"principal + interest"},{"label":"Equity Year 5","value":"~XX%","sub":"estimated equity"}]},
+  {"type":"comparison","title":"Why Now Is the Right Time","columns":[{"heading":"Renting","items":["Building landlord equity","No tax benefits","Rent increases annually","No appreciation gains"]},{"heading":"Owning with Citizens","badge":"Recommended","items":["Build your own equity","Mortgage interest deduction","Fixed rate stability","Long-term appreciation"]}]},
+  {"type":"bullets","title":"Your Road to Closing","eyebrow":"Next Steps","points":["Pre-approval confirmed — you're ready","Property appraisal scheduled","Title search underway","Closing disclosure in X days","Target closing: TBD"]},
+  {"type":"closing","eyebrow":"Let's Get Started","title":"Ready to Move Forward?","body":"We're here to make your homeownership journey smooth and straightforward. Reach out anytime — we're with you every step of the way.","contact":{"name":"${form.lo_name}","phone":"${form.lo_phone}","email":"${form.lo_email}"}}
+]
+
+Fill in all placeholder values (XXX) with real calculations based on the loan details provided. Monthly payment formula: M = P[r(1+r)^n]/[(1+r)^n-1] where r = monthly rate, n = months.`;
+
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:2000,
+          messages:[{ role:'user', content:prompt }]
+        })
+      });
+      const data = await res.json();
+      const text = (data.content||[]).map(b=>b.text||'').join('');
+      const clean = text.replace(/```json|```/g,'').trim();
+      const parsed = JSON.parse(clean);
+      setSlides(parsed);
+    } catch(e) {
+      toast('AI generation failed — using default template');
+      // Fallback slides
+      const mp = form.loan_amount && form.rate ? Math.round((Number(form.loan_amount) * (Number(form.rate)/100/12) * Math.pow(1+Number(form.rate)/100/12, Number(form.term)*12)) / (Math.pow(1+Number(form.rate)/100/12, Number(form.term)*12)-1)) : 0;
+      setSlides([
+        {type:'cover',title:'Your Path to Homeownership',subtitle:'A personalized mortgage analysis prepared by '+profile.company_name,category:'Mortgage Presentation',preparedFor:form.borrower_name,bg:'#0f1c3f'},
+        {type:'stats',title:'Your Loan at a Glance',eyebrow:'Loan Summary',stats:[{label:'Loan Amount',value:'$'+Number(form.loan_amount||0).toLocaleString()},{label:'Interest Rate',value:form.rate+'%'},{label:'Monthly Payment',value:mp?'$'+mp.toLocaleString():'TBD'},{label:'Loan Term',value:form.term+' Years'}]},
+        {type:'closing',eyebrow:'Let\'s Get Started',title:'Ready to Move Forward?',body:'We\'re here to make your homeownership journey smooth and straightforward.',contact:{name:form.lo_name,phone:form.lo_phone,email:form.lo_email}},
+      ]);
+    }
+    setGenerating(false);
+  };
+
+  const useTemplate = (tmpl) => {
+    // Personalize template slides with contact data
+    const personalized = (tmpl.slides||[]).map(s=>{
+      const str = JSON.stringify(s)
+        .replace(/\{\{borrower_name\}\}/g, form.borrower_name)
+        .replace(/\{\{loan_amount\}\}/g, form.loan_amount?'$'+Number(form.loan_amount).toLocaleString():'')
+        .replace(/\{\{rate\}\}/g, form.rate+'%')
+        .replace(/\{\{lo_name\}\}/g, form.lo_name)
+        .replace(/\{\{lo_email\}\}/g, form.lo_email);
+      return JSON.parse(str);
+    });
+    setSlides(personalized);
+    setStep('preview');
+  };
+
+  const sendPresentation = async () => {
+    if(!contact?.email) { toast('Contact has no email address'); return; }
+    setSending(true);
+    try {
+      const token = crypto.randomUUID();
+      const viewUrl = window.location.origin + window.location.pathname + '#present-' + token;
+      
+      // Save presentation
+      const { error } = await supabase.from('presentations').insert([{
+        company_id:   profile.company_name,
+        company_name: profile.company_name,
+        brand_color:  '#0f1c3f',
+        contact_id:   contact.id,
+        contact_name: contact.full_name,
+        contact_email:contact.email,
+        slides:       slides,
+        view_token:   token,
+        created_by:   profile.id,
+        lo_name:      form.lo_name,
+      }]);
+      if(error) throw error;
+
+      // Send email via existing email function
+      const { data:{ session } } = await supabase.auth.getSession();
+      const emailHtml = `
+        <div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto;background:#f8f9fc;border-radius:12px;overflow:hidden;">
+          <div style="background:#0f1c3f;padding:32px 40px;">
+            <h1 style="color:#fff;font-family:Georgia,serif;font-size:26px;margin:0 0 8px;">${profile.company_name}</h1>
+            <p style="color:rgba(255,255,255,.6);margin:0;font-size:14px;">Mortgage Presentation</p>
+          </div>
+          <div style="padding:32px 40px;">
+            <p style="font-size:16px;color:#1a1a2e;margin:0 0 12px;">Dear ${contact.full_name},</p>
+            <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 24px;">I've prepared a personalized mortgage presentation for you. Click the button below to view it at any time.</p>
+            <a href="${viewUrl}" style="display:inline-block;background:#0f1c3f;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;margin-bottom:28px;">View Your Presentation →</a>
+            <p style="font-size:13px;color:#888;margin:0;">Best regards,<br/><strong style="color:#444;">${form.lo_name}</strong><br/>${form.lo_email||''}</p>
+          </div>
+        </div>`;
+
+      await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/send-email', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+process.env.REACT_APP_SUPABASE_ANON_KEY },
+        body: JSON.stringify({ to:contact.email, subject:`Your Mortgage Presentation from ${profile.company_name}`, html:emailHtml })
+      });
+
+      toast('Presentation sent to ' + contact.email + '!');
+      onSent && onSent();
+      onClose();
+    } catch(e) { toast('Error: ' + e.message); }
+    setSending(false);
+  };
+
+  // ── STEP: CHOOSE mode ──
+  if(step==='choose') return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:600 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
+          <div>
+            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Build Presentation</div>
+            {contact && <div style={{ color:'var(--muted)', fontSize:13, marginTop:2 }}>for {contact.full_name}</div>}
+          </div>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:20 }}>
+          <div onClick={()=>{ setMode('ai'); setStep('form'); }}
+            style={{ border:'2px solid var(--border)', borderRadius:12, padding:24, cursor:'pointer', transition:'all .15s' }}
+            onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.background='rgba(77,142,240,.05)'; }}
+            onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background=''; }}>
+            <div style={{ width:40, height:40, borderRadius:10, background:'linear-gradient(135deg,#6366f1,#8b5cf6)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:14 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/></svg>
+            </div>
+            <div style={{ fontWeight:700, fontSize:15, marginBottom:6 }}>AI-Generated</div>
+            <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.6 }}>Claude builds a custom presentation from your loan details in seconds</div>
+          </div>
+          <div onClick={()=>{ setMode('template'); setStep('form'); }}
+            style={{ border:'2px solid var(--border)', borderRadius:12, padding:24, cursor:'pointer', transition:'all .15s' }}
+            onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.background='rgba(77,142,240,.05)'; }}
+            onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background=''; }}>
+            <div style={{ width:40, height:40, borderRadius:10, background:'linear-gradient(135deg,#0f1c3f,#1a56db)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:14 }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            </div>
+            <div style={{ fontWeight:700, fontSize:15, marginBottom:6 }}>From Template</div>
+            <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.6 }}>{templates.length>0 ? `${templates.length} template${templates.length!==1?'s':''} available in your library` : 'Use a pre-built template from the library'}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── STEP: FORM ──
+  if(step==='form') {
+    if(mode==='template') return (
+      <div className="overlay" onClick={onClose}>
+        <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:620 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Choose Template</div>
+            <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
+          </div>
+          {templates.length===0 ? (
+            <div style={{ textAlign:'center', padding:'32px 0', color:'var(--muted)' }}>
+              <div style={{ marginBottom:8, display:'flex', justifyContent:'center' }}>{React.cloneElement(Icons.file,{width:32,height:32})}</div>
+              <div style={{ fontWeight:600, marginBottom:4 }}>No templates yet</div>
+              <div style={{ fontSize:13 }}>Ask an admin to upload templates in the Presentations page.</div>
+            </div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {templates.map(t=>(
+                <div key={t.id} onClick={()=>useTemplate(t)}
+                  style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 16px', border:'1px solid var(--border)', borderRadius:10, cursor:'pointer', transition:'all .15s' }}
+                  onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.background='rgba(77,142,240,.05)'; }}
+                  onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background=''; }}>
+                  <div style={{ width:36, height:36, borderRadius:8, background:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    {React.cloneElement(Icons.file,{width:18,height:18,stroke:'#fff'})}
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:600, fontSize:14 }}>{t.name}</div>
+                    <div style={{ fontSize:12, color:'var(--muted)' }}>{t.description||''} · {(t.slides||[]).length} slides</div>
+                  </div>
+                  <span style={{ fontSize:12, color:'var(--accent)' }}>{Icons.arrowRight}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ marginTop:16, paddingTop:16, borderTop:'1px solid var(--border)' }}>
+            <button className="btn-secondary btn-sm" onClick={()=>setStep('choose')}>← Back</button>
+          </div>
+        </div>
+      </div>
+    );
+
+    // AI form
+    return (
+      <div className="overlay" onClick={onClose}>
+        <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:580 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Loan Details</div>
+            <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+            <div className="form-group" style={{ marginBottom:0 }}>
+              <label>Borrower Name</label>
+              <input value={form.borrower_name} onChange={e=>set('borrower_name',e.target.value)} placeholder="Full name" />
+            </div>
+            <div className="form-group" style={{ marginBottom:0 }}>
+              <label>Loan Type</label>
+              <select value={form.loan_type} onChange={e=>set('loan_type',e.target.value)}>
+                {['Purchase','Refinance','VA Loan','FHA Loan','Jumbo','USDA','Reverse Mortgage'].map(t=><option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="form-group" style={{ marginBottom:0 }}>
+              <label>Loan Amount ($)</label>
+              <input value={form.loan_amount} onChange={e=>set('loan_amount',e.target.value)} placeholder="485000" type="number" />
+            </div>
+            <div className="form-group" style={{ marginBottom:0 }}>
+              <label>Interest Rate (%)</label>
+              <input value={form.rate} onChange={e=>set('rate',e.target.value)} placeholder="6.75" type="number" step="0.01" />
+            </div>
+            <div className="form-group" style={{ marginBottom:0 }}>
+              <label>Term (years)</label>
+              <select value={form.term} onChange={e=>set('term',e.target.value)}>
+                {['10','15','20','25','30'].map(t=><option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div className="form-group" style={{ marginBottom:0 }}>
+              <label>Property Address</label>
+              <input value={form.property_address} onChange={e=>set('property_address',e.target.value)} placeholder="Optional" />
+            </div>
+            <div className="form-group" style={{ marginBottom:0 }}>
+              <label>Loan Officer Name</label>
+              <input value={form.lo_name} onChange={e=>set('lo_name',e.target.value)} />
+            </div>
+            <div className="form-group" style={{ marginBottom:0 }}>
+              <label>LO Phone</label>
+              <input value={form.lo_phone} onChange={e=>set('lo_phone',e.target.value)} placeholder="Optional" />
+            </div>
+            <div className="form-group" style={{ gridColumn:'1/-1', marginBottom:0 }}>
+              <label>Key Points / Notes for AI (optional)</label>
+              <input value={form.key_points} onChange={e=>set('key_points',e.target.value)} placeholder="e.g. First-time buyer, competitive local market, low down payment program eligible" />
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:10, marginTop:20 }}>
+            <button className="btn-secondary btn-sm" onClick={()=>setStep('choose')}>← Back</button>
+            <button className="btn-primary" style={{ flex:1 }} onClick={generateWithAI} disabled={!form.borrower_name||!form.loan_amount||!form.rate}>
+              Generate Presentation with AI
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── STEP: PREVIEW ──
+  if(step==='preview') return (
+    <div className="overlay" onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{ width:'min(1060px,95vw)', background:'var(--surface)', borderRadius:16, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', display:'flex', flexDirection:'column', maxHeight:'92vh', overflow:'hidden' }}>
+        {/* Header */}
+        <div style={{ padding:'16px 24px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
+          <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:20, fontWeight:700 }}>
+            {generating ? 'Generating presentation...' : `Preview — ${slides.length} slides`}
+          </div>
+          <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+            {!generating && slides.length>0 && (
+              <button className="btn-primary" onClick={sendPresentation} disabled={sending} style={{ display:'flex', alignItems:'center', gap:8 }}>
+                {React.cloneElement(Icons.messageSquare,{width:15,height:15})}
+                {sending ? 'Sending...' : contact ? `Send to ${contact.full_name}` : 'Send Presentation'}
+              </button>
+            )}
+            <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
+          </div>
+        </div>
+        {/* Main area */}
+        <div style={{ display:'flex', flex:1, overflow:'hidden' }}>
+          {/* Slide thumbs */}
+          <div style={{ width:160, borderRight:'1px solid var(--border)', overflowY:'auto', padding:12, display:'flex', flexDirection:'column', gap:8, flexShrink:0, background:'var(--surface2)' }}>
+            {generating ? (
+              Array.from({length:7}).map((_,i)=>(
+                <div key={i} style={{ aspectRatio:'16/9', borderRadius:6, background:'var(--border)', animation:'pulse 1.5s infinite', opacity:.6 }} />
+              ))
+            ) : slides.map((s,i)=>(
+              <div key={i} onClick={()=>setSlideIndex(i)}
+                style={{ aspectRatio:'16/9', borderRadius:6, overflow:'hidden', cursor:'pointer', border:`2px solid ${slideIndex===i?'var(--accent)':'transparent'}`, flexShrink:0, transform: slideIndex===i?'scale(1)':'scale(0.97)', transition:'all .15s' }}>
+                <div style={{ transform:'scale(0.19)', transformOrigin:'top left', width:'526%', height:'526%', pointerEvents:'none' }}>
+                  <SlideRenderer slide={s} index={i} total={slides.length} brandColor='#0f1c3f' companyName={profile.company_name||'Citizens Financial'} />
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Main preview */}
+          <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:28, background:'#050d1a' }}>
+            {generating ? (
+              <div style={{ textAlign:'center', color:'rgba(255,255,255,.5)' }}>
+                <div style={{ width:40, height:40, borderRadius:'50%', border:'3px solid rgba(255,255,255,.15)', borderTopColor:'#4d8ef0', animation:'spin 1s linear infinite', margin:'0 auto 16px' }} />
+                <div style={{ fontFamily:'Inter,sans-serif', fontSize:14 }}>Claude is building your presentation...</div>
+              </div>
+            ) : slides.length>0 ? (
+              <div style={{ width:'100%', aspectRatio:'16/9', borderRadius:12, overflow:'hidden', boxShadow:'0 16px 48px rgba(0,0,0,.5)' }}>
+                <SlideRenderer slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} brandColor='#0f1c3f' companyName={profile.company_name||'Citizens Financial'} />
+              </div>
+            ) : null}
+          </div>
+        </div>
+        {/* Nav footer */}
+        {!generating && slides.length>0 && (
+          <div style={{ padding:'12px 24px', borderTop:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center', gap:16, flexShrink:0 }}>
+            <button onClick={()=>setSlideIndex(s=>Math.max(s-1,0))} disabled={slideIndex===0} className="btn-secondary btn-sm">← Prev</button>
+            <span style={{ fontSize:13, color:'var(--muted)' }}>{slideIndex+1} / {slides.length}</span>
+            <button onClick={()=>setSlideIndex(s=>Math.min(s+1,slides.length-1))} disabled={slideIndex===slides.length-1} className="btn-secondary btn-sm">Next →</button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  return null;
+}
+
+// ─── MASS PRESENTATION MODAL ──────────────────────────────────────────────────
+function MassPresentationModal({ contacts, profile, onClose, toast, onSent }) {
+  const [templates, setTemplates] = useState([]);
+  const [mode, setMode]           = useState('ai'); // 'ai' | 'template'
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [loanType, setLoanType]   = useState('Purchase');
+  const [loName, setLoName]       = useState(profile?.full_name||'');
+  const [loEmail, setLoEmail]     = useState('');
+  const [loPhone, setLoPhone]     = useState('');
+  const [keyPoints, setKeyPoints] = useState('');
+  const [sending, setSending]     = useState(false);
+  const [progress, setProgress]   = useState(0);
+  const [done, setDone]           = useState(false);
+
+  useEffect(()=>{
+    supabase.from('presentation_templates').select('*').eq('company_id', profile.company_name).then(({data})=>setTemplates(data||[]));
+  },[]);
+
+  const withEmail = contacts.filter(c=>c.email);
+
+  const generateSlidesForContact = async (contact) => {
+    const prompt = `Generate a short 5-slide mortgage presentation for ${contact.full_name}${contact.deal_value ? ', loan ~$'+Number(contact.deal_value).toLocaleString() : ''}, ${loanType} loan. LO: ${loName}. ${keyPoints||''}
+Return ONLY a JSON array. Use types: cover, stats, bullets, closing. Keep it concise.`;
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1500, messages:[{role:'user',content:prompt}] })
+    });
+    const data = await res.json();
+    const text = (data.content||[]).map(b=>b.text||'').join('');
+    return JSON.parse(text.replace(/```json|```/g,'').trim());
+  };
+
+  const sendAll = async () => {
+    if(withEmail.length===0) { toast('No contacts with email addresses'); return; }
+    setSending(true);
+    let sent = 0;
+    for(const contact of withEmail) {
+      try {
+        let slides;
+        if(mode==='template' && selectedTemplate) {
+          slides = (selectedTemplate.slides||[]).map(s=>{
+            const str = JSON.stringify(s).replace(/\{\{borrower_name\}\}/g,contact.full_name).replace(/\{\{lo_name\}\}/g,loName).replace(/\{\{lo_email\}\}/g,loEmail);
+            return JSON.parse(str);
+          });
+        } else {
+          slides = await generateSlidesForContact(contact);
+        }
+        const token = crypto.randomUUID();
+        const viewUrl = window.location.origin+window.location.pathname+'#present-'+token;
+        await supabase.from('presentations').insert([{ company_id:profile.company_name, company_name:profile.company_name, brand_color:'#0f1c3f', contact_id:contact.id, contact_name:contact.full_name, contact_email:contact.email, slides, view_token:token, created_by:profile.id, lo_name:loName }]);
+        const emailHtml = `<div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto;"><div style="background:#0f1c3f;padding:28px 36px;border-radius:12px 12px 0 0;"><h1 style="color:#fff;font-family:Georgia,serif;font-size:22px;margin:0;">${profile.company_name}</h1></div><div style="background:#f8f9fc;padding:28px 36px;border-radius:0 0 12px 12px;"><p style="font-size:15px;color:#1a1a2e;">Dear ${contact.full_name},</p><p style="font-size:14px;color:#555;line-height:1.7;">I've prepared a personalized mortgage presentation for you.</p><a href="${viewUrl}" style="display:inline-block;background:#0f1c3f;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin:16px 0;">View Presentation →</a><p style="font-size:12px;color:#888;margin-top:20px;">Best regards,<br/><strong>${loName}</strong></p></div></div>`;
+        await fetch(process.env.REACT_APP_SUPABASE_URL+'/functions/v1/send-email', {
+          method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+process.env.REACT_APP_SUPABASE_ANON_KEY},
+          body:JSON.stringify({ to:contact.email, subject:`Your Mortgage Presentation from ${profile.company_name}`, html:emailHtml })
+        });
+        sent++;
+      } catch(e) { console.warn('Failed for', contact.full_name, e); }
+      setProgress(Math.round(((withEmail.indexOf(contact)+1)/withEmail.length)*100));
+    }
+    setSending(false);
+    setDone(true);
+    onSent && onSent(sent);
+  };
+
+  if(done) return (
+    <div className="overlay"><div className="modal" style={{ textAlign:'center', maxWidth:420 }}>
+      <div style={{ marginBottom:12, color:'var(--success)', display:'flex', justifyContent:'center' }}>{React.cloneElement(Icons.checkCircle,{width:48,height:48})}</div>
+      <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:24, fontWeight:700, marginBottom:8 }}>Presentations Sent!</div>
+      <div style={{ color:'var(--muted)', fontSize:14, marginBottom:24 }}>Each contact received a personalized presentation link via email.</div>
+      <button className="btn-primary" onClick={onClose}>Done</button>
+    </div></div>
+  );
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:560 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <div>
+            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Mass Send Presentation</div>
+            <div style={{ fontSize:13, color:'var(--muted)', marginTop:2 }}>{withEmail.length} of {contacts.length} contacts have email addresses</div>
+          </div>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
+        </div>
+        {/* Mode */}
+        <div style={{ display:'flex', gap:8, marginBottom:18 }}>
+          {[['ai','AI-Generated'],['template','From Template']].map(([m,l])=>(
+            <button key={m} onClick={()=>setMode(m)} style={{ flex:1, padding:'8px', borderRadius:8, border:`2px solid ${mode===m?'var(--accent)':'var(--border)'}`, background:mode===m?'rgba(77,142,240,.1)':'transparent', color:mode===m?'var(--accent)':'var(--muted)', cursor:'pointer', fontSize:13, fontWeight:600 }}>{l}</button>
+          ))}
+        </div>
+        {mode==='template' && (
+          <div style={{ marginBottom:14 }}>
+            {templates.length===0 ? <div style={{ fontSize:13, color:'var(--muted)', padding:'12px', background:'var(--surface2)', borderRadius:8 }}>No templates in library yet.</div>
+            : templates.map(t=>(
+              <div key={t.id} onClick={()=>setSelectedTemplate(t)}
+                style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:8, border:`1px solid ${selectedTemplate?.id===t.id?'var(--accent)':'var(--border)'}`, marginBottom:6, cursor:'pointer', background:selectedTemplate?.id===t.id?'rgba(77,142,240,.08)':'transparent' }}>
+                <div style={{ flex:1, fontSize:13, fontWeight:600 }}>{t.name}</div>
+                <div style={{ fontSize:11, color:'var(--muted)' }}>{(t.slides||[]).length} slides</div>
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
+          <div className="form-group" style={{ marginBottom:0 }}>
+            <label>Loan Type</label>
+            <select value={loanType} onChange={e=>setLoanType(e.target.value)}>
+              {['Purchase','Refinance','VA Loan','FHA Loan','Jumbo','USDA'].map(t=><option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div className="form-group" style={{ marginBottom:0 }}>
+            <label>Loan Officer Name</label>
+            <input value={loName} onChange={e=>setLoName(e.target.value)} />
+          </div>
+          <div className="form-group" style={{ gridColumn:'1/-1', marginBottom:0 }}>
+            <label>Key Points for AI</label>
+            <input value={keyPoints} onChange={e=>setKeyPoints(e.target.value)} placeholder="e.g. competitive rates, first-time buyer programs" />
+          </div>
+        </div>
+        {/* Recipients preview */}
+        <div style={{ background:'var(--surface2)', borderRadius:8, padding:12, marginBottom:16, maxHeight:120, overflowY:'auto' }}>
+          <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:8 }}>Recipients ({withEmail.length})</div>
+          {withEmail.map(c=>(
+            <div key={c.id} style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:4 }}>
+              <span style={{ fontWeight:500 }}>{c.full_name}</span>
+              <span style={{ color:'var(--muted)' }}>{c.email}</span>
+            </div>
+          ))}
+          {contacts.filter(c=>!c.email).length>0 && (
+            <div style={{ fontSize:11, color:'var(--warning)', marginTop:6 }}>{contacts.filter(c=>!c.email).length} contact(s) skipped — no email</div>
+          )}
+        </div>
+        {sending && (
+          <div style={{ marginBottom:16 }}>
+            <div style={{ height:6, background:'var(--border)', borderRadius:3, overflow:'hidden' }}>
+              <div style={{ height:'100%', width:progress+'%', background:'var(--accent)', borderRadius:3, transition:'width .3s' }} />
+            </div>
+            <div style={{ fontSize:12, color:'var(--muted)', marginTop:6 }}>Sending... {progress}%</div>
+          </div>
+        )}
+        <div style={{ display:'flex', gap:10 }}>
+          <button className="btn-secondary" onClick={onClose} style={{ flex:1 }}>Cancel</button>
+          <button className="btn-primary" onClick={sendAll} disabled={sending||withEmail.length===0||(mode==='template'&&!selectedTemplate)} style={{ flex:2 }}>
+            {sending ? 'Sending...' : `Send to ${withEmail.length} Contact${withEmail.length!==1?'s':''}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── PRESENTATIONS PAGE ────────────────────────────────────────────────────────
+function PresentationsPage({ profile, toast }) {
+  const [tab, setTab]               = useState('sent');
+  const [presentations, setPresentations] = useState([]);
+  const [templates, setTemplates]   = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [showUpload, setShowUpload] = useState(false);
+  const [newTmpl, setNewTmpl]       = useState({ name:'', description:'', slides:'[]' });
+  const [saving, setSaving]         = useState(false);
+  const [previewPres, setPreviewPres] = useState(null);
+  const [previewSlide, setPreviewSlide] = useState(0);
+
+  const load = async () => {
+    setLoading(true);
+    const [p, t] = await Promise.all([
+      supabase.from('presentations').select('*').eq('company_id', profile.company_name).order('created_at',{ascending:false}),
+      supabase.from('presentation_templates').select('*').eq('company_id', profile.company_name).order('created_at',{ascending:false}),
+    ]);
+    setPresentations(p.data||[]);
+    setTemplates(t.data||[]);
+    setLoading(false);
+  };
+  useEffect(()=>{ load(); },[]);
+
+  const saveTemplate = async () => {
+    if(!newTmpl.name.trim()) { toast('Template name required'); return; }
+    setSaving(true);
+    let slidesJson;
+    try { slidesJson = JSON.parse(newTmpl.slides); } catch(e) { toast('Invalid slide JSON'); setSaving(false); return; }
+    const { error } = await supabase.from('presentation_templates').insert([{
+      company_id: profile.company_name, name: newTmpl.name, description: newTmpl.description,
+      slides: slidesJson, created_by: profile.id,
+    }]);
+    if(error) toast('Error: '+error.message);
+    else { toast('Template saved!'); setShowUpload(false); setNewTmpl({name:'',description:'',slides:'[]'}); load(); }
+    setSaving(false);
+  };
+
+  const deleteTemplate = async (id) => {
+    if(!window.confirm('Delete this template?')) return;
+    await supabase.from('presentation_templates').delete().eq('id',id);
+    load(); toast('Template deleted');
+  };
+
+  const deletePres = async (id) => {
+    if(!window.confirm('Delete this presentation?')) return;
+    await supabase.from('presentations').delete().eq('id',id);
+    load(); toast('Deleted');
+  };
+
+  return (
+    <div style={{ padding:32 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
+        <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:26, fontWeight:700 }}>Presentations</div>
+        {profile.role==='admin' && tab==='templates' && (
+          <button className="btn-primary btn-sm" onClick={()=>setShowUpload(true)}>+ Add Template</button>
+        )}
+      </div>
+      {/* Tabs */}
+      <div style={{ display:'flex', gap:0, marginBottom:24, borderBottom:'2px solid var(--border)' }}>
+        {[['sent','Sent Presentations'],['templates','Template Library']].map(([id,label])=>(
+          <button key={id} onClick={()=>setTab(id)} style={{ padding:'10px 20px', background:'none', border:'none', borderBottom:`2px solid ${tab===id?'var(--accent)':'transparent'}`, color:tab===id?'var(--accent)':'var(--muted)', cursor:'pointer', fontWeight:tab===id?700:500, fontSize:14, marginBottom:-2, transition:'all .15s' }}>{label}</button>
+        ))}
+      </div>
+
+      {loading ? <div style={{ color:'var(--muted)', fontSize:13 }}>Loading...</div> :
+
+      tab==='sent' ? (
+        presentations.length===0 ? (
+          <div className="card" style={{ textAlign:'center', padding:48 }}>
+            <div style={{ marginBottom:12, color:'var(--muted)', display:'flex', justifyContent:'center' }}>{React.cloneElement(Icons.file,{width:36,height:36})}</div>
+            <div style={{ fontWeight:600, marginBottom:6 }}>No presentations sent yet</div>
+            <div style={{ color:'var(--muted)', fontSize:13 }}>Open a contact and click "Build Presentation" to get started.</div>
+          </div>
+        ) : (
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, overflow:'hidden' }}>
+            <table className="table">
+              <thead><tr>
+                <th>Contact</th><th>Sent</th><th>Status</th><th>Slides</th><th>Actions</th>
+              </tr></thead>
+              <tbody>
+                {presentations.map(p=>(
+                  <tr key={p.id}>
+                    <td>
+                      <div style={{ fontWeight:600, fontSize:14 }}>{p.contact_name||'—'}</div>
+                      <div style={{ fontSize:12, color:'var(--muted)' }}>{p.contact_email||''}</div>
+                    </td>
+                    <td style={{ color:'var(--muted)', fontSize:13 }}>{p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}</td>
+                    <td>
+                      {p.opened_at
+                        ? <span style={{ background:'rgba(46,204,138,.15)', color:'#2ecc8a', fontSize:11, fontWeight:700, padding:'3px 8px', borderRadius:10 }}>Viewed</span>
+                        : <span style={{ background:'rgba(240,180,41,.15)', color:'#f0b429', fontSize:11, fontWeight:700, padding:'3px 8px', borderRadius:10 }}>Sent</span>}
+                    </td>
+                    <td style={{ color:'var(--muted)', fontSize:13 }}>{(p.slides||[]).length}</td>
+                    <td>
+                      <div style={{ display:'flex', gap:8 }}>
+                        <button onClick={()=>{ setPreviewPres(p); setPreviewSlide(0); }} className="btn-secondary btn-sm">Preview</button>
+                        <button onClick={()=>{ const url=window.location.origin+window.location.pathname+'#present-'+p.view_token; window.open(url,'_blank'); }} className="btn-secondary btn-sm">Open Link</button>
+                        <button onClick={()=>deletePres(p.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:13, padding:'4px 8px' }}>{Icons.trash}</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      ) : (
+        /* TEMPLATES TAB */
+        templates.length===0 ? (
+          <div className="card" style={{ textAlign:'center', padding:48 }}>
+            <div style={{ marginBottom:12, color:'var(--muted)', display:'flex', justifyContent:'center' }}>{React.cloneElement(Icons.file,{width:36,height:36})}</div>
+            <div style={{ fontWeight:600, marginBottom:6 }}>No templates yet</div>
+            <div style={{ color:'var(--muted)', fontSize:13, marginBottom:16 }}>Add pre-built templates that your team can use to quickly generate presentations.</div>
+            {profile.role==='admin' && <button className="btn-primary btn-sm" onClick={()=>setShowUpload(true)}>+ Add First Template</button>}
+          </div>
+        ) : (
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:16 }}>
+            {templates.map(t=>(
+              <div key={t.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, overflow:'hidden' }}>
+                {/* Mini slide preview */}
+                <div style={{ aspectRatio:'16/9', background:'#050d1a', position:'relative', overflow:'hidden', cursor:'pointer' }} onClick={()=>{ setPreviewPres(t); setPreviewSlide(0); }}>
+                  {(t.slides||[]).length>0 && (
+                    <div style={{ transform:'scale(0.31)', transformOrigin:'top left', width:'323%', height:'323%', pointerEvents:'none' }}>
+                      <SlideRenderer slide={t.slides[0]} index={0} total={t.slides.length} brandColor='#0f1c3f' companyName={profile.company_name} />
+                    </div>
+                  )}
+                  <div style={{ position:'absolute', bottom:6, right:8, background:'rgba(0,0,0,.5)', color:'#fff', fontSize:10, padding:'2px 6px', borderRadius:4 }}>{(t.slides||[]).length} slides</div>
+                </div>
+                <div style={{ padding:'14px 16px' }}>
+                  <div style={{ fontWeight:700, fontSize:14, marginBottom:4 }}>{t.name}</div>
+                  {t.description && <div style={{ fontSize:12, color:'var(--muted)', marginBottom:10 }}>{t.description}</div>}
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <div style={{ fontSize:11, color:'var(--muted)' }}>Added {new Date(t.created_at).toLocaleDateString()}</div>
+                    {profile.role==='admin' && <button onClick={()=>deleteTemplate(t.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:12, display:'flex', alignItems:'center', gap:4 }}>{Icons.trash} Delete</button>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {/* Add Template Modal */}
+      {showUpload && (
+        <div className="overlay" onClick={()=>setShowUpload(false)}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:560 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+              <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Add Template</div>
+              <button onClick={()=>setShowUpload(false)} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
+            </div>
+            <div className="form-group"><label>Template Name</label><input value={newTmpl.name} onChange={e=>setNewTmpl(f=>({...f,name:e.target.value}))} placeholder="e.g. Purchase Loan Overview" /></div>
+            <div className="form-group"><label>Description (optional)</label><input value={newTmpl.description} onChange={e=>setNewTmpl(f=>({...f,description:e.target.value}))} placeholder="Brief description" /></div>
+            <div className="form-group">
+              <label>Slides JSON</label>
+              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:6 }}>Paste a JSON array of slide objects. Use <code style={{background:'var(--surface2)',padding:'1px 4px',borderRadius:3}}>{'{{borrower_name}}'}</code> and <code style={{background:'var(--surface2)',padding:'1px 4px',borderRadius:3}}>{'{{lo_name}}'}</code> as tokens.</div>
+              <textarea rows={6} value={newTmpl.slides} onChange={e=>setNewTmpl(f=>({...f,slides:e.target.value}))} style={{ fontFamily:'JetBrains Mono,monospace', fontSize:12 }} />
+            </div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button className="btn-secondary" onClick={()=>setShowUpload(false)}>Cancel</button>
+              <button className="btn-primary" style={{ flex:1 }} onClick={saveTemplate} disabled={saving}>{saving?'Saving...':'Save Template'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Inline Preview Modal */}
+      {previewPres && (
+        <div className="overlay" onClick={()=>setPreviewPres(null)}>
+          <div onClick={e=>e.stopPropagation()} style={{ width:'min(900px,92vw)', background:'#050d1a', borderRadius:16, overflow:'hidden', boxShadow:'0 32px 80px rgba(0,0,0,.7)' }}>
+            <div style={{ aspectRatio:'16/9' }}>
+              <SlideRenderer slide={(previewPres.slides||[])[previewSlide]||{}} index={previewSlide} total={(previewPres.slides||[]).length} brandColor='#0f1c3f' companyName={profile.company_name} />
+            </div>
+            <div style={{ padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <button onClick={()=>setPreviewSlide(s=>Math.max(s-1,0))} disabled={previewSlide===0} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', borderRadius:6, padding:'6px 16px', cursor:'pointer', fontSize:13 }}>← Prev</button>
+              <div style={{ display:'flex', gap:5 }}>
+                {(previewPres.slides||[]).map((_,i)=><div key={i} onClick={()=>setPreviewSlide(i)} style={{ width:i===previewSlide?20:6, height:6, borderRadius:3, background:i===previewSlide?'#4d8ef0':'rgba(255,255,255,.25)', cursor:'pointer', transition:'all .2s' }} />)}
+              </div>
+              <button onClick={()=>setPreviewSlide(s=>Math.min(s+1,(previewPres.slides||[]).length-1))} disabled={previewSlide===(previewPres.slides||[]).length-1} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', borderRadius:6, padding:'6px 16px', cursor:'pointer', fontSize:13 }}>Next →</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [session, setSession] = useState(null);
@@ -4381,6 +5301,7 @@ export default function App() {
   const [sidebarNewWs, setSidebarNewWs] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [presentToken, setPresentToken] = useState(()=>{ const h=window.location.hash; const m=h.match(/^#present-(.+)$/); return m?m[1]:null; });
 
   // Browser history navigation
   const setView = useCallback((newView, workspace=null) => {
@@ -4453,6 +5374,7 @@ export default function App() {
 
   const logout = async () => { await supabase.auth.signOut(); };
 
+  if (presentToken) return <><style>{css}</style><PublicPresentationViewer token={presentToken} /></>;
   if (!session) return <><style>{css}</style><AuthScreen onAuth={()=>{}} /></>;
   if (!profile) return <><style>{css}</style><div style={{ padding:40, textAlign:'center', color:'var(--muted)' }}>Loading...</div></>;
 
@@ -4461,6 +5383,7 @@ export default function App() {
     { id:'dashboard', label:'Dashboard', icon:Icons.dashboard },
     { id:'contacts', label:'Contacts', icon:Icons.contacts },
     { id:'pipeline', label:'Lead Funnel', icon:Icons.pipeline },
+    { id:'presentations', label:'Presentations', icon:Icons.file },
     { id:'team', label:'Team', icon:Icons.team },
     { id:'calendar', label:'Calendar', icon:Icons.calendar },
     ...(profile.role==='admin' ? [{ id:'branding', label:'Branding', icon:Icons.branding }] : []),
@@ -4550,11 +5473,12 @@ export default function App() {
       {/* Main */}
       <div className="main">
         {view==='dashboard' && <Dashboard contacts={contacts} workspaces={workspaces} onOpenWorkspace={w=>{ setView('workspace', w); }} profile={profile} onCreateWorkspace={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setView('workspace',data);}}} onNavigate={v=>setView(v,null)} />}
-        {view==='contacts' && <ContactsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} toast={toast} />}
+        {view==='contacts' && <ContactsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} toast={toast} profile={profile} />}
         {view==='pipeline' && <PipelineView contacts={contacts} onSelect={c=>setSelectedContact(c)} />}
         {view==='team' && <TeamView profile={profile} toast={toast} />}
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
         {view==='trash' && <TrashArchiveView profile={profile} workspaces={workspaces} toast={toast} />}
+        {view==='presentations' && <PresentationsPage profile={profile} toast={toast} />}
         {view==='calendar' && <CalendarView profile={profile} workspaces={workspaces} toast={toast} />}
         {view==='workspace' && activeWorkspace && <WorkspaceView workspace={activeWorkspace} profile={profile} toast={toast}
   allWorkspaces={workspaces}
@@ -4571,6 +5495,7 @@ export default function App() {
         onEdit={()=>{ setEditContact(selectedContact); setSelectedContact(null); setShowForm(true); }}
         onDelete={async()=>{ await supabase.from('contacts').delete().eq('id',selectedContact.id); setSelectedContact(null); refresh(); toast('Contact deleted'); }}
         companyId={profile.company_name}
+        profile={profile}
         toast={toast}
       />
 
