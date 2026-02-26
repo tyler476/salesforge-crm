@@ -20,11 +20,11 @@ const css = `
     --sidebar-active: #1a56db;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--bg); color:var(--text); font-family:'Libre Baskerville',Georgia,serif; }
-  h1,h2,h3 { font-family:'Playfair Display',serif; }
-  input,textarea,select { background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px 14px; border-radius:6px; font-size:14px; width:100%; outline:none; font-family:'Libre Baskerville',Georgia,serif; box-shadow:0 1px 2px rgba(0,0,0,.1); }
+  body { background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; }
+  h1,h2,h3 { font-family:'Cormorant Garamond','Playfair Display',serif; letter-spacing:-.01em; }
+  input,textarea,select { background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px 14px; border-radius:6px; font-size:14px; width:100%; outline:none; font-family:'Inter',system-ui,sans-serif; box-shadow:0 1px 2px rgba(0,0,0,.1); }
   input:focus,textarea:focus,select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(26,86,219,.1); }
-  button { cursor:pointer; font-family:'Libre Baskerville',Georgia,serif; border:none; border-radius:6px; font-size:14px; font-weight:700; transition:all .15s; letter-spacing:.01em; }
+  button { cursor:pointer; font-family:'Inter',system-ui,sans-serif; border:none; border-radius:6px; font-size:14px; font-weight:600; transition:all .15s; letter-spacing:.01em; }
   .btn-primary { background:var(--accent); color:#fff; padding:10px 20px; box-shadow:0 1px 3px rgba(26,86,219,.3); }
   .btn-primary:hover { background:#1648c5; box-shadow:0 2px 6px rgba(26,86,219,.4); }
   .btn-secondary { background:var(--surface2); color:var(--text); padding:10px 20px; border:1px solid var(--border); box-shadow:0 1px 2px rgba(0,0,0,.1); }
@@ -50,13 +50,13 @@ const css = `
   .modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:32px; width:90%; max-width:540px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.4); }
   .toast { position:fixed; bottom:24px; right:24px; background:var(--sidebar-bg); color:#fff; border-radius:8px; padding:14px 20px; z-index:999; font-size:14px; animation:slideIn .2s ease; box-shadow:0 8px 24px rgba(0,0,0,.2); }
   @keyframes slideIn { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
-  .sidebar { width:240px; min-height:100vh; background:var(--sidebar-bg); display:flex; flex-direction:column; position:fixed; top:0; left:0; z-index:50; box-shadow:2px 0 12px rgba(0,0,0,.15); font-family:'Source Sans 3',system-ui,sans-serif; }
+  .sidebar { width:240px; min-height:100vh; background:var(--sidebar-bg); display:flex; flex-direction:column; position:fixed; top:0; left:0; z-index:50; box-shadow:2px 0 12px rgba(0,0,0,.15); font-family:'Inter',system-ui,sans-serif; }
   .main { margin-left:240px; min-height:100vh; background:linear-gradient(to right, #0f1c3f 0%, #152540 20%, #1a2e4a 60%, #1e3350 100%); padding-top:52px; }
   .topbar { position:fixed; top:0; left:240px; right:0; height:52px; background:var(--sidebar-bg); border-bottom:1px solid rgba(255,255,255,.08); display:flex; align-items:center; justify-content:space-between; padding:0 16px 0 20px; gap:4px; z-index:49; }
   .topbar-btn { background:none; border:none; color:var(--sidebar-text); cursor:pointer; padding:7px; border-radius:6px; display:flex; align-items:center; justify-content:center; transition:background .15s; }
   .topbar-btn:hover { background:rgba(255,255,255,.1); color:#fff; }
   .ws-toolbar { display:flex; align-items:center; gap:8px; padding:10px 28px; border-bottom:1px solid var(--border); background:var(--surface2); flex-wrap:wrap; }
-  .ws-toolbar-btn { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:6px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; font-family:'Libre Baskerville',Georgia,serif; transition:all .15s; }
+  .ws-toolbar-btn { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:6px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; font-family:'Inter',system-ui,sans-serif; transition:all .15s; }
   .ws-toolbar-btn:hover { background:rgba(255,255,255,.07); color:var(--text); }
   .nav-item { display:flex; align-items:center; gap:12px; padding:10px 20px; cursor:pointer; font-size:14px; color:var(--sidebar-text); transition:all .15s; border-left:3px solid transparent; font-weight:500; }
   .nav-item:hover { background:rgba(255,255,255,.07); color:#fff; }
@@ -211,7 +211,7 @@ function AuthScreen({ onAuth }) {
       <div style={{ width:'100%', maxWidth:420, padding:20 }}>
         <div style={{ textAlign:'center', marginBottom:32 }}>
           <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ maxHeight:70, maxWidth:220, marginBottom:12, filter:'brightness(0) invert(1)' }} />
-          <div style={{ color:'#fff', fontSize:18, fontWeight:700, marginTop:8, fontFamily:'Playfair Display,serif' }}>Citizens Client Hub</div>
+          <div style={{ color:'#fff', fontSize:18, fontWeight:700, marginTop:8, fontFamily:"Cormorant Garamond, Playfair Display, serif" }}>Citizens Client Hub</div>
           <div style={{ color:'rgba(255,255,255,.45)', fontSize:11, marginTop:6, letterSpacing:'.04em' }}>Powered by the Badges Broker</div>
         </div>
         <div className="card">
@@ -390,7 +390,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
             <div style={{ width:48, height:48, borderRadius:'50%', background:avatarColor(contact.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:16, fontFamily:'Syne,sans-serif' }}>{initials(contact.full_name)}</div>
             <div>
-              <div style={{ fontWeight:700, fontSize:18, fontFamily:'Playfair Display,serif' }}>{contact.full_name}</div>
+              <div style={{ fontWeight:700, fontSize:18, fontFamily:"Cormorant Garamond, Playfair Display, serif" }}>{contact.full_name}</div>
               <div style={{ color:'var(--muted)', fontSize:13 }}>{contact.title} {contact.company && `@ ${contact.company}`}</div>
             </div>
           </div>
@@ -399,7 +399,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
 
         <div style={{ display:'flex', gap:8, marginBottom:20, flexWrap:'wrap' }}>
           <button className="btn-secondary btn-sm" onClick={onEdit}>✏️ Edit</button>
-          <button className="btn-danger btn-sm" onClick={onDelete}>🗑️ Delete</button>
+          <button className="btn-danger btn-sm" onClick={onDelete}><span style={{display:"flex",alignItems:"center",gap:5}}>{Icons.trash} Delete</span></button>
           <button className="btn-sm" onClick={launchAICall} style={{ background:'linear-gradient(135deg,#6366f1,#8b5cf6)', color:'#fff', border:'none' }}>🤖 AI Call</button>
         </div>
 
@@ -548,33 +548,33 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
   };
 
   const HELP_ARTICLES = [
-    { id:'getting-started', title:'Getting Started', icon:'🚀', content: [
+    { id:'getting-started', title:'Getting Started', icon:Icons.rocket, content: [
       { q:'How do I create a workspace?', a:'From the Dashboard, click "+ New Workspace" or use the sidebar. Workspaces are like boards — create one per team or project type (e.g. Loans In Process, LO Resources).' },
       { q:'How do I add items to a workspace?', a:'Open a workspace, then click "+ Add Item" at the bottom of any group. Type the item name and press Enter. You can then click any cell to edit inline.' },
       { q:'How do I add team members?', a:'Go to Team in the sidebar. Admin users can invite team members by email. Use the invite button (person+ icon) in the top bar as well.' },
     ]},
-    { id:'workspaces', title:'Workspaces & Groups', icon:'📋', content: [
+    { id:'workspaces', title:'Workspaces & Groups', icon:Icons.workspace, content: [
       { q:'What is a group?', a:'Groups are collapsible sections inside a workspace. Use them to categorize items — e.g. by stage, month, or team. Click "+ Add Group" in the toolbar.' },
       { q:'How do I rename a group?', a:'Double-click the group name to edit it inline. Press Enter to save.' },
       { q:'Can I move items between groups?', a:'Yes — select items using the checkboxes, then use the "Move to..." dropdown in the action bar at the bottom of the screen.' },
       { q:'How do I reorder items?', a:'Select items and use Move to... to change groups. Drag-and-drop reordering is coming soon.' },
     ]},
-    { id:'statuses', title:'Statuses & Columns', icon:'🎨', content: [
+    { id:'statuses', title:'Statuses & Columns', icon:Icons.settings, content: [
       { q:'How do I customize statuses?', a:'Click "Statuses" in the workspace toolbar. Admins can add, rename, recolor, and delete status options. Changes apply to all items in that workspace.' },
       { q:'What columns are available?', a:'Each item has: Name, Owner, Status, Priority, Date, Lender, Loan Officer, Processor, Lock Expiration, Processor Contact, and Escrow Email.' },
       { q:'How do I assign someone to an item?', a:'Click the Owner column (the circle avatar area) on any row. Select team members from the dropdown or type an email address.' },
     ]},
-    { id:'updates', title:'Updates & Comments', icon:'💬', content: [
+    { id:'updates', title:'Updates & Comments', icon:Icons.messageSquare, content: [
       { q:'How do I post an update on an item?', a:'Click the comment icon (💬) on any row to open the Updates Panel. Type your message and click "Post Update" or press Ctrl+Enter.' },
       { q:'Can I delete my own updates?', a:'Yes — hover over your update and click the × button to remove it.' },
       { q:'What is the Activity tab?', a:'The Activity tab shows a timeline of all updates posted on an item, so you can track conversation history.' },
     ]},
-    { id:'contacts', title:'Contacts & Lead Funnel', icon:'👥', content: [
+    { id:'contacts', title:'Contacts & Lead Funnel', icon:Icons.users, content: [
       { q:'How do I add a contact?', a:'Click "Add Contact" on the Contacts page. Fill in their details including name, email, company, and deal value.' },
       { q:'What is the Lead Funnel?', a:'The Lead Funnel shows all contacts organized by stage: New Lead → Contacted → Qualified → Proposal → Negotiation → Converted.' },
       { q:'How do I send emails to contacts?', a:'Open a contact drawer by clicking on a contact. Go to the Email tab and compose your message. Emails are sent via your Resend integration.' },
     ]},
-    { id:'admin', title:'Admin & Settings', icon:'⚙️', content: [
+    { id:'admin', title:'Admin & Settings', icon:Icons.settings, content: [
       { q:'How do I change my company branding?', a:'Go to Branding in the sidebar (admin only). You can update your company name, logo URL, and brand accent color.' },
       { q:'How do I manage team roles?', a:'On the Team page, admins can change member roles between Admin, Manager, and Member using the dropdown next to each person.' },
       { q:'What can admins do that members cannot?', a:'Admins can: create/delete workspaces, manage statuses, add groups, invite members, access Branding settings, and see all items regardless of assignment.' },
@@ -636,11 +636,11 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
             {!searchVal && (
               <div style={{ padding:'16px 20px' }}>
                 <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>Quick Actions</div>
-                {[{icon:'👥',label:'Go to Contacts',nav:'contacts'},{icon:'〽️',label:'Go to Lead Funnel',nav:'pipeline'},{icon:'📋',label:'Go to Dashboard',nav:'dashboard'},{icon:'👤',label:'Go to Team',nav:'team'}].map(a=>(
+                {[{icon:Icons.contacts,label:'Go to Contacts',nav:'contacts'},{icon:Icons.pipeline,label:'Go to Lead Funnel',nav:'pipeline'},{icon:Icons.dashboard,label:'Go to Dashboard',nav:'dashboard'},{icon:Icons.team,label:'Go to Team',nav:'team'}].map(a=>(
                   <div key={a.nav} onClick={()=>{ onNavigate(a.nav); setSearchOpen(false); }} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:6, cursor:'pointer', fontSize:13 }}
                     onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
                     onMouseOut={e=>e.currentTarget.style.background=''}>
-                    <span>{a.icon}</span><span>{a.label}</span>
+                    <span style={{display:'flex',color:'var(--muted)'}}>{typeof a.icon==='string'?a.icon:React.cloneElement(a.icon,{width:16,height:16})}</span><span>{a.label}</span>
                   </div>
                 ))}
               </div>
@@ -710,12 +710,12 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
         <div style={{ overflowY:'auto', flex:1 }}>
           {notifications.length===0 ? (
             <div style={{ padding:'40px 16px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>
-              <div style={{ fontSize:36, marginBottom:10 }}>🎉</div>
+              <div style={{ marginBottom:10, color:"var(--accent)", display:"flex", justifyContent:"center" }}>{React.cloneElement(Icons.checkCircle,{width:32,height:32})}</div>
               <div style={{ fontWeight:600, marginBottom:4 }}>You're all caught up!</div>
               <div style={{ fontSize:12 }}>We'll notify you when something needs your attention</div>
             </div>
           ) : notifications.map(n=>{
-            const ICONS = { mention:'💬', assignment:'👤', status_change:'🔄', overdue:'⚠️', file:'📎' };
+            const ICONS = { mention:Icons.messageSquare, assignment:Icons.user, status_change:Icons.refresh, overdue:Icons.alert, file:Icons.paperclip };
             const ws = workspaces?.find(w=>w.id===n.workspace_id);
             return (
               <div key={n.id}
@@ -728,7 +728,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                 {/* Avatar */}
                 <div style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(n.actor_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0, position:'relative' }}>
                   {initials(n.actor_name||'?')}
-                  <span style={{ position:'absolute', bottom:-2, right:-2, fontSize:12 }}>{ICONS[n.type]||'📢'}</span>
+                  <span style={{ position:'absolute', bottom:-2, right:-2, width:14, height:14, borderRadius:'50%', background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--muted)' }}>{ICONS[n.type]||Icons.bell}</span>
                 </div>
                 {/* Content */}
                 <div style={{ flex:1, minWidth:0 }}>
@@ -736,7 +736,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                     <span style={{ fontWeight:700 }}>{n.actor_name}</span>
                     {' '}<span style={{ color:'var(--muted)' }}>{n.message}</span>
                   </div>
-                  {n.item_name && <div style={{ fontSize:12, color:'var(--accent)', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>📋 {n.item_name}</div>}
+                  {n.item_name && <div style={{ fontSize:12, color:'var(--accent)', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:4 }}>{Icons.clipboard} {n.item_name}</div>}
                   {n.workspace_name && <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>in {n.workspace_name}</div>}
                   <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>{timeAgo(n.created_at)}</div>
                 </div>
@@ -780,18 +780,18 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
         <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:12 }}>Quick Navigation</div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
           {[
-            { label:'Dashboard', icon:'⊞', nav:'dashboard' },
-            { label:'Contacts', icon:'👥', nav:'contacts' },
-            { label:'Lead Funnel', icon:'〽️', nav:'pipeline' },
-            { label:'Team', icon:'🏢', nav:'team' },
-            { label:'Branding', icon:'🎨', nav:'branding' },
-            { label:'Workspaces', icon:'📋', nav:'dashboard' },
+            { label:'Dashboard', icon:Icons.dashboard, nav:'dashboard' },
+            { label:'Contacts', icon:Icons.contacts, nav:'contacts' },
+            { label:'Lead Funnel', icon:Icons.pipeline, nav:'pipeline' },
+            { label:'Team', icon:Icons.team, nav:'team' },
+            { label:'Branding', icon:Icons.branding, nav:'branding' },
+            { label:'Workspaces', icon:Icons.workspace, nav:'dashboard' },
           ].map(item=>(
             <div key={item.nav+item.label} onClick={()=>{ onNavigate(item.nav); setAppsOpen(false); }}
               style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6, padding:'14px 8px', borderRadius:8, cursor:'pointer', background:'var(--surface2)', border:'1px solid var(--border)', textAlign:'center' }}
               onMouseOver={e=>e.currentTarget.style.borderColor='var(--accent)'}
               onMouseOut={e=>e.currentTarget.style.borderColor='var(--border)'}>
-              <span style={{ fontSize:22 }}>{item.icon}</span>
+              <span style={{ display:'flex', color:'var(--muted)' }}>{React.cloneElement(item.icon,{width:22,height:22})}</span>
               <span style={{ fontSize:12, color:'var(--muted)' }}>{item.label}</span>
             </div>
           ))}
@@ -806,7 +806,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
           {helpPage ? (
             <div style={{ display:'flex', alignItems:'center', gap:10 }}>
               <button onClick={()=>setHelpPage(null)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18, padding:0 }}>←</button>
-              <span style={{ fontWeight:700, fontSize:15 }}>{helpPage.icon} {helpPage.title}</span>
+              <span style={{ fontWeight:700, fontSize:15, display:"flex", alignItems:"center", gap:6 }}>{React.cloneElement(helpPage.icon,{width:16,height:16})} {helpPage.title}</span>
             </div>
           ) : <span style={{ fontWeight:700, fontSize:15 }}>📚 Help Center</span>}
           <button onClick={()=>setHelpOpen(false)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18 }}>✕</button>
@@ -824,7 +824,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                   style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:8, cursor:'pointer', marginBottom:4, border:'1px solid var(--border)' }}
                   onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'}
                   onMouseOut={e=>e.currentTarget.style.background=''}>
-                  <span style={{ fontSize:20 }}>{article.icon}</span>
+                  <span style={{ display:'flex', color:'var(--accent)' }}>{React.cloneElement(article.icon,{width:20,height:20})}</span>
                   <div>
                     <div style={{ fontWeight:600, fontSize:13 }}>{article.title}</div>
                     <div style={{ color:'var(--muted)', fontSize:12 }}>{article.content.length} articles</div>
@@ -865,18 +865,18 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
         </div>
         {/* Menu items */}
         {[
-          { icon:'👤', label:'My Profile', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
-          { icon:'👥', label:'Teams', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
-          { icon:'🎨', label:'Branding & Settings', action:()=>{ onNavigate('branding'); setProfileOpen(false); } },
-          { icon:'📋', label:'Workspaces', action:()=>{ onNavigate('dashboard'); setProfileOpen(false); } },
-          { icon:'🗑️', label:'Trash / Archive', action:()=>{ onNavigate('trash'); setProfileOpen(false); } },
-          { icon:'⚙️', label:'Administration', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
+          { icon:Icons.user, label:'My Profile', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
+          { icon:Icons.users, label:'Teams', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
+          { icon:Icons.settings, label:'Branding & Settings', action:()=>{ onNavigate('branding'); setProfileOpen(false); } },
+          { icon:Icons.workspace, label:'Workspaces', action:()=>{ onNavigate('dashboard'); setProfileOpen(false); } },
+          { icon:Icons.trash, label:'Trash / Archive', action:()=>{ onNavigate('trash'); setProfileOpen(false); } },
+          { icon:Icons.settings, label:'Administration', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
         ].map(item=>(
           <div key={item.label} onClick={item.action}
             style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 16px', cursor:'pointer', fontSize:13 }}
             onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.06)'}
             onMouseOut={e=>e.currentTarget.style.background=''}>
-            <span style={{ fontSize:16, width:20, textAlign:'center' }}>{item.icon}</span>
+            <span style={{ width:20, display:'flex', color:'var(--muted)' }}>{item.icon}</span>
             <span>{item.label}</span>
           </div>
         ))}
@@ -885,7 +885,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
             style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 16px', cursor:'pointer', fontSize:13, color:'var(--danger)' }}
             onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.06)'}
             onMouseOut={e=>e.currentTarget.style.background=''}>
-            <span style={{ fontSize:16, width:20, textAlign:'center' }}>🚪</span>
+            <span style={{ width:20, display:'flex', color:'var(--danger)' }}>{Icons.logOut}</span>
             <span>Log out</span>
           </div>
         </div>
@@ -1011,14 +1011,14 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
           <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.1em', marginBottom:6 }}>
             {today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}
           </div>
-          <h1 style={{ fontFamily:'Playfair Display,serif', fontSize:30, fontWeight:700, marginBottom:8, lineHeight:1.2 }}>
+          <h1 style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:30, fontWeight:700, marginBottom:8, lineHeight:1.2 }}>
             {greeting}, {firstName} 👋
           </h1>
           <div style={{ color:'var(--muted)', fontSize:14, display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
-            {myOverdue.length>0 && <span style={{ color:'#e05252', fontWeight:600 }}>⚠️ {myOverdue.length} overdue item{myOverdue.length!==1?'s':''}</span>}
-            {thisWeek.length>0 && <span>📅 {thisWeek.length} due this week</span>}
-            {lockExpiring.length>0 && <span style={{ color:'#f0b429', fontWeight:600 }}>🔒 {lockExpiring.length} lock{lockExpiring.length!==1?'s':''} expiring soon</span>}
-            {myOverdue.length===0&&thisWeek.length===0&&lockExpiring.length===0 && <span style={{ color:'#2ecc8a' }}>✅ Everything is on track today</span>}
+            {myOverdue.length>0 && <span style={{ display:'flex', alignItems:'center', gap:5, color:'#e05252', fontWeight:600 }}>{Icons.alert} {myOverdue.length} overdue item{myOverdue.length!==1?'s':''}</span>}
+            {thisWeek.length>0 && <span style={{ display:'flex', alignItems:'center', gap:5 }}>{Icons.calendar} {thisWeek.length} due this week</span>}
+            {lockExpiring.length>0 && <span style={{ display:'flex', alignItems:'center', gap:5, color:'#f0b429', fontWeight:600 }}>{Icons.lock} {lockExpiring.length} lock{lockExpiring.length!==1?'s':''} expiring soon</span>}
+            {myOverdue.length===0&&thisWeek.length===0&&lockExpiring.length===0 && <span style={{ display:'flex', alignItems:'center', gap:5, color:'#2ecc8a' }}>{Icons.checkCircle} Everything is on track today</span>}
           </div>
         </div>
         {profile?.role==='admin' && (
@@ -1031,7 +1031,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
         <div style={{ marginBottom:24, display:'flex', flexDirection:'column', gap:8 }}>
           {alerts.map(a=>(
             <div key={a.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 16px', background:a.type==='overdue'?'rgba(224,82,82,.1)':'rgba(240,180,41,.1)', border:`1px solid ${a.type==='overdue'?'rgba(224,82,82,.3)':'rgba(240,180,41,.3)'}`, borderRadius:8, fontSize:13 }}>
-              <span style={{ fontSize:16 }}>{a.type==='overdue'?'⚠️':'🔒'}</span>
+              <span style={{ display:'flex', color:a.type==='overdue'?'#e05252':'#f0b429' }}>{a.type==='overdue'?Icons.alert:Icons.lock}</span>
               <span style={{ flex:1, color:a.type==='overdue'?'#e05252':'#f0b429', fontWeight:600 }}>{a.msg}</span>
               {a.ws && <span onClick={()=>onOpenWorkspace(a.ws)} style={{ color:'var(--accent)', cursor:'pointer', fontSize:12, fontWeight:600, flexShrink:0 }}>Go to workspace →</span>}
               <button onClick={()=>setDismissedAlerts(d=>[...d,a.id])} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18, padding:'0 4px', lineHeight:1 }}>×</button>
@@ -1043,11 +1043,11 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
       {/* ── KPI STRIP ── */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12, marginBottom:28 }}>
         {[
-          { label:'Total Items',    val:allItems.length,              icon:'📋', sub:`across ${workspaces.length} workspace${workspaces.length!==1?'s':''}`, color:'#4d8ef0', action:null },
-          { label:'Overdue',        val:overdue.length,               icon:'⚠️', sub:'need immediate attention',       color:'#e05252', action:null },
-          { label:'Due This Week',  val:thisWeek.length,              icon:'📅', sub:'closing or expiring soon',       color:'#f0b429', action:()=>onNavigate('calendar') },
-          { label:'Total Contacts', val:total,                        icon:'👥', sub:`${winRate}% conversion rate`,   color:'#2ecc8a', action:()=>onNavigate('contacts') },
-          { label:'Funnel Value',   val:fmt(pipeline),                icon:'💰', sub:`${fmt(closed)} closed`,         color:'#9b59b6', action:()=>onNavigate('pipeline') },
+          { label:'Total Items',    val:allItems.length,              icon:Icons.clipboard, sub:`across ${workspaces.length} workspace${workspaces.length!==1?'s':''}`, color:'#4d8ef0', action:null },
+          { label:'Overdue',        val:overdue.length,               icon:Icons.alert, sub:'need immediate attention',       color:'#e05252', action:null },
+          { label:'Due This Week',  val:thisWeek.length,              icon:Icons.calendar, sub:'closing or expiring soon',       color:'#f0b429', action:()=>onNavigate('calendar') },
+          { label:'Total Contacts', val:total,                        icon:Icons.users, sub:`${winRate}% conversion rate`,   color:'#2ecc8a', action:()=>onNavigate('contacts') },
+          { label:'Funnel Value',   val:fmt(pipeline),                icon:Icons.dollar, sub:`${fmt(closed)} closed`,         color:'#9b59b6', action:()=>onNavigate('pipeline') },
         ].map(kpi=>(
           <div key={kpi.label} onClick={kpi.action||undefined}
             style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:'16px 18px', borderLeft:`3px solid ${kpi.color}`, cursor:kpi.action?'pointer':'default', transition:'all .15s', position:'relative', overflow:'hidden' }}
@@ -1070,12 +1070,12 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
           {/* ── WORKSPACES ── */}
           <div>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-              <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700 }}>Workspaces</div>
+              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700 }}>Workspaces</div>
               <span style={{ fontSize:12, color:'var(--muted)' }}>{workspaces.length} workspace{workspaces.length!==1?'s':''}</span>
             </div>
             {workspaces.length===0 ? (
               <div className="card" style={{ textAlign:'center', padding:32 }}>
-                <div style={{ fontSize:28, marginBottom:8 }}>📋</div>
+                <div style={{ marginBottom:8, color:"var(--muted)", display:"flex", justifyContent:"center" }}>{React.cloneElement(Icons.workspace,{width:28,height:28})}</div>
                 <div style={{ fontWeight:600, marginBottom:4 }}>No workspaces yet</div>
                 <div style={{ color:'var(--muted)', fontSize:13, marginBottom:14 }}>Create your first workspace to get started</div>
                 {profile?.role==='admin' && <button className="btn-primary btn-sm" onClick={()=>setShowNewWs(true)}>Create Workspace</button>}
@@ -1137,13 +1137,13 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
               <div>
                 <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:3 }}>Assigned to you</div>
-                <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700 }}>My Work</div>
+                <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700 }}>My Work</div>
               </div>
               {myItems.length>0 && <span style={{ fontSize:12, color:'var(--muted)' }}>{myItems.length} item{myItems.length!==1?'s':''}</span>}
             </div>
             {myItems.length===0 ? (
               <div className="card" style={{ textAlign:'center', padding:'24px 20px' }}>
-                <div style={{ fontSize:28, marginBottom:8 }}>✅</div>
+                <div style={{ marginBottom:8, color:"var(--success)", display:"flex", justifyContent:"center" }}>{React.cloneElement(Icons.checkCircle,{width:28,height:28})}</div>
                 <div style={{ fontWeight:600, marginBottom:4 }}>All clear!</div>
                 <div style={{ color:'var(--muted)', fontSize:13 }}>No items are currently assigned to you.</div>
               </div>
@@ -1163,12 +1163,12 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
                       <div style={{ width:7, height:7, borderRadius:'50%', flexShrink:0, background: item.priority==='Critical'?'#e05252':item.priority==='High'?'#f0b429':item.priority==='Low'?'#6c757d':'#4d8ef0' }} />
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.name}</div>
-                        {wsName && <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>📋 {wsName}</div>}
+                        {wsName && <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}><span style={{display:'flex',alignItems:'center',gap:4,color:'var(--muted)'}}>{Icons.workspace} {wsName}</span></div>}
                       </div>
                       {item.status && <div style={{ padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:600, background:(item.status_color||'#4d8ef0')+'25', color:item.status_color||'var(--accent)', flexShrink:0 }}>{item.status}</div>}
                       {item.date && (
                         <div style={{ fontSize:11, fontWeight:600, flexShrink:0, color:isOverdue?'#e05252':isDueSoon?'#f0b429':'var(--muted)', background:isOverdue?'rgba(224,82,82,.1)':isDueSoon?'rgba(240,180,41,.1)':'transparent', padding:'2px 6px', borderRadius:4, whiteSpace:'nowrap' }}>
-                          {isOverdue?`⚠️ ${ds.days}d late`:isDueSoon?`🔥 ${ds.days}d`:`📅 ${item.date}`}
+                          {isOverdue?<span style={{display:'flex',alignItems:'center',gap:3}}>{Icons.alert}{ds.days}d late</span>:isDueSoon?<span style={{display:'flex',alignItems:'center',gap:3}}>{Icons.flame}{ds.days}d</span>:<span style={{display:'flex',alignItems:'center',gap:3}}>{Icons.calendar}{item.date}</span>}
                         </div>
                       )}
                     </div>
@@ -1186,7 +1186,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
           {/* ── UPCOMING THIS WEEK ── */}
           {thisWeek.length>0 && (
             <div>
-              <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700, marginBottom:14 }}>Upcoming This Week</div>
+              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700, marginBottom:14 }}>Upcoming This Week</div>
               <div style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', overflow:'hidden' }}>
                 {thisWeek.slice(0,8).map((item,idx)=>{
                   const ws = workspaces.find(w=>w.id===item.workspaces?.id||w.name===item.workspaces?.name);
@@ -1200,7 +1200,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
                       <div style={{ width:3, height:36, borderRadius:2, background:wsColor, flexShrink:0 }} />
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.name}</div>
-                        <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>{item.workspaces?.name||''}</div>
+                        <div style={{ fontSize:11, color:'var(--muted)', marginTop:1, display:'flex', alignItems:'center', gap:4 }}>{Icons.workspace} {item.workspaces?.name||''}</div>
                       </div>
                       {item.status && <div style={{ padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:600, background:(item.status_color||'#4d8ef0')+'25', color:item.status_color||'var(--accent)', flexShrink:0 }}>{item.status}</div>}
                       <div style={{ fontSize:11, color:ds?.days<=3?'#f0b429':'var(--muted)', fontWeight:ds?.days<=3?700:400, flexShrink:0 }}>
@@ -1216,7 +1216,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
           {/* ── FUNNEL BY STAGE ── */}
           <div>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-              <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700 }}>Lead Funnel</div>
+              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700 }}>Lead Funnel</div>
               <span onClick={()=>onNavigate('pipeline')} style={{ fontSize:12, color:'var(--accent)', cursor:'pointer', fontWeight:600 }}>View all →</span>
             </div>
             <div className="card">
@@ -1241,11 +1241,11 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
 
           {/* ── TEAM ACTIVITY FEED ── */}
           <div>
-            <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700, marginBottom:14 }}>Team Activity</div>
+            <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700, marginBottom:14 }}>Team Activity</div>
             <div style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', overflow:'hidden', maxHeight:420, overflowY:'auto' }}>
               {activityFeed.length===0 ? (
                 <div style={{ padding:'32px 16px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>
-                  <div style={{ fontSize:28, marginBottom:8 }}>💬</div>
+                  <div style={{ marginBottom:8, color:"var(--muted)", display:"flex", justifyContent:"center" }}>{React.cloneElement(Icons.messageSquare,{width:28,height:28})}</div>
                   No recent activity yet
                 </div>
               ) : activityFeed.map((a,idx)=>(
@@ -1266,7 +1266,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
           {/* ── TEAM WORKLOAD (admin/manager only) ── */}
           {(profile.role==='admin'||profile.role==='manager') && workload.length>0 && (
             <div>
-              <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700, marginBottom:14 }}>Team Workload</div>
+              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700, marginBottom:14 }}>Team Workload</div>
               <div className="card" style={{ padding:'16px 18px' }}>
                 {workload.map(({member,total,overdue})=>(
                   <div key={member.id} style={{ marginBottom:14 }}>
@@ -1288,7 +1288,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
           {/* ── RECENT CONTACTS ── */}
           <div>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-              <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700 }}>Recent Contacts</div>
+              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700 }}>Recent Contacts</div>
               <span onClick={()=>onNavigate('contacts')} style={{ fontSize:12, color:'var(--accent)', cursor:'pointer', fontWeight:600 }}>View all →</span>
             </div>
             <div style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', overflow:'hidden' }}>
@@ -1399,7 +1399,7 @@ function ContactsView({ contacts, onAdd, onSelect, toast }) {
   return (
     <div style={{ padding:32 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-        <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700 }}>Contacts</div>
+        <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700 }}>Contacts</div>
         <div style={{ display:'flex', gap:10 }}>
           {selected.length > 0 && <button className="btn-secondary" onClick={()=>setShowMassEmail(true)}>📧 Email {selected.length} Selected</button>}
           <button className="btn-primary" onClick={onAdd}>+ Add Contact</button>
@@ -1455,7 +1455,7 @@ function PipelineView({ contacts, onSelect }) {
   };
   return (
     <div style={{ padding:32, maxWidth:900, margin:'0 auto' }}>
-      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:28 }}>Lead Funnel</div>
+      <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700, marginBottom:28 }}>Lead Funnel</div>
       <div style={{ display:'flex', flexDirection:'column', gap:8, alignItems:'center' }}>
         {STAGES.map((stage, i) => {
           const stageContacts = contacts.filter(c=>c.stage===stage);
@@ -1526,7 +1526,7 @@ function TeamView({ profile, toast }) {
 
   return (
     <div style={{ padding:28, maxWidth:700 }}>
-      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:24 }}>Team</div>
+      <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700, marginBottom:24 }}>Team</div>
       <div className="card" style={{ marginBottom:20 }}>
         <div style={{ fontWeight:600, marginBottom:12 }}>Invite Team Member</div>
         <div style={{ display:'flex', gap:10 }}>
@@ -1575,7 +1575,7 @@ function BrandingView({ profile, onBrandUpdate, toast }) {
 
   return (
     <div style={{ padding:28, maxWidth:500 }}>
-      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:24 }}>Branding</div>
+      <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700, marginBottom:24 }}>Branding</div>
       <div className="card">
         <div className="form-group"><label>Company Name</label><input value={form.company_name} onChange={e=>set('company_name',e.target.value)} /></div>
         <div className="form-group"><label>Logo URL (direct image link)</label><input value={form.logo_url} onChange={e=>set('logo_url',e.target.value)} placeholder="https://yoursite.com/logo.png" /></div>
@@ -1595,7 +1595,7 @@ function InputModal({ title, placeholder, defaultValue='', onConfirm, onClose })
   return (
     <div className="overlay" style={{ zIndex:500 }}>
       <div className="modal" style={{ maxWidth:420 }}>
-        <div style={{ fontFamily:"Playfair Display,serif", fontSize:18, fontWeight:700, marginBottom:16 }}>{title}</div>
+        <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700, marginBottom:16 }}>{title}</div>
         <input autoFocus value={value} onChange={e=>setValue(e.target.value)}
           placeholder={placeholder}
           onKeyDown={e=>{ if(e.key==='Enter'&&value.trim()){onConfirm(value.trim());onClose();} if(e.key==='Escape')onClose(); }}
@@ -1660,7 +1660,7 @@ function StatusManager({ workspaceId, companyId, statuses, onUpdate, onClose }) 
     <div className="overlay" style={{ zIndex:400 }}>
       <div className="modal" style={{ maxWidth:560, maxHeight:'85vh', overflowY:'auto' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-          <div style={{ fontFamily:"Playfair Display,serif", fontSize:20, fontWeight:700 }}>Manage Statuses</div>
+          <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:20, fontWeight:700 }}>Manage Statuses</div>
           <button onClick={onClose} style={{ background:'none', color:'var(--muted)', fontSize:20, border:'none', cursor:'pointer' }}>✕</button>
         </div>
 
@@ -1974,7 +1974,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
           onClick={()=>setShowWsSwitcher(o=>!o)}
           onMouseOver={e=>{ e.currentTarget.style.background='rgba(255,255,255,.06)'; e.currentTarget.style.borderColor='var(--border)'; }}
           onMouseOut={e=>{ e.currentTarget.style.background=''; e.currentTarget.style.borderColor='transparent'; }}>
-          <div style={{ fontFamily:"Playfair Display,serif", fontSize:24, fontWeight:700 }}>{workspace.name}</div>
+          <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:24, fontWeight:700 }}>{workspace.name}</div>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" style={{ transform:showWsSwitcher?'rotate(180deg)':'rotate(0)', transition:'transform .2s' }}><polyline points="6 9 12 15 18 9"/></svg>
         </div>
         {profile.role==='admin' && <>
@@ -2103,7 +2103,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                     style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 10px', cursor:'pointer', borderRadius:4, fontSize:13 }}
                     onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.1)'}
                     onMouseOut={e=>e.currentTarget.style.background=''}>
-                    <span style={{ fontSize:14 }}>📋</span>{t.label}
+                    <span style={{ display:"flex", color:"var(--muted)" }}>{Icons.clipboard}</span>{t.label}
                   </div>
                 ))}
               </div>
@@ -2239,7 +2239,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                 <span onDoubleClick={()=>{ setEditingGroupId(group.id); setEditingGroupName(group.name); }} style={{ fontSize:14, fontWeight:700, color:group.color, cursor:'pointer' }} title="Double-click to rename">{group.name}</span>
               )}
               <span style={{ color:'var(--muted)', fontSize:12 }}>{groupItems.length} items</span>
-              {profile.role==='admin' && <button onClick={()=>deleteGroup(group.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:12, opacity:0.5, marginLeft:4 }} title="Delete group">🗑️</button>}
+              {profile.role==='admin' && <button onClick={()=>deleteGroup(group.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:12, opacity:0.5, marginLeft:4 }} title="Delete group">{Icons.trash}</button>}
             </div>
 
             {/* Table */}
@@ -2423,7 +2423,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24 }}>
               {/* Items by Status */}
               <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
-                <div style={{ fontFamily:'Playfair Display,serif', fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Status</div>
+                <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Status</div>
                 {Object.entries(statusCounts).length===0 && <div style={{ color:'var(--muted)', fontSize:13 }}>No items yet</div>}
                 <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                   {Object.entries(statusCounts).sort((a,b)=>b[1]-a[1]).map(([status,count])=>{
@@ -2445,7 +2445,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
 
               {/* Items by Priority */}
               <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
-                <div style={{ fontFamily:'Playfair Display,serif', fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Priority</div>
+                <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Priority</div>
                 <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                   {Object.entries(PRIORITY_COLORS).map(([p,color])=>(
                     <div key={p} style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -2462,7 +2462,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
 
               {/* Items by Group */}
               <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
-                <div style={{ fontFamily:'Playfair Display,serif', fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Group</div>
+                <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Group</div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
                   {groups.map(g=>(
                     <div key={g.id} style={{ background:'var(--surface2)', borderRadius:8, padding:'12px 16px', borderLeft:`4px solid ${g.color}`, flex:'1 1 120px', minWidth:120 }}>
@@ -2476,7 +2476,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
               {/* Items by Lender */}
               {Object.keys(lenderCounts).length>0 && (
                 <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
-                  <div style={{ fontFamily:'Playfair Display,serif', fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Lender</div>
+                  <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Lender</div>
                   <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                     {Object.entries(lenderCounts).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([lender,count])=>(
                       <div key={lender}>
@@ -2549,7 +2549,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
               <button onClick={()=>deleteSelectedItems(gId,[...gSet])} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--danger)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
                 onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
                 onMouseOut={e=>e.currentTarget.style.background=''}>
-                <span style={{ fontSize:18 }}>🗑️</span>Trash
+                <span style={{ display:"flex" }}>{Icons.trash}</span>Trash
               </button>
               <select onChange={e=>{ if(e.target.value) moveItemsToGroup(gId,[...gSet],e.target.value); e.target.value=''; }}
                 style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', borderRadius:6, padding:'6px 10px', fontSize:12, cursor:'pointer' }}>
@@ -2969,9 +2969,9 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
             <input autoFocus value={item.name} onChange={e=>setItem(i=>({...i,name:e.target.value}))}
               onBlur={()=>{ updateField('name',item.name); setEditingField(null); }}
               onKeyDown={e=>{ if(e.key==='Enter'){updateField('name',item.name);setEditingField(null);} if(e.key==='Escape')setEditingField(null); }}
-              style={{ flex:1, fontSize:18, fontWeight:700, fontFamily:'Playfair Display,serif', background:'transparent', border:'none', borderBottom:'2px solid var(--accent)', outline:'none', color:'var(--text)', padding:'2px 0' }} />
+              style={{ flex:1, fontSize:18, fontWeight:700, fontFamily:"Cormorant Garamond, Playfair Display, serif", background:'transparent', border:'none', borderBottom:'2px solid var(--accent)', outline:'none', color:'var(--text)', padding:'2px 0' }} />
           ) : (
-            <div onClick={()=>setEditingField('name')} style={{ flex:1, fontSize:18, fontWeight:700, fontFamily:'Playfair Display,serif', cursor:'text', lineHeight:1.3 }} title="Click to edit">{item.name}</div>
+            <div onClick={()=>setEditingField('name')} style={{ flex:1, fontSize:18, fontWeight:700, fontFamily:"Cormorant Garamond, Playfair Display, serif", cursor:'text', lineHeight:1.3 }} title="Click to edit">{item.name}</div>
           )}
           <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:20, cursor:'pointer', flexShrink:0, padding:4, borderRadius:4 }}
             onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.1)'}
@@ -3165,14 +3165,14 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                 style={{ flex:1, padding:'10px 0', background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}
                 onMouseOver={e=>e.currentTarget.style.borderColor='var(--accent)'}
                 onMouseOut={e=>e.currentTarget.style.borderColor='var(--border)'}>
-                {uploadingFile ? '⏳ Uploading...' : '⬆️ Upload from Computer'}
+                {uploadingFile ? 'Uploading...' : <span style={{display:"flex",alignItems:"center",gap:6}}>{Icons.upload} Upload from Computer</span>}
               </button>
               <button onClick={()=>pickFile(attachDriveFile)} disabled={attachingDrive}
                 style={{ flex:1, padding:'10px 0', background:'rgba(66,133,244,.1)', border:'1px solid rgba(66,133,244,.35)', color:'#7baff5', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'all .15s' }}
                 onMouseOver={e=>e.currentTarget.style.background='rgba(66,133,244,.22)'}
                 onMouseOut={e=>e.currentTarget.style.background='rgba(66,133,244,.1)'}>
                 <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.5 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h12.1c-.5 2.7-2.1 5-4.5 6.5v5.4h7.3c4.3-3.9 6.6-9.7 6.6-15.6z"/><path fill="#34A853" d="M24 46c6.1 0 11.2-2 14.9-5.4l-7.3-5.4c-2 1.4-4.6 2.2-7.6 2.2-5.9 0-10.8-3.9-12.6-9.2H3.8v5.6C7.5 41.8 15.2 46 24 46z"/><path fill="#FBBC05" d="M11.4 28.2c-.5-1.4-.7-2.8-.7-4.2s.3-2.9.7-4.2v-5.6H3.8C2.3 17.1 1.5 20.4 1.5 24s.8 6.9 2.3 9.8l7.6-5.6z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35.1 4.1 29.9 2 24 2 15.2 2 7.5 6.2 3.8 12.8l7.6 5.6c1.8-5.3 6.7-7.6 12.6-7.6z"/></svg>
-                {attachingDrive ? 'Attaching...' : 'Attach from Google Drive'}
+                {attachingDrive ? 'Attaching...' : <span style={{display:"flex",alignItems:"center",gap:6}}>{Icons.paperclip} Attach from Google Drive</span>}
               </button>
             </div>
 
@@ -3213,7 +3213,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                   <div style={{ fontSize:13, fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.name.replace(/^[0-9]+_/,'')}</div>
                   <div style={{ fontSize:11, color:'var(--muted)' }}>{formatFileSize(f.metadata?.size)}</div>
                 </div>
-                <a href={getFileUrl(f.name)} target="_blank" rel="noreferrer" style={{ color:'var(--accent)', fontSize:12, textDecoration:'none', fontWeight:600 }}>⬇ Download</a>
+                <a href={getFileUrl(f.name)} target="_blank" rel="noreferrer" style={{ color:'var(--accent)', fontSize:12, textDecoration:'none', fontWeight:600 }} style={{display:'flex',alignItems:'center',gap:4}}>↓ Download</a>
               </div>
             ))}
           </div>
@@ -3369,7 +3369,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
       {/* Header */}
       <div style={{ padding:'20px 24px', borderBottom:'1px solid var(--border)' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
-          <div style={{ fontWeight:700, fontSize:16, fontFamily:"Playfair Display,serif" }}>{item.name}</div>
+          <div style={{ fontWeight:700, fontSize:16, fontFamily:"Cormorant Garamond, Playfair Display, serif" }}>{item.name}</div>
           <button onClick={onClose} style={{ background:'none', color:'var(--muted)', fontSize:20, border:'none', cursor:'pointer' }}>✕</button>
         </div>
         {item.status && <div style={{ display:'inline-block', background:item.status_color||'#4d8ef0', color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, marginBottom:10 }}>{item.status}</div>}
@@ -3455,7 +3455,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
           <div>
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} style={{ display:'none' }} />
             <button className="btn-primary btn-sm" onClick={()=>fileInputRef.current?.click()} disabled={uploadingFile} style={{ marginBottom:16, width:'100%', padding:12 }}>
-              {uploadingFile ? '⏳ Uploading...' : '⬆️ Upload File'}
+              {uploadingFile ? 'Uploading...' : '⬆️ Upload File'}
             </button>
             {files.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No files attached yet</div>}
             {files.map(f=>(
@@ -3568,7 +3568,7 @@ function TrashArchiveView({ profile, workspaces, toast }) {
 
   return (
     <div style={{ padding:32 }}>
-      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:6 }}>
+      <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700, marginBottom:6 }}>
         {tab==='archive' ? '🗄️ Archive' : '🗑️ Trash'}
       </div>
       <div style={{ color:'var(--muted)', fontSize:13, marginBottom:24 }}>
@@ -3833,12 +3833,12 @@ function useGoogleDrivePicker() {
 
 // ─── CALENDAR VIEW ───────────────────────────────────────────────────────────
 const EVENT_TYPES = [
-  { id:'meeting',    label:'Meeting',     icon:'📅', color:'#4d8ef0' },
-  { id:'closing',   label:'Closing',     icon:'🏠', color:'#2ecc8a' },
-  { id:'deadline',  label:'Deadline',    icon:'⚠️', color:'#e05252' },
-  { id:'call',      label:'Call',        icon:'📞', color:'#f0b429' },
-  { id:'followup',  label:'Follow-up',   icon:'🔄', color:'#9b59b6' },
-  { id:'other',     label:'Other',       icon:'📌', color:'#00b8c4' },
+  { id:'meeting',    label:'Meeting',     icon:Icons.calendar, color:'#4d8ef0' },
+  { id:'closing',   label:'Closing',     icon:Icons.home, color:'#2ecc8a' },
+  { id:'deadline',  label:'Deadline',    icon:Icons.alert, color:'#e05252' },
+  { id:'call',      label:'Call',        icon:Icons.phone, color:'#f0b429' },
+  { id:'followup',  label:'Follow-up',   icon:Icons.refresh, color:'#9b59b6' },
+  { id:'other',     label:'Other',       icon:Icons.pin, color:'#00b8c4' },
 ];
 
 function CalendarView({ profile, workspaces, toast }) {
@@ -4041,7 +4041,7 @@ function CalendarView({ profile, workspaces, toast }) {
       <div style={{ marginBottom:20 }}>
         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:12 }}>
           <div>
-            <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700 }}>Team Calendar</div>
+            <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700 }}>Team Calendar</div>
             <div style={{ color:'var(--muted)', fontSize:13, marginTop:2 }}>
               {profile.role==='admin'||profile.role==='manager' ? 'All team events and loan deadlines' : 'Your events and shared team events'}
             </div>
@@ -4087,7 +4087,7 @@ function CalendarView({ profile, workspaces, toast }) {
       {/* ── MONTH NAV ── */}
       <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:16 }}>
         <button onClick={prevMonth} style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', padding:'6px 12px', borderRadius:6, fontSize:16, cursor:'pointer', lineHeight:1 }}>‹</button>
-        <div style={{ fontFamily:'Playfair Display,serif', fontSize:22, fontWeight:700, minWidth:220 }}>{MONTHS[month]} {year}</div>
+        <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:22, fontWeight:700, minWidth:220 }}>{MONTHS[month]} {year}</div>
         <button onClick={nextMonth} style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', padding:'6px 12px', borderRadius:6, fontSize:16, cursor:'pointer', lineHeight:1 }}>›</button>
         <button onClick={()=>{ setYear(today.getFullYear()); setMonth(today.getMonth()); }} style={{ background:'none', border:'1px solid var(--border)', color:'var(--muted)', padding:'5px 12px', borderRadius:6, fontSize:12, cursor:'pointer', fontFamily:'inherit', marginLeft:4 }}>Today</button>
 
@@ -4209,7 +4209,7 @@ function CalendarView({ profile, workspaces, toast }) {
           <div className="event-modal" onClick={e=>e.stopPropagation()}>
             {/* Header */}
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <div style={{ fontFamily:'Playfair Display,serif', fontSize:20, fontWeight:700 }}>{editEvent ? 'Edit Event' : 'New Event'}</div>
+              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:20, fontWeight:700 }}>{editEvent ? 'Edit Event' : 'New Event'}</div>
               <button onClick={()=>{setShowModal(false);setEditEvent(null);setForm(blankForm);}} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer', lineHeight:1, padding:4 }}>×</button>
             </div>
 
@@ -4309,17 +4309,57 @@ function CalendarView({ profile, workspaces, toast }) {
 }
 
 // SVG Icons
+// ─── ICON SYSTEM ─────────────────────────────────────────────────────────────
+// All icons use the same stroke style as sidebar/topbar for visual consistency
+const Ic = (path, w=16, opts={}) => (
+  <svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    strokeWidth={opts.sw||1.75} strokeLinecap="round" strokeLinejoin="round"
+    style={{ display:'inline-flex', flexShrink:0, verticalAlign:'middle', ...opts.style }}>
+    {typeof path==='string' ? <path d={path}/> : path}
+  </svg>
+);
+
 const Icons = {
-  dashboard: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
-  contacts: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-  pipeline: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
-  team: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>,
-  branding: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
-  workspace: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>,
-  chevron: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
-  plus: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
-  comment: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
-  calendar: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+  dashboard:   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>,
+  contacts:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  pipeline:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+  team:        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  branding:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  workspace:   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>,
+  chevron:     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
+  plus:        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  comment:     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+  calendar:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+  // Extended icon set — SVG equivalents for all emoji used across the app
+  alert:       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
+  check:       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+  checkCircle: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+  lock:        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
+  flame:       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>,
+  dollar:      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
+  clipboard:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>,
+  users:       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  user:        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+  phone:       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.44 2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.06 6.06l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
+  refresh:     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>,
+  pin:         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
+  paperclip:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>,
+  upload:      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>,
+  download:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+  trash:       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
+  home:        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
+  logOut:      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
+  bell:        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
+  activity:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+  settings:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  arrowRight:  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
+  arrowLeft:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
+  file:        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>,
+  messageSquare:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+  grid:        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>,
+  barChart:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
+  book:        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
+  rocket:      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>,
 };
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
@@ -4428,6 +4468,9 @@ export default function App() {
     <>
       <style>{css}</style>
       <style>{`:root { --accent: ${accentColor}; }`}</style>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
 
       {/* Sidebar */}
       <div className="sidebar">
