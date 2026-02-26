@@ -3195,9 +3195,21 @@ function loadGoogleScript(id, src, onload) {
 
 // Hook: get a Google OAuth2 access token for a given scope
 function useGoogleToken(scope) {
-  const [token, setToken]           = useState(null);
-  const [connected, setConnected]   = useState(false);
-  const [gsiLoaded, setGsiLoaded]   = useState(false);
+  const storageKey = `gcal_token_${scope.replace(/[^a-z]/gi,'_')}`;
+  const expiryKey  = `gcal_expiry_${scope.replace(/[^a-z]/gi,'_')}`;
+
+  const getSaved = () => {
+    try {
+      const t = localStorage.getItem(storageKey);
+      const e = localStorage.getItem(expiryKey);
+      if(t && e && Date.now() < Number(e) - 60000) return t; // valid if >1min left
+    } catch(_){}
+    return null;
+  };
+
+  const [token, setToken]         = useState(getSaved);
+  const [connected, setConnected] = useState(()=>!!getSaved());
+  const [gsiLoaded, setGsiLoaded] = useState(false);
   const clientRef = React.useRef(null);
 
   useEffect(()=>{
@@ -3205,24 +3217,78 @@ function useGoogleToken(scope) {
     loadGoogleScript('gsi-script','https://accounts.google.com/gsi/client',()=>setGsiLoaded(true));
   },[]);
 
+  const hasConnectedKey = `gcal_has_connected_${scope.replace(/[^a-z]/gi,'_')}`;
+
+  const saveToken = (t, expiresIn=3600) => {
+    try {
+      localStorage.setItem(storageKey, t);
+      localStorage.setItem(expiryKey, String(Date.now() + expiresIn*1000));
+      localStorage.setItem(hasConnectedKey, '1'); // remember user ever connected
+    } catch(_){}
+    setToken(t); setConnected(true);
+  };
+
+  const initClient = useCallback((onReady)=>{
+    if(clientRef.current){ onReady&&onReady(); return; }
+    clientRef.current = window.google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope,
+      callback:(resp)=>{
+        if(resp.access_token) saveToken(resp.access_token, resp.expires_in||3600);
+        else console.error('Google auth failed', resp);
+      },
+      error_callback:(err)=>{
+        // silent re-auth failed (session expired) — reset so user sees connect button
+        if(err.type==='popup_failed_to_open'||err.type==='popup_closed') return;
+        try { localStorage.removeItem(hasConnectedKey); } catch(_){}
+        setConnected(false); setToken(null);
+      },
+    });
+    onReady&&onReady();
+  },[scope]);
+
+  // On load: if user previously connected, silently refresh token (no popup)
+  useEffect(()=>{
+    if(!gsiLoaded) return;
+    const hasConnected = localStorage.getItem(hasConnectedKey);
+    if(!hasConnected) return;
+    const saved = getSaved();
+    if(saved) return; // still valid, nothing to do
+    // Token expired but user has consented before — silently get a new one
+    initClient(()=>{
+      clientRef.current.requestAccessToken({ prompt:'' }); // prompt:'' = silent
+    });
+  },[gsiLoaded]);
+
+  // Also set up a refresh timer: 5 min before expiry, silently renew
+  useEffect(()=>{
+    if(!token || !connected) return;
+    try {
+      const expiry = Number(localStorage.getItem(expiryKey)||0);
+      const msUntilRefresh = expiry - Date.now() - 5*60*1000; // 5 min early
+      if(msUntilRefresh <= 0) return;
+      const timer = setTimeout(()=>{
+        if(!clientRef.current) return;
+        clientRef.current.requestAccessToken({ prompt:'' });
+      }, msUntilRefresh);
+      return ()=>clearTimeout(timer);
+    } catch(_){}
+  },[token, connected]);
+
   const connect = useCallback(()=>{
     if(!window.google?.accounts?.oauth2){ alert('Google Sign-In is still loading — please try again in a moment.'); return; }
-    if(!clientRef.current){
-      clientRef.current = window.google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope,
-        callback:(resp)=>{
-          if(resp.access_token){ setToken(resp.access_token); setConnected(true); }
-          else console.error('Google auth failed',resp);
-        },
-        error_callback:(err)=>console.error('Google auth error',err),
-      });
-    }
-    clientRef.current.requestAccessToken({ prompt: connected?'':'consent' });
-  },[scope, connected]);
+    initClient(()=>{
+      clientRef.current.requestAccessToken({ prompt:'consent' });
+    });
+  },[initClient]);
 
   const disconnect = useCallback(()=>{
     if(token) window.google?.accounts?.oauth2?.revoke(token,()=>{});
+    try {
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem(expiryKey);
+      localStorage.removeItem(hasConnectedKey);
+    } catch(_){}
     setToken(null); setConnected(false); clientRef.current=null;
   },[token]);
 
@@ -3231,7 +3297,15 @@ function useGoogleToken(scope) {
 
 // Hook: Google Drive Picker
 function useGoogleDrivePicker() {
-  const [driveToken, setDriveToken] = useState(null);
+  const getDriveSaved = () => {
+    try {
+      const t = localStorage.getItem('gdrive_token');
+      const e = localStorage.getItem('gdrive_expiry');
+      if(t && e && Date.now() < Number(e) - 60000) return t;
+    } catch(_){}
+    return null;
+  };
+  const [driveToken, setDriveToken] = useState(getDriveSaved);
   const [gapiReady, setGapiReady]   = useState(false);
   const clientRef = React.useRef(null);
 
@@ -3270,7 +3344,10 @@ function useGoogleDrivePicker() {
         client_id: GOOGLE_CLIENT_ID,
         scope: GDRIVE_SCOPE,
         callback:(resp)=>{
-          if(resp.access_token){ setDriveToken(resp.access_token); openPicker(resp.access_token, onPicked); }
+          if(resp.access_token){
+            try { localStorage.setItem('gdrive_token', resp.access_token); localStorage.setItem('gdrive_expiry', String(Date.now()+(resp.expires_in||3600)*1000)); } catch(_){}
+            setDriveToken(resp.access_token); openPicker(resp.access_token, onPicked);
+          }
         }
       });
     }
@@ -3497,13 +3574,13 @@ function CalendarView({ profile, workspaces, toast }) {
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           {(profile.role==='admin'||profile.role==='manager') && (
             <div style={{ display:'flex', background:'var(--surface2)', borderRadius:8, border:'1px solid var(--border)', overflow:'hidden' }}>
-              <button onClick={()=>setAdminView(true)} style={{ padding:'7px 14px', background:adminView?'var(--accent)':'transparent', color:adminView?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Team View</button>
-              <button onClick={()=>setAdminView(false)} style={{ padding:'7px 14px', background:!adminView?'var(--accent)':'transparent', color:!adminView?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>My Events</button>
+              <button onClick={()=>setAdminView(true)} style={{ padding:'7px 16px', background:adminView?'var(--accent)':'transparent', color:adminView?'#fff':'var(--muted)', border:'none', borderRight:'1px solid var(--border)', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Team View</button>
+              <button onClick={()=>setAdminView(false)} style={{ padding:'7px 16px', background:!adminView?'var(--accent)':'transparent', color:!adminView?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>My Events</button>
             </div>
           )}
           <div style={{ display:'flex', background:'var(--surface2)', borderRadius:8, border:'1px solid var(--border)', overflow:'hidden' }}>
-            <button onClick={()=>setViewMode('month')} style={{ padding:'7px 14px', background:viewMode==='month'?'var(--accent)':'transparent', color:viewMode==='month'?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Month</button>
-            <button onClick={()=>setViewMode('agenda')} style={{ padding:'7px 14px', background:viewMode==='agenda'?'var(--accent)':'transparent', color:viewMode==='agenda'?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Agenda</button>
+            <button onClick={()=>setViewMode('month')} style={{ padding:'7px 16px', background:viewMode==='month'?'var(--accent)':'transparent', color:viewMode==='month'?'#fff':'var(--muted)', border:'none', borderRight:'1px solid var(--border)', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Month</button>
+            <button onClick={()=>setViewMode('agenda')} style={{ padding:'7px 16px', background:viewMode==='agenda'?'var(--accent)':'transparent', color:viewMode==='agenda'?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Agenda</button>
           </div>
           <button onClick={exportICS} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--muted)', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}
             onMouseOver={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)';}}
