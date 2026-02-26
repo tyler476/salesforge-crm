@@ -3151,8 +3151,8 @@ function CalendarView({ profile, workspaces, toast }) {
   };
 
   const loadWsItems = async () => {
-    const { data } = await supabase.from('workspace_items').select('id,name,date,status,group_id').eq('company_id', profile.company_name).not('date','is',null);
-    setWsItems((data||[]).filter(i=>i.date));
+    const { data } = await supabase.from('workspace_items').select('id,name,date,status,group_id,trashed,archived').eq('company_id', profile.company_name).not('date','is',null).eq('archived', false);
+    setWsItems((data||[]).filter(i=>i.date && !i.trashed));
   };
 
   const loadTeam = async () => {
