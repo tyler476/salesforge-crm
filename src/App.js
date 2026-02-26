@@ -1066,7 +1066,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
             {today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}
           </div>
           <h1 style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:30, fontWeight:700, marginBottom:8, lineHeight:1.2 }}>
-            {greeting}, {firstName} 👋
+            {greeting}, {firstName}
           </h1>
           <div style={{ color:'var(--muted)', fontSize:14, display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
             {myOverdue.length>0 && <span style={{ display:'flex', alignItems:'center', gap:5, color:'#e05252', fontWeight:600 }}>{Icons.alert} {myOverdue.length} overdue item{myOverdue.length!==1?'s':''}</span>}
