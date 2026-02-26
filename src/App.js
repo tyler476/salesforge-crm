@@ -112,6 +112,39 @@ const fmt = (n) => n >= 1000000 ? `$${(n/1000000).toFixed(1)}M` : n >= 1000 ? `$
 const initials = (name='') => name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
 const avatarColor = (name='') => { const colors=['#3b82f6','#06b6d4','#10b981','#8b5cf6','#f59e0b','#ef4444']; return colors[name.charCodeAt(0)%colors.length]; };
 
+// ─── NOTIFICATIONS UTILITY ───────────────────────────────────────────────────
+async function createNotification(opts) {
+  // opts: { company_id, recipient_id, recipient_name, actor_id, actor_name, type, message, item_id, item_name, workspace_id, workspace_name }
+  if(!opts.recipient_id || opts.recipient_id === opts.actor_id) return; // don't notify yourself
+  try {
+    await supabase.from('notifications').insert([{
+      company_id:    opts.company_id,
+      recipient_id:  opts.recipient_id,
+      recipient_name:opts.recipient_name||'',
+      actor_name:    opts.actor_name||'',
+      type:          opts.type||'mention',
+      message:       opts.message||'',
+      item_id:       opts.item_id||null,
+      item_name:     opts.item_name||'',
+      workspace_id:  opts.workspace_id||null,
+      workspace_name:opts.workspace_name||'',
+      is_read:       false,
+    }]);
+  } catch(e) { console.warn('createNotification failed:', e); }
+}
+
+function timeAgo(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff/60000);
+  if(m < 1)  return 'just now';
+  if(m < 60) return `${m}m ago`;
+  const h = Math.floor(m/60);
+  if(h < 24) return `${h}h ago`;
+  const d = Math.floor(h/24);
+  if(d < 7)  return `${d}d ago`;
+  return new Date(dateStr).toLocaleDateString();
+}
+
 // ─── TOAST ───────────────────────────────────────────────────────────────────
 let toastTimer;
 function Toast({ msg, onClose }) {
@@ -441,24 +474,44 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast })
 
 
 // ─── TOP BAR ─────────────────────────────────────────────────────────────────
-function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout, onGetResults }) {
+function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout, onGetResults, workspaces, onOpenWorkspace }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [notifsRead, setNotifsRead] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const loadNotifs = React.useCallback(async () => {
+    if(!profile?.id) return;
+    const { data } = await supabase.from('notifications')
+      .select('*').eq('recipient_id', profile.id)
+      .order('created_at',{ascending:false}).limit(40);
+    if(data) {
+      setNotifications(data);
+      setUnreadCount(data.filter(n=>!n.is_read).length);
+    }
+  },[profile?.id]);
 
   React.useEffect(()=>{
-    if(!profile?.full_name) return;
-    // Load updates that @mention this user
-    supabase.from('workspace_updates').select('*')
-      .ilike('body', '%@'+profile.full_name+'%')
-      .order('created_at',{ascending:false}).limit(20)
-      .then(({data})=>{ if(data) setNotifications(data); });
-    // Real-time subscription for new mentions
-    const sub = supabase.channel('notifs').on('postgres_changes',{event:'INSERT',schema:'public',table:'workspace_updates'},
-      (payload)=>{ if(payload.new?.body?.includes('@'+profile.full_name)) { setNotifications(n=>[payload.new,...n]); setNotifsRead(false); }}).subscribe();
+    loadNotifs();
+    const sub = supabase.channel('notifs_'+profile?.id)
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:`recipient_id=eq.${profile?.id}`},
+        (p)=>{ setNotifications(n=>[p.new,...n]); setUnreadCount(c=>c+1); })
+      .subscribe();
     return ()=>supabase.removeChannel(sub);
-  },[profile?.full_name]);
+  },[profile?.id, loadNotifs]);
+
+  const markAllRead = async () => {
+    if(!profile?.id) return;
+    await supabase.from('notifications').update({is_read:true}).eq('recipient_id',profile.id).eq('is_read',false);
+    setNotifications(n=>n.map(x=>({...x,is_read:true})));
+    setUnreadCount(0);
+  };
+
+  const clearAll = async () => {
+    if(!profile?.id) return;
+    await supabase.from('notifications').delete().eq('recipient_id',profile.id);
+    setNotifications([]); setUnreadCount(0);
+  };
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpPage, setHelpPage] = useState(null);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -578,10 +631,14 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
 
       {/* Notification bell */}
       <button className="topbar-btn" title="Notifications" style={{ position:'relative' }}
-        onClick={e=>{ stop(e); setNotifOpen(o=>!o); setNotifsRead(true); setProfileOpen(false); setHelpOpen(false); setAppsOpen(false); }}>
+        onClick={e=>{ stop(e); setNotifOpen(o=>{ if(!o) markAllRead(); return !o; }); setProfileOpen(false); setHelpOpen(false); setAppsOpen(false); }}>
         <div style={{ position:'relative' }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          {notifications.length>0 && !notifsRead && <div style={{ position:'absolute', top:-4, right:-4, width:8, height:8, borderRadius:'50%', background:'#e05252', border:'2px solid var(--sidebar-bg)' }} />}
+          {unreadCount>0 && (
+            <div style={{ position:'absolute', top:-6, right:-6, minWidth:16, height:16, borderRadius:8, background:'#e05252', border:'2px solid var(--sidebar-bg)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:800, color:'#fff', padding:'0 3px' }}>
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </div>
+          )}
         </div>
       </button>
 
@@ -616,29 +673,55 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
 
     {/* ── NOTIFICATION DROPDOWN ── */}
     {notifOpen && (
-      <div onClick={stop} style={{ position:'fixed', top:56, right:56, width:340, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 12px 32px rgba(0,0,0,.4)', zIndex:9999, maxHeight:480, display:'flex', flexDirection:'column' }}>
+      <div onClick={stop} style={{ position:'fixed', top:56, right:56, width:380, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, boxShadow:'0 16px 48px rgba(0,0,0,.5)', zIndex:9999, maxHeight:540, display:'flex', flexDirection:'column' }}>
+        {/* Header */}
         <div style={{ padding:'14px 16px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <span style={{ fontWeight:700, fontSize:14 }}>Notifications</span>
-          {notifications.length>0 && <span onClick={()=>{setNotifications([]);setNotifsRead(true);}} style={{ fontSize:12, color:'var(--muted)', cursor:'pointer' }}>Clear all</span>}
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{ fontWeight:700, fontSize:15 }}>Notifications</span>
+            {unreadCount>0 && <span style={{ background:'#e05252', color:'#fff', fontSize:10, fontWeight:800, padding:'1px 6px', borderRadius:10 }}>{unreadCount} new</span>}
+          </div>
+          <div style={{ display:'flex', gap:12 }}>
+            {notifications.some(n=>!n.is_read) && <span onClick={markAllRead} style={{ fontSize:12, color:'var(--accent)', cursor:'pointer', fontWeight:600 }}>Mark all read</span>}
+            {notifications.length>0 && <span onClick={clearAll} style={{ fontSize:12, color:'var(--muted)', cursor:'pointer' }}>Clear all</span>}
+          </div>
         </div>
+        {/* List */}
         <div style={{ overflowY:'auto', flex:1 }}>
           {notifications.length===0 ? (
-            <div style={{ padding:'32px 16px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>
-              <div style={{ fontSize:32, marginBottom:8 }}>🎉</div>
-              You're all caught up!
+            <div style={{ padding:'40px 16px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>
+              <div style={{ fontSize:36, marginBottom:10 }}>🎉</div>
+              <div style={{ fontWeight:600, marginBottom:4 }}>You're all caught up!</div>
+              <div style={{ fontSize:12 }}>We'll notify you when something needs your attention</div>
             </div>
-          ) : notifications.map(n=>(
-            <div key={n.id} style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', gap:10, alignItems:'flex-start' }}
-              onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'}
-              onMouseOut={e=>e.currentTarget.style.background=''}>
-              <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(n.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(n.author_name||'?')}</div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:13, fontWeight:600, marginBottom:2 }}>{n.author_name} <span style={{ fontWeight:400, color:'var(--muted)' }}>mentioned you</span></div>
-                <div style={{ fontSize:12, color:'var(--muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{n.body}</div>
-                <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>{new Date(n.created_at).toLocaleString()}</div>
+          ) : notifications.map(n=>{
+            const ICONS = { mention:'💬', assignment:'👤', status_change:'🔄', overdue:'⚠️', file:'📎' };
+            const ws = workspaces?.find(w=>w.id===n.workspace_id);
+            return (
+              <div key={n.id}
+                onClick={()=>{ if(ws){ onOpenWorkspace&&onOpenWorkspace(ws); setNotifOpen(false); } }}
+                style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', gap:12, alignItems:'flex-start', cursor: ws?'pointer':'default', background: n.is_read?'transparent':'rgba(77,142,240,.05)', transition:'background .15s', position:'relative' }}
+                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
+                onMouseOut={e=>e.currentTarget.style.background=n.is_read?'transparent':'rgba(77,142,240,.05)'}>
+                {/* Unread dot */}
+                {!n.is_read && <div style={{ position:'absolute', left:6, top:'50%', transform:'translateY(-50%)', width:6, height:6, borderRadius:'50%', background:'var(--accent)' }} />}
+                {/* Avatar */}
+                <div style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(n.actor_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0, position:'relative' }}>
+                  {initials(n.actor_name||'?')}
+                  <span style={{ position:'absolute', bottom:-2, right:-2, fontSize:12 }}>{ICONS[n.type]||'📢'}</span>
+                </div>
+                {/* Content */}
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:13, lineHeight:1.5 }}>
+                    <span style={{ fontWeight:700 }}>{n.actor_name}</span>
+                    {' '}<span style={{ color:'var(--muted)' }}>{n.message}</span>
+                  </div>
+                  {n.item_name && <div style={{ fontSize:12, color:'var(--accent)', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>📋 {n.item_name}</div>}
+                  {n.workspace_name && <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>in {n.workspace_name}</div>}
+                  <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>{timeAgo(n.created_at)}</div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     )}
@@ -794,6 +877,8 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWorkspace, onNavigate }) {
   const [wsStats, setWsStats] = useState({});
+  const [myItems, setMyItems] = useState([]);
+  const [myItemsLoading, setMyItemsLoading] = useState(true);
 
   React.useEffect(()=>{
     if(!profile?.company_name) return;
@@ -810,6 +895,37 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
       setWsStats(stats);
     });
   },[profile?.company_name]);
+
+  React.useEffect(()=>{
+    if(!profile?.full_name && !profile?.email) return;
+    setMyItemsLoading(true);
+    supabase.from('workspace_items')
+      .select('*, workspaces(name)')
+      .eq('company_id', profile.company_name)
+      .eq('archived', false)
+      .neq('trashed', true)
+      .then(({data})=>{
+        if(!data) { setMyItemsLoading(false); return; }
+        const mine = data.filter(i=>
+          (i.assigned_officers||[]).some(o=>
+            o===profile.full_name || o===profile.email || o?.toLowerCase()===profile.full_name?.toLowerCase()
+          )
+        );
+        // Sort: overdue first, then by date ascending, then undated
+        mine.sort((a,b)=>{
+          const da = dueDateStatus(a.date);
+          const db = dueDateStatus(b.date);
+          if(da?.label==='Overdue' && db?.label!=='Overdue') return -1;
+          if(db?.label==='Overdue' && da?.label!=='Overdue') return 1;
+          if(a.date && b.date) return a.date.localeCompare(b.date);
+          if(a.date) return -1;
+          if(b.date) return 1;
+          return 0;
+        });
+        setMyItems(mine);
+        setMyItemsLoading(false);
+      });
+  },[profile?.full_name, profile?.email, profile?.company_name]);
   const [showNewWs, setShowNewWs] = useState(false);
   const total = contacts.length;
   const pipeline = contacts.filter(c=>!['Converted','Non-Conversion'].includes(c.stage)).reduce((s,c)=>s+(c.deal_value||0),0);
@@ -857,6 +973,64 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
                 </div>
               );
             })}
+          </div>
+        )}
+      </div>
+
+      {/* ── MY WORK ── */}
+      <div style={{ marginBottom:32 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+          <div>
+            <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:3 }}>Your assignments</div>
+            <div style={{ fontFamily:'Playfair Display,serif', fontSize:18, fontWeight:700 }}>My Work</div>
+          </div>
+          {myItems.length > 0 && <span style={{ fontSize:12, color:'var(--muted)' }}>{myItems.length} item{myItems.length!==1?'s':''}</span>}
+        </div>
+        {myItemsLoading ? (
+          <div style={{ color:'var(--muted)', fontSize:13, padding:'20px 0' }}>Loading your items...</div>
+        ) : myItems.length===0 ? (
+          <div className="card" style={{ textAlign:'center', padding:'28px 20px' }}>
+            <div style={{ fontSize:28, marginBottom:8 }}>✅</div>
+            <div style={{ fontWeight:600, marginBottom:4 }}>All clear!</div>
+            <div style={{ color:'var(--muted)', fontSize:13 }}>No items are currently assigned to you.</div>
+          </div>
+        ) : (
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {myItems.slice(0,10).map(item=>{
+              const ds = dueDateStatus(item.date);
+              const ws = workspaces.find(w=>item.workspaces?.name===w.name || w.id===item.workspace_id);
+              const wsName = item.workspaces?.name || ws?.name || 'Workspace';
+              const isOverdue = ds?.label==='Overdue';
+              const isDueSoon = ds?.days<=3 && !isOverdue;
+              return (
+                <div key={item.id}
+                  onClick={()=>{ const w=workspaces.find(w=>w.name===wsName||w.id===item.workspace_id); if(w) onOpenWorkspace(w); }}
+                  style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', background:'var(--surface)', borderRadius:10, border:`1px solid ${isOverdue?'rgba(224,82,82,.35)':'var(--border)'}`, cursor:'pointer', transition:'all .15s' }}
+                  onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.transform='translateX(3px)'; }}
+                  onMouseOut={e=>{ e.currentTarget.style.borderColor=isOverdue?'rgba(224,82,82,.35)':'var(--border)'; e.currentTarget.style.transform=''; }}>
+                  {/* Priority dot */}
+                  <div style={{ width:8, height:8, borderRadius:'50%', flexShrink:0, background: item.priority==='Critical'?'#e05252':item.priority==='High'?'#f0b429':item.priority==='Low'?'#6c757d':'#4d8ef0' }} />
+                  {/* Name + workspace */}
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.name}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>📋 {wsName}</div>
+                  </div>
+                  {/* Status */}
+                  {item.status && (
+                    <div style={{ padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:600, background:item.status_color+'22'||'rgba(77,142,240,.15)', color:item.status_color||'var(--accent)', flexShrink:0 }}>{item.status}</div>
+                  )}
+                  {/* Due date */}
+                  {item.date && (
+                    <div style={{ fontSize:11, fontWeight:600, flexShrink:0, color: isOverdue?'#e05252':isDueSoon?'#f0b429':'var(--muted)', background: isOverdue?'rgba(224,82,82,.1)':isDueSoon?'rgba(240,180,41,.1)':'transparent', padding:'2px 6px', borderRadius:4 }}>
+                      {isOverdue ? `⚠️ ${ds.days}d overdue` : isDueSoon ? `🔥 ${ds.days}d left` : `📅 ${item.date}`}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {myItems.length > 10 && (
+              <div style={{ textAlign:'center', fontSize:12, color:'var(--muted)', padding:'4px 0' }}>+{myItems.length-10} more items across your workspaces</div>
+            )}
           </div>
         )}
       </div>
@@ -2372,6 +2546,51 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
     setItem(updated);
     await supabase.from('workspace_items').update({ [field]: value }).eq('id', item.id);
     onUpdate(field, value);
+    // Fire notifications
+    if(field === 'status' && value) {
+      // Notify all assigned officers of status change
+      for(const name of (item.assigned_officers||[])) {
+        const member = teamMembers.find(m=>m.full_name===name||m.email===name);
+        if(member) {
+          await createNotification({
+            company_id:    profile.company_name,
+            recipient_id:  member.id,
+            recipient_name:member.full_name,
+            actor_id:      profile.id,
+            actor_name:    profile.full_name,
+            type:          'status_change',
+            message:       `changed status of "${item.name}" to ${value}`,
+            item_id:       item.id,
+            item_name:     item.name,
+            workspace_id:  group?.workspace_id||null,
+            workspace_name:group?.workspace_name||'',
+          });
+        }
+      }
+    }
+    if(field === 'assigned_officers' && Array.isArray(value)) {
+      // Notify newly assigned members
+      const prev = item.assigned_officers||[];
+      const newlyAdded = value.filter(n=>!prev.includes(n));
+      for(const name of newlyAdded) {
+        const member = teamMembers.find(m=>m.full_name===name||m.email===name);
+        if(member) {
+          await createNotification({
+            company_id:    profile.company_name,
+            recipient_id:  member.id,
+            recipient_name:member.full_name,
+            actor_id:      profile.id,
+            actor_name:    profile.full_name,
+            type:          'assignment',
+            message:       `assigned you to "${item.name}"`,
+            item_id:       item.id,
+            item_name:     item.name,
+            workspace_id:  group?.workspace_id||null,
+            workspace_name:group?.workspace_name||'',
+          });
+        }
+      }
+    }
   };
 
   const loadUpdates = async () => {
@@ -2415,7 +2634,30 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
     if(!newUpdate.trim()) return;
     setPosting(true);
     const { data } = await supabase.from('workspace_updates').insert([{ item_id: item.id, author_name: profile.full_name, author_id: profile.id, body: newUpdate }]).select().single();
-    if(data) { setUpdates(u=>[...u,data]); setNewUpdate(''); }
+    if(data) {
+      setUpdates(u=>[...u,data]);
+      // Fire notifications for each @mentioned team member
+      const mentioned = (newUpdate.match(/@([A-Za-z ]+?)(?=\s|$|@)/g)||[]).map(m=>m.slice(1).trim());
+      for(const name of mentioned) {
+        const member = teamMembers.find(m=>m.full_name===name||m.full_name?.startsWith(name));
+        if(member) {
+          await createNotification({
+            company_id:     profile.company_name,
+            recipient_id:   member.id,
+            recipient_name: member.full_name,
+            actor_id:       profile.id,
+            actor_name:     profile.full_name,
+            type:           'mention',
+            message:        `mentioned you in "${item.name}"`,
+            item_id:        item.id,
+            item_name:      item.name,
+            workspace_id:   group?.workspace_id||null,
+            workspace_name: group?.workspace_name||'',
+          });
+        }
+      }
+      setNewUpdate('');
+    }
     setPosting(false);
   };
 
@@ -4019,7 +4261,7 @@ export default function App() {
       </div>
 
       {/* Top Bar */}
-      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>setView(v,null)} onLogout={logout}
+      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>setView(v,null)} onLogout={logout} workspaces={workspaces} onOpenWorkspace={w=>setView('workspace',w)}
         onGetResults={(q)=>{
           const r = [];
           const ql = q.toLowerCase();
