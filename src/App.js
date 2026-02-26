@@ -1438,12 +1438,114 @@ function MassEmailModal({ contacts, onClose, onSent }) {
   );
 }
 
+
+// ─── GROUP SEND PRESENTATION MODAL ───────────────────────────────────────────
+function GroupSendModal({ contacts, profile, toast, onClose, onSent }) {
+  const [selectedStages, setSelectedStages] = useState([]);
+  const [confirmed, setConfirmed]           = useState(false);
+
+  const stageCounts = STAGES.map(s=>({
+    stage: s,
+    contacts: contacts.filter(c=>c.stage===s),
+    withEmail: contacts.filter(c=>c.stage===s && c.email),
+  })).filter(s=>s.contacts.length>0);
+
+  const toggleStage = (s) => setSelectedStages(prev => prev.includes(s) ? prev.filter(x=>x!==s) : [...prev, s]);
+  const selectAll   = () => setSelectedStages(stageCounts.map(s=>s.stage));
+  const clearAll    = () => setSelectedStages([]);
+
+  const targetContacts = contacts.filter(c => selectedStages.includes(c.stage) && c.email);
+  const totalSelected  = contacts.filter(c => selectedStages.includes(c.stage));
+
+  if(confirmed) return (
+    <MassPresentationModal
+      contacts={targetContacts}
+      profile={profile}
+      toast={toast}
+      onClose={onClose}
+      onSent={onSent}
+    />
+  );
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:520 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+          <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Send by Group</div>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
+        </div>
+        <div style={{ fontSize:13, color:'var(--muted)', marginBottom:20 }}>Select one or more stage groups to send a presentation to all contacts in those groups.</div>
+
+        {/* Select all / clear */}
+        <div style={{ display:'flex', gap:10, marginBottom:14 }}>
+          <button onClick={selectAll} className="btn-secondary btn-sm">Select All</button>
+          <button onClick={clearAll} className="btn-secondary btn-sm">Clear</button>
+        </div>
+
+        {/* Stage group list */}
+        <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:20 }}>
+          {stageCounts.map(({stage, contacts:sc, withEmail})=>{
+            const sel = selectedStages.includes(stage);
+            const color = STAGE_COLORS[stage]||'blue';
+            return (
+              <div key={stage} onClick={()=>toggleStage(stage)}
+                style={{ display:'flex', alignItems:'center', gap:14, padding:'12px 16px', borderRadius:10, border:`2px solid ${sel?'var(--accent)':'var(--border)'}`, background:sel?'rgba(77,142,240,.07)':'transparent', cursor:'pointer', transition:'all .15s' }}>
+                {/* Checkbox */}
+                <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${sel?'var(--accent)':'var(--border)'}`, background:sel?'var(--accent)':'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all .15s' }}>
+                  {sel && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
+                </div>
+                {/* Stage badge */}
+                <span className={`badge badge-${color}`} style={{ flexShrink:0 }}>{stage}</span>
+                {/* Counts */}
+                <div style={{ flex:1, display:'flex', justifyContent:'flex-end', alignItems:'center', gap:12 }}>
+                  <div style={{ textAlign:'right' }}>
+                    <div style={{ fontSize:14, fontWeight:700 }}>{sc.length}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)' }}>contact{sc.length!==1?'s':''}</div>
+                  </div>
+                  <div style={{ textAlign:'right' }}>
+                    <div style={{ fontSize:14, fontWeight:700, color:withEmail===sc.length?'var(--success)':'var(--warning)' }}>{withEmail}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)' }}>with email</div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Summary */}
+        {selectedStages.length>0 && (
+          <div style={{ background:'var(--surface2)', borderRadius:8, padding:'12px 16px', marginBottom:16, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div>
+              <div style={{ fontSize:13, fontWeight:600 }}>{targetContacts.length} recipients selected</div>
+              {totalSelected.length > targetContacts.length && (
+                <div style={{ fontSize:11, color:'var(--warning)', marginTop:2 }}>{totalSelected.length - targetContacts.length} contact{totalSelected.length-targetContacts.length!==1?'s':''} skipped — no email</div>
+              )}
+            </div>
+            <div style={{ display:'flex', gap:6 }}>
+              {selectedStages.map(s=><span key={s} className={`badge badge-${STAGE_COLORS[s]||'blue'}`} style={{ fontSize:10 }}>{s}</span>)}
+            </div>
+          </div>
+        )}
+
+        <div style={{ display:'flex', gap:10 }}>
+          <button className="btn-secondary" onClick={onClose} style={{ flex:1 }}>Cancel</button>
+          <button className="btn-primary" disabled={targetContacts.length===0} onClick={()=>setConfirmed(true)} style={{ flex:2, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+            {React.cloneElement(Icons.file,{width:14,height:14})}
+            Continue with {targetContacts.length} Contact{targetContacts.length!==1?'s':''}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState('All');
   const [selected, setSelected] = useState([]);
   const [showMassEmail, setShowMassEmail] = useState(false);
   const [showMassPresentation, setShowMassPresentation] = useState(false);
+  const [showGroupSend, setShowGroupSend] = useState(false);
 
   const filtered = contacts.filter(c => {
     const q = (search||'').toLowerCase();
@@ -1463,6 +1565,9 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
         <div style={{ display:'flex', gap:10 }}>
           {selected.length > 0 && <button className="btn-secondary" onClick={()=>setShowMassEmail(true)}>Email {selected.length} Selected</button>}
           {selected.length > 0 && <button className="btn-secondary" onClick={()=>setShowMassPresentation(true)} style={{ display:'flex', alignItems:'center', gap:6 }}>{React.cloneElement(Icons.file,{width:14,height:14})} Send Presentation</button>}
+          <button className="btn-secondary" onClick={()=>setShowGroupSend(true)} style={{ display:'flex', alignItems:'center', gap:6 }}>
+            {React.cloneElement(Icons.users,{width:14,height:14})} Send by Group
+          </button>
           <button className="btn-primary" onClick={onAdd}>+ Add Contact</button>
         </div>
       </div>
@@ -1504,6 +1609,8 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
       </div>
       {showMassEmail && <MassEmailModal contacts={selectedContacts} onClose={()=>setShowMassEmail(false)} onSent={(n)=>{ setShowMassEmail(false); setSelected([]); toast('Sent to ' + n + ' contacts!'); }} />}
       {showMassPresentation && <MassPresentationModal contacts={selectedContacts} profile={profile} onClose={()=>setShowMassPresentation(false)} toast={toast} onSent={(n)=>{ setShowMassPresentation(false); setSelected([]); toast('Presentations sent to '+n+' contacts!'); }} />}
+      {showGroupSend && <GroupSendModal contacts={contacts} profile={profile} toast={toast} onClose={()=>setShowGroupSend(false)} onSent={(n)=>{ setShowGroupSend(false); toast('Presentations sent to '+n+' contacts!'); }} />}
+      {showGroupSend && <GroupSendModal contacts={contacts} profile={profile} toast={toast} onClose={()=>setShowGroupSend(false)} onSent={(n)=>{ setShowGroupSend(false); toast('Presentations sent to '+n+' contacts!'); }} />}
     </div>
   );
 }
@@ -4564,6 +4671,19 @@ function PublicPresentationViewer({ token }) {
   if(loading) return <div style={{ background:'#0f1c3f', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,.5)', fontFamily:'Inter,sans-serif' }}>Loading presentation...</div>;
   if(error)   return <div style={{ background:'#0f1c3f', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,.5)', fontFamily:'Inter,sans-serif' }}>{error}</div>;
 
+  // ── PDF presentation viewer ──
+  if(pres.template_type==='pdf' && pres.pdf_url) {
+    return (
+      <div style={{ background:'#050d1a', minHeight:'100vh', display:'flex', flexDirection:'column' }}>
+        <div style={{ background:'#0f1c3f', padding:'12px 24px', display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'1px solid rgba(255,255,255,.1)' }}>
+          <div style={{ color:'#fff', fontFamily:"Cormorant Garamond,serif", fontSize:18, fontWeight:700 }}>{pres.company_name||'Citizens Financial'}</div>
+          <a href={pres.pdf_url} target="_blank" rel="noreferrer" style={{ background:'rgba(255,255,255,.1)', color:'#fff', padding:'7px 16px', borderRadius:6, textDecoration:'none', fontSize:13, border:'1px solid rgba(255,255,255,.15)' }}>Download PDF</a>
+        </div>
+        <iframe src={pres.pdf_url+'#toolbar=0&navpanes=0'} style={{ flex:1, width:'100%', border:'none', minHeight:'calc(100vh - 56px)' }} title="Presentation" />
+      </div>
+    );
+  }
+
   const slides = pres.slides||[];
   const curr   = slides[slide]||{};
 
@@ -4678,7 +4798,13 @@ Fill in all placeholder values (XXX) with real calculations based on the loan de
   };
 
   const useTemplate = (tmpl) => {
-    // Personalize template slides with contact data
+    setSelectedTemplate(tmpl);
+    if(tmpl.template_type==='pdf') {
+      // PDF — skip slide editing, go straight to preview/send
+      setSlides([]);
+      setStep('preview');
+      return;
+    }
     const personalized = (tmpl.slides||[]).map(s=>{
       const str = JSON.stringify(s)
         .replace(/\{\{borrower_name\}\}/g, form.borrower_name)
@@ -4699,18 +4825,21 @@ Fill in all placeholder values (XXX) with real calculations based on the loan de
       const token = crypto.randomUUID();
       const viewUrl = window.location.origin + window.location.pathname + '#present-' + token;
       
+      const isPdf = selectedTemplate?.template_type==='pdf';
       // Save presentation
       const { error } = await supabase.from('presentations').insert([{
-        company_id:   profile.company_name,
-        company_name: profile.company_name,
-        brand_color:  '#0f1c3f',
-        contact_id:   contact.id,
-        contact_name: contact.full_name,
-        contact_email:contact.email,
-        slides:       slides,
-        view_token:   token,
-        created_by:   profile.id,
-        lo_name:      form.lo_name,
+        company_id:    profile.company_name,
+        company_name:  profile.company_name,
+        brand_color:   '#0f1c3f',
+        contact_id:    contact.id,
+        contact_name:  contact.full_name,
+        contact_email: contact.email,
+        slides:        isPdf ? [] : slides,
+        template_type: isPdf ? 'pdf' : 'slides',
+        pdf_url:       isPdf ? selectedTemplate.pdf_url : null,
+        view_token:    token,
+        created_by:    profile.id,
+        lo_name:       form.lo_name,
       }]);
       if(error) throw error;
 
@@ -4802,12 +4931,12 @@ Fill in all placeholder values (XXX) with real calculations based on the loan de
                   style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 16px', border:'1px solid var(--border)', borderRadius:10, cursor:'pointer', transition:'all .15s' }}
                   onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.background='rgba(77,142,240,.05)'; }}
                   onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background=''; }}>
-                  <div style={{ width:36, height:36, borderRadius:8, background:'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                  <div style={{ width:36, height:36, borderRadius:8, background:t.template_type==='pdf'?'#e05252':'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                     {React.cloneElement(Icons.file,{width:18,height:18,stroke:'#fff'})}
                   </div>
                   <div style={{ flex:1 }}>
-                    <div style={{ fontWeight:600, fontSize:14 }}>{t.name}</div>
-                    <div style={{ fontSize:12, color:'var(--muted)' }}>{t.description||''} · {(t.slides||[]).length} slides</div>
+                    <div style={{ fontWeight:600, fontSize:14, display:'flex', alignItems:'center', gap:8 }}>{t.name}{t.template_type==='pdf'&&<span style={{background:'rgba(224,82,82,.15)',color:'#e05252',fontSize:9,fontWeight:800,padding:'1px 5px',borderRadius:3}}>PDF</span>}</div>
+                    <div style={{ fontSize:12, color:'var(--muted)' }}>{t.description||''}{t.template_type!=='pdf'?` · ${(t.slides||[]).length} slides`:' · PDF document'}</div>
                   </div>
                   <span style={{ fontSize:12, color:'var(--accent)' }}>{Icons.arrowRight}</span>
                 </div>
@@ -4924,6 +5053,13 @@ Fill in all placeholder values (XXX) with real calculations based on the loan de
               <div style={{ textAlign:'center', color:'rgba(255,255,255,.5)' }}>
                 <div style={{ width:40, height:40, borderRadius:'50%', border:'3px solid rgba(255,255,255,.15)', borderTopColor:'#4d8ef0', animation:'spin 1s linear infinite', margin:'0 auto 16px' }} />
                 <div style={{ fontFamily:'Inter,sans-serif', fontSize:14 }}>Claude is building your presentation...</div>
+              </div>
+            ) : selectedTemplate?.template_type==='pdf' && selectedTemplate?.pdf_url ? (
+              <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16 }}>
+                <div style={{ color:'rgba(255,255,255,.5)', display:'flex' }}>{React.cloneElement(Icons.file,{width:48,height:48})}</div>
+                <div style={{ color:'#fff', fontWeight:600, fontSize:16 }}>{selectedTemplate.name}</div>
+                <div style={{ color:'rgba(255,255,255,.5)', fontSize:13 }}>PDF presentation — will be sent as a link</div>
+                <a href={selectedTemplate.pdf_url} target="_blank" rel="noreferrer" style={{ background:'rgba(255,255,255,.1)', color:'#fff', padding:'8px 18px', borderRadius:6, textDecoration:'none', fontSize:13, border:'1px solid rgba(255,255,255,.2)', display:'flex', alignItems:'center', gap:6 }}>{React.cloneElement(Icons.download,{width:14,height:14})} Preview PDF</a>
               </div>
             ) : slides.length>0 ? (
               <div style={{ width:'100%', aspectRatio:'16/9', borderRadius:12, overflow:'hidden', boxShadow:'0 16px 48px rgba(0,0,0,.5)' }}>
@@ -5122,15 +5258,24 @@ function PresentationsPage({ profile, toast }) {
 
   const saveTemplate = async () => {
     if(!newTmpl.name.trim()) { toast('Template name required'); return; }
+    const isPdf = (newTmpl.type||'slides')==='pdf';
+    if(isPdf && !newTmpl.pdf_url) { toast('Please upload a PDF first'); return; }
     setSaving(true);
-    let slidesJson;
-    try { slidesJson = JSON.parse(newTmpl.slides); } catch(e) { toast('Invalid slide JSON'); setSaving(false); return; }
+    let slidesJson = [];
+    if(!isPdf) {
+      try { slidesJson = JSON.parse(newTmpl.slides||'[]'); } catch(e) { toast('Invalid slide JSON'); setSaving(false); return; }
+    }
     const { error } = await supabase.from('presentation_templates').insert([{
-      company_id: profile.company_name, name: newTmpl.name, description: newTmpl.description,
-      slides: slidesJson, created_by: profile.id,
+      company_id:    profile.company_name,
+      name:          newTmpl.name,
+      description:   newTmpl.description,
+      template_type: isPdf ? 'pdf' : 'slides',
+      pdf_url:       isPdf ? newTmpl.pdf_url : null,
+      slides:        slidesJson,
+      created_by:    profile.id,
     }]);
     if(error) toast('Error: '+error.message);
-    else { toast('Template saved!'); setShowUpload(false); setNewTmpl({name:'',description:'',slides:'[]'}); load(); }
+    else { toast('Template saved!'); setShowUpload(false); setNewTmpl({name:'',description:'',slides:'[]',type:'slides',pdf_url:'',pdf_name:''}); load(); }
     setSaving(false);
   };
 
@@ -5216,14 +5361,26 @@ function PresentationsPage({ profile, toast }) {
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:16 }}>
             {templates.map(t=>(
               <div key={t.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, overflow:'hidden' }}>
-                {/* Mini slide preview */}
-                <div style={{ aspectRatio:'16/9', background:'#050d1a', position:'relative', overflow:'hidden', cursor:'pointer' }} onClick={()=>{ setPreviewPres(t); setPreviewSlide(0); }}>
-                  {(t.slides||[]).length>0 && (
+                {/* Preview thumbnail */}
+                <div style={{ aspectRatio:'16/9', background:'#050d1a', position:'relative', overflow:'hidden', cursor:'pointer' }}
+                  onClick={()=>{ if(t.template_type==='pdf'&&t.pdf_url) window.open(t.pdf_url,'_blank'); else { setPreviewPres(t); setPreviewSlide(0); } }}>
+                  {t.template_type==='pdf' ? (
+                    <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8 }}>
+                      <div style={{ color:'rgba(255,255,255,.4)' }}>{React.cloneElement(Icons.file,{width:36,height:36})}</div>
+                      <div style={{ color:'rgba(255,255,255,.5)', fontSize:12, fontWeight:600 }}>PDF Document</div>
+                      <div style={{ color:'rgba(255,255,255,.3)', fontSize:11 }}>Click to open</div>
+                    </div>
+                  ) : (t.slides||[]).length>0 ? (
                     <div style={{ transform:'scale(0.31)', transformOrigin:'top left', width:'323%', height:'323%', pointerEvents:'none' }}>
                       <SlideRenderer slide={t.slides[0]} index={0} total={t.slides.length} brandColor='#0f1c3f' companyName={profile.company_name} />
                     </div>
-                  )}
-                  <div style={{ position:'absolute', bottom:6, right:8, background:'rgba(0,0,0,.5)', color:'#fff', fontSize:10, padding:'2px 6px', borderRadius:4 }}>{(t.slides||[]).length} slides</div>
+                  ) : null}
+                  <div style={{ position:'absolute', top:6, left:8 }}>
+                    {t.template_type==='pdf'
+                      ? <span style={{ background:'#e05252', color:'#fff', fontSize:9, fontWeight:800, padding:'2px 6px', borderRadius:4, letterSpacing:'.06em' }}>PDF</span>
+                      : <span style={{ background:'rgba(77,142,240,.8)', color:'#fff', fontSize:9, fontWeight:800, padding:'2px 6px', borderRadius:4, letterSpacing:'.06em' }}>SLIDES</span>}
+                  </div>
+                  {t.template_type!=='pdf' && <div style={{ position:'absolute', bottom:6, right:8, background:'rgba(0,0,0,.5)', color:'#fff', fontSize:10, padding:'2px 6px', borderRadius:4 }}>{(t.slides||[]).length} slides</div>}
                 </div>
                 <div style={{ padding:'14px 16px' }}>
                   <div style={{ fontWeight:700, fontSize:14, marginBottom:4 }}>{t.name}</div>
@@ -5242,18 +5399,64 @@ function PresentationsPage({ profile, toast }) {
       {/* Add Template Modal */}
       {showUpload && (
         <div className="overlay" onClick={()=>setShowUpload(false)}>
-          <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:560 }}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:580 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
               <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Add Template</div>
               <button onClick={()=>setShowUpload(false)} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
             </div>
+            {/* Type selector */}
+            <div style={{ display:'flex', gap:8, marginBottom:20 }}>
+              {[['slides','Slide Deck'],['pdf','PDF Document']].map(([t,l])=>(
+                <button key={t} onClick={()=>setNewTmpl(f=>({...f,type:t}))}
+                  style={{ flex:1, padding:'10px', borderRadius:8, border:`2px solid ${(newTmpl.type||'slides')===t?'var(--accent)':'var(--border)'}`, background:(newTmpl.type||'slides')===t?'rgba(77,142,240,.1)':'transparent', color:(newTmpl.type||'slides')===t?'var(--accent)':'var(--muted)', cursor:'pointer', fontSize:13, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+                  {t==='pdf'
+                    ? <>{React.cloneElement(Icons.file,{width:15,height:15})} {l}</>
+                    : <>{React.cloneElement(Icons.grid,{width:15,height:15})} {l}</>}
+                </button>
+              ))}
+            </div>
             <div className="form-group"><label>Template Name</label><input value={newTmpl.name} onChange={e=>setNewTmpl(f=>({...f,name:e.target.value}))} placeholder="e.g. Purchase Loan Overview" /></div>
             <div className="form-group"><label>Description (optional)</label><input value={newTmpl.description} onChange={e=>setNewTmpl(f=>({...f,description:e.target.value}))} placeholder="Brief description" /></div>
-            <div className="form-group">
-              <label>Slides JSON</label>
-              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:6 }}>Paste a JSON array of slide objects. Use <code style={{background:'var(--surface2)',padding:'1px 4px',borderRadius:3}}>{'{{borrower_name}}'}</code> and <code style={{background:'var(--surface2)',padding:'1px 4px',borderRadius:3}}>{'{{lo_name}}'}</code> as tokens.</div>
-              <textarea rows={6} value={newTmpl.slides} onChange={e=>setNewTmpl(f=>({...f,slides:e.target.value}))} style={{ fontFamily:'JetBrains Mono,monospace', fontSize:12 }} />
-            </div>
+            {(newTmpl.type||'slides')==='pdf' ? (
+              <div className="form-group">
+                <label>Upload PDF</label>
+                {newTmpl.pdf_url ? (
+                  <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:'var(--surface2)', borderRadius:6, border:'1px solid var(--border)' }}>
+                    <div style={{ color:'var(--success)', display:'flex' }}>{React.cloneElement(Icons.checkCircle,{width:16,height:16})}</div>
+                    <span style={{ fontSize:13, flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{newTmpl.pdf_name||'PDF uploaded'}</span>
+                    <button onClick={()=>setNewTmpl(f=>({...f,pdf_url:'',pdf_name:''}))} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:12 }}>Remove</button>
+                  </div>
+                ) : (
+                  <div>
+                    <input type="file" accept=".pdf,application/pdf" id="pdf-upload" style={{ display:'none' }}
+                      onChange={async e=>{
+                        const file = e.target.files?.[0];
+                        if(!file) return;
+                        if(file.size > 20*1024*1024) { toast('PDF must be under 20MB'); return; }
+                        setSaving(true);
+                        const path = `templates/${profile.company_name}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+                        const { error } = await supabase.storage.from('presentation-pdfs').upload(path, file, { contentType:'application/pdf', upsert:true });
+                        if(error) { toast('Upload failed: '+error.message); setSaving(false); return; }
+                        const { data:urlData } = supabase.storage.from('presentation-pdfs').getPublicUrl(path);
+                        setNewTmpl(f=>({...f, pdf_url:urlData.publicUrl, pdf_name:file.name}));
+                        setSaving(false);
+                      }}
+                    />
+                    <label htmlFor="pdf-upload" style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'32px', border:'2px dashed var(--border)', borderRadius:8, cursor:'pointer', color:'var(--muted)', fontSize:14, transition:'all .15s', textTransform:'none', letterSpacing:'normal', fontWeight:500 }}
+                      onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.color='var(--accent)'; }}
+                      onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.color='var(--muted)'; }}>
+                      {saving ? <><div style={{ width:16,height:16,borderRadius:'50%',border:'2px solid var(--border)',borderTopColor:'var(--accent)',animation:'spin 1s linear infinite' }}/> Uploading...</> : <>{React.cloneElement(Icons.upload,{width:18,height:18})} Click to upload PDF (max 20MB)</>}
+                    </label>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="form-group">
+                <label>Slides JSON</label>
+                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:6 }}>Paste a JSON array of slide objects. Use <code style={{background:'var(--surface2)',padding:'1px 4px',borderRadius:3}}>{'{{borrower_name}}'}</code> and <code style={{background:'var(--surface2)',padding:'1px 4px',borderRadius:3}}>{'{{lo_name}}'}</code> as tokens.</div>
+                <textarea rows={6} value={newTmpl.slides} onChange={e=>setNewTmpl(f=>({...f,slides:e.target.value}))} style={{ fontFamily:'JetBrains Mono,monospace', fontSize:12 }} />
+              </div>
+            )}
             <div style={{ display:'flex', gap:10 }}>
               <button className="btn-secondary" onClick={()=>setShowUpload(false)}>Cancel</button>
               <button className="btn-primary" style={{ flex:1 }} onClick={saveTemplate} disabled={saving}>{saving?'Saving...':'Save Template'}</button>
