@@ -1447,7 +1447,7 @@ function GroupSendModal({ contacts, profile, toast, onClose, onSent }) {
   const stageCounts = STAGES.map(s=>({
     stage: s,
     contacts: contacts.filter(c=>c.stage===s),
-    withEmail: contacts.filter(c=>c.stage===s && c.email),
+    withEmail: contacts.filter(c=>c.stage===s && c.email).length,
   })).filter(s=>s.contacts.length>0);
 
   const toggleStage = (s) => setSelectedStages(prev => prev.includes(s) ? prev.filter(x=>x!==s) : [...prev, s]);
@@ -5432,11 +5432,20 @@ function PresentationsPage({ profile, toast }) {
                       onChange={async e=>{
                         const file = e.target.files?.[0];
                         if(!file) return;
-                        if(file.size > 20*1024*1024) { toast('PDF must be under 20MB'); return; }
+                        if(file.size > 50*1024*1024) { toast('PDF must be under 50MB'); return; }
                         setSaving(true);
                         const path = `templates/${profile.company_name}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
                         const { error } = await supabase.storage.from('presentation-pdfs').upload(path, file, { contentType:'application/pdf', upsert:true });
-                        if(error) { toast('Upload failed: '+error.message); setSaving(false); return; }
+                        if(error) { 
+                          if(error.message?.includes('Bucket not found') || error.statusCode===404) {
+                            toast('Storage bucket missing — create a public bucket named "presentation-pdfs" in Supabase Storage');
+                          } else if(error.statusCode===413 || error.message?.includes('too large')) {
+                            toast('File too large — max 50MB. Compress your PDF first');
+                          } else {
+                            toast('Upload failed: ' + error.message);
+                          }
+                          setSaving(false); return; 
+                        }
                         const { data:urlData } = supabase.storage.from('presentation-pdfs').getPublicUrl(path);
                         setNewTmpl(f=>({...f, pdf_url:urlData.publicUrl, pdf_name:file.name}));
                         setSaving(false);
@@ -5445,7 +5454,7 @@ function PresentationsPage({ profile, toast }) {
                     <label htmlFor="pdf-upload" style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'32px', border:'2px dashed var(--border)', borderRadius:8, cursor:'pointer', color:'var(--muted)', fontSize:14, transition:'all .15s', textTransform:'none', letterSpacing:'normal', fontWeight:500 }}
                       onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.color='var(--accent)'; }}
                       onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.color='var(--muted)'; }}>
-                      {saving ? <><div style={{ width:16,height:16,borderRadius:'50%',border:'2px solid var(--border)',borderTopColor:'var(--accent)',animation:'spin 1s linear infinite' }}/> Uploading...</> : <>{React.cloneElement(Icons.upload,{width:18,height:18})} Click to upload PDF (max 20MB)</>}
+                      {saving ? <><div style={{ width:16,height:16,borderRadius:'50%',border:'2px solid var(--border)',borderTopColor:'var(--accent)',animation:'spin 1s linear infinite' }}/> Uploading...</> : <>{React.cloneElement(Icons.upload,{width:18,height:18})} Click to upload PDF (max 50MB)</>}
                     </label>
                   </div>
                 )}
