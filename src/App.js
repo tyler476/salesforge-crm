@@ -2356,6 +2356,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   const [mentionSearch, setMentionSearch] = useState('');
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionStart, setMentionStart] = useState(0);
+  const [mentionPos, setMentionPos] = useState({top:0,left:0});
   const [editingField, setEditingField] = useState(null);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showAssignPicker, setShowAssignPicker] = useState(false);
@@ -2435,6 +2436,10 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
         setMentionSearch(after.toLowerCase());
         setMentionStart(atIdx);
         setMentionOpen(true);
+        if(textareaRef.current) {
+          const r = textareaRef.current.getBoundingClientRect();
+          setMentionPos({ top: r.top - 8, left: r.left });
+        }
         return;
       }
     }
@@ -2645,7 +2650,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                 <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Post Update'}</button>
               </div>
               {mentionOpen && filteredMembers.length>0 && (
-                <div style={{ position:'absolute', bottom:'calc(100% + 4px)', left:0, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, width:240, boxShadow:'0 8px 24px rgba(0,0,0,.4)', overflow:'hidden' }}>
+                <div style={{ position:'fixed', top:mentionPos.top, left:mentionPos.left, transform:'translateY(-100%)', zIndex:9999, background:'var(--surface)', border:'1px solid var(--accent)', borderRadius:8, width:240, boxShadow:'0 8px 32px rgba(0,0,0,.5)', overflow:'hidden' }}>
                   <div style={{ padding:'6px 10px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--border)', background:'var(--surface2)' }}>Team Members</div>
                   {filteredMembers.slice(0,6).map(m=>(
                     <div key={m.id} onMouseDown={e=>{ e.preventDefault(); insertMention(m); }}
@@ -3564,23 +3569,26 @@ function CalendarView({ profile, workspaces, toast }) {
     <div style={{ padding:'24px 28px', paddingBottom:60 }}>
 
       {/* ── HEADER ── */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
-        <div>
-          <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700 }}>Team Calendar</div>
-          <div style={{ color:'var(--muted)', fontSize:13, marginTop:2 }}>
-            {profile.role==='admin'||profile.role==='manager' ? 'All team events and loan deadlines' : 'Your events and shared team events'}
+      <div style={{ marginBottom:20 }}>
+        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:12 }}>
+          <div>
+            <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700 }}>Team Calendar</div>
+            <div style={{ color:'var(--muted)', fontSize:13, marginTop:2 }}>
+              {profile.role==='admin'||profile.role==='manager' ? 'All team events and loan deadlines' : 'Your events and shared team events'}
+            </div>
           </div>
+          <button className="btn-primary btn-sm" onClick={()=>openNew(`${year}-${String(month+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`)}>+ New Event</button>
         </div>
-        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
           {(profile.role==='admin'||profile.role==='manager') && (
             <div style={{ display:'flex', background:'var(--surface2)', borderRadius:8, border:'1px solid var(--border)', overflow:'hidden' }}>
-              <button onClick={()=>setAdminView(true)} style={{ padding:'7px 16px', background:adminView?'var(--accent)':'transparent', color:adminView?'#fff':'var(--muted)', border:'none', borderRight:'1px solid var(--border)', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Team View</button>
-              <button onClick={()=>setAdminView(false)} style={{ padding:'7px 16px', background:!adminView?'var(--accent)':'transparent', color:!adminView?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>My Events</button>
+              <button onClick={()=>setAdminView(true)} style={{ padding:'6px 14px', background:adminView?'var(--accent)':'transparent', color:adminView?'#fff':'var(--muted)', border:'none', borderRight:'1px solid var(--border)', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Team View</button>
+              <button onClick={()=>setAdminView(false)} style={{ padding:'6px 14px', background:!adminView?'var(--accent)':'transparent', color:!adminView?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>My Events</button>
             </div>
           )}
           <div style={{ display:'flex', background:'var(--surface2)', borderRadius:8, border:'1px solid var(--border)', overflow:'hidden' }}>
-            <button onClick={()=>setViewMode('month')} style={{ padding:'7px 16px', background:viewMode==='month'?'var(--accent)':'transparent', color:viewMode==='month'?'#fff':'var(--muted)', border:'none', borderRight:'1px solid var(--border)', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Month</button>
-            <button onClick={()=>setViewMode('agenda')} style={{ padding:'7px 16px', background:viewMode==='agenda'?'var(--accent)':'transparent', color:viewMode==='agenda'?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Agenda</button>
+            <button onClick={()=>setViewMode('month')} style={{ padding:'6px 14px', background:viewMode==='month'?'var(--accent)':'transparent', color:viewMode==='month'?'#fff':'var(--muted)', border:'none', borderRight:'1px solid var(--border)', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Month</button>
+            <button onClick={()=>setViewMode('agenda')} style={{ padding:'6px 14px', background:viewMode==='agenda'?'var(--accent)':'transparent', color:viewMode==='agenda'?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Agenda</button>
           </div>
           <button onClick={exportICS} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--muted)', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}
             onMouseOver={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)';}}
@@ -3592,7 +3600,7 @@ function CalendarView({ profile, workspaces, toast }) {
           {calConnected ? (
             <div style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 12px', background:'rgba(52,168,83,.15)', border:'1px solid rgba(52,168,83,.4)', borderRadius:6 }}>
               <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#34A853" d="M24 46c6.1 0 11.2-2 14.9-5.4l-7.3-5.4c-2 1.4-4.6 2.2-7.6 2.2-5.9 0-10.8-3.9-12.6-9.2H3.8v5.6C7.5 41.8 15.2 46 24 46z"/><path fill="#4285F4" d="M45.5 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h12.1c-.5 2.7-2.1 5-4.5 6.5v5.4h7.3c4.3-3.9 6.6-9.7 6.6-15.6z"/><path fill="#FBBC05" d="M11.4 28.2c-.5-1.4-.7-2.8-.7-4.2s.3-2.9.7-4.2v-5.6H3.8C2.3 17.1 1.5 20.4 1.5 24s.8 6.9 2.3 9.8l7.6-5.6z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35.1 4.1 29.9 2 24 2 15.2 2 7.5 6.2 3.8 12.8l7.6 5.6c1.8-5.3 6.7-7.6 12.6-7.6z"/></svg>
-              <span style={{ fontSize:12, fontWeight:600, color:'#34A853' }}>Google Calendar On</span>
+              <span style={{ fontSize:12, fontWeight:600, color:'#34A853' }}>GCal Connected</span>
               <button onClick={disconnectGCal} style={{ background:'none', border:'none', color:'rgba(52,168,83,.7)', cursor:'pointer', fontSize:14, padding:'0 2px', lineHeight:1 }} title="Disconnect">×</button>
             </div>
           ) : (
@@ -3601,10 +3609,9 @@ function CalendarView({ profile, workspaces, toast }) {
               onMouseOver={e=>{ if(gsiLoaded) e.currentTarget.style.background='rgba(66,133,244,.25)'; }}
               onMouseOut={e=>e.currentTarget.style.background='rgba(66,133,244,.12)'}>
               <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.5 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h12.1c-.5 2.7-2.1 5-4.5 6.5v5.4h7.3c4.3-3.9 6.6-9.7 6.6-15.6z"/><path fill="#34A853" d="M24 46c6.1 0 11.2-2 14.9-5.4l-7.3-5.4c-2 1.4-4.6 2.2-7.6 2.2-5.9 0-10.8-3.9-12.6-9.2H3.8v5.6C7.5 41.8 15.2 46 24 46z"/><path fill="#FBBC05" d="M11.4 28.2c-.5-1.4-.7-2.8-.7-4.2s.3-2.9.7-4.2v-5.6H3.8C2.3 17.1 1.5 20.4 1.5 24s.8 6.9 2.3 9.8l7.6-5.6z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35.1 4.1 29.9 2 24 2 15.2 2 7.5 6.2 3.8 12.8l7.6 5.6c1.8-5.3 6.7-7.6 12.6-7.6z"/></svg>
-              {gsiLoaded ? 'Connect Google Calendar' : 'Loading...'}
+              {gsiLoaded ? 'Connect Google Cal' : 'Loading...'}
             </button>
           )}
-          <button className="btn-primary btn-sm" onClick={()=>openNew(`${year}-${String(month+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`)}>+ New Event</button>
         </div>
       </div>
 
