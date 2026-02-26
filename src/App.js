@@ -5239,10 +5239,40 @@ function PresentationsPage({ profile, toast }) {
   const [templates, setTemplates]   = useState([]);
   const [loading, setLoading]       = useState(true);
   const [showUpload, setShowUpload] = useState(false);
-  const [newTmpl, setNewTmpl]       = useState({ name:'', description:'', slides:'[]' });
+  const [newTmpl, setNewTmpl]       = useState({ name:'', description:'', slides:'[]', type:'slides', pdf_url:'', pdf_name:'' });
   const [saving, setSaving]         = useState(false);
+  const [uploading, setUploading]   = useState(false);
+  const pdfInputRef                 = React.useRef(null);
   const [previewPres, setPreviewPres] = useState(null);
   const [previewSlide, setPreviewSlide] = useState(0);
+
+  const handlePdfUpload = async (file) => {
+    if(!file) return;
+    if(!file.type.includes('pdf')) { toast('Please select a PDF file'); return; }
+    if(file.size > 50*1024*1024) { toast('PDF must be under 50MB'); return; }
+    setUploading(true);
+    try {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+      const path = 'templates/' + profile.company_name + '/' + Date.now() + '-' + safeName;
+      const { error } = await supabase.storage
+        .from('presentation-pdfs')
+        .upload(path, file, { contentType:'application/pdf', upsert:true });
+      if(error) {
+        if(error.message?.includes('Bucket') || error.message?.includes('bucket') || error.statusCode===404) {
+          toast('Storage bucket not found — create a PUBLIC bucket named "presentation-pdfs" in Supabase Storage');
+        } else {
+          toast('Upload failed: ' + error.message);
+        }
+        setUploading(false); return;
+      }
+      const { data:urlData } = supabase.storage.from('presentation-pdfs').getPublicUrl(path);
+      setNewTmpl(f=>({...f, pdf_url: urlData.publicUrl, pdf_name: file.name}));
+      toast('PDF uploaded!');
+    } catch(e) {
+      toast('Upload error: ' + e.message);
+    }
+    setUploading(false);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -5274,9 +5304,12 @@ function PresentationsPage({ profile, toast }) {
       slides:        slidesJson,
       created_by:    profile.id,
     }]);
-    if(error) toast('Error: '+error.message);
-    else { toast('Template saved!'); setShowUpload(false); setNewTmpl({name:'',description:'',slides:'[]',type:'slides',pdf_url:'',pdf_name:''}); load(); }
+    if(error) { toast('Error: '+error.message); setSaving(false); return; }
+    toast('Template saved!');
+    setShowUpload(false);
+    setNewTmpl({name:'',description:'',slides:'[]',type:'slides',pdf_url:'',pdf_name:''});
     setSaving(false);
+    load();
   };
 
   const deleteTemplate = async (id) => {
@@ -5420,46 +5453,34 @@ function PresentationsPage({ profile, toast }) {
             {(newTmpl.type||'slides')==='pdf' ? (
               <div className="form-group">
                 <label>Upload PDF</label>
+                <input type="file" accept="application/pdf,.pdf" ref={pdfInputRef} style={{ display:'none' }}
+                  onChange={e=>{ handlePdfUpload(e.target.files?.[0]); e.target.value=''; }} />
                 {newTmpl.pdf_url ? (
-                  <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:'var(--surface2)', borderRadius:6, border:'1px solid var(--border)' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 14px', background:'var(--surface2)', borderRadius:8, border:'1px solid var(--border)' }}>
                     <div style={{ color:'var(--success)', display:'flex' }}>{React.cloneElement(Icons.checkCircle,{width:16,height:16})}</div>
-                    <span style={{ fontSize:13, flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{newTmpl.pdf_name||'PDF uploaded'}</span>
+                    <span style={{ fontSize:13, flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'var(--text)' }}>{newTmpl.pdf_name||'PDF uploaded'}</span>
                     <button onClick={()=>setNewTmpl(f=>({...f,pdf_url:'',pdf_name:''}))} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:12 }}>Remove</button>
                   </div>
                 ) : (
-                  <div>
-                    <input type="file" accept=".pdf,application/pdf" id="pdf-upload" style={{ display:'none' }}
-                      onChange={async e=>{
-                        const file = e.target.files?.[0];
-                        if(!file) return;
-                        if(file.size > 50*1024*1024) { toast('PDF must be under 50MB'); return; }
-                        setSaving(true);
-                        const path = `templates/${profile.company_name}/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
-                        const { error } = await supabase.storage.from('presentation-pdfs').upload(path, file, { contentType:'application/pdf', upsert:true });
-                        if(error) { 
-                          if(error.message?.includes('Bucket not found') || error.statusCode===404) {
-                            toast('Storage bucket missing — create a public bucket named "presentation-pdfs" in Supabase Storage');
-                          } else if(error.statusCode===413 || error.message?.includes('too large')) {
-                            toast('File too large — max 50MB. Compress your PDF first');
-                          } else {
-                            toast('Upload failed: ' + error.message);
-                          }
-                          setSaving(false); return; 
-                        }
-                        const { data:urlData } = supabase.storage.from('presentation-pdfs').getPublicUrl(path);
-                        setNewTmpl(f=>({...f, pdf_url:urlData.publicUrl, pdf_name:file.name}));
-                        setSaving(false);
-                      }}
-                    />
-                    <label htmlFor="pdf-upload" style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'32px', border:'2px dashed var(--border)', borderRadius:8, cursor:'pointer', color:'var(--muted)', fontSize:14, transition:'all .15s', textTransform:'none', letterSpacing:'normal', fontWeight:500 }}
-                      onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.color='var(--accent)'; }}
-                      onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.color='var(--muted)'; }}>
-                      {saving ? <><div style={{ width:16,height:16,borderRadius:'50%',border:'2px solid var(--border)',borderTopColor:'var(--accent)',animation:'spin 1s linear infinite' }}/> Uploading...</> : <>{React.cloneElement(Icons.upload,{width:18,height:18})} Click to upload PDF (max 50MB)</>}
-                    </label>
+                  <div onClick={()=>pdfInputRef.current?.click()}
+                    style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:10, padding:'36px 20px', border:'2px dashed var(--border)', borderRadius:8, cursor:'pointer', transition:'all .15s' }}
+                    onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.background='rgba(77,142,240,.04)'; }}
+                    onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background='transparent'; }}>
+                    {uploading ? (
+                      <>
+                        <div style={{ width:24, height:24, borderRadius:'50%', border:'3px solid var(--border)', borderTopColor:'var(--accent)', animation:'spin 1s linear infinite' }} />
+                        <div style={{ fontSize:13, color:'var(--muted)' }}>Uploading...</div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ color:'var(--muted)' }}>{React.cloneElement(Icons.upload,{width:28,height:28})}</div>
+                        <div style={{ fontSize:14, color:'var(--text)', fontWeight:500 }}>Click to upload PDF</div>
+                        <div style={{ fontSize:12, color:'var(--muted)' }}>Max 50MB</div>
+                      </>
+                    )}
                   </div>
                 )}
-              </div>
-            ) : (
+              </div>) : (
               <div className="form-group">
                 <label>Slides JSON</label>
                 <div style={{ fontSize:11, color:'var(--muted)', marginBottom:6 }}>Paste a JSON array of slide objects. Use <code style={{background:'var(--surface2)',padding:'1px 4px',borderRadius:3}}>{'{{borrower_name}}'}</code> and <code style={{background:'var(--surface2)',padding:'1px 4px',borderRadius:3}}>{'{{lo_name}}'}</code> as tokens.</div>
