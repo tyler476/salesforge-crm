@@ -3561,7 +3561,7 @@ function CalendarView({ profile, workspaces, toast }) {
   const evTypeObj = (type) => EVENT_TYPES.find(t=>t.id===type) || EVENT_TYPES[0];
 
   return (
-    <div style={{ padding:'24px 28px', minHeight:'100vh' }}>
+    <div style={{ padding:'24px 28px', paddingBottom:60 }}>
 
       {/* ── HEADER ── */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
@@ -3682,7 +3682,7 @@ function CalendarView({ profile, workspaces, toast }) {
 
       {/* ── AGENDA VIEW ── */}
       {viewMode==='agenda' && (
-        <div style={{ background:'var(--surface)', borderRadius:10, border:'1px solid var(--border)', overflow:'hidden' }}>
+        <div style={{ background:'var(--surface)', borderRadius:10, border:'1px solid var(--border)' }}>
           {agendaEvents.length===0 && (
             <div style={{ padding:48, textAlign:'center', color:'var(--muted)' }}>
               <div style={{ fontSize:32, marginBottom:10 }}>📅</div>
