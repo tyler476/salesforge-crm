@@ -78,6 +78,19 @@ const css = `
     .main { margin-left:60px; }
     .drawer { width:100vw; }
   }
+  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); border-left:1px solid var(--border); border-top:1px solid var(--border); }
+  .cal-cell { border-right:1px solid var(--border); border-bottom:1px solid var(--border); min-height:110px; padding:6px; cursor:pointer; transition:background .1s; position:relative; }
+  .cal-cell:hover { background:rgba(77,142,240,.06); }
+  .cal-cell.today { background:rgba(77,142,240,.08); }
+  .cal-cell.other-month { opacity:.38; }
+  .cal-cell.weekend { background:rgba(0,0,0,.06); }
+  .cal-day-num { font-size:13px; font-weight:600; width:26px; height:26px; display:flex; align-items:center; justify-content:center; border-radius:50%; margin-bottom:4px; flex-shrink:0; }
+  .cal-cell.today .cal-day-num { background:var(--accent); color:#fff; }
+  .cal-event-pill { font-size:11px; padding:2px 7px; border-radius:3px; margin-bottom:2px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600; transition:opacity .1s; display:block; }
+  .cal-event-pill:hover { opacity:.75; }
+  .cal-header-day { text-align:center; padding:10px 0; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); border-right:1px solid var(--border); border-bottom:2px solid var(--border); }
+  .event-type-btn { padding:7px 14px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; font-family:inherit; }
+  .event-type-btn.active { border-color:var(--accent); background:rgba(77,142,240,.15); color:var(--accent); }
 `;
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -3094,6 +3107,374 @@ function TrashArchiveView({ profile, workspaces, toast }) {
   );
 }
 
+
+// ─── CALENDAR VIEW ───────────────────────────────────────────────────────────
+const EVENT_TYPES = [
+  { id:'meeting',    label:'Meeting',     icon:'📅', color:'#4d8ef0' },
+  { id:'closing',   label:'Closing',     icon:'🏠', color:'#2ecc8a' },
+  { id:'deadline',  label:'Deadline',    icon:'⚠️', color:'#e05252' },
+  { id:'call',      label:'Call',        icon:'📞', color:'#f0b429' },
+  { id:'followup',  label:'Follow-up',   icon:'🔄', color:'#9b59b6' },
+  { id:'other',     label:'Other',       icon:'📌', color:'#00b8c4' },
+];
+
+function CalendarView({ profile, workspaces, toast }) {
+  const today = new Date();
+  const [year, setYear]   = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth()); // 0-indexed
+  const [events, setEvents]         = useState([]);
+  const [wsItems, setWsItems]       = useState([]);
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [showModal, setShowModal]   = useState(false);
+  const [editEvent, setEditEvent]   = useState(null);   // null = new
+  const [selectedDate, setSelectedDate] = useState('');
+  const [viewMode, setViewMode]     = useState('month'); // 'month' | 'agenda'
+  const [adminView, setAdminView]   = useState(true);    // admins default all-team
+
+  // form state
+  const blankForm = { title:'', description:'', event_date:'', start_time:'', end_time:'', event_type:'meeting', workspace_item_id:'', is_shared:true, color:'#4d8ef0' };
+  const [form, setForm] = useState(blankForm);
+  const setF = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  useEffect(() => { loadEvents(); loadWsItems(); loadTeam(); }, [year, month, profile.company_id]);
+
+  const loadEvents = async () => {
+    const start = `${year}-${String(month+1).padStart(2,'0')}-01`;
+    const endDate = new Date(year, month+1, 0);
+    const end   = `${year}-${String(month+1).padStart(2,'0')}-${String(endDate.getDate()).padStart(2,'0')}`;
+    let q = supabase.from('calendar_events').select('*')
+      .eq('company_id', profile.company_name)
+      .gte('event_date', start).lte('event_date', end)
+      .order('start_time', { ascending: true });
+    const { data } = await q;
+    setEvents(data||[]);
+  };
+
+  const loadWsItems = async () => {
+    const { data } = await supabase.from('workspace_items').select('id,name,date,status,group_id').eq('company_id', profile.company_name).not('date','is',null);
+    setWsItems((data||[]).filter(i=>i.date));
+  };
+
+  const loadTeam = async () => {
+    const { data } = await supabase.from('profiles').select('id,full_name,role').eq('company_name', profile.company_name);
+    setTeamMembers(data||[]);
+  };
+
+  const saveEvent = async () => {
+    if(!form.title.trim() || !form.event_date) { toast('Title and date are required'); return; }
+    const payload = { ...form, company_id: profile.company_name, created_by: profile.id, creator_name: profile.full_name, workspace_item_id: form.workspace_item_id||null };
+    if(editEvent) {
+      await supabase.from('calendar_events').update(payload).eq('id', editEvent.id);
+      toast('Event updated');
+    } else {
+      await supabase.from('calendar_events').insert([payload]);
+      toast('Event created ✅');
+    }
+    setShowModal(false); setEditEvent(null); setForm(blankForm);
+    loadEvents();
+  };
+
+  const deleteEvent = async (id) => {
+    await supabase.from('calendar_events').delete().eq('id', id);
+    setEvents(e=>e.filter(x=>x.id!==id));
+    setShowModal(false); setEditEvent(null); setForm(blankForm);
+    toast('Event deleted');
+  };
+
+  const openNew = (dateStr) => {
+    setEditEvent(null);
+    setForm({...blankForm, event_date: dateStr });
+    setSelectedDate(dateStr);
+    setShowModal(true);
+  };
+
+  const openEdit = (e, ev) => {
+    e.stopPropagation();
+    setEditEvent(ev);
+    setForm({ title:ev.title, description:ev.description||'', event_date:ev.event_date, start_time:ev.start_time||'', end_time:ev.end_time||'', event_type:ev.event_type||'meeting', workspace_item_id:ev.workspace_item_id||'', is_shared:ev.is_shared!==false, color:ev.color||'#4d8ef0' });
+    setShowModal(true);
+  };
+
+  // Visible events filter
+  const visibleEvents = events.filter(ev => {
+    if(profile.role==='admin' || profile.role==='manager') return adminView ? true : ev.created_by===profile.id;
+    return ev.created_by===profile.id || ev.is_shared;
+  });
+
+  // Build calendar grid
+  const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const daysInPrev  = new Date(year, month, 0).getDate();
+  const totalCells  = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+
+  const cells = [];
+  for(let i=0; i<totalCells; i++) {
+    let d, m2, y2, isCurrentMonth = true;
+    if(i < firstDay) {
+      d = daysInPrev - firstDay + i + 1; m2 = month-1 < 0 ? 11 : month-1; y2 = month-1 < 0 ? year-1 : year; isCurrentMonth=false;
+    } else if(i >= firstDay + daysInMonth) {
+      d = i - firstDay - daysInMonth + 1; m2 = month+1 > 11 ? 0 : month+1; y2 = month+1 > 11 ? year+1 : year; isCurrentMonth=false;
+    } else {
+      d = i - firstDay + 1; m2 = month; y2 = year;
+    }
+    const dateStr = `${y2}-${String(m2+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = d===today.getDate() && m2===today.getMonth() && y2===today.getFullYear() && isCurrentMonth;
+    const isWeekend = (i%7===0 || i%7===6);
+    const dayEvents = visibleEvents.filter(ev=>ev.event_date===dateStr);
+    const dayWsItems = wsItems.filter(wi=>wi.date===dateStr);
+    cells.push({ d, dateStr, isCurrentMonth, isToday, isWeekend, dayEvents, dayWsItems });
+  }
+
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  const prevMonth = () => { if(month===0){setMonth(11);setYear(y=>y-1);}else setMonth(m=>m-1); };
+  const nextMonth = () => { if(month===11){setMonth(0);setYear(y=>y+1);}else setMonth(m=>m+1); };
+
+  // Agenda view: next 30 days of events
+  const agendaEvents = [...visibleEvents].sort((a,b)=>a.event_date.localeCompare(b.event_date));
+
+  const creatorColor = (ev) => {
+    const m = teamMembers.find(t=>t.id===ev.created_by);
+    return m ? avatarColor(m.full_name) : ev.color || '#4d8ef0';
+  };
+
+  const evTypeObj = (type) => EVENT_TYPES.find(t=>t.id===type) || EVENT_TYPES[0];
+
+  return (
+    <div style={{ padding:'24px 28px', minHeight:'100vh' }}>
+
+      {/* ── HEADER ── */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
+        <div>
+          <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700 }}>Team Calendar</div>
+          <div style={{ color:'var(--muted)', fontSize:13, marginTop:2 }}>
+            {profile.role==='admin'||profile.role==='manager' ? 'All team events and loan deadlines' : 'Your events and shared team events'}
+          </div>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {(profile.role==='admin'||profile.role==='manager') && (
+            <div style={{ display:'flex', background:'var(--surface2)', borderRadius:8, border:'1px solid var(--border)', overflow:'hidden' }}>
+              <button onClick={()=>setAdminView(true)} style={{ padding:'7px 14px', background:adminView?'var(--accent)':'transparent', color:adminView?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Team View</button>
+              <button onClick={()=>setAdminView(false)} style={{ padding:'7px 14px', background:!adminView?'var(--accent)':'transparent', color:!adminView?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>My Events</button>
+            </div>
+          )}
+          <div style={{ display:'flex', background:'var(--surface2)', borderRadius:8, border:'1px solid var(--border)', overflow:'hidden' }}>
+            <button onClick={()=>setViewMode('month')} style={{ padding:'7px 14px', background:viewMode==='month'?'var(--accent)':'transparent', color:viewMode==='month'?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Month</button>
+            <button onClick={()=>setViewMode('agenda')} style={{ padding:'7px 14px', background:viewMode==='agenda'?'var(--accent)':'transparent', color:viewMode==='agenda'?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Agenda</button>
+          </div>
+          <button className="btn-primary btn-sm" onClick={()=>openNew(`${year}-${String(month+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`)}>+ New Event</button>
+        </div>
+      </div>
+
+      {/* ── MONTH NAV ── */}
+      <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:16 }}>
+        <button onClick={prevMonth} style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', padding:'6px 12px', borderRadius:6, fontSize:16, cursor:'pointer', lineHeight:1 }}>‹</button>
+        <div style={{ fontFamily:'Playfair Display,serif', fontSize:22, fontWeight:700, minWidth:220 }}>{MONTHS[month]} {year}</div>
+        <button onClick={nextMonth} style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', padding:'6px 12px', borderRadius:6, fontSize:16, cursor:'pointer', lineHeight:1 }}>›</button>
+        <button onClick={()=>{ setYear(today.getFullYear()); setMonth(today.getMonth()); }} style={{ background:'none', border:'1px solid var(--border)', color:'var(--muted)', padding:'5px 12px', borderRadius:6, fontSize:12, cursor:'pointer', fontFamily:'inherit', marginLeft:4 }}>Today</button>
+
+        {/* Legend */}
+        <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'var(--muted)' }}>
+            <div style={{ width:10, height:10, borderRadius:2, background:'#4d8ef0' }} /> Events
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'var(--muted)' }}>
+            <div style={{ width:10, height:10, borderRadius:2, background:'#e05252', opacity:.7 }} /> Loan Deadlines
+          </div>
+          {adminView && (profile.role==='admin'||profile.role==='manager') && teamMembers.slice(0,4).map(m=>(
+            <div key={m.id} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'var(--muted)' }}>
+              <div style={{ width:10, height:10, borderRadius:'50%', background:avatarColor(m.full_name) }} /> {m.full_name.split(' ')[0]}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── MONTH VIEW ── */}
+      {viewMode==='month' && (
+        <div style={{ background:'var(--surface)', borderRadius:10, border:'1px solid var(--border)', overflow:'hidden', boxShadow:'0 4px 20px rgba(0,0,0,.2)' }}>
+          {/* Day headers */}
+          <div className="cal-grid" style={{ minHeight:'auto' }}>
+            {DAYS.map(d=>(
+              <div key={d} className="cal-header-day" style={{ background:'var(--surface2)' }}>{d}</div>
+            ))}
+          </div>
+          {/* Day cells */}
+          <div className="cal-grid">
+            {cells.map((cell,i)=>(
+              <div key={i}
+                className={`cal-cell${cell.isToday?' today':''}${!cell.isCurrentMonth?' other-month':''}${cell.isWeekend?' weekend':''}`}
+                onClick={()=>cell.isCurrentMonth && openNew(cell.dateStr)}>
+                <div className="cal-day-num">{cell.d}</div>
+
+                {/* Workspace item due dates */}
+                {cell.dayWsItems.map(wi=>(
+                  <span key={wi.id} className="cal-event-pill"
+                    style={{ background:'rgba(224,82,82,.18)', color:'#e05252', borderLeft:'2px solid #e05252' }}
+                    title={`Due: ${wi.name}`}
+                    onClick={e=>e.stopPropagation()}>
+                    ⚠ {wi.name}
+                  </span>
+                ))}
+
+                {/* Calendar events */}
+                {cell.dayEvents.slice(0,3).map(ev=>{
+                  const color = adminView && (profile.role==='admin'||profile.role==='manager') ? creatorColor(ev) : (ev.color||'#4d8ef0');
+                  const et = evTypeObj(ev.event_type);
+                  return (
+                    <span key={ev.id} className="cal-event-pill"
+                      style={{ background:color+'28', color:color, borderLeft:`2px solid ${color}` }}
+                      onClick={e=>openEdit(e,ev)}
+                      title={`${ev.start_time?ev.start_time.slice(0,5)+' ':''} ${ev.title}${ev.creator_name?' · '+ev.creator_name:''}`}>
+                      {et.icon} {ev.title}
+                    </span>
+                  );
+                })}
+                {cell.dayEvents.length > 3 && (
+                  <span style={{ fontSize:10, color:'var(--muted)', paddingLeft:4 }}>+{cell.dayEvents.length-3} more</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── AGENDA VIEW ── */}
+      {viewMode==='agenda' && (
+        <div style={{ background:'var(--surface)', borderRadius:10, border:'1px solid var(--border)', overflow:'hidden' }}>
+          {agendaEvents.length===0 && (
+            <div style={{ padding:48, textAlign:'center', color:'var(--muted)' }}>
+              <div style={{ fontSize:32, marginBottom:10 }}>📅</div>
+              No events this month. Click + New Event to get started.
+            </div>
+          )}
+          {agendaEvents.map((ev,i)=>{
+            const et = evTypeObj(ev.event_type);
+            const color = adminView && (profile.role==='admin'||profile.role==='manager') ? creatorColor(ev) : (ev.color||'#4d8ef0');
+            const prevDate = i>0 ? agendaEvents[i-1].event_date : null;
+            const showDateHeader = ev.event_date !== prevDate;
+            return (
+              <React.Fragment key={ev.id}>
+                {showDateHeader && (
+                  <div style={{ padding:'10px 20px', background:'var(--surface2)', borderBottom:'1px solid var(--border)', fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.08em' }}>
+                    {new Date(ev.event_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}
+                  </div>
+                )}
+                <div onClick={e=>openEdit(e,ev)}
+                  style={{ display:'flex', alignItems:'center', gap:16, padding:'14px 20px', borderBottom:'1px solid var(--border)', cursor:'pointer', borderLeft:`3px solid ${color}`, transition:'background .1s' }}
+                  onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'}
+                  onMouseOut={e=>e.currentTarget.style.background=''}>
+                  <div style={{ fontSize:22, width:32, textAlign:'center', flexShrink:0 }}>{et.icon}</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:600, fontSize:14 }}>{ev.title}</div>
+                    {ev.description && <div style={{ color:'var(--muted)', fontSize:12, marginTop:2 }}>{ev.description}</div>}
+                  </div>
+                  <div style={{ textAlign:'right', flexShrink:0 }}>
+                    {ev.start_time && <div style={{ fontSize:13, fontWeight:600, color }}>{ev.start_time.slice(0,5)}{ev.end_time ? ` – ${ev.end_time.slice(0,5)}` : ''}</div>}
+                    <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{ev.is_shared ? '👥 Shared' : '🔒 Private'}</div>
+                  </div>
+                  {adminView && (profile.role==='admin'||profile.role==='manager') && (
+                    <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
+                      <div style={{ width:24, height:24, borderRadius:'50%', background:color, display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, color:'#fff' }}>{initials(ev.creator_name||'?')}</div>
+                      <span style={{ fontSize:11, color:'var(--muted)' }}>{ev.creator_name}</span>
+                    </div>
+                  )}
+                </div>
+              </React.Fragment>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── EVENT MODAL ── */}
+      {showModal && (
+        <div className="event-modal-overlay" onClick={()=>{setShowModal(false);setEditEvent(null);setForm(blankForm);}}>
+          <div className="event-modal" onClick={e=>e.stopPropagation()}>
+            {/* Header */}
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+              <div style={{ fontFamily:'Playfair Display,serif', fontSize:20, fontWeight:700 }}>{editEvent ? 'Edit Event' : 'New Event'}</div>
+              <button onClick={()=>{setShowModal(false);setEditEvent(null);setForm(blankForm);}} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer', lineHeight:1, padding:4 }}>×</button>
+            </div>
+
+            {/* Event type selector */}
+            <div style={{ marginBottom:16 }}>
+              <label>Event Type</label>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:6 }}>
+                {EVENT_TYPES.map(t=>(
+                  <button key={t.id} className={`event-type-btn${form.event_type===t.id?' active':''}`}
+                    onClick={()=>{ setF('event_type',t.id); setF('color',t.color); }}>
+                    {t.icon} {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Title */}
+            <div className="form-group">
+              <label>Title *</label>
+              <input value={form.title} onChange={e=>setF('title',e.target.value)} placeholder="e.g. Closing — Smith Property" autoFocus />
+            </div>
+
+            {/* Date & Times */}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:16 }}>
+              <div className="form-group" style={{ marginBottom:0 }}>
+                <label>Date *</label>
+                <input type="date" value={form.event_date} onChange={e=>setF('event_date',e.target.value)} />
+              </div>
+              <div className="form-group" style={{ marginBottom:0 }}>
+                <label>Start Time</label>
+                <input type="time" value={form.start_time} onChange={e=>setF('start_time',e.target.value)} />
+              </div>
+              <div className="form-group" style={{ marginBottom:0 }}>
+                <label>End Time</label>
+                <input type="time" value={form.end_time} onChange={e=>setF('end_time',e.target.value)} />
+              </div>
+            </div>
+
+            {/* Description */}
+            <div className="form-group">
+              <label>Notes / Description</label>
+              <textarea value={form.description} onChange={e=>setF('description',e.target.value)} rows={2} placeholder="Add any notes, location, or agenda..." style={{ resize:'vertical' }} />
+            </div>
+
+            {/* Link to workspace item */}
+            <div className="form-group">
+              <label>Link to Loan / Item (optional)</label>
+              <select value={form.workspace_item_id} onChange={e=>setF('workspace_item_id',e.target.value)} style={{ width:'100%' }}>
+                <option value="">— Not linked —</option>
+                {wsItems.map(wi=>(
+                  <option key={wi.id} value={wi.id}>{wi.name}{wi.date ? ` (due ${wi.date})` : ''}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Visibility */}
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20, padding:'10px 14px', background:'var(--surface2)', borderRadius:8, border:'1px solid var(--border)' }}>
+              <input type="checkbox" id="is_shared" checked={form.is_shared} onChange={e=>setF('is_shared',e.target.checked)} style={{ width:16, height:16, cursor:'pointer' }} />
+              <label htmlFor="is_shared" style={{ margin:0, textTransform:'none', fontSize:13, color:'var(--text)', cursor:'pointer', fontWeight:400 }}>
+                <span style={{ fontWeight:600 }}>Shared with team</span> — visible to all team members
+              </label>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display:'flex', gap:10, justifyContent:'space-between' }}>
+              <div>
+                {editEvent && (ev => ev.created_by===profile.id || profile.role==='admin')(editEvent) && (
+                  <button className="btn-danger btn-sm" onClick={()=>deleteEvent(editEvent.id)}>Delete</button>
+                )}
+              </div>
+              <div style={{ display:'flex', gap:10 }}>
+                <button className="btn-secondary btn-sm" onClick={()=>{setShowModal(false);setEditEvent(null);setForm(blankForm);}}>Cancel</button>
+                <button className="btn-primary btn-sm" onClick={saveEvent}>{editEvent?'Save Changes':'Create Event'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // SVG Icons
 const Icons = {
   dashboard: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
@@ -3105,6 +3486,7 @@ const Icons = {
   chevron: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
   plus: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
   comment: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
+  calendar: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
 };
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
@@ -3205,6 +3587,7 @@ export default function App() {
     { id:'contacts', label:'Contacts', icon:Icons.contacts },
     { id:'pipeline', label:'Lead Funnel', icon:Icons.pipeline },
     { id:'team', label:'Team', icon:Icons.team },
+    { id:'calendar', label:'Calendar', icon:Icons.calendar },
     ...(profile.role==='admin' ? [{ id:'branding', label:'Branding', icon:Icons.branding }] : []),
   ];
 
@@ -3281,6 +3664,7 @@ export default function App() {
           if('contacts'.includes(ql)) r.push({icon:'👥',title:'Contacts',subtitle:'View all contacts',type:'Page',action:()=>setView('contacts',null)});
           if('pipeline'.includes(ql)||'funnel'.includes(ql)) r.push({icon:'〽️',title:'Lead Funnel',subtitle:'View pipeline',type:'Page',action:()=>setView('pipeline',null)});
           if('team'.includes(ql)) r.push({icon:'🏢',title:'Team',subtitle:'Manage team members',type:'Page',action:()=>setView('team',null)});
+          if('calendar'.includes(ql)||'events'.includes(ql)) r.push({icon:'📅',title:'Calendar',subtitle:'Team calendar & events',type:'Page',action:()=>setView('calendar',null)});
           return r;
         }}
       />
@@ -3293,6 +3677,7 @@ export default function App() {
         {view==='team' && <TeamView profile={profile} toast={toast} />}
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
         {view==='trash' && <TrashArchiveView profile={profile} workspaces={workspaces} toast={toast} />}
+        {view==='calendar' && <CalendarView profile={profile} workspaces={workspaces} toast={toast} />}
         {view==='workspace' && activeWorkspace && <WorkspaceView workspace={activeWorkspace} profile={profile} toast={toast}
   allWorkspaces={workspaces}
   onSwitchWorkspace={w=>setView('workspace',w)}
