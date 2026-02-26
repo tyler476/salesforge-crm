@@ -1331,6 +1331,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   const [dragOverGroup, setDragOverGroup] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
   const [batchStatusOpen, setBatchStatusOpen] = useState(false);
+  const [showNewItemDrop, setShowNewItemDrop] = useState(false);
 
   useEffect(() => {
     loadGroups();
@@ -1366,8 +1367,9 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   };
 
   const loadItems = async (groupId) => {
-    const {data} = await supabase.from('workspace_items').select('*').eq('group_id', groupId).is('parent_id', null).eq('archived', false).neq('trashed', true).order('position');
-    setItems(prev => ({...prev, [groupId]: data||[]}));
+    const {data} = await supabase.from('workspace_items').select('*').eq('group_id', groupId).is('parent_id', null).eq('archived', false).order('position');
+    const filtered = (data||[]).filter(i => !i.trashed);
+    setItems(prev => ({...prev, [groupId]: filtered}));
   };
 
   const loadSubItems = async (parentId) => {
