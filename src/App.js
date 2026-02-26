@@ -2350,6 +2350,9 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   const [posting, setPosting] = useState(false);
   const [files, setFiles] = useState([]);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [driveAttachments, setDriveAttachments] = useState([]);
+  const { pickFile } = useGoogleDrivePicker();
+  const [attachingDrive, setAttachingDrive] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionStart, setMentionStart] = useState(0);
@@ -2360,7 +2363,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   const fileInputRef = React.useRef();
   const panelRef = React.useRef();
 
-  useEffect(() => { loadUpdates(); loadFiles(); }, [item.id]);
+  useEffect(() => { loadUpdates(); loadFiles(); loadDriveAttachments(); }, [item.id]);
 
   // Sync item updates back to parent
   const updateField = async (field, value) => {
@@ -2380,6 +2383,31 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
       const { data } = await supabase.storage.from('workspace-files').list(`items/${item.id}`);
       setFiles(data||[]);
     } catch(e) { setFiles([]); }
+  };
+
+  const loadDriveAttachments = async () => {
+    const { data } = await supabase.from('drive_attachments').select('*').eq('item_id', item.id).order('created_at',{ascending:false});
+    setDriveAttachments(data||[]);
+  };
+
+  const attachDriveFile = async (fileInfo) => {
+    setAttachingDrive(true);
+    const { data } = await supabase.from('drive_attachments').insert([{
+      item_id: item.id,
+      company_id: profile.company_name,
+      created_by: profile.id,
+      creator_name: profile.full_name,
+      ...fileInfo
+    }]).select().single();
+    if(data) setDriveAttachments(d=>[data,...d]);
+    setAttachingDrive(false);
+    toast('📎 Google Drive file attached!');
+  };
+
+  const removeDriveAttachment = async (id) => {
+    await supabase.from('drive_attachments').delete().eq('id',id);
+    setDriveAttachments(d=>d.filter(x=>x.id!==id));
+    toast('Attachment removed');
   };
 
   const postUpdate = async () => {
@@ -2656,11 +2684,54 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
         {/* FILES TAB */}
         {tab==='files' && (
           <div>
-            <input type="file" ref={fileInputRef} onChange={handleFileUpload} style={{ display:'none' }} />
-            <button className="btn-primary btn-sm" onClick={()=>fileInputRef.current?.click()} disabled={uploadingFile} style={{ marginBottom:16, width:'100%', padding:12 }}>
-              {uploadingFile ? '⏳ Uploading...' : '⬆️ Upload File'}
-            </button>
-            {files.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No files attached yet</div>}
+            {/* Upload buttons row */}
+            <div style={{ display:'flex', gap:10, marginBottom:16 }}>
+              <input type="file" ref={fileInputRef} onChange={handleFileUpload} style={{ display:'none' }} />
+              <button onClick={()=>fileInputRef.current?.click()} disabled={uploadingFile}
+                style={{ flex:1, padding:'10px 0', background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}
+                onMouseOver={e=>e.currentTarget.style.borderColor='var(--accent)'}
+                onMouseOut={e=>e.currentTarget.style.borderColor='var(--border)'}>
+                {uploadingFile ? '⏳ Uploading...' : '⬆️ Upload from Computer'}
+              </button>
+              <button onClick={()=>pickFile(attachDriveFile)} disabled={attachingDrive}
+                style={{ flex:1, padding:'10px 0', background:'rgba(66,133,244,.1)', border:'1px solid rgba(66,133,244,.35)', color:'#7baff5', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'all .15s' }}
+                onMouseOver={e=>e.currentTarget.style.background='rgba(66,133,244,.22)'}
+                onMouseOut={e=>e.currentTarget.style.background='rgba(66,133,244,.1)'}>
+                <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.5 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h12.1c-.5 2.7-2.1 5-4.5 6.5v5.4h7.3c4.3-3.9 6.6-9.7 6.6-15.6z"/><path fill="#34A853" d="M24 46c6.1 0 11.2-2 14.9-5.4l-7.3-5.4c-2 1.4-4.6 2.2-7.6 2.2-5.9 0-10.8-3.9-12.6-9.2H3.8v5.6C7.5 41.8 15.2 46 24 46z"/><path fill="#FBBC05" d="M11.4 28.2c-.5-1.4-.7-2.8-.7-4.2s.3-2.9.7-4.2v-5.6H3.8C2.3 17.1 1.5 20.4 1.5 24s.8 6.9 2.3 9.8l7.6-5.6z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35.1 4.1 29.9 2 24 2 15.2 2 7.5 6.2 3.8 12.8l7.6 5.6c1.8-5.3 6.7-7.6 12.6-7.6z"/></svg>
+                {attachingDrive ? 'Attaching...' : 'Attach from Google Drive'}
+              </button>
+            </div>
+
+            {/* Drive attachments */}
+            {driveAttachments.length > 0 && (
+              <div style={{ marginBottom:16 }}>
+                <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
+                  <svg width="12" height="12" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.5 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h12.1c-.5 2.7-2.1 5-4.5 6.5v5.4h7.3c4.3-3.9 6.6-9.7 6.6-15.6z"/><path fill="#34A853" d="M24 46c6.1 0 11.2-2 14.9-5.4l-7.3-5.4c-2 1.4-4.6 2.2-7.6 2.2-5.9 0-10.8-3.9-12.6-9.2H3.8v5.6C7.5 41.8 15.2 46 24 46z"/><path fill="#FBBC05" d="M11.4 28.2c-.5-1.4-.7-2.8-.7-4.2s.3-2.9.7-4.2v-5.6H3.8C2.3 17.1 1.5 20.4 1.5 24s.8 6.9 2.3 9.8l7.6-5.6z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35.1 4.1 29.9 2 24 2 15.2 2 7.5 6.2 3.8 12.8l7.6 5.6c1.8-5.3 6.7-7.6 12.6-7.6z"/></svg>
+                  Google Drive
+                </div>
+                {driveAttachments.map(da=>(
+                  <div key={da.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', background:'rgba(66,133,244,.07)', borderRadius:8, marginBottom:6, border:'1px solid rgba(66,133,244,.2)' }}>
+                    {da.icon_url ? <img src={da.icon_url} width="18" height="18" alt="" style={{ flexShrink:0 }} /> : <span style={{ fontSize:18 }}>📄</span>}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:13, fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{da.file_name}</div>
+                      <div style={{ fontSize:11, color:'var(--muted)' }}>Added by {da.creator_name} · Google Drive</div>
+                    </div>
+                    <a href={da.file_url} target="_blank" rel="noreferrer" style={{ color:'#7baff5', fontSize:12, fontWeight:600, textDecoration:'none', flexShrink:0 }}>Open ↗</a>
+                    {(da.created_by===profile.id||profile.role==='admin') && (
+                      <button onClick={()=>removeDriveAttachment(da.id)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:16, padding:'0 2px', lineHeight:1 }} title="Remove">×</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Regular uploaded files */}
+            {files.length > 0 && (
+              <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em', marginBottom:8 }}>Uploaded Files</div>
+            )}
+            {files.length===0 && driveAttachments.length===0 && (
+              <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No files attached yet</div>
+            )}
             {files.map(f=>(
               <div key={f.name} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', background:'var(--surface2)', borderRadius:8, marginBottom:8, border:'1px solid var(--border)' }}>
                 <span style={{ fontSize:20 }}>{getFileIcon(f.name)}</span>
@@ -3108,6 +3179,107 @@ function TrashArchiveView({ profile, workspaces, toast }) {
 }
 
 
+
+// ─── GOOGLE INTEGRATION ───────────────────────────────────────────────────────
+const GOOGLE_CLIENT_ID = '1062524105477-sprjpqt5su4rrcgceuaodpbr1cb9il3g.apps.googleusercontent.com';
+const GOOGLE_API_KEY   = 'AIzaSyC_kNTbeCmQssx8ObsYKs5jv_bq-hZ4qjw';
+const GCAL_SCOPE  = 'https://www.googleapis.com/auth/calendar.events';
+const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+
+function loadGoogleScript(id, src, onload) {
+  if(document.getElementById(id)) { onload&&onload(); return; }
+  const s = document.createElement('script');
+  s.id=id; s.src=src; s.async=true; s.onload=onload;
+  document.head.appendChild(s);
+}
+
+// Hook: get a Google OAuth2 access token for a given scope
+function useGoogleToken(scope) {
+  const [token, setToken]           = useState(null);
+  const [connected, setConnected]   = useState(false);
+  const [gsiLoaded, setGsiLoaded]   = useState(false);
+  const clientRef = React.useRef(null);
+
+  useEffect(()=>{
+    if(window.google?.accounts?.oauth2) { setGsiLoaded(true); return; }
+    loadGoogleScript('gsi-script','https://accounts.google.com/gsi/client',()=>setGsiLoaded(true));
+  },[]);
+
+  const connect = useCallback(()=>{
+    if(!window.google?.accounts?.oauth2){ alert('Google Sign-In is still loading — please try again in a moment.'); return; }
+    if(!clientRef.current){
+      clientRef.current = window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope,
+        callback:(resp)=>{
+          if(resp.access_token){ setToken(resp.access_token); setConnected(true); }
+          else console.error('Google auth failed',resp);
+        },
+        error_callback:(err)=>console.error('Google auth error',err),
+      });
+    }
+    clientRef.current.requestAccessToken({ prompt: connected?'':'consent' });
+  },[scope, connected]);
+
+  const disconnect = useCallback(()=>{
+    if(token) window.google?.accounts?.oauth2?.revoke(token,()=>{});
+    setToken(null); setConnected(false); clientRef.current=null;
+  },[token]);
+
+  return { token, connected, gsiLoaded, connect, disconnect };
+}
+
+// Hook: Google Drive Picker
+function useGoogleDrivePicker() {
+  const [driveToken, setDriveToken] = useState(null);
+  const [gapiReady, setGapiReady]   = useState(false);
+  const clientRef = React.useRef(null);
+
+  useEffect(()=>{
+    loadGoogleScript('gsi-script','https://accounts.google.com/gsi/client',()=>{});
+    loadGoogleScript('gapi-script','https://apis.google.com/js/api.js',()=>{
+      window.gapi.load('picker',()=>setGapiReady(true));
+    });
+  },[]);
+
+  const openPicker = useCallback((token, onPicked)=>{
+    if(!gapiReady||!window.google?.picker){ alert('Google Picker is still loading — please try again in a second.'); return; }
+    new window.google.picker.PickerBuilder()
+      .addView(new window.google.picker.DocsView(window.google.picker.ViewId.DOCS).setIncludeFolders(false))
+      .addView(window.google.picker.ViewId.PDFS)
+      .addView(window.google.picker.ViewId.PRESENTATIONS)
+      .addView(window.google.picker.ViewId.SPREADSHEETS)
+      .setOAuthToken(token)
+      .setDeveloperKey(GOOGLE_API_KEY)
+      .setTitle('Select a file from Google Drive')
+      .setCallback((data)=>{
+        if(data.action===window.google.picker.Action.PICKED){
+          const f = data.docs[0];
+          onPicked({ file_id:f.id, file_name:f.name, file_url:f.url||`https://drive.google.com/file/d/${f.id}/view`, mime_type:f.mimeType, icon_url:f.iconUrl });
+        }
+      })
+      .build()
+      .setVisible(true);
+  },[gapiReady]);
+
+  const pickFile = useCallback((onPicked)=>{
+    if(driveToken){ openPicker(driveToken, onPicked); return; }
+    if(!window.google?.accounts?.oauth2){ alert('Google Sign-In is still loading — please try again.'); return; }
+    if(!clientRef.current){
+      clientRef.current = window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: GDRIVE_SCOPE,
+        callback:(resp)=>{
+          if(resp.access_token){ setDriveToken(resp.access_token); openPicker(resp.access_token, onPicked); }
+        }
+      });
+    }
+    clientRef.current.requestAccessToken({ prompt:'consent' });
+  },[driveToken, openPicker]);
+
+  return { pickFile };
+}
+
 // ─── CALENDAR VIEW ───────────────────────────────────────────────────────────
 const EVENT_TYPES = [
   { id:'meeting',    label:'Meeting',     icon:'📅', color:'#4d8ef0' },
@@ -3131,10 +3303,54 @@ function CalendarView({ profile, workspaces, toast }) {
   const [viewMode, setViewMode]     = useState('month'); // 'month' | 'agenda'
   const [adminView, setAdminView]   = useState(true);    // admins default all-team
 
+  // Google Calendar OAuth
+  const { token: calToken, connected: calConnected, gsiLoaded, connect: connectGCal, disconnect: disconnectGCal } = useGoogleToken(GCAL_SCOPE);
+
   // form state
   const blankForm = { title:'', description:'', event_date:'', start_time:'', end_time:'', event_type:'meeting', workspace_item_id:'', is_shared:true, color:'#4d8ef0' };
   const [form, setForm] = useState(blankForm);
   const setF = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  // ── Google Calendar helpers ──
+  const toGCalDate = (dateStr, timeStr) => {
+    if(!dateStr) return '';
+    const d = dateStr.replace(/-/g,'');
+    if(!timeStr) return d;
+    const t = timeStr.replace(':','')+'00';
+    return `${d}T${t}`;
+  };
+
+  const openInGoogleCalendar = (ev) => {
+    const start = toGCalDate(ev.event_date || form.event_date, ev.start_time || form.start_time);
+    const end   = toGCalDate(ev.event_date || form.event_date, ev.end_time   || form.end_time) || start;
+    const title = encodeURIComponent(ev.title || form.title || '');
+    const desc  = encodeURIComponent(ev.description || form.description || '');
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${desc}`;
+    window.open(url, '_blank');
+  };
+
+  const exportICS = () => {
+    const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Citizens Client Hub//EN','CALSCALE:GREGORIAN'];
+    visibleEvents.forEach(ev => {
+      const start = toGCalDate(ev.event_date, ev.start_time);
+      const end   = toGCalDate(ev.event_date, ev.end_time) || start;
+      lines.push('BEGIN:VEVENT');
+      lines.push(`UID:${ev.id}@citizensclienthub`);
+      lines.push(`DTSTAMP:${toGCalDate(new Date().toISOString().slice(0,10), new Date().toTimeString().slice(0,5))}`);
+      lines.push(`DTSTART:${start || toGCalDate(ev.event_date,'')}`);
+      lines.push(`DTEND:${end || toGCalDate(ev.event_date,'')}`);
+      lines.push(`SUMMARY:${ev.title}`);
+      if(ev.description) lines.push(`DESCRIPTION:${ev.description.replace(/\n/g,'\\n')}`);
+      lines.push('END:VEVENT');
+    });
+    lines.push('END:VCALENDAR');
+    const blob = new Blob([lines.join('\r\n')], { type:'text/calendar' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `citizens-calendar-${year}-${String(month+1).padStart(2,'0')}.ics`;
+    a.click();
+    toast('📅 Calendar exported!');
+  };
 
   useEffect(() => { loadEvents(); loadWsItems(); loadTeam(); }, [year, month, profile.company_id]);
 
@@ -3160,15 +3376,41 @@ function CalendarView({ profile, workspaces, toast }) {
     setTeamMembers(data||[]);
   };
 
+  const pushToGoogleCalendar = async (payload) => {
+    if(!calToken) return;
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const gCalEvent = {
+      summary: payload.title,
+      description: payload.description||'',
+      start: payload.start_time
+        ? { dateTime:`${payload.event_date}T${payload.start_time}:00`, timeZone:tz }
+        : { date: payload.event_date },
+      end: payload.end_time
+        ? { dateTime:`${payload.event_date}T${payload.end_time}:00`, timeZone:tz }
+        : { date: payload.event_date },
+    };
+    try {
+      const r = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{
+        method:'POST',
+        headers:{ 'Authorization':`Bearer ${calToken}`, 'Content-Type':'application/json' },
+        body:JSON.stringify(gCalEvent)
+      });
+      if(!r.ok) { const e=await r.json(); console.error('GCal error',e); return false; }
+      return true;
+    } catch(e) { console.error('GCal fetch error',e); return false; }
+  };
+
   const saveEvent = async () => {
     if(!form.title.trim() || !form.event_date) { toast('Title and date are required'); return; }
     const payload = { ...form, company_id: profile.company_name, created_by: profile.id, creator_name: profile.full_name, workspace_item_id: form.workspace_item_id||null };
     if(editEvent) {
       await supabase.from('calendar_events').update(payload).eq('id', editEvent.id);
-      toast('Event updated');
+      const pushed = await pushToGoogleCalendar(payload);
+      toast(pushed ? '✅ Event updated + synced to Google Calendar' : 'Event updated');
     } else {
       await supabase.from('calendar_events').insert([payload]);
-      toast('Event created ✅');
+      const pushed = await pushToGoogleCalendar(payload);
+      toast(pushed ? '✅ Event created + added to Google Calendar!' : 'Event created ✅');
     }
     setShowModal(false); setEditEvent(null); setForm(blankForm);
     loadEvents();
@@ -3263,6 +3505,28 @@ function CalendarView({ profile, workspaces, toast }) {
             <button onClick={()=>setViewMode('month')} style={{ padding:'7px 14px', background:viewMode==='month'?'var(--accent)':'transparent', color:viewMode==='month'?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Month</button>
             <button onClick={()=>setViewMode('agenda')} style={{ padding:'7px 14px', background:viewMode==='agenda'?'var(--accent)':'transparent', color:viewMode==='agenda'?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Agenda</button>
           </div>
+          <button onClick={exportICS} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--muted)', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}
+            onMouseOver={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)';}}
+            onMouseOut={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--muted)';}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export .ics
+          </button>
+          {/* Google Calendar Connect */}
+          {calConnected ? (
+            <div style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 12px', background:'rgba(52,168,83,.15)', border:'1px solid rgba(52,168,83,.4)', borderRadius:6 }}>
+              <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#34A853" d="M24 46c6.1 0 11.2-2 14.9-5.4l-7.3-5.4c-2 1.4-4.6 2.2-7.6 2.2-5.9 0-10.8-3.9-12.6-9.2H3.8v5.6C7.5 41.8 15.2 46 24 46z"/><path fill="#4285F4" d="M45.5 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h12.1c-.5 2.7-2.1 5-4.5 6.5v5.4h7.3c4.3-3.9 6.6-9.7 6.6-15.6z"/><path fill="#FBBC05" d="M11.4 28.2c-.5-1.4-.7-2.8-.7-4.2s.3-2.9.7-4.2v-5.6H3.8C2.3 17.1 1.5 20.4 1.5 24s.8 6.9 2.3 9.8l7.6-5.6z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35.1 4.1 29.9 2 24 2 15.2 2 7.5 6.2 3.8 12.8l7.6 5.6c1.8-5.3 6.7-7.6 12.6-7.6z"/></svg>
+              <span style={{ fontSize:12, fontWeight:600, color:'#34A853' }}>Google Calendar On</span>
+              <button onClick={disconnectGCal} style={{ background:'none', border:'none', color:'rgba(52,168,83,.7)', cursor:'pointer', fontSize:14, padding:'0 2px', lineHeight:1 }} title="Disconnect">×</button>
+            </div>
+          ) : (
+            <button onClick={connectGCal} disabled={!gsiLoaded}
+              style={{ display:'flex', alignItems:'center', gap:7, padding:'7px 13px', background:'rgba(66,133,244,.12)', border:'1px solid rgba(66,133,244,.35)', color:'#7baff5', borderRadius:6, fontSize:12, fontWeight:600, cursor:gsiLoaded?'pointer':'not-allowed', fontFamily:'inherit', transition:'all .15s' }}
+              onMouseOver={e=>{ if(gsiLoaded) e.currentTarget.style.background='rgba(66,133,244,.25)'; }}
+              onMouseOut={e=>e.currentTarget.style.background='rgba(66,133,244,.12)'}>
+              <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.5 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h12.1c-.5 2.7-2.1 5-4.5 6.5v5.4h7.3c4.3-3.9 6.6-9.7 6.6-15.6z"/><path fill="#34A853" d="M24 46c6.1 0 11.2-2 14.9-5.4l-7.3-5.4c-2 1.4-4.6 2.2-7.6 2.2-5.9 0-10.8-3.9-12.6-9.2H3.8v5.6C7.5 41.8 15.2 46 24 46z"/><path fill="#FBBC05" d="M11.4 28.2c-.5-1.4-.7-2.8-.7-4.2s.3-2.9.7-4.2v-5.6H3.8C2.3 17.1 1.5 20.4 1.5 24s.8 6.9 2.3 9.8l7.6-5.6z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35.1 4.1 29.9 2 24 2 15.2 2 7.5 6.2 3.8 12.8l7.6 5.6c1.8-5.3 6.7-7.6 12.6-7.6z"/></svg>
+              {gsiLoaded ? 'Connect Google Calendar' : 'Loading...'}
+            </button>
+          )}
           <button className="btn-primary btn-sm" onClick={()=>openNew(`${year}-${String(month+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`)}>+ New Event</button>
         </div>
       </div>
@@ -3455,6 +3719,22 @@ function CalendarView({ profile, workspaces, toast }) {
                 <span style={{ fontWeight:600 }}>Shared with team</span> — visible to all team members
               </label>
             </div>
+
+            {/* Google Calendar banner */}
+            {form.event_date && form.title && (
+              <div style={{ marginBottom:16, padding:'10px 14px', background:'rgba(66,133,244,.1)', border:'1px solid rgba(66,133,244,.3)', borderRadius:8, display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                  <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.5 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h12.1c-.5 2.7-2.1 5-4.5 6.5v5.4h7.3c4.3-3.9 6.6-9.7 6.6-15.6z"/><path fill="#34A853" d="M24 46c6.1 0 11.2-2 14.9-5.4l-7.3-5.4c-2 1.4-4.6 2.2-7.6 2.2-5.9 0-10.8-3.9-12.6-9.2H3.8v5.6C7.5 41.8 15.2 46 24 46z"/><path fill="#FBBC05" d="M11.4 28.2c-.5-1.4-.7-2.8-.7-4.2s.3-2.9.7-4.2v-5.6H3.8C2.3 17.1 1.5 20.4 1.5 24s.8 6.9 2.3 9.8l7.6-5.6z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35.1 4.1 29.9 2 24 2 15.2 2 7.5 6.2 3.8 12.8l7.6 5.6c1.8-5.3 6.7-7.6 12.6-7.6z"/></svg>
+                  <span style={{ fontSize:12, color:'#9db8d4' }}>Add this event to your personal Google Calendar</span>
+                </div>
+                <button onClick={()=>openInGoogleCalendar(editEvent||form)}
+                  style={{ flexShrink:0, padding:'6px 14px', background:'rgba(66,133,244,.2)', border:'1px solid rgba(66,133,244,.4)', color:'#7baff5', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', transition:'all .15s' }}
+                  onMouseOver={e=>e.currentTarget.style.background='rgba(66,133,244,.35)'}
+                  onMouseOut={e=>e.currentTarget.style.background='rgba(66,133,244,.2)'}>
+                  Open in Google Calendar →
+                </button>
+              </div>
+            )}
 
             {/* Actions */}
             <div style={{ display:'flex', gap:10, justifyContent:'space-between' }}>
