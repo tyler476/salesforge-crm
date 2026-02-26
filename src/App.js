@@ -2146,7 +2146,24 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
         </div>
       )}
 
-      {/* Item Detail Panel rendered from WorkspaceView level above */}
+      {/* Item Detail Panel */}
+      {itemDetailPanel && (
+        <ItemDetailPanel
+          item={itemDetailPanel}
+          group={groups.find(g=>g.id===itemDetailPanel.group_id)}
+          statuses={statuses}
+          teamMembers={teamMembers}
+          profile={profile}
+          allGroups={groups}
+          toast={toast}
+          onClose={()=>setItemDetailPanel(null)}
+          onUpdate={(field,val)=>{
+            const gId = itemDetailPanel.group_id;
+            setItems(prev=>({ ...prev, [gId]: (prev[gId]||[]).map(i=>i.id===itemDetailPanel.id?{...i,[field]:val}:i) }));
+            setItemDetailPanel(prev=>({...prev,[field]:val}));
+          }}
+        />
+      )}
       {/* Input Modal */}
       {inputModal && <InputModal title={inputModal.title} placeholder={inputModal.placeholder} defaultValue={inputModal.defaultValue||''} onConfirm={inputModal.onConfirm} onClose={()=>setInputModal(null)} />}
       {/* Status Manager */}
@@ -2190,7 +2207,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
         onKeyDown={e=>{ if(e.key==='Enter'){onUpdate(field,val);setEditing(null);} if(e.key==='Escape')setEditing(null); }}
         style={{ width:'100%', padding:'4px 6px', fontSize:13, background:'var(--surface2)', border:'1px solid var(--accent)', borderRadius:4, color:'var(--text)', ...style }} />
     );
-    return <div onClick={()=>setEditing(field)} style={{ cursor:'text', padding:'4px 6px', minHeight:24, borderRadius:4, ...style }}>{item[field]||<span style={{color:'var(--border)'}}>—</span>}</div>;
+    return <div onClick={e=>{ e.stopPropagation(); setEditing(field); }} style={{ cursor:'text', padding:'4px 6px', minHeight:24, borderRadius:4, ...style }}>{item[field]||<span style={{color:'var(--border)'}}>—</span>}</div>;
   };
 
   return (
@@ -2216,7 +2233,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
         </div>
       </td>
       {/* OWNER — right after name to match header order */}
-      <td style={{ padding:'4px 10px', position:'relative' }}>
+      <td style={{ padding:'4px 10px', position:'relative' }} onClick={e=>e.stopPropagation()}>
         <div onMouseDown={e=>{ e.stopPropagation(); const r=e.currentTarget.getBoundingClientRect(); setAssignPos({top:r.bottom+4,left:Math.max(0,r.right-240)}); setShowAssignPicker(s=>!s); setShowStatusPicker(false); }} style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}>
           {(item.assigned_officers||[]).length===0 && (
             <div style={{ width:28, height:28, borderRadius:'50%', border:'2px dashed var(--border)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--border)', fontSize:14 }}>+</div>
@@ -2255,8 +2272,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
           </div>
         )}
       </td>
-      {/* STATUS */}
-      {!hiddenCols.includes('status') && <td style={{ padding:'4px 10px', position:'relative' }}>
+      {!hiddenCols.includes('status') && <td style={{ padding:'4px 10px', position:'relative' }} onClick={e=>e.stopPropagation()}>
         <div onClick={e=>e.stopPropagation()} onMouseDown={e=>{ e.stopPropagation(); const r=e.currentTarget.getBoundingClientRect(); const spaceBelow=window.innerHeight-r.bottom; const dropH=Math.min(320, statuses.length*40+60); const top=spaceBelow<dropH ? r.top-dropH-4 : r.bottom+4; setPickerPos({top,left:r.left}); setShowStatusPicker(s=>!s); setShowAssignPicker(false); }} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
           {item.status||'No Status'}
         </div>
@@ -2288,7 +2304,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
           {['Low','Medium','High','Critical'].map(p=><option key={p} style={{ background:'#1a2e4a', color:PRIORITY_COLORS[p] }}>{p}</option>)}
         </select>
       </td>}
-      <td style={{ padding:'4px 10px' }}>
+      <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}>
         <div style={{ display:'flex', alignItems:'center', gap:6 }}>
           <EditableCell field="date" type="date" />
           {(() => { const ds = dueDateStatus(item.date); if(!ds||ds.label==='On track') return null;
@@ -2302,7 +2318,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
       {!hiddenCols.includes('lock_expiration') && <td style={{ padding:'4px 10px' }}><EditableCell field="lock_expiration" type="date" /></td>}
       {!hiddenCols.includes('processor_contact') && <td style={{ padding:'4px 10px' }}><EditableCell field="processor_contact" /></td>}
       {!hiddenCols.includes('escrow_email') && <td style={{ padding:'4px 10px' }}><EditableCell field="escrow_email" /></td>}
-      <td style={{ padding:'4px 10px' }}>
+      <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}>
         <button onClick={onDelete} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:14, padding:4 }}>×</button>
       </td>
     </tr>
