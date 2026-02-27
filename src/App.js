@@ -4902,159 +4902,98 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
     setGenerating(true);
     setStep('preview');
     try {
-      // Pre-calculate key numbers
-    const principal = Number(form.loan_amount||0);
-    const annualRate = Number(form.rate||0);
-    const termYears = Number(form.term||30);
-    const monthlyRate = annualRate / 100 / 12;
-    const numPayments = termYears * 12;
-    const monthlyPayment = monthlyRate > 0
-      ? Math.round(principal * (monthlyRate * Math.pow(1+monthlyRate,numPayments)) / (Math.pow(1+monthlyRate,numPayments)-1))
-      : Math.round(principal / numPayments);
-    const totalPaid = monthlyPayment * numPayments;
-    const totalInterest = totalPaid - principal;
-    const equity5yr = principal > 0 ? Math.round(((monthlyPayment*60) - (principal*(Math.pow(1+monthlyRate,60)-1)/(Math.pow(1+monthlyRate,60)-1+1))) / principal * 100) : 0;
+      // Pre-calculate all numbers in JS — no API needed
+      const principal    = Number(form.loan_amount||0);
+      const annualRate   = Number(form.rate||0);
+      const termYears    = Number(form.term||30);
+      const monthlyRate  = annualRate / 100 / 12;
+      const numPayments  = termYears * 12;
+      const monthlyPayment = monthlyRate > 0
+        ? Math.round(principal * (monthlyRate * Math.pow(1+monthlyRate,numPayments)) / (Math.pow(1+monthlyRate,numPayments)-1))
+        : Math.round(principal / numPayments);
+      const totalPaid      = monthlyPayment * numPayments;
+      const totalInterest  = totalPaid - principal;
+      const fmt = (n) => n >= 1000000 ? '$'+(n/1000000).toFixed(2)+'M' : '$'+n.toLocaleString();
+      const monthlySavings = Math.round(monthlyPayment * 0.08);
+      const currentMonthly = Math.round(monthlyPayment * 1.22);
+      const equity5yr      = Math.round(principal * 0.09 / 1000);
+      const breakeven      = Math.round(36 + (principal / 100000) * 8);
 
-    const fmtDollar = (n) => n >= 1000000 ? '$'+(n/1000000).toFixed(2)+'M' : '$'+n.toLocaleString();
+      const loInfo = { loName: form.lo_name, loPhone: form.lo_phone||'', loEmail: form.lo_email||'' };
 
-    const prompt = `You are a Citizens Financial loan officer assistant. Generate a professional loan presentation matching the Citizens Financial brand style.
-
-Return ONLY a valid JSON array of exactly 5 slides. No markdown, no explanation. Use these EXACT slide types:
-
-[
-  {
-    "type": "cf-cover",
-    "borrowerName": "\${form.borrower_name}",
-    "loanPurpose": "\${form.loan_type.toLowerCase()}",
-    "date": "\${new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}",
-    "highlights": [
-      {
-        "badge": "Lowest Monthly Payment",
-        "label": "Option 1",
-        "loanAmount": "\${fmtDollar(principal)}",
-        "product": "Citizens Financial \${form.loan_type}",
-        "value": "\${fmtDollar(monthlyPayment)}/mo"
-      },
-      {
-        "badge": "Best Rate Available",
-        "label": "Option 1",
-        "loanAmount": "\${fmtDollar(principal)}",
-        "product": "Citizens Financial \${form.loan_type}",
-        "value": "\${annualRate}% Rate"
-      },
-      {
-        "badge": "Interest Savings",
-        "label": "Option 1",
-        "loanAmount": "\${fmtDollar(principal)}",
-        "product": "Citizens Financial \${form.loan_type}",
-        "value": "\${fmtDollar(Math.round(totalInterest*0.12))} saved"
-      }
-    ],
-    "loName": "\${form.lo_name}",
-    "loPhone": "\${form.lo_phone||''}",
-    "loEmail": "\${form.lo_email||''}"
-  },
-  {
-    "type": "cf-payment",
-    "monthlySavings": "\${fmtDollar(Math.round(monthlyPayment*0.08))}",
-    "currentTotal": \${Math.round(monthlyPayment*1.22)},
-    "newTotal": \${monthlyPayment},
-    "loanProduct": "\${form.loan_type}",
-    "loName": "\${form.lo_name}",
-    "loPhone": "\${form.lo_phone||''}",
-    "loEmail": "\${form.lo_email||''}"
-  },
-  {
-    "type": "cf-savings",
-    "metrics": [
-      {
-        "badge": "Most Interest Savings",
-        "label": "Total over loan life",
-        "value": "\${fmtDollar(totalInterest)}",
-        "description": "Total interest paid over \${termYears}-year term at \${annualRate}% fixed rate"
-      },
-      {
-        "badge": "Monthly Savings",
-        "label": "vs average renter",
-        "value": "\${fmtDollar(Math.round(monthlyPayment*0.06))}",
-        "description": "Estimated monthly savings vs continuing to rent in the current market"
-      },
-      {
-        "badge": "Equity in Year 5",
-        "label": "Estimated equity gained",
-        "value": "~\${Math.round(principal*0.09/1000)}k",
-        "description": "Approximate equity accumulated through amortization by year 5"
-      }
-    ],
-    "currentInterest": "\${fmtDollar(Math.round(totalInterest*1.15))}",
-    "newInterest": "\${fmtDollar(totalInterest)}",
-    "savingsPct": "85%",
-    "loName": "\${form.lo_name}",
-    "loPhone": "\${form.lo_phone||''}",
-    "loEmail": "\${form.lo_email||''}"
-  },
-  {
-    "type": "cf-table",
-    "rows": [
-      {"label": "Loan Amount", "current": "Existing", "new": "\${fmtDollar(principal)}"},
-      {"label": "Loan Type", "current": "Current", "new": "\${form.loan_type}"},
-      {"label": "Term", "current": "Existing", "new": "\${termYears} Years"},
-      {"label": "Rate", "current": "Current Rate", "new": "\${annualRate}%"},
-      {"label": "Monthly P&I", "current": "Current Payment", "new": "\${fmtDollar(monthlyPayment)}", "highlight": true},
-      {"label": "Total Monthly", "current": "Current Total", "new": "\${fmtDollar(Math.round(monthlyPayment*1.28))}", "highlight": true},
-      {"label": "Total Interest Paid", "current": "Current Total", "new": "\${fmtDollar(totalInterest)}"},
-      {"label": "Total Cost", "current": "Current Total", "new": "\${fmtDollar(totalPaid)}", "highlight": true}
-    ],
-    "loName": "\${form.lo_name}",
-    "loPhone": "\${form.lo_phone||''}",
-    "loEmail": "\${form.lo_email||''}"
-  },
-  {
-    "type": "cf-closing",
-    "title": "Ready to Move Forward?",
-    "body": "You've taken the first step toward securing the right loan for your future. I'm here to guide you through every step — from application to closing. Let's make it happen.",
-    "loName": "\${form.lo_name}",
-    "loNmls": "",
-    "loPhone": "\${form.lo_phone||'Available upon request'}",
-    "loEmail": "\${form.lo_email||''}"
-  }
-]`;
-
-      const res = await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/generate-presentation', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + process.env.REACT_APP_SUPABASE_ANON_KEY
+      const generated = [
+        {
+          type: 'cf-cover',
+          borrowerName: form.borrower_name,
+          loanPurpose: form.loan_type.toLowerCase(),
+          date: new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}),
+          highlights: [
+            { badge:'Lowest Monthly Payment', label:'Option 1', loanAmount:fmt(principal), product:'Citizens Financial '+form.loan_type, value:fmt(monthlyPayment)+'/mo' },
+            { badge:'Best Rate Available',    label:'Option 1', loanAmount:fmt(principal), product:'Citizens Financial '+form.loan_type, value:annualRate+'% Rate' },
+            { badge:'Interest Savings',       label:'Option 1', loanAmount:fmt(principal), product:'Citizens Financial '+form.loan_type, value:fmt(Math.round(totalInterest*0.12))+' saved' },
+          ],
+          ...loInfo,
         },
-        body: JSON.stringify({ prompt })
-      });
-      console.log('[Presentation AI] HTTP status:', res.status);
-      const data = await res.json();
-      console.log('[Presentation AI] Response data:', JSON.stringify(data).slice(0,500));
-      if(data.error) throw new Error(data.error);
-      const text = (data.content||[]).map(b=>b.text||'').join('');
-      const clean = text.replace(/```json|```/g,'').trim();
-      console.log('[Presentation AI] Cleaned text (first 300):', clean.slice(0,300));
-      const parsed = JSON.parse(clean);
-      setSlides(parsed);
+        {
+          type: 'cf-payment',
+          monthlySavings: fmt(monthlySavings),
+          currentTotal:   currentMonthly,
+          newTotal:       monthlyPayment,
+          loanProduct:    form.loan_type,
+          ...loInfo,
+        },
+        {
+          type: 'cf-savings',
+          metrics: [
+            { badge:'Total Interest Savings', label:'Over loan life',       value: fmt(totalInterest),       description: 'Total interest paid over '+termYears+'-year term at '+annualRate+'% fixed rate' },
+            { badge:'Monthly Savings',        label:'vs average renter',    value: fmt(monthlySavings),      description: 'Estimated monthly savings vs continuing to rent in the current market' },
+            { badge:'Equity in Year 5',       label:'Estimated equity gained', value: '~$'+equity5yr+'k',   description: 'Approximate equity accumulated through amortization by year 5' },
+          ],
+          currentInterest: fmt(Math.round(totalInterest * 1.15)),
+          newInterest:     fmt(totalInterest),
+          savingsPct:      '85%',
+          ...loInfo,
+        },
+        {
+          type: 'cf-breakeven',
+          breakevenMonths: breakeven+' mos.',
+          currentNetCost:  fmt(Math.round(currentMonthly * 84)),
+          newNetCost:      fmt(Math.round(monthlyPayment * 84 * 0.96)),
+          ...loInfo,
+        },
+        {
+          type: 'cf-table',
+          rows: [
+            { label:'Loan Amount',      current:'Existing Loan',    new: fmt(principal) },
+            { label:'Loan Type',        current:'Current',          new: form.loan_type },
+            { label:'Term',             current:'Existing',         new: termYears+' Years' },
+            { label:'Rate',             current:'Current Rate',     new: annualRate+'%' },
+            { label:'Monthly P&I',      current:'Current Payment',  new: fmt(monthlyPayment),  highlight: true },
+            { label:'Total Monthly',    current:'Current Total',    new: fmt(Math.round(monthlyPayment*1.28)), highlight: true },
+            { label:'Total Interest',   current:'Current Total',    new: fmt(totalInterest) },
+            { label:'Total Cost',       current:'Current Total',    new: fmt(totalPaid),       highlight: true },
+          ],
+          ...loInfo,
+        },
+        {
+          type: 'cf-closing',
+          title: 'Ready to Move Forward?',
+          body:  "You\'ve taken the first step toward securing the right loan. I\'m here to guide you through every step — from application to closing. Let\'s make it happen.",
+          loName:  form.lo_name,
+          loPhone: form.lo_phone || 'Available upon request',
+          loEmail: form.lo_email || '',
+        },
+      ];
+
+      setSlides(generated);
     } catch(e) {
-      console.error('[Presentation AI] Full error:', e);
-      console.error('[Presentation AI] Message:', e.message);
-      toast('AI failed: ' + e.message);
-      setSlides([
-        {type:'cf-cover',borrowerName:form.borrower_name,loanPurpose:form.loan_type.toLowerCase(),
-         highlights:[
-           {badge:'Lowest Monthly Payment',label:'Option 1',loanAmount:'$'+Number(form.loan_amount||0).toLocaleString(),product:'Citizens Financial '+form.loan_type,value:'$'+(form.loan_amount&&form.rate?Math.round(Number(form.loan_amount)*(Number(form.rate)/100/12)*Math.pow(1+Number(form.rate)/100/12,Number(form.term||30)*12)/(Math.pow(1+Number(form.rate)/100/12,Number(form.term||30)*12)-1)):0).toLocaleString()+'/mo'},
-           {badge:'Best Rate Available',label:'Option 1',loanAmount:'$'+Number(form.loan_amount||0).toLocaleString(),product:'Citizens Financial '+form.loan_type,value:(form.rate||'—')+'% Rate'},
-           {badge:'Trusted Lender',label:'Option 1',loanAmount:'$'+Number(form.loan_amount||0).toLocaleString(),product:'Citizens Financial '+form.loan_type,value:'Top Rated'},
-         ],loName:form.lo_name,loPhone:form.lo_phone||'',loEmail:form.lo_email||''},
-        {type:'cf-closing',title:'Ready to Move Forward?',body:"Let's take the next step together. I'm here to guide you from application to closing.",loName:form.lo_name,loPhone:form.lo_phone||'Available upon request',loEmail:form.lo_email||''},
-      ]);
+      console.error('[Presentation] Error:', e);
+      toast('Error building presentation: ' + e.message);
     }
     setGenerating(false);
   };
 
-  const useTemplate = (tmpl) => {
+    const useTemplate = (tmpl) => {
     setSelectedTemplate(tmpl);
     if(tmpl.template_type==='pdf') {
       // PDF — skip slide editing, go straight to preview/send
