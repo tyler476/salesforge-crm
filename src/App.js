@@ -5028,14 +5028,19 @@ Return ONLY a valid JSON array of exactly 5 slides. No markdown, no explanation.
         },
         body: JSON.stringify({ prompt })
       });
+      console.log('[Presentation AI] HTTP status:', res.status);
       const data = await res.json();
+      console.log('[Presentation AI] Response data:', JSON.stringify(data).slice(0,500));
       if(data.error) throw new Error(data.error);
       const text = (data.content||[]).map(b=>b.text||'').join('');
       const clean = text.replace(/```json|```/g,'').trim();
+      console.log('[Presentation AI] Cleaned text (first 300):', clean.slice(0,300));
       const parsed = JSON.parse(clean);
       setSlides(parsed);
     } catch(e) {
-      toast('AI generation failed — using fallback slides');
+      console.error('[Presentation AI] Full error:', e);
+      console.error('[Presentation AI] Message:', e.message);
+      toast('AI failed: ' + e.message);
       setSlides([
         {type:'cf-cover',borrowerName:form.borrower_name,loanPurpose:form.loan_type.toLowerCase(),
          highlights:[
