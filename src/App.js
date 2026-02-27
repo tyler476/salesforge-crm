@@ -4520,7 +4520,7 @@ function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName=
         <SlideNum />
         {/* Header bar */}
         <div style={{ background:CF_NAVY, padding:'12px 28px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ height:32, filter:'brightness(0) invert(1)' }} onError={{e=>e.target.style.display='none'}} />
+          <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ height:32, filter:'brightness(0) invert(1)' }} onError={e=>e.target.style.display='none'} />
           <div style={{ color:'rgba(255,255,255,.6)', fontSize:11 }}>{slide.date || new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div>
         </div>
         {/* Main content */}
@@ -4749,7 +4749,7 @@ function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName=
   const base = { width:'100%', height:'100%', position:'relative', overflow:'hidden', background:isLight?CF_BG2:bg, display:'flex', flexDirection:'column', justifyContent:'center', padding:'52px 64px', boxSizing:'border-box', color:textColor, fontFamily:"'Inter',sans-serif" };
   const accentBar = <div style={{ position:'absolute', left:0, top:0, bottom:0, width:5, background:CF_GREEN }} />;
   const slideNum = <div style={{ position:'absolute', bottom:22, right:36, fontSize:11, color:mutedColor, fontWeight:500 }}>{index+1}/{total}</div>;
-  const logo = <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ position:'absolute', top:18, right:28, height:24, filter:isLight?'none':'brightness(0) invert(1)', opacity:.85 }} onError={{e=>e.target.style.display='none'}} />;
+  const logo = <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ position:'absolute', top:18, right:28, height:24, filter:isLight?'none':'brightness(0) invert(1)', opacity:.85 }} onError={e=>e.target.style.display='none'} />;
 
   if(slide.type==='cover') return (
     <div style={{ ...base, justifyContent:'flex-end', background:`linear-gradient(135deg, ${bg} 0%, #1a2e5a 100%)` }}>
