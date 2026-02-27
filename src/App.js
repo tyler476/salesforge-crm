@@ -20,11 +20,11 @@ const css = `
     --sidebar-active: #1a56db;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; }
-  h1,h2,h3 { font-family:'Cormorant Garamond','Playfair Display',serif; letter-spacing:-.01em; }
-  input,textarea,select { background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px 14px; border-radius:6px; font-size:14px; width:100%; outline:none; font-family:'Inter',system-ui,sans-serif; box-shadow:0 1px 2px rgba(0,0,0,.1); }
+  body { background:var(--bg); color:var(--text); font-family:'Libre Baskerville',Georgia,serif; }
+  h1,h2,h3 { font-family:'Playfair Display',serif; }
+  input,textarea,select { background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px 14px; border-radius:6px; font-size:14px; width:100%; outline:none; font-family:'Libre Baskerville',Georgia,serif; box-shadow:0 1px 2px rgba(0,0,0,.1); }
   input:focus,textarea:focus,select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(26,86,219,.1); }
-  button { cursor:pointer; font-family:'Inter',system-ui,sans-serif; border:none; border-radius:6px; font-size:14px; font-weight:600; transition:all .15s; letter-spacing:.01em; }
+  button { cursor:pointer; font-family:'Libre Baskerville',Georgia,serif; border:none; border-radius:6px; font-size:14px; font-weight:700; transition:all .15s; letter-spacing:.01em; }
   .btn-primary { background:var(--accent); color:#fff; padding:10px 20px; box-shadow:0 1px 3px rgba(26,86,219,.3); }
   .btn-primary:hover { background:#1648c5; box-shadow:0 2px 6px rgba(26,86,219,.4); }
   .btn-secondary { background:var(--surface2); color:var(--text); padding:10px 20px; border:1px solid var(--border); box-shadow:0 1px 2px rgba(0,0,0,.1); }
@@ -50,13 +50,13 @@ const css = `
   .modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:32px; width:90%; max-width:540px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.4); }
   .toast { position:fixed; bottom:24px; right:24px; background:var(--sidebar-bg); color:#fff; border-radius:8px; padding:14px 20px; z-index:999; font-size:14px; animation:slideIn .2s ease; box-shadow:0 8px 24px rgba(0,0,0,.2); }
   @keyframes slideIn { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
-  .sidebar { width:240px; min-height:100vh; background:var(--sidebar-bg); display:flex; flex-direction:column; position:fixed; top:0; left:0; z-index:50; box-shadow:2px 0 12px rgba(0,0,0,.15); font-family:'Inter',system-ui,sans-serif; }
+  .sidebar { width:240px; min-height:100vh; background:var(--sidebar-bg); display:flex; flex-direction:column; position:fixed; top:0; left:0; z-index:50; box-shadow:2px 0 12px rgba(0,0,0,.15); font-family:'Source Sans 3',system-ui,sans-serif; }
   .main { margin-left:240px; min-height:100vh; background:linear-gradient(to right, #0f1c3f 0%, #152540 20%, #1a2e4a 60%, #1e3350 100%); padding-top:52px; }
-  .topbar { position:fixed; top:0; left:240px; right:0; height:52px; background:var(--sidebar-bg); border-bottom:1px solid rgba(255,255,255,.08); display:flex; align-items:center; justify-content:space-between; padding:0 16px 0 20px; gap:4px; z-index:49; }
+  .topbar { position:fixed; top:0; left:240px; right:0; height:52px; background:var(--sidebar-bg); border-bottom:1px solid rgba(255,255,255,.08); display:flex; align-items:center; justify-content:flex-end; padding:0 20px; gap:4px; z-index:49; }
   .topbar-btn { background:none; border:none; color:var(--sidebar-text); cursor:pointer; padding:7px; border-radius:6px; display:flex; align-items:center; justify-content:center; transition:background .15s; }
   .topbar-btn:hover { background:rgba(255,255,255,.1); color:#fff; }
   .ws-toolbar { display:flex; align-items:center; gap:8px; padding:10px 28px; border-bottom:1px solid var(--border); background:var(--surface2); flex-wrap:wrap; }
-  .ws-toolbar-btn { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:6px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; font-family:'Inter',system-ui,sans-serif; transition:all .15s; }
+  .ws-toolbar-btn { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:6px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; font-family:'Libre Baskerville',Georgia,serif; transition:all .15s; }
   .ws-toolbar-btn:hover { background:rgba(255,255,255,.07); color:var(--text); }
   .nav-item { display:flex; align-items:center; gap:12px; padding:10px 20px; cursor:pointer; font-size:14px; color:var(--sidebar-text); transition:all .15s; border-left:3px solid transparent; font-weight:500; }
   .nav-item:hover { background:rgba(255,255,255,.07); color:#fff; }
@@ -78,20 +78,6 @@ const css = `
     .main { margin-left:60px; }
     .drawer { width:100vw; }
   }
-  .cal-grid { display:grid; grid-template-columns:repeat(7,1fr); border-left:1px solid var(--border); border-top:1px solid var(--border); }
-  .cal-cell { border-right:1px solid var(--border); border-bottom:1px solid var(--border); min-height:110px; padding:6px; cursor:pointer; transition:background .1s; position:relative; }
-  .cal-cell:hover { background:rgba(77,142,240,.06); }
-  .cal-cell.today { background:rgba(77,142,240,.08); }
-  .cal-cell.other-month { opacity:.38; }
-  .cal-cell.weekend { background:rgba(0,0,0,.06); }
-  .cal-day-num { font-size:13px; font-weight:600; width:26px; height:26px; display:flex; align-items:center; justify-content:center; border-radius:50%; margin-bottom:4px; flex-shrink:0; }
-  .cal-cell.today .cal-day-num { background:var(--accent); color:#fff; }
-  .cal-event-pill { font-size:11px; padding:2px 7px; border-radius:3px; margin-bottom:2px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600; transition:opacity .1s; display:block; }
-  .cal-event-pill:hover { opacity:.75; }
-  .cal-header-day { text-align:center; padding:10px 0; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); border-right:1px solid var(--border); border-bottom:2px solid var(--border); }
-  .event-type-btn { padding:7px 14px; border-radius:6px; border:1px solid var(--border); background:var(--surface2); color:var(--muted); font-size:12px; font-weight:600; cursor:pointer; transition:all .15s; font-family:inherit; }
-  .event-type-btn.active { border-color:var(--accent); background:rgba(77,142,240,.15); color:var(--accent); }
-  @keyframes spin { to { transform:rotate(360deg); } }
 `;
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
@@ -108,110 +94,17 @@ const STAGE_COLORS = { 'New Lead':'blue','Contacted':'purple','Qualified':'yello
 const SOURCES = ['Website','Referral','Cold Outreach','LinkedIn','Event','Other'];
 const INDUSTRIES = ['Technology','Healthcare','Finance','Real Estate','Retail','Manufacturing','Other'];
 
-
-// ─── ICON SYSTEM ─────────────────────────────────────────────────────────────
-// All icons use the same stroke style as sidebar/topbar for visual consistency
-const Ic = (path, w=16, opts={}) => (
-  <svg width={w} height={w} viewBox="0 0 24 24" fill="none" stroke="currentColor"
-    strokeWidth={opts.sw||1.75} strokeLinecap="round" strokeLinejoin="round"
-    style={{ display:'inline-flex', flexShrink:0, verticalAlign:'middle', ...opts.style }}>
-    {typeof path==='string' ? <path d={path}/> : path}
-  </svg>
-);
-
-const Icons = {
-  dashboard:   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>,
-  contacts:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-  pipeline:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
-  team:        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-  branding:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
-  workspace:   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>,
-  chevron:     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
-  plus:        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
-  comment:     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
-  calendar:    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
-  // Extended icon set — SVG equivalents for all emoji used across the app
-  alert:       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
-  check:       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
-  checkCircle: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
-  lock:        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>,
-  flame:       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>,
-  dollar:      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
-  clipboard:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>,
-  users:       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
-  user:        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
-  phone:       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.62 3.44 2 2 0 0 1 3.6 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.06 6.06l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>,
-  refresh:     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>,
-  pin:         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>,
-  paperclip:   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>,
-  upload:      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>,
-  download:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
-  trash:       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
-  home:        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>,
-  logOut:      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
-  bell:        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>,
-  activity:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
-  settings:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
-  arrowRight:  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>,
-  arrowLeft:   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>,
-  file:        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>,
-  messageSquare:<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
-  grid:        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>,
-  barChart:    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
-  book:        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>,
-  rocket:      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>,
-};
-
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 const fmt = (n) => n >= 1000000 ? `$${(n/1000000).toFixed(1)}M` : n >= 1000 ? `$${(n/1000).toFixed(0)}K` : `$${n}`;
 const initials = (name='') => name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
 const avatarColor = (name='') => { const colors=['#3b82f6','#06b6d4','#10b981','#8b5cf6','#f59e0b','#ef4444']; return colors[name.charCodeAt(0)%colors.length]; };
 
-// ─── NOTIFICATIONS UTILITY ───────────────────────────────────────────────────
-async function createNotification(opts) {
-  // opts: { company_id, recipient_id, recipient_name, actor_id, actor_name, type, message, item_id, item_name, workspace_id, workspace_name }
-  if(!opts.recipient_id || opts.recipient_id === opts.actor_id) return; // don't notify yourself
-  try {
-    await supabase.from('notifications').insert([{
-      company_id:    opts.company_id,
-      recipient_id:  opts.recipient_id,
-      recipient_name:opts.recipient_name||'',
-      actor_name:    opts.actor_name||'',
-      type:          opts.type||'mention',
-      message:       opts.message||'',
-      item_id:       opts.item_id||null,
-      item_name:     opts.item_name||'',
-      workspace_id:  opts.workspace_id||null,
-      workspace_name:opts.workspace_name||'',
-      is_read:       false,
-    }]);
-  } catch(e) { console.warn('createNotification failed:', e); }
-}
-
-function timeAgo(dateStr) {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const m = Math.floor(diff/60000);
-  if(m < 1)  return 'just now';
-  if(m < 60) return `${m}m ago`;
-  const h = Math.floor(m/60);
-  if(h < 24) return `${h}h ago`;
-  const d = Math.floor(h/24);
-  if(d < 7)  return `${d}d ago`;
-  return new Date(dateStr).toLocaleDateString();
-}
-
 // ─── TOAST ───────────────────────────────────────────────────────────────────
 let toastTimer;
 function Toast({ msg, onClose }) {
-  const isError = msg && (msg.toLowerCase().includes('error') || msg.toLowerCase().includes('failed') || msg.toLowerCase().includes('bucket') || msg.toLowerCase().includes('missing'));
-  useEffect(() => { toastTimer = setTimeout(onClose, isError ? 9000 : 3000); return () => clearTimeout(toastTimer); }, [msg, onClose]);
+  useEffect(() => { toastTimer = setTimeout(onClose, 3000); return () => clearTimeout(toastTimer); }, [onClose]);
   if (!msg) return null;
-  return (
-    <div className="toast" style={{ background: isError ? '#7f1d1d' : undefined, cursor:'pointer', maxWidth:480, lineHeight:1.5 }} onClick={onClose}>
-      {msg}
-      {isError && <div style={{ fontSize:11, opacity:.7, marginTop:4 }}>Click to dismiss</div>}
-    </div>
-  );
+  return <div className="toast">{msg}</div>;
 }
 
 // ─── AUTH SCREEN ─────────────────────────────────────────────────────────────
@@ -271,7 +164,7 @@ function AuthScreen({ onAuth }) {
       <div style={{ width:'100%', maxWidth:420, padding:20 }}>
         <div style={{ textAlign:'center', marginBottom:32 }}>
           <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ maxHeight:70, maxWidth:220, marginBottom:12, filter:'brightness(0) invert(1)' }} />
-          <div style={{ color:'#fff', fontSize:18, fontWeight:700, marginTop:8, fontFamily:"Cormorant Garamond, Playfair Display, serif" }}>Citizens Client Hub</div>
+          <div style={{ color:'#fff', fontSize:18, fontWeight:700, marginTop:8, fontFamily:'Playfair Display,serif' }}>Citizens Client Hub</div>
           <div style={{ color:'rgba(255,255,255,.45)', fontSize:11, marginTop:6, letterSpacing:'.04em' }}>Powered by the Badges Broker</div>
         </div>
         <div className="card">
@@ -364,9 +257,8 @@ function ContactForm({ contact, onSave, onClose, companyId }) {
 }
 
 // ─── CONTACT DRAWER ───────────────────────────────────────────────────────────
-function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, profile }) {
+function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast }) {
   const [activities, setActivities] = useState([]);
-  const [showPresBuilder, setShowPresBuilder] = useState(false);
   const [note, setNote] = useState('');
   const [noteType, setNoteType] = useState('note');
   const [emailSubject, setEmailSubject] = useState('');
@@ -451,7 +343,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
             <div style={{ width:48, height:48, borderRadius:'50%', background:avatarColor(contact.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:16, fontFamily:'Syne,sans-serif' }}>{initials(contact.full_name)}</div>
             <div>
-              <div style={{ fontWeight:700, fontSize:18, fontFamily:"Cormorant Garamond, Playfair Display, serif" }}>{contact.full_name}</div>
+              <div style={{ fontWeight:700, fontSize:18, fontFamily:'Playfair Display,serif' }}>{contact.full_name}</div>
               <div style={{ color:'var(--muted)', fontSize:13 }}>{contact.title} {contact.company && `@ ${contact.company}`}</div>
             </div>
           </div>
@@ -459,14 +351,10 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
         </div>
 
         <div style={{ display:'flex', gap:8, marginBottom:20, flexWrap:'wrap' }}>
-          <button className="btn-secondary btn-sm" onClick={onEdit}>Edit</button>
-          <button className="btn-danger btn-sm" onClick={onDelete}><span style={{display:"flex",alignItems:"center",gap:5}}>{Icons.trash} Delete</span></button>
-          <button className="btn-sm" onClick={launchAICall} style={{ background:'linear-gradient(135deg,#6366f1,#8b5cf6)', color:'#fff', border:'none' }}>AI Call</button>
-          <button className="btn-sm" onClick={()=>setShowPresBuilder(true)} style={{ background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', display:'flex', alignItems:'center', gap:6 }}>
-            {React.cloneElement(Icons.file,{width:13,height:13,stroke:'#fff'})} Build Presentation
-          </button>
+          <button className="btn-secondary btn-sm" onClick={onEdit}>✏️ Edit</button>
+          <button className="btn-danger btn-sm" onClick={onDelete}>🗑️ Delete</button>
+          <button className="btn-sm" onClick={launchAICall} style={{ background:'linear-gradient(135deg,#6366f1,#8b5cf6)', color:'#fff', border:'none' }}>🤖 AI Call</button>
         </div>
-        {showPresBuilder && <PresentationBuilderModal contact={contact} profile={profile} onClose={()=>setShowPresBuilder(false)} toast={toast} onSent={()=>setShowPresBuilder(false)} />}
 
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20 }}>
           {[['📧','Email',contact.email],['📞','Phone',contact.phone],['💰','Deal Value',contact.deal_value?fmt(contact.deal_value):'—'],['🏭','Industry',contact.industry],['📌','Source',contact.source]].map(([icon,label,val])=>val&&(
@@ -499,7 +387,10 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
             <div>
               <input value={emailSubject} onChange={e=>setEmailSubject(e.target.value)} placeholder="Subject..." style={{ marginBottom:8 }} />
               <textarea rows={4} value={emailBody} onChange={e=>setEmailBody(e.target.value)} placeholder="Write your email..." style={{ marginBottom:8 }} />
-              <button className="btn-primary btn-sm" onClick={sendEmail} disabled={sendingEmail}>{sendingEmail?'Sending...':'📧 Send Email'}</button>
+              <div style={{ display:'flex', gap:8 }}>
+                <button className="btn-primary btn-sm" onClick={sendEmail} disabled={sendingEmail}>{sendingEmail?'Sending...':'📧 Send Email'}</button>
+                <button className="btn-secondary btn-sm" onClick={()=>{ window.dispatchEvent(new CustomEvent('openPresentationBuilder', { detail: { contact } })); }} style={{ fontSize:12 }}>📊 Send Presentation</button>
+              </div>
             </div>
           ) : (
             <div>
@@ -540,44 +431,24 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
 
 
 // ─── TOP BAR ─────────────────────────────────────────────────────────────────
-function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout, onGetResults, workspaces, onOpenWorkspace }) {
+function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout, onGetResults }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  const loadNotifs = React.useCallback(async () => {
-    if(!profile?.id) return;
-    const { data } = await supabase.from('notifications')
-      .select('*').eq('recipient_id', profile.id)
-      .order('created_at',{ascending:false}).limit(40);
-    if(data) {
-      setNotifications(data);
-      setUnreadCount(data.filter(n=>!n.is_read).length);
-    }
-  },[profile?.id]);
+  const [notifsRead, setNotifsRead] = useState(false);
 
   React.useEffect(()=>{
-    loadNotifs();
-    const sub = supabase.channel('notifs_'+profile?.id)
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:`recipient_id=eq.${profile?.id}`},
-        (p)=>{ setNotifications(n=>[p.new,...n]); setUnreadCount(c=>c+1); })
-      .subscribe();
+    if(!profile?.full_name) return;
+    // Load updates that @mention this user
+    supabase.from('workspace_updates').select('*')
+      .ilike('body', '%@'+profile.full_name+'%')
+      .order('created_at',{ascending:false}).limit(20)
+      .then(({data})=>{ if(data) setNotifications(data); });
+    // Real-time subscription for new mentions
+    const sub = supabase.channel('notifs').on('postgres_changes',{event:'INSERT',schema:'public',table:'workspace_updates'},
+      (payload)=>{ if(payload.new?.body?.includes('@'+profile.full_name)) { setNotifications(n=>[payload.new,...n]); setNotifsRead(false); }}).subscribe();
     return ()=>supabase.removeChannel(sub);
-  },[profile?.id, loadNotifs]);
-
-  const markAllRead = async () => {
-    if(!profile?.id) return;
-    await supabase.from('notifications').update({is_read:true}).eq('recipient_id',profile.id).eq('is_read',false);
-    setNotifications(n=>n.map(x=>({...x,is_read:true})));
-    setUnreadCount(0);
-  };
-
-  const clearAll = async () => {
-    if(!profile?.id) return;
-    await supabase.from('notifications').delete().eq('recipient_id',profile.id);
-    setNotifications([]); setUnreadCount(0);
-  };
+  },[profile?.full_name]);
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpPage, setHelpPage] = useState(null);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -613,33 +484,33 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
   };
 
   const HELP_ARTICLES = [
-    { id:'getting-started', title:'Getting Started', icon:Icons.rocket, content: [
+    { id:'getting-started', title:'Getting Started', icon:'🚀', content: [
       { q:'How do I create a workspace?', a:'From the Dashboard, click "+ New Workspace" or use the sidebar. Workspaces are like boards — create one per team or project type (e.g. Loans In Process, LO Resources).' },
       { q:'How do I add items to a workspace?', a:'Open a workspace, then click "+ Add Item" at the bottom of any group. Type the item name and press Enter. You can then click any cell to edit inline.' },
       { q:'How do I add team members?', a:'Go to Team in the sidebar. Admin users can invite team members by email. Use the invite button (person+ icon) in the top bar as well.' },
     ]},
-    { id:'workspaces', title:'Workspaces & Groups', icon:Icons.workspace, content: [
+    { id:'workspaces', title:'Workspaces & Groups', icon:'📋', content: [
       { q:'What is a group?', a:'Groups are collapsible sections inside a workspace. Use them to categorize items — e.g. by stage, month, or team. Click "+ Add Group" in the toolbar.' },
       { q:'How do I rename a group?', a:'Double-click the group name to edit it inline. Press Enter to save.' },
       { q:'Can I move items between groups?', a:'Yes — select items using the checkboxes, then use the "Move to..." dropdown in the action bar at the bottom of the screen.' },
       { q:'How do I reorder items?', a:'Select items and use Move to... to change groups. Drag-and-drop reordering is coming soon.' },
     ]},
-    { id:'statuses', title:'Statuses & Columns', icon:Icons.settings, content: [
+    { id:'statuses', title:'Statuses & Columns', icon:'🎨', content: [
       { q:'How do I customize statuses?', a:'Click "Statuses" in the workspace toolbar. Admins can add, rename, recolor, and delete status options. Changes apply to all items in that workspace.' },
       { q:'What columns are available?', a:'Each item has: Name, Owner, Status, Priority, Date, Lender, Loan Officer, Processor, Lock Expiration, Processor Contact, and Escrow Email.' },
       { q:'How do I assign someone to an item?', a:'Click the Owner column (the circle avatar area) on any row. Select team members from the dropdown or type an email address.' },
     ]},
-    { id:'updates', title:'Updates & Comments', icon:Icons.messageSquare, content: [
+    { id:'updates', title:'Updates & Comments', icon:'💬', content: [
       { q:'How do I post an update on an item?', a:'Click the comment icon (💬) on any row to open the Updates Panel. Type your message and click "Post Update" or press Ctrl+Enter.' },
       { q:'Can I delete my own updates?', a:'Yes — hover over your update and click the × button to remove it.' },
       { q:'What is the Activity tab?', a:'The Activity tab shows a timeline of all updates posted on an item, so you can track conversation history.' },
     ]},
-    { id:'contacts', title:'Contacts & Lead Funnel', icon:Icons.users, content: [
+    { id:'contacts', title:'Contacts & Lead Funnel', icon:'👥', content: [
       { q:'How do I add a contact?', a:'Click "Add Contact" on the Contacts page. Fill in their details including name, email, company, and deal value.' },
       { q:'What is the Lead Funnel?', a:'The Lead Funnel shows all contacts organized by stage: New Lead → Contacted → Qualified → Proposal → Negotiation → Converted.' },
       { q:'How do I send emails to contacts?', a:'Open a contact drawer by clicking on a contact. Go to the Email tab and compose your message. Emails are sent via your Resend integration.' },
     ]},
-    { id:'admin', title:'Admin & Settings', icon:Icons.settings, content: [
+    { id:'admin', title:'Admin & Settings', icon:'⚙️', content: [
       { q:'How do I change my company branding?', a:'Go to Branding in the sidebar (admin only). You can update your company name, logo URL, and brand accent color.' },
       { q:'How do I manage team roles?', a:'On the Team page, admins can change member roles between Admin, Manager, and Member using the dropdown next to each person.' },
       { q:'What can admins do that members cannot?', a:'Admins can: create/delete workspaces, manage statuses, add groups, invite members, access Branding settings, and see all items regardless of assignment.' },
@@ -649,25 +520,6 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
   return (
     <>
     <div className="topbar">
-      {/* ── LEFT: Company branding ── */}
-      <div style={{ display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
-        <img
-          src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png"
-          alt="Citizens Financial"
-          style={{ height:28, filter:'brightness(0) invert(1)', opacity:.9 }}
-          onError={e=>{ e.target.style.display='none'; e.target.nextSibling.style.display='flex'; }}
-        />
-        <div style={{ display:'none', alignItems:'center', gap:8 }}>
-          <div style={{ width:28, height:28, borderRadius:7, background:'linear-gradient(135deg,#4d8ef0,#1a56db)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-          </div>
-          <span style={{ fontWeight:700, fontSize:14, color:'#fff', letterSpacing:'.01em' }}>Citizens Financial</span>
-        </div>
-        <div style={{ width:1, height:22, background:'rgba(255,255,255,.12)', marginLeft:4 }} />
-        <span style={{ fontSize:11, color:'rgba(255,255,255,.35)', fontWeight:600, letterSpacing:'.06em', textTransform:'uppercase' }}>Client Hub</span>
-      </div>
-      {/* ── RIGHT: All topbar actions ── */}
-      <div style={{ display:'flex', alignItems:'center', gap:4 }}>
       {/* Global search overlay */}
       {searchOpen && (
         <div onClick={e=>{ stop(e); }} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', zIndex:99998, display:'flex', alignItems:'flex-start', justifyContent:'center', paddingTop:80 }}>
@@ -701,11 +553,11 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
             {!searchVal && (
               <div style={{ padding:'16px 20px' }}>
                 <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>Quick Actions</div>
-                {[{icon:Icons.contacts,label:'Go to Contacts',nav:'contacts'},{icon:Icons.pipeline,label:'Go to Lead Funnel',nav:'pipeline'},{icon:Icons.dashboard,label:'Go to Dashboard',nav:'dashboard'},{icon:Icons.team,label:'Go to Team',nav:'team'}].map(a=>(
+                {[{icon:'👥',label:'Go to Contacts',nav:'contacts'},{icon:'〽️',label:'Go to Lead Funnel',nav:'pipeline'},{icon:'📋',label:'Go to Dashboard',nav:'dashboard'},{icon:'👤',label:'Go to Team',nav:'team'}].map(a=>(
                   <div key={a.nav} onClick={()=>{ onNavigate(a.nav); setSearchOpen(false); }} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 10px', borderRadius:6, cursor:'pointer', fontSize:13 }}
                     onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
                     onMouseOut={e=>e.currentTarget.style.background=''}>
-                    <span style={{display:'flex',color:'var(--muted)'}}>{typeof a.icon==='string'?a.icon:React.cloneElement(a.icon,{width:16,height:16})}</span><span>{a.label}</span>
+                    <span>{a.icon}</span><span>{a.label}</span>
                   </div>
                 ))}
               </div>
@@ -716,14 +568,10 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
 
       {/* Notification bell */}
       <button className="topbar-btn" title="Notifications" style={{ position:'relative' }}
-        onClick={e=>{ stop(e); setNotifOpen(o=>{ if(!o) markAllRead(); return !o; }); setProfileOpen(false); setHelpOpen(false); setAppsOpen(false); }}>
+        onClick={e=>{ stop(e); setNotifOpen(o=>!o); setNotifsRead(true); setProfileOpen(false); setHelpOpen(false); setAppsOpen(false); }}>
         <div style={{ position:'relative' }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-          {unreadCount>0 && (
-            <div style={{ position:'absolute', top:-6, right:-6, minWidth:16, height:16, borderRadius:8, background:'#e05252', border:'2px solid var(--sidebar-bg)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:800, color:'#fff', padding:'0 3px' }}>
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </div>
-          )}
+          {notifications.length>0 && !notifsRead && <div style={{ position:'absolute', top:-4, right:-4, width:8, height:8, borderRadius:'50%', background:'#e05252', border:'2px solid var(--sidebar-bg)' }} />}
         </div>
       </button>
 
@@ -754,60 +602,33 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
         style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700, cursor:'pointer', marginLeft:4, border:'2px solid rgba(255,255,255,.2)' }}>
         {initials(profile.full_name||'?')}
       </div>
-      </div>{/* end right actions */}
     </div>
 
     {/* ── NOTIFICATION DROPDOWN ── */}
     {notifOpen && (
-      <div onClick={stop} style={{ position:'fixed', top:56, right:56, width:380, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, boxShadow:'0 16px 48px rgba(0,0,0,.5)', zIndex:9999, maxHeight:540, display:'flex', flexDirection:'column' }}>
-        {/* Header */}
+      <div onClick={stop} style={{ position:'fixed', top:56, right:56, width:340, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 12px 32px rgba(0,0,0,.4)', zIndex:9999, maxHeight:480, display:'flex', flexDirection:'column' }}>
         <div style={{ padding:'14px 16px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <span style={{ fontWeight:700, fontSize:15 }}>Notifications</span>
-            {unreadCount>0 && <span style={{ background:'#e05252', color:'#fff', fontSize:10, fontWeight:800, padding:'1px 6px', borderRadius:10 }}>{unreadCount} new</span>}
-          </div>
-          <div style={{ display:'flex', gap:12 }}>
-            {notifications.some(n=>!n.is_read) && <span onClick={markAllRead} style={{ fontSize:12, color:'var(--accent)', cursor:'pointer', fontWeight:600 }}>Mark all read</span>}
-            {notifications.length>0 && <span onClick={clearAll} style={{ fontSize:12, color:'var(--muted)', cursor:'pointer' }}>Clear all</span>}
-          </div>
+          <span style={{ fontWeight:700, fontSize:14 }}>Notifications</span>
+          {notifications.length>0 && <span onClick={()=>{setNotifications([]);setNotifsRead(true);}} style={{ fontSize:12, color:'var(--muted)', cursor:'pointer' }}>Clear all</span>}
         </div>
-        {/* List */}
         <div style={{ overflowY:'auto', flex:1 }}>
           {notifications.length===0 ? (
-            <div style={{ padding:'40px 16px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>
-              <div style={{ marginBottom:10, color:"var(--accent)", display:"flex", justifyContent:"center" }}>{React.cloneElement(Icons.checkCircle,{width:32,height:32})}</div>
-              <div style={{ fontWeight:600, marginBottom:4 }}>You're all caught up!</div>
-              <div style={{ fontSize:12 }}>We'll notify you when something needs your attention</div>
+            <div style={{ padding:'32px 16px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>
+              <div style={{ fontSize:32, marginBottom:8 }}>🎉</div>
+              You're all caught up!
             </div>
-          ) : notifications.map(n=>{
-            const ICONS = { mention:Icons.messageSquare, assignment:Icons.user, status_change:Icons.refresh, overdue:Icons.alert, file:Icons.paperclip };
-            const ws = workspaces?.find(w=>w.id===n.workspace_id);
-            return (
-              <div key={n.id}
-                onClick={()=>{ if(ws){ onOpenWorkspace&&onOpenWorkspace(ws); setNotifOpen(false); } }}
-                style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', gap:12, alignItems:'flex-start', cursor: ws?'pointer':'default', background: n.is_read?'transparent':'rgba(77,142,240,.05)', transition:'background .15s', position:'relative' }}
-                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
-                onMouseOut={e=>e.currentTarget.style.background=n.is_read?'transparent':'rgba(77,142,240,.05)'}>
-                {/* Unread dot */}
-                {!n.is_read && <div style={{ position:'absolute', left:6, top:'50%', transform:'translateY(-50%)', width:6, height:6, borderRadius:'50%', background:'var(--accent)' }} />}
-                {/* Avatar */}
-                <div style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(n.actor_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0, position:'relative' }}>
-                  {initials(n.actor_name||'?')}
-                  <span style={{ position:'absolute', bottom:-2, right:-2, width:14, height:14, borderRadius:'50%', background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--muted)' }}>{ICONS[n.type]||Icons.bell}</span>
-                </div>
-                {/* Content */}
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:13, lineHeight:1.5 }}>
-                    <span style={{ fontWeight:700 }}>{n.actor_name}</span>
-                    {' '}<span style={{ color:'var(--muted)' }}>{n.message}</span>
-                  </div>
-                  {n.item_name && <div style={{ fontSize:12, color:'var(--accent)', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:4 }}>{Icons.clipboard} {n.item_name}</div>}
-                  {n.workspace_name && <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>in {n.workspace_name}</div>}
-                  <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>{timeAgo(n.created_at)}</div>
-                </div>
+          ) : notifications.map(n=>(
+            <div key={n.id} style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', gap:10, alignItems:'flex-start' }}
+              onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'}
+              onMouseOut={e=>e.currentTarget.style.background=''}>
+              <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(n.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(n.author_name||'?')}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:600, marginBottom:2 }}>{n.author_name} <span style={{ fontWeight:400, color:'var(--muted)' }}>mentioned you</span></div>
+                <div style={{ fontSize:12, color:'var(--muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{n.body}</div>
+                <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>{new Date(n.created_at).toLocaleString()}</div>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
     )}
@@ -845,18 +666,18 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
         <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:12 }}>Quick Navigation</div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
           {[
-            { label:'Dashboard', icon:Icons.dashboard, nav:'dashboard' },
-            { label:'Contacts', icon:Icons.contacts, nav:'contacts' },
-            { label:'Lead Funnel', icon:Icons.pipeline, nav:'pipeline' },
-            { label:'Team', icon:Icons.team, nav:'team' },
-            { label:'Branding', icon:Icons.branding, nav:'branding' },
-            { label:'Workspaces', icon:Icons.workspace, nav:'dashboard' },
+            { label:'Dashboard', icon:'⊞', nav:'dashboard' },
+            { label:'Contacts', icon:'👥', nav:'contacts' },
+            { label:'Lead Funnel', icon:'〽️', nav:'pipeline' },
+            { label:'Team', icon:'🏢', nav:'team' },
+            { label:'Branding', icon:'🎨', nav:'branding' },
+            { label:'Workspaces', icon:'📋', nav:'dashboard' },
           ].map(item=>(
             <div key={item.nav+item.label} onClick={()=>{ onNavigate(item.nav); setAppsOpen(false); }}
               style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6, padding:'14px 8px', borderRadius:8, cursor:'pointer', background:'var(--surface2)', border:'1px solid var(--border)', textAlign:'center' }}
               onMouseOver={e=>e.currentTarget.style.borderColor='var(--accent)'}
               onMouseOut={e=>e.currentTarget.style.borderColor='var(--border)'}>
-              <span style={{ display:'flex', color:'var(--muted)' }}>{typeof item.icon==='string'?item.icon:React.cloneElement(item.icon,{width:22,height:22})}</span>
+              <span style={{ fontSize:22 }}>{item.icon}</span>
               <span style={{ fontSize:12, color:'var(--muted)' }}>{item.label}</span>
             </div>
           ))}
@@ -871,7 +692,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
           {helpPage ? (
             <div style={{ display:'flex', alignItems:'center', gap:10 }}>
               <button onClick={()=>setHelpPage(null)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18, padding:0 }}>←</button>
-              <span style={{ fontWeight:700, fontSize:15, display:"flex", alignItems:"center", gap:6 }}>{React.cloneElement(helpPage.icon,{width:16,height:16})} {helpPage.title}</span>
+              <span style={{ fontWeight:700, fontSize:15 }}>{helpPage.icon} {helpPage.title}</span>
             </div>
           ) : <span style={{ fontWeight:700, fontSize:15 }}>📚 Help Center</span>}
           <button onClick={()=>setHelpOpen(false)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18 }}>✕</button>
@@ -889,7 +710,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                   style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:8, cursor:'pointer', marginBottom:4, border:'1px solid var(--border)' }}
                   onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'}
                   onMouseOut={e=>e.currentTarget.style.background=''}>
-                  <span style={{ display:'flex', color:'var(--accent)' }}>{React.cloneElement(article.icon,{width:20,height:20})}</span>
+                  <span style={{ fontSize:20 }}>{article.icon}</span>
                   <div>
                     <div style={{ fontWeight:600, fontSize:13 }}>{article.title}</div>
                     <div style={{ color:'var(--muted)', fontSize:12 }}>{article.content.length} articles</div>
@@ -930,18 +751,18 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
         </div>
         {/* Menu items */}
         {[
-          { icon:Icons.user, label:'My Profile', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
-          { icon:Icons.users, label:'Teams', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
-          { icon:Icons.settings, label:'Branding & Settings', action:()=>{ onNavigate('branding'); setProfileOpen(false); } },
-          { icon:Icons.workspace, label:'Workspaces', action:()=>{ onNavigate('dashboard'); setProfileOpen(false); } },
-          { icon:Icons.trash, label:'Trash / Archive', action:()=>{ onNavigate('trash'); setProfileOpen(false); } },
-          { icon:Icons.settings, label:'Administration', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
+          { icon:'👤', label:'My Profile', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
+          { icon:'👥', label:'Teams', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
+          { icon:'🎨', label:'Branding & Settings', action:()=>{ onNavigate('branding'); setProfileOpen(false); } },
+          { icon:'📋', label:'Workspaces', action:()=>{ onNavigate('dashboard'); setProfileOpen(false); } },
+          { icon:'🗑️', label:'Trash / Archive', action:()=>{ onNavigate('trash'); setProfileOpen(false); } },
+          { icon:'⚙️', label:'Administration', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
         ].map(item=>(
           <div key={item.label} onClick={item.action}
             style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 16px', cursor:'pointer', fontSize:13 }}
             onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.06)'}
             onMouseOut={e=>e.currentTarget.style.background=''}>
-            <span style={{ width:20, display:'flex', color:'var(--muted)' }}>{item.icon}</span>
+            <span style={{ fontSize:16, width:20, textAlign:'center' }}>{item.icon}</span>
             <span>{item.label}</span>
           </div>
         ))}
@@ -950,7 +771,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
             style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 16px', cursor:'pointer', fontSize:13, color:'var(--danger)' }}
             onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.06)'}
             onMouseOut={e=>e.currentTarget.style.background=''}>
-            <span style={{ width:20, display:'flex', color:'var(--danger)' }}>{Icons.logOut}</span>
+            <span style={{ fontSize:16, width:20, textAlign:'center' }}>🚪</span>
             <span>Log out</span>
           </div>
         </div>
@@ -962,426 +783,129 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWorkspace, onNavigate }) {
-  const [allItems, setAllItems]         = useState([]);
-  const [myItems, setMyItems]           = useState([]);
-  const [activityFeed, setActivityFeed] = useState([]);
-  const [teamMembers, setTeamMembers]   = useState([]);
-  const [loading, setLoading]           = useState(true);
-  const [showNewWs, setShowNewWs]       = useState(false);
-  const [dismissedAlerts, setDismissedAlerts] = useState([]);
+  const [wsStats, setWsStats] = useState({});
 
-  // Load everything in parallel
   React.useEffect(()=>{
     if(!profile?.company_name) return;
-    Promise.all([
-      supabase.from('workspace_items').select('*, workspaces(name,id)').eq('company_id', profile.company_name).eq('archived', false).neq('trashed', true),
-      supabase.from('workspace_updates').select('*').eq('company_id', profile.company_name).order('created_at',{ascending:false}).limit(30),
-      supabase.from('profiles').select('*').eq('company_name', profile.company_name),
-    ]).then(([items, updates, members])=>{
-      const data = items.data||[];
-      setAllItems(data);
-      const mine = data.filter(i=>(i.assigned_officers||[]).some(o=>o===profile.full_name||o===profile.email||o?.toLowerCase()===profile.full_name?.toLowerCase()));
-      mine.sort((a,b)=>{
-        const da=dueDateStatus(a.date), db=dueDateStatus(b.date);
-        if(da?.label==='Overdue'&&db?.label!=='Overdue') return -1;
-        if(db?.label==='Overdue'&&da?.label!=='Overdue') return 1;
-        if(a.date&&b.date) return a.date.localeCompare(b.date);
-        return a.date?-1:b.date?1:0;
+    supabase.from('workspace_items').select('*').eq('company_id', profile.company_name).then(({data})=>{
+      if(!data) return;
+      const stats = {};
+      data.forEach(item=>{
+        if(!stats[item.group_id]) stats[item.group_id] = {total:0, overdue:0, highPri:0};
+        stats[item.group_id].total++;
+        const ds = dueDateStatus(item.date);
+        if(ds?.label==='Overdue') stats[item.group_id].overdue++;
+        if(item.priority==='High'||item.priority==='Critical') stats[item.group_id].highPri++;
       });
-      setMyItems(mine);
-      setActivityFeed(updates.data||[]);
-      setTeamMembers(members.data||[]);
-      setLoading(false);
+      setWsStats(stats);
     });
-  },[profile?.company_name, profile?.full_name, profile?.email]);
-
-  // Real-time activity feed
-  React.useEffect(()=>{
-    if(!profile?.company_name) return;
-    const sub = supabase.channel('dash_activity')
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'workspace_updates'},
-        p=>{ if(p.new?.company_id===profile.company_name) setActivityFeed(f=>[p.new,...f].slice(0,30)); })
-      .subscribe();
-    return ()=>supabase.removeChannel(sub);
   },[profile?.company_name]);
-
-  // Derived data
-  const today       = new Date();
-  const hour        = today.getHours();
-  const greeting    = hour<12?'Good morning':hour<17?'Good afternoon':'Good evening';
-  const firstName   = (profile?.full_name||'').split(' ')[0]||'there';
-
-  const overdue     = allItems.filter(i=>dueDateStatus(i.date)?.label==='Overdue');
-  const dueSoon     = allItems.filter(i=>{ const s=dueDateStatus(i.date); return s?.label==='Due soon'&&s.days<=7; });
-  const lockExpiring= allItems.filter(i=>{ if(!i.lock_expiration) return false; const d=Math.ceil((new Date(i.lock_expiration)-today)/(86400000)); return d>=0&&d<=7; });
-  const myOverdue   = myItems.filter(i=>dueDateStatus(i.date)?.label==='Overdue');
-
-  // This week's items
-  const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate()+7);
-  const thisWeek = allItems.filter(i=>{ if(!i.date) return false; const d=new Date(i.date); return d>=today&&d<=weekEnd; });
-
-  // Workspace stats map
-  const wsStats = React.useMemo(()=>{
-    const map = {};
-    workspaces.forEach(w=>{ map[w.id]={total:0,overdue:0,done:0,statuses:{}}; });
-    allItems.forEach(i=>{
-      const wsId = i.workspaces?.id||i.workspace_id;
-      if(!map[wsId]) return;
-      map[wsId].total++;
-      if(dueDateStatus(i.date)?.label==='Overdue') map[wsId].overdue++;
-      if(i.status) map[wsId].statuses[i.status]=(map[wsId].statuses[i.status]||0)+1;
-    });
-    return map;
-  },[allItems,workspaces]);
-
-  // Team workload
-  const workload = React.useMemo(()=>{
-    const map={};
-    teamMembers.forEach(m=>{ map[m.full_name]={member:m,total:0,overdue:0}; });
-    allItems.forEach(i=>{ (i.assigned_officers||[]).forEach(name=>{ if(map[name]){ map[name].total++; if(dueDateStatus(i.date)?.label==='Overdue') map[name].overdue++; } }); });
-    return Object.values(map).filter(x=>x.total>0).sort((a,b)=>b.total-a.total);
-  },[allItems,teamMembers]);
-
-  const maxWorkload = Math.max(...workload.map(w=>w.total),1);
-
-  // Contact stats
-  const total    = contacts.length;
+  const [showNewWs, setShowNewWs] = useState(false);
+  const total = contacts.length;
   const pipeline = contacts.filter(c=>!['Converted','Non-Conversion'].includes(c.stage)).reduce((s,c)=>s+(c.deal_value||0),0);
-  const won      = contacts.filter(c=>c.stage==='Converted').length;
-  const winRate  = total>0?Math.round((won/total)*100):0;
-  const closed   = contacts.filter(c=>c.stage==='Converted').reduce((s,c)=>s+(c.deal_value||0),0);
+  const won = contacts.filter(c=>c.stage==='Converted').length;
+  const winRate = total > 0 ? Math.round((won/total)*100) : 0;
+  const closed = contacts.filter(c=>c.stage==='Converted').reduce((s,c)=>s+(c.deal_value||0),0);
+
   const stageCounts = STAGES.map(s=>({ stage:s, count:contacts.filter(c=>c.stage===s).length, value:contacts.filter(c=>c.stage===s).reduce((a,b)=>a+(b.deal_value||0),0) }));
   const maxCount = Math.max(...stageCounts.map(s=>s.count),1);
 
-  const WS_COLORS = ['#4d8ef0','#2ecc8a','#9b59b6','#f0b429','#e05252','#00b8c4','#f97316','#06b6d4'];
-
-  const alerts = [
-    ...myOverdue.slice(0,3).map(i=>({ id:'ov_'+i.id, type:'overdue', msg:`"${i.name}" is overdue`, ws:workspaces.find(w=>w.id===i.workspaces?.id||w.name===i.workspaces?.name) })),
-    ...lockExpiring.slice(0,2).map(i=>({ id:'lk_'+i.id, type:'lock', msg:`Lock expires in ${Math.ceil((new Date(i.lock_expiration)-today)/86400000)}d — ${i.name}`, ws:workspaces.find(w=>w.id===i.workspaces?.id||w.name===i.workspaces?.name) })),
-  ].filter(a=>!dismissedAlerts.includes(a.id));
-
-  if(loading) return (
-    <div style={{ padding:40, display:'flex', alignItems:'center', justifyContent:'center', minHeight:'60vh', flexDirection:'column', gap:16 }}>
-      <div style={{ width:40, height:40, borderRadius:'50%', border:'3px solid var(--border)', borderTopColor:'var(--accent)', animation:'spin 1s linear infinite' }} />
-      <div style={{ color:'var(--muted)', fontSize:14 }}>Loading your dashboard...</div>
-    </div>
-  );
-
   return (
-    <div style={{ padding:'28px 32px 60px', maxWidth:1400 }}>
+    <div style={{ padding:32 }}>
+      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:24, color:'var(--text)' }}>Dashboard</div>
 
-      {/* ── HERO GREETING ── */}
-      <div style={{ marginBottom:24, display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:20 }}>
-        <div>
-          <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.1em', marginBottom:6 }}>
-            {today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}
+      {/* ── MAIN WORKSPACE SECTION (TOP) ── */}
+      <div style={{ marginBottom:32 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+          <div>
+            <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Main Workspace</div>
+            <div style={{ fontFamily:'Playfair Display,serif', fontSize:20, fontWeight:700 }}>Citizens Financial</div>
           </div>
-          <h1 style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:30, fontWeight:700, marginBottom:8, lineHeight:1.2 }}>
-            {greeting}, {firstName}
-          </h1>
-          <div style={{ color:'var(--muted)', fontSize:14, display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
-            {myOverdue.length>0 && <span style={{ display:'flex', alignItems:'center', gap:5, color:'#e05252', fontWeight:600 }}>{Icons.alert} {myOverdue.length} overdue item{myOverdue.length!==1?'s':''}</span>}
-            {thisWeek.length>0 && <span style={{ display:'flex', alignItems:'center', gap:5 }}>{Icons.calendar} {thisWeek.length} due this week</span>}
-            {lockExpiring.length>0 && <span style={{ display:'flex', alignItems:'center', gap:5, color:'#f0b429', fontWeight:600 }}>{Icons.lock} {lockExpiring.length} lock{lockExpiring.length!==1?'s':''} expiring soon</span>}
-            {myOverdue.length===0&&thisWeek.length===0&&lockExpiring.length===0 && <span style={{ display:'flex', alignItems:'center', gap:5, color:'#2ecc8a' }}>{Icons.checkCircle} Everything is on track today</span>}
-          </div>
+          {profile?.role==='admin' && <button className="btn-primary btn-sm" onClick={()=>setShowNewWs(true)}>+ New Workspace</button>}
         </div>
-        {profile?.role==='admin' && (
-          <button className="btn-primary btn-sm" onClick={()=>setShowNewWs(true)} style={{ flexShrink:0, marginTop:4 }}>+ New Workspace</button>
+        {workspaces.length===0 ? (
+          <div className="card" style={{ textAlign:'center', padding:40 }}>
+            <div style={{ fontSize:32, marginBottom:12 }}>📋</div>
+            <div style={{ fontWeight:600, marginBottom:6 }}>No workspaces yet</div>
+            <div style={{ color:'var(--muted)', fontSize:13, marginBottom:16 }}>Create workspaces to manage loans, tasks, and team projects</div>
+            {profile?.role==='admin' && <button className="btn-primary" onClick={()=>setShowNewWs(true)}>Create First Workspace</button>}
+          </div>
+        ) : (
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))', gap:14 }}>
+            {workspaces.map((w,i)=>{
+              const colors = ['#4d8ef0','#2ecc8a','#9b59b6','#f0b429','#e05252','#00b8c4'];
+              const color = colors[i % colors.length];
+              return (
+                <div key={w.id} onClick={()=>onOpenWorkspace(w)} style={{ cursor:'pointer', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:'20px 18px', transition:'all .2s', borderLeft:`4px solid ${color}`, position:'relative', overflow:'hidden' }}
+                  onMouseOver={e=>{ e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow=`0 8px 24px rgba(0,0,0,.2)`; }}
+                  onMouseOut={e=>{ e.currentTarget.style.transform='translateY(0)'; e.currentTarget.style.boxShadow='none'; }}>
+                  <div style={{ width:36, height:36, borderRadius:8, background:color+'22', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:12 }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                  </div>
+                  <div style={{ fontWeight:700, fontSize:14, marginBottom:4 }}>{w.name}</div>
+                  <div style={{ color:'var(--muted)', fontSize:12 }}>Open workspace →</div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
-      {/* ── ALERTS STRIP ── */}
-      {alerts.length>0 && (
-        <div style={{ marginBottom:24, display:'flex', flexDirection:'column', gap:8 }}>
-          {alerts.map(a=>(
-            <div key={a.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 16px', background:a.type==='overdue'?'rgba(224,82,82,.1)':'rgba(240,180,41,.1)', border:`1px solid ${a.type==='overdue'?'rgba(224,82,82,.3)':'rgba(240,180,41,.3)'}`, borderRadius:8, fontSize:13 }}>
-              <span style={{ display:'flex', color:a.type==='overdue'?'#e05252':'#f0b429' }}>{a.type==='overdue'?Icons.alert:Icons.lock}</span>
-              <span style={{ flex:1, color:a.type==='overdue'?'#e05252':'#f0b429', fontWeight:600 }}>{a.msg}</span>
-              {a.ws && <span onClick={()=>onOpenWorkspace(a.ws)} style={{ color:'var(--accent)', cursor:'pointer', fontSize:12, fontWeight:600, flexShrink:0 }}>Go to workspace →</span>}
-              <button onClick={()=>setDismissedAlerts(d=>[...d,a.id])} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18, padding:'0 4px', lineHeight:1 }}>×</button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ── KPI STRIP ── */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12, marginBottom:28 }}>
+      {/* ── STATS ── */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:16, marginBottom:28 }}>
         {[
-          { label:'Total Items',    val:allItems.length,              icon:Icons.clipboard, sub:`across ${workspaces.length} workspace${workspaces.length!==1?'s':''}`, color:'#4d8ef0', action:null },
-          { label:'Overdue',        val:overdue.length,               icon:Icons.alert, sub:'need immediate attention',       color:'#e05252', action:null },
-          { label:'Due This Week',  val:thisWeek.length,              icon:Icons.calendar, sub:'closing or expiring soon',       color:'#f0b429', action:()=>onNavigate('calendar') },
-          { label:'Total Contacts', val:total,                        icon:Icons.users, sub:`${winRate}% conversion rate`,   color:'#2ecc8a', action:()=>onNavigate('contacts') },
-          { label:'Funnel Value',   val:fmt(pipeline),                icon:Icons.dollar, sub:`${fmt(closed)} closed`,         color:'#9b59b6', action:()=>onNavigate('pipeline') },
-        ].map(kpi=>(
-          <div key={kpi.label} onClick={kpi.action||undefined}
-            style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:'16px 18px', borderLeft:`3px solid ${kpi.color}`, cursor:kpi.action?'pointer':'default', transition:'all .15s', position:'relative', overflow:'hidden' }}
-            onMouseOver={e=>{ if(kpi.action){ e.currentTarget.style.transform='translateY(-2px)'; e.currentTarget.style.boxShadow='0 6px 20px rgba(0,0,0,.2)'; } }}
-            onMouseOut={e=>{ e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow=''; }}>
-            <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em', marginBottom:6 }}>{kpi.label}</div>
-            <div style={{ fontSize:26, fontWeight:800, fontFamily:'JetBrains Mono,monospace', color:kpi.color, marginBottom:4 }}>{kpi.val}</div>
-            <div style={{ fontSize:11, color:'var(--muted)' }}>{kpi.sub}</div>
-            {kpi.action && <div style={{ fontSize:11, color:kpi.color, marginTop:6, fontWeight:600 }}>View →</div>}
+          ['Total Contacts',total,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4d8ef0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,'blue','contacts'],
+          ['Funnel Value',fmt(pipeline),<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#2ecc8a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,'green','pipeline'],
+          ['Conversion Rate',`${winRate}%`,<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f0b429" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,'yellow','pipeline'],
+          ['Total Revenue',fmt(closed),<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#4d8ef0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>,'purple','contacts'],
+        ].map(([label,val,icon,color,nav])=>(
+          <div key={label} className="stat-card" onClick={()=>nav&&onNavigate(nav)} style={{ cursor:nav?'pointer':'default', transition:'all .2s' }}
+            onMouseOver={e=>{ if(nav) e.currentTarget.style.transform='translateY(-2px)'; }}
+            onMouseOut={e=>{ e.currentTarget.style.transform='translateY(0)'; }}>
+            <div style={{ marginBottom:10 }}>{icon}</div>
+            <div style={{ fontFamily:'JetBrains Mono,monospace', fontSize:24, fontWeight:700, color:`var(--${color==='blue'?'accent':color==='green'?'success':color==='yellow'?'warning':'accent2'})` }}>{val}</div>
+            <div style={{ color:'var(--muted)', fontSize:13, marginTop:4 }}>{label}</div>
+            {nav && <div style={{ fontSize:11, color:'var(--accent)', marginTop:6 }}>View →</div>}
           </div>
         ))}
       </div>
 
-      {/* ── TWO COLUMN LAYOUT ── */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 380px', gap:24, marginBottom:28 }}>
-
-        {/* LEFT COLUMN */}
-        <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
-
-          {/* ── WORKSPACES ── */}
-          <div>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700 }}>Workspaces</div>
-              <span style={{ fontSize:12, color:'var(--muted)' }}>{workspaces.length} workspace{workspaces.length!==1?'s':''}</span>
+      {/* ── FUNNEL BY STAGE ── */}
+      <div className="card" style={{ marginBottom:20 }}>
+        <div style={{ fontWeight:600, marginBottom:16, display:'flex', justifyContent:'space-between', alignItems:'center' }}><span>Funnel by Stage</span><span onClick={()=>onNavigate('pipeline')} style={{ fontSize:12, color:'var(--accent)', cursor:'pointer' }}>View Lead Funnel →</span></div>
+        {stageCounts.map(({ stage, count, value })=>(
+          <div key={stage} style={{ marginBottom:12 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+              <span style={{ fontSize:13 }}>{stage}</span>
+              <span style={{ fontSize:12, color:'var(--muted)', fontFamily:'JetBrains Mono,monospace' }}>{count} · {fmt(value)}</span>
             </div>
-            {workspaces.length===0 ? (
-              <div className="card" style={{ textAlign:'center', padding:32 }}>
-                <div style={{ marginBottom:8, color:"var(--muted)", display:"flex", justifyContent:"center" }}>{React.cloneElement(Icons.workspace,{width:28,height:28})}</div>
-                <div style={{ fontWeight:600, marginBottom:4 }}>No workspaces yet</div>
-                <div style={{ color:'var(--muted)', fontSize:13, marginBottom:14 }}>Create your first workspace to get started</div>
-                {profile?.role==='admin' && <button className="btn-primary btn-sm" onClick={()=>setShowNewWs(true)}>Create Workspace</button>}
-              </div>
-            ) : (
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:12 }}>
-                {workspaces.map((w,i)=>{
-                  const color  = WS_COLORS[i%WS_COLORS.length];
-                  const stats  = wsStats[w.id]||{total:0,overdue:0,statuses:{}};
-                  const statusEntries = Object.entries(stats.statuses).sort((a,b)=>b[1]-a[1]).slice(0,4);
-                  const lastActivity = activityFeed.find(a=>a.workspace_id===w.id||allItems.some(it=>it.workspaces?.id===w.id&&it.id===a.item_id));
-                  return (
-                    <div key={w.id} onClick={()=>onOpenWorkspace(w)}
-                      style={{ cursor:'pointer', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:'18px 16px', transition:'all .2s', borderTop:`3px solid ${color}`, position:'relative' }}
-                      onMouseOver={e=>{ e.currentTarget.style.transform='translateY(-3px)'; e.currentTarget.style.boxShadow=`0 10px 28px rgba(0,0,0,.25)`; e.currentTarget.style.borderColor=color; }}
-                      onMouseOut={e=>{ e.currentTarget.style.transform=''; e.currentTarget.style.boxShadow=''; e.currentTarget.style.borderColor='var(--border)'; }}>
-                      {/* Header */}
-                      <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:12 }}>
-                        <div style={{ width:36, height:36, borderRadius:9, background:color+'20', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-                        </div>
-                        {stats.overdue>0 && (
-                          <span style={{ background:'rgba(224,82,82,.15)', color:'#e05252', fontSize:10, fontWeight:800, padding:'2px 7px', borderRadius:10 }}>
-                            ⚠️ {stats.overdue} overdue
-                          </span>
-                        )}
-                      </div>
-                      {/* Name */}
-                      <div style={{ fontWeight:700, fontSize:14, marginBottom:6 }}>{w.name}</div>
-                      {/* Item count */}
-                      <div style={{ color:'var(--muted)', fontSize:12, marginBottom:10 }}>{stats.total} item{stats.total!==1?'s':''}</div>
-                      {/* Status distribution bar */}
-                      {stats.total>0 && (
-                        <div style={{ display:'flex', height:4, borderRadius:2, overflow:'hidden', gap:1, marginBottom:10 }}>
-                          {statusEntries.map(([status,count],si)=>{
-                            const pct = Math.round((count/stats.total)*100);
-                            const barColors=['#4d8ef0','#2ecc8a','#f0b429','#e05252','#9b59b6'];
-                            return <div key={status} title={`${status}: ${count}`} style={{ flex:pct, background:barColors[si%barColors.length], minWidth:2 }} />;
-                          })}
-                          <div style={{ flex:Math.max(0, 100-statusEntries.reduce((s,[,c])=>s+Math.round((c/stats.total)*100),0)), background:'var(--border)' }} />
-                        </div>
-                      )}
-                      {/* Bottom row */}
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                        <div style={{ fontSize:11, color:'var(--muted)' }}>
-                          {lastActivity ? `Updated ${timeAgo(lastActivity.created_at)}` : 'No recent activity'}
-                        </div>
-                        <span style={{ fontSize:11, color:color, fontWeight:600 }}>Open →</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* ── MY WORK ── */}
-          <div>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-              <div>
-                <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:3 }}>Assigned to you</div>
-                <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700 }}>My Work</div>
-              </div>
-              {myItems.length>0 && <span style={{ fontSize:12, color:'var(--muted)' }}>{myItems.length} item{myItems.length!==1?'s':''}</span>}
-            </div>
-            {myItems.length===0 ? (
-              <div className="card" style={{ textAlign:'center', padding:'24px 20px' }}>
-                <div style={{ marginBottom:8, color:"var(--success)", display:"flex", justifyContent:"center" }}>{React.cloneElement(Icons.checkCircle,{width:28,height:28})}</div>
-                <div style={{ fontWeight:600, marginBottom:4 }}>All clear!</div>
-                <div style={{ color:'var(--muted)', fontSize:13 }}>No items are currently assigned to you.</div>
-              </div>
-            ) : (
-              <div style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', overflow:'hidden' }}>
-                {myItems.slice(0,12).map((item,idx)=>{
-                  const ds       = dueDateStatus(item.date);
-                  const wsName   = item.workspaces?.name||'';
-                  const isOverdue = ds?.label==='Overdue';
-                  const isDueSoon = ds?.label==='Due soon'&&ds.days<=3;
-                  return (
-                    <div key={item.id}
-                      onClick={()=>{ const w=workspaces.find(w=>w.name===wsName||w.id===item.workspaces?.id); if(w) onOpenWorkspace(w); }}
-                      style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 16px', borderBottom: idx<Math.min(myItems.length,12)-1?'1px solid var(--border)':'none', cursor:'pointer', transition:'all .12s', background: isOverdue?'rgba(224,82,82,.04)':'transparent' }}
-                      onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.07)'}
-                      onMouseOut={e=>e.currentTarget.style.background=isOverdue?'rgba(224,82,82,.04)':'transparent'}>
-                      <div style={{ width:7, height:7, borderRadius:'50%', flexShrink:0, background: item.priority==='Critical'?'#e05252':item.priority==='High'?'#f0b429':item.priority==='Low'?'#6c757d':'#4d8ef0' }} />
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.name}</div>
-                        {wsName && <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}><span style={{display:'flex',alignItems:'center',gap:4,color:'var(--muted)'}}>{Icons.workspace} {wsName}</span></div>}
-                      </div>
-                      {item.status && <div style={{ padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:600, background:(item.status_color||'#4d8ef0')+'25', color:item.status_color||'var(--accent)', flexShrink:0 }}>{item.status}</div>}
-                      {item.date && (
-                        <div style={{ fontSize:11, fontWeight:600, flexShrink:0, color:isOverdue?'#e05252':isDueSoon?'#f0b429':'var(--muted)', background:isOverdue?'rgba(224,82,82,.1)':isDueSoon?'rgba(240,180,41,.1)':'transparent', padding:'2px 6px', borderRadius:4, whiteSpace:'nowrap' }}>
-                          {isOverdue?<span style={{display:'flex',alignItems:'center',gap:3}}>{Icons.alert}{ds.days}d late</span>:isDueSoon?<span style={{display:'flex',alignItems:'center',gap:3}}>{Icons.flame}{ds.days}d</span>:<span style={{display:'flex',alignItems:'center',gap:3}}>{Icons.calendar}{item.date}</span>}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                {myItems.length>12 && (
-                  <div style={{ padding:'10px 16px', textAlign:'center', fontSize:12, color:'var(--muted)', borderTop:'1px solid var(--border)', background:'var(--surface2)' }}>
-                    +{myItems.length-12} more items across your workspaces
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* ── UPCOMING THIS WEEK ── */}
-          {thisWeek.length>0 && (
-            <div>
-              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700, marginBottom:14 }}>Upcoming This Week</div>
-              <div style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', overflow:'hidden' }}>
-                {thisWeek.slice(0,8).map((item,idx)=>{
-                  const ws = workspaces.find(w=>w.id===item.workspaces?.id||w.name===item.workspaces?.name);
-                  const ds = dueDateStatus(item.date);
-                  const wsColor = ws ? WS_COLORS[workspaces.indexOf(ws)%WS_COLORS.length] : '#4d8ef0';
-                  return (
-                    <div key={item.id} onClick={()=>ws&&onOpenWorkspace(ws)}
-                      style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 16px', borderBottom:idx<Math.min(thisWeek.length,8)-1?'1px solid var(--border)':'none', cursor:'pointer' }}
-                      onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.07)'}
-                      onMouseOut={e=>e.currentTarget.style.background=''}>
-                      <div style={{ width:3, height:36, borderRadius:2, background:wsColor, flexShrink:0 }} />
-                      <div style={{ flex:1, minWidth:0 }}>
-                        <div style={{ fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{item.name}</div>
-                        <div style={{ fontSize:11, color:'var(--muted)', marginTop:1, display:'flex', alignItems:'center', gap:4 }}>{Icons.workspace} {item.workspaces?.name||''}</div>
-                      </div>
-                      {item.status && <div style={{ padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:600, background:(item.status_color||'#4d8ef0')+'25', color:item.status_color||'var(--accent)', flexShrink:0 }}>{item.status}</div>}
-                      <div style={{ fontSize:11, color:ds?.days<=3?'#f0b429':'var(--muted)', fontWeight:ds?.days<=3?700:400, flexShrink:0 }}>
-                        {ds?.days===0?'Today':ds?.days===1?'Tomorrow':`${ds?.days}d`}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ── FUNNEL BY STAGE ── */}
-          <div>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700 }}>Lead Funnel</div>
-              <span onClick={()=>onNavigate('pipeline')} style={{ fontSize:12, color:'var(--accent)', cursor:'pointer', fontWeight:600 }}>View all →</span>
-            </div>
-            <div className="card">
-              {stageCounts.map(({ stage, count, value })=>(
-                <div key={stage} style={{ marginBottom:14 }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
-                    <span style={{ fontSize:13, fontWeight:500 }}>{stage}</span>
-                    <span style={{ fontSize:12, color:'var(--muted)', fontFamily:'JetBrains Mono,monospace' }}>{count} · {fmt(value)}</span>
-                  </div>
-                  <div style={{ height:6, background:'var(--surface2)', borderRadius:3 }}>
-                    <div style={{ height:'100%', width:`${(count/maxCount)*100}%`, background:'var(--accent)', borderRadius:3, transition:'width .6s ease' }} />
-                  </div>
-                </div>
-              ))}
+            <div style={{ height:6, background:'var(--surface2)', borderRadius:3 }}>
+              <div style={{ height:'100%', width:`${(count/maxCount)*100}%`, background:'var(--accent)', borderRadius:3, transition:'width .5s' }} />
             </div>
           </div>
+        ))}
+      </div>
 
-        </div>{/* end left column */}
-
-        {/* RIGHT COLUMN */}
-        <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
-
-          {/* ── TEAM ACTIVITY FEED ── */}
-          <div>
-            <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700, marginBottom:14 }}>Team Activity</div>
-            <div style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', overflow:'hidden', maxHeight:420, overflowY:'auto' }}>
-              {activityFeed.length===0 ? (
-                <div style={{ padding:'32px 16px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>
-                  <div style={{ marginBottom:8, color:"var(--muted)", display:"flex", justifyContent:"center" }}>{React.cloneElement(Icons.messageSquare,{width:28,height:28})}</div>
-                  No recent activity yet
-                </div>
-              ) : activityFeed.map((a,idx)=>(
-                <div key={a.id} style={{ display:'flex', gap:10, padding:'12px 14px', borderBottom:idx<activityFeed.length-1?'1px solid var(--border)':'none', alignItems:'flex-start' }}
-                  onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.03)'}
-                  onMouseOut={e=>e.currentTarget.style.background=''}>
-                  <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(a.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, flexShrink:0 }}>{initials(a.author_name||'?')}</div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:12, fontWeight:600 }}>{a.author_name} <span style={{ fontWeight:400, color:'var(--muted)' }}>posted an update</span></div>
-                    <div style={{ fontSize:11, color:'var(--muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', margin:'2px 0' }}>{a.body}</div>
-                    <div style={{ fontSize:10, color:'var(--muted)', marginTop:2 }}>{timeAgo(a.created_at)}</div>
-                  </div>
-                </div>
-              ))}
+      {/* ── RECENT CONTACTS ── */}
+      <div className="card">
+        <div style={{ fontWeight:600, marginBottom:14, display:'flex', justifyContent:'space-between', alignItems:'center' }}><span>Recent Contacts</span><span onClick={()=>onNavigate('contacts')} style={{ fontSize:12, color:'var(--accent)', cursor:'pointer' }}>View All →</span></div>
+        {contacts.slice(0,5).map(c=>(
+          <div key={c.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid var(--border)' }}>
+            <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(c.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700 }}>{initials(c.full_name)}</div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontWeight:500, fontSize:14 }}>{c.full_name}</div>
+              <div style={{ color:'var(--muted)', fontSize:12 }}>{c.company}</div>
             </div>
+            <span className={`badge badge-${STAGE_COLORS[c.stage]||'blue'}`} style={{ fontSize:11 }}>{c.stage}</span>
           </div>
-
-          {/* ── TEAM WORKLOAD (admin/manager only) ── */}
-          {(profile.role==='admin'||profile.role==='manager') && workload.length>0 && (
-            <div>
-              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700, marginBottom:14 }}>Team Workload</div>
-              <div className="card" style={{ padding:'16px 18px' }}>
-                {workload.map(({member,total,overdue})=>(
-                  <div key={member.id} style={{ marginBottom:14 }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
-                      <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(member.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, flexShrink:0 }}>{initials(member.full_name||'?')}</div>
-                      <span style={{ fontSize:13, fontWeight:600, flex:1 }}>{member.full_name}</span>
-                      <span style={{ fontSize:11, fontFamily:'JetBrains Mono,monospace', color:'var(--muted)' }}>{total}</span>
-                      {overdue>0 && <span style={{ background:'rgba(224,82,82,.15)', color:'#e05252', fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:8 }}>⚠️ {overdue}</span>}
-                    </div>
-                    <div style={{ height:5, background:'var(--surface2)', borderRadius:3, overflow:'hidden' }}>
-                      <div style={{ height:'100%', width:`${Math.round((total/maxWorkload)*100)}%`, background: overdue>0?'linear-gradient(90deg,#4d8ef0,#e05252)':'var(--accent)', borderRadius:3, transition:'width .5s ease' }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── RECENT CONTACTS ── */}
-          <div>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700 }}>Recent Contacts</div>
-              <span onClick={()=>onNavigate('contacts')} style={{ fontSize:12, color:'var(--accent)', cursor:'pointer', fontWeight:600 }}>View all →</span>
-            </div>
-            <div style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', overflow:'hidden' }}>
-              {contacts.length===0 ? (
-                <div style={{ padding:'24px 16px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>No contacts yet</div>
-              ) : contacts.slice(0,6).map((c,idx)=>(
-                <div key={c.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderBottom:idx<Math.min(contacts.length,6)-1?'1px solid var(--border)':'none', cursor:'pointer' }}
-                  onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.07)'}
-                  onMouseOut={e=>e.currentTarget.style.background=''}>
-                  <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(c.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(c.full_name)}</div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontWeight:600, fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.full_name}</div>
-                    <div style={{ color:'var(--muted)', fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.company||c.email||''}</div>
-                  </div>
-                  <span className={`badge badge-${STAGE_COLORS[c.stage]||'blue'}`} style={{ fontSize:10, flexShrink:0 }}>{c.stage}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-        </div>{/* end right column */}
+        ))}
+        {contacts.length===0 && <div style={{ color:'var(--muted)', fontSize:13 }}>No contacts yet. Add your first lead!</div>}
       </div>
 
       {showNewWs && <InputModal title="New Workspace" placeholder="e.g. Loans In Process" onConfirm={name=>{ onCreateWorkspace(name); setShowNewWs(false); }} onClose={()=>setShowNewWs(false)} />}
     </div>
   );
 }
-
 
 // ─── CONTACTS VIEW ────────────────────────────────────────────────────────────
 function MassEmailModal({ contacts, onClose, onSent }) {
@@ -1444,114 +968,12 @@ function MassEmailModal({ contacts, onClose, onSent }) {
   );
 }
 
-
-// ─── GROUP SEND PRESENTATION MODAL ───────────────────────────────────────────
-function GroupSendModal({ contacts, profile, toast, onClose, onSent }) {
-  const [selectedStages, setSelectedStages] = useState([]);
-  const [confirmed, setConfirmed]           = useState(false);
-
-  const stageCounts = STAGES.map(s=>({
-    stage: s,
-    contacts: contacts.filter(c=>c.stage===s),
-    withEmail: contacts.filter(c=>c.stage===s && c.email).length,
-  })).filter(s=>s.contacts.length>0);
-
-  const toggleStage = (s) => setSelectedStages(prev => prev.includes(s) ? prev.filter(x=>x!==s) : [...prev, s]);
-  const selectAll   = () => setSelectedStages(stageCounts.map(s=>s.stage));
-  const clearAll    = () => setSelectedStages([]);
-
-  const targetContacts = contacts.filter(c => selectedStages.includes(c.stage) && c.email);
-  const totalSelected  = contacts.filter(c => selectedStages.includes(c.stage));
-
-  if(confirmed) return (
-    <MassPresentationModal
-      contacts={targetContacts}
-      profile={profile}
-      toast={toast}
-      onClose={onClose}
-      onSent={onSent}
-    />
-  );
-
-  return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:520 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-          <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Send by Group</div>
-          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
-        </div>
-        <div style={{ fontSize:13, color:'var(--muted)', marginBottom:20 }}>Select one or more stage groups to send a presentation to all contacts in those groups.</div>
-
-        {/* Select all / clear */}
-        <div style={{ display:'flex', gap:10, marginBottom:14 }}>
-          <button onClick={selectAll} className="btn-secondary btn-sm">Select All</button>
-          <button onClick={clearAll} className="btn-secondary btn-sm">Clear</button>
-        </div>
-
-        {/* Stage group list */}
-        <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:20 }}>
-          {stageCounts.map(({stage, contacts:sc, withEmail})=>{
-            const sel = selectedStages.includes(stage);
-            const color = STAGE_COLORS[stage]||'blue';
-            return (
-              <div key={stage} onClick={()=>toggleStage(stage)}
-                style={{ display:'flex', alignItems:'center', gap:14, padding:'12px 16px', borderRadius:10, border:`2px solid ${sel?'var(--accent)':'var(--border)'}`, background:sel?'rgba(77,142,240,.07)':'transparent', cursor:'pointer', transition:'all .15s' }}>
-                {/* Checkbox */}
-                <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${sel?'var(--accent)':'var(--border)'}`, background:sel?'var(--accent)':'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'all .15s' }}>
-                  {sel && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
-                </div>
-                {/* Stage badge */}
-                <span className={`badge badge-${color}`} style={{ flexShrink:0 }}>{stage}</span>
-                {/* Counts */}
-                <div style={{ flex:1, display:'flex', justifyContent:'flex-end', alignItems:'center', gap:12 }}>
-                  <div style={{ textAlign:'right' }}>
-                    <div style={{ fontSize:14, fontWeight:700 }}>{sc.length}</div>
-                    <div style={{ fontSize:11, color:'var(--muted)' }}>contact{sc.length!==1?'s':''}</div>
-                  </div>
-                  <div style={{ textAlign:'right' }}>
-                    <div style={{ fontSize:14, fontWeight:700, color:withEmail===sc.length?'var(--success)':'var(--warning)' }}>{withEmail}</div>
-                    <div style={{ fontSize:11, color:'var(--muted)' }}>with email</div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Summary */}
-        {selectedStages.length>0 && (
-          <div style={{ background:'var(--surface2)', borderRadius:8, padding:'12px 16px', marginBottom:16, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <div>
-              <div style={{ fontSize:13, fontWeight:600 }}>{targetContacts.length} recipients selected</div>
-              {totalSelected.length > targetContacts.length && (
-                <div style={{ fontSize:11, color:'var(--warning)', marginTop:2 }}>{totalSelected.length - targetContacts.length} contact{totalSelected.length-targetContacts.length!==1?'s':''} skipped — no email</div>
-              )}
-            </div>
-            <div style={{ display:'flex', gap:6 }}>
-              {selectedStages.map(s=><span key={s} className={`badge badge-${STAGE_COLORS[s]||'blue'}`} style={{ fontSize:10 }}>{s}</span>)}
-            </div>
-          </div>
-        )}
-
-        <div style={{ display:'flex', gap:10 }}>
-          <button className="btn-secondary" onClick={onClose} style={{ flex:1 }}>Cancel</button>
-          <button className="btn-primary" disabled={targetContacts.length===0} onClick={()=>setConfirmed(true)} style={{ flex:2, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-            {React.cloneElement(Icons.file,{width:14,height:14})}
-            Continue with {targetContacts.length} Contact{targetContacts.length!==1?'s':''}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState('All');
   const [selected, setSelected] = useState([]);
   const [showMassEmail, setShowMassEmail] = useState(false);
-  const [showMassPresentation, setShowMassPresentation] = useState(false);
-  const [showGroupSend, setShowGroupSend] = useState(false);
+  const [showMassPres, setShowMassPres] = useState(false);
 
   const filtered = contacts.filter(c => {
     const q = (search||'').toLowerCase();
@@ -1567,13 +989,10 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
   return (
     <div style={{ padding:32 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-        <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700 }}>Contacts</div>
+        <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700 }}>Contacts</div>
         <div style={{ display:'flex', gap:10 }}>
-          {selected.length > 0 && <button className="btn-secondary" onClick={()=>setShowMassEmail(true)}>Email {selected.length} Selected</button>}
-          {selected.length > 0 && <button className="btn-secondary" onClick={()=>setShowMassPresentation(true)} style={{ display:'flex', alignItems:'center', gap:6 }}>{React.cloneElement(Icons.file,{width:14,height:14})} Send Presentation</button>}
-          <button className="btn-secondary" onClick={()=>setShowGroupSend(true)} style={{ display:'flex', alignItems:'center', gap:6 }}>
-            {React.cloneElement(Icons.users,{width:14,height:14})} Send by Group
-          </button>
+          {selected.length > 0 && <button className="btn-secondary" onClick={()=>setShowMassEmail(true)}>📧 Email {selected.length} Selected</button>}
+          {selected.length > 0 && <button className="btn-secondary" onClick={()=>setShowMassPres(true)} style={{ background:'rgba(77,142,240,.15)', borderColor:'var(--accent)', color:'var(--accent)' }}>📊 Send Presentation to {selected.length}</button>}
           <button className="btn-primary" onClick={onAdd}>+ Add Contact</button>
         </div>
       </div>
@@ -1614,9 +1033,7 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
         {filtered.length===0 && <div style={{ padding:40, textAlign:'center', color:'var(--muted)' }}>No contacts found</div>}
       </div>
       {showMassEmail && <MassEmailModal contacts={selectedContacts} onClose={()=>setShowMassEmail(false)} onSent={(n)=>{ setShowMassEmail(false); setSelected([]); toast('Sent to ' + n + ' contacts!'); }} />}
-      {showMassPresentation && <MassPresentationModal contacts={selectedContacts} profile={profile} onClose={()=>setShowMassPresentation(false)} toast={toast} onSent={(n)=>{ setShowMassPresentation(false); setSelected([]); toast('Presentations sent to '+n+' contacts!'); }} />}
-      {showGroupSend && <GroupSendModal contacts={contacts} profile={profile} toast={toast} onClose={()=>setShowGroupSend(false)} onSent={(n)=>{ setShowGroupSend(false); toast('Presentations sent to '+n+' contacts!'); }} />}
-      {showGroupSend && <GroupSendModal contacts={contacts} profile={profile} toast={toast} onClose={()=>setShowGroupSend(false)} onSent={(n)=>{ setShowGroupSend(false); toast('Presentations sent to '+n+' contacts!'); }} />}
+      {showMassPres && <MassPresentationModal contacts={selectedContacts} profile={profile} onClose={()=>setShowMassPres(false)} onSent={(n)=>{ setShowMassPres(false); setSelected([]); toast('Presentations sent to ' + n + ' contacts!'); }} />}
     </div>
   );
 }
@@ -1630,7 +1047,7 @@ function PipelineView({ contacts, onSelect }) {
   };
   return (
     <div style={{ padding:32, maxWidth:900, margin:'0 auto' }}>
-      <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700, marginBottom:28 }}>Lead Funnel</div>
+      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:28 }}>Lead Funnel</div>
       <div style={{ display:'flex', flexDirection:'column', gap:8, alignItems:'center' }}>
         {STAGES.map((stage, i) => {
           const stageContacts = contacts.filter(c=>c.stage===stage);
@@ -1701,7 +1118,7 @@ function TeamView({ profile, toast }) {
 
   return (
     <div style={{ padding:28, maxWidth:700 }}>
-      <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700, marginBottom:24 }}>Team</div>
+      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:24 }}>Team</div>
       <div className="card" style={{ marginBottom:20 }}>
         <div style={{ fontWeight:600, marginBottom:12 }}>Invite Team Member</div>
         <div style={{ display:'flex', gap:10 }}>
@@ -1750,7 +1167,7 @@ function BrandingView({ profile, onBrandUpdate, toast }) {
 
   return (
     <div style={{ padding:28, maxWidth:500 }}>
-      <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700, marginBottom:24 }}>Branding</div>
+      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:24 }}>Branding</div>
       <div className="card">
         <div className="form-group"><label>Company Name</label><input value={form.company_name} onChange={e=>set('company_name',e.target.value)} /></div>
         <div className="form-group"><label>Logo URL (direct image link)</label><input value={form.logo_url} onChange={e=>set('logo_url',e.target.value)} placeholder="https://yoursite.com/logo.png" /></div>
@@ -1770,7 +1187,7 @@ function InputModal({ title, placeholder, defaultValue='', onConfirm, onClose })
   return (
     <div className="overlay" style={{ zIndex:500 }}>
       <div className="modal" style={{ maxWidth:420 }}>
-        <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700, marginBottom:16 }}>{title}</div>
+        <div style={{ fontFamily:"Playfair Display,serif", fontSize:18, fontWeight:700, marginBottom:16 }}>{title}</div>
         <input autoFocus value={value} onChange={e=>setValue(e.target.value)}
           placeholder={placeholder}
           onKeyDown={e=>{ if(e.key==='Enter'&&value.trim()){onConfirm(value.trim());onClose();} if(e.key==='Escape')onClose(); }}
@@ -1835,7 +1252,7 @@ function StatusManager({ workspaceId, companyId, statuses, onUpdate, onClose }) 
     <div className="overlay" style={{ zIndex:400 }}>
       <div className="modal" style={{ maxWidth:560, maxHeight:'85vh', overflowY:'auto' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-          <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:20, fontWeight:700 }}>Manage Statuses</div>
+          <div style={{ fontFamily:"Playfair Display,serif", fontSize:20, fontWeight:700 }}>Manage Statuses</div>
           <button onClick={onClose} style={{ background:'none', color:'var(--muted)', fontSize:20, border:'none', cursor:'pointer' }}>✕</button>
         </div>
 
@@ -1920,7 +1337,6 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   const [dragOverGroup, setDragOverGroup] = useState(null);
   const [dragOverIdx, setDragOverIdx] = useState(null);
   const [batchStatusOpen, setBatchStatusOpen] = useState(false);
-  const [showNewItemDrop, setShowNewItemDrop] = useState(false);
 
   useEffect(() => {
     loadGroups();
@@ -1956,9 +1372,8 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   };
 
   const loadItems = async (groupId) => {
-    const {data} = await supabase.from('workspace_items').select('*').eq('group_id', groupId).is('parent_id', null).eq('archived', false).order('position');
-    const filtered = (data||[]).filter(i => !i.trashed);
-    setItems(prev => ({...prev, [groupId]: filtered}));
+    const {data} = await supabase.from('workspace_items').select('*').eq('group_id', groupId).is('parent_id', null).eq('archived', false).neq('trashed', true).order('position');
+    setItems(prev => ({...prev, [groupId]: data||[]}));
   };
 
   const loadSubItems = async (parentId) => {
@@ -2149,7 +1564,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
           onClick={()=>setShowWsSwitcher(o=>!o)}
           onMouseOver={e=>{ e.currentTarget.style.background='rgba(255,255,255,.06)'; e.currentTarget.style.borderColor='var(--border)'; }}
           onMouseOut={e=>{ e.currentTarget.style.background=''; e.currentTarget.style.borderColor='transparent'; }}>
-          <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:24, fontWeight:700 }}>{workspace.name}</div>
+          <div style={{ fontFamily:"Playfair Display,serif", fontSize:24, fontWeight:700 }}>{workspace.name}</div>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" style={{ transform:showWsSwitcher?'rotate(180deg)':'rotate(0)', transition:'transform .2s' }}><polyline points="6 9 12 15 18 9"/></svg>
         </div>
         {profile.role==='admin' && <>
@@ -2278,7 +1693,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                     style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 10px', cursor:'pointer', borderRadius:4, fontSize:13 }}
                     onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.1)'}
                     onMouseOut={e=>e.currentTarget.style.background=''}>
-                    <span style={{ display:"flex", color:"var(--muted)" }}>{Icons.clipboard}</span>{t.label}
+                    <span style={{ fontSize:14 }}>📋</span>{t.label}
                   </div>
                 ))}
               </div>
@@ -2414,7 +1829,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                 <span onDoubleClick={()=>{ setEditingGroupId(group.id); setEditingGroupName(group.name); }} style={{ fontSize:14, fontWeight:700, color:group.color, cursor:'pointer' }} title="Double-click to rename">{group.name}</span>
               )}
               <span style={{ color:'var(--muted)', fontSize:12 }}>{groupItems.length} items</span>
-              {profile.role==='admin' && <button onClick={()=>deleteGroup(group.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:12, opacity:0.5, marginLeft:4 }} title="Delete group">{Icons.trash}</button>}
+              {profile.role==='admin' && <button onClick={()=>deleteGroup(group.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:12, opacity:0.5, marginLeft:4 }} title="Delete group">🗑️</button>}
             </div>
 
             {/* Table */}
@@ -2598,7 +2013,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24 }}>
               {/* Items by Status */}
               <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
-                <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Status</div>
+                <div style={{ fontFamily:'Playfair Display,serif', fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Status</div>
                 {Object.entries(statusCounts).length===0 && <div style={{ color:'var(--muted)', fontSize:13 }}>No items yet</div>}
                 <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                   {Object.entries(statusCounts).sort((a,b)=>b[1]-a[1]).map(([status,count])=>{
@@ -2620,7 +2035,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
 
               {/* Items by Priority */}
               <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
-                <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Priority</div>
+                <div style={{ fontFamily:'Playfair Display,serif', fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Priority</div>
                 <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                   {Object.entries(PRIORITY_COLORS).map(([p,color])=>(
                     <div key={p} style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -2637,7 +2052,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
 
               {/* Items by Group */}
               <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
-                <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Group</div>
+                <div style={{ fontFamily:'Playfair Display,serif', fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Group</div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
                   {groups.map(g=>(
                     <div key={g.id} style={{ background:'var(--surface2)', borderRadius:8, padding:'12px 16px', borderLeft:`4px solid ${g.color}`, flex:'1 1 120px', minWidth:120 }}>
@@ -2651,7 +2066,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
               {/* Items by Lender */}
               {Object.keys(lenderCounts).length>0 && (
                 <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
-                  <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Lender</div>
+                  <div style={{ fontFamily:'Playfair Display,serif', fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Lender</div>
                   <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                     {Object.entries(lenderCounts).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([lender,count])=>(
                       <div key={lender}>
@@ -2724,7 +2139,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
               <button onClick={()=>deleteSelectedItems(gId,[...gSet])} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--danger)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
                 onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
                 onMouseOut={e=>e.currentTarget.style.background=''}>
-                <span style={{ display:"flex" }}>{Icons.trash}</span>Trash
+                <span style={{ fontSize:18 }}>🗑️</span>Trash
               </button>
               <select onChange={e=>{ if(e.target.value) moveItemsToGroup(gId,[...gSet],e.target.value); e.target.value=''; }}
                 style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', borderRadius:6, padding:'6px 10px', fontSize:12, cursor:'pointer' }}>
@@ -2737,24 +2152,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
         </div>
       )}
 
-      {/* Item Detail Panel */}
-      {itemDetailPanel && (
-        <ItemDetailPanel
-          item={itemDetailPanel}
-          group={groups.find(g=>g.id===itemDetailPanel.group_id)}
-          statuses={statuses}
-          teamMembers={teamMembers}
-          profile={profile}
-          allGroups={groups}
-          toast={toast}
-          onClose={()=>setItemDetailPanel(null)}
-          onUpdate={(field,val)=>{
-            const gId = itemDetailPanel.group_id;
-            setItems(prev=>({ ...prev, [gId]: (prev[gId]||[]).map(i=>i.id===itemDetailPanel.id?{...i,[field]:val}:i) }));
-            setItemDetailPanel(prev=>({...prev,[field]:val}));
-          }}
-        />
-      )}
+      {/* Item Detail Panel rendered from WorkspaceView level above */}
       {/* Input Modal */}
       {inputModal && <InputModal title={inputModal.title} placeholder={inputModal.placeholder} defaultValue={inputModal.defaultValue||''} onConfirm={inputModal.onConfirm} onClose={()=>setInputModal(null)} />}
       {/* Status Manager */}
@@ -2798,7 +2196,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
         onKeyDown={e=>{ if(e.key==='Enter'){onUpdate(field,val);setEditing(null);} if(e.key==='Escape')setEditing(null); }}
         style={{ width:'100%', padding:'4px 6px', fontSize:13, background:'var(--surface2)', border:'1px solid var(--accent)', borderRadius:4, color:'var(--text)', ...style }} />
     );
-    return <div onClick={e=>{ e.stopPropagation(); setEditing(field); }} style={{ cursor:'text', padding:'4px 6px', minHeight:24, borderRadius:4, ...style }}>{item[field]||<span style={{color:'var(--border)'}}>—</span>}</div>;
+    return <div onClick={()=>setEditing(field)} style={{ cursor:'text', padding:'4px 6px', minHeight:24, borderRadius:4, ...style }}>{item[field]||<span style={{color:'var(--border)'}}>—</span>}</div>;
   };
 
   return (
@@ -2824,7 +2222,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
         </div>
       </td>
       {/* OWNER — right after name to match header order */}
-      <td style={{ padding:'4px 10px', position:'relative' }} onClick={e=>e.stopPropagation()}>
+      <td style={{ padding:'4px 10px', position:'relative' }}>
         <div onMouseDown={e=>{ e.stopPropagation(); const r=e.currentTarget.getBoundingClientRect(); setAssignPos({top:r.bottom+4,left:Math.max(0,r.right-240)}); setShowAssignPicker(s=>!s); setShowStatusPicker(false); }} style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}>
           {(item.assigned_officers||[]).length===0 && (
             <div style={{ width:28, height:28, borderRadius:'50%', border:'2px dashed var(--border)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--border)', fontSize:14 }}>+</div>
@@ -2863,7 +2261,8 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
           </div>
         )}
       </td>
-      {!hiddenCols.includes('status') && <td style={{ padding:'4px 10px', position:'relative' }} onClick={e=>e.stopPropagation()}>
+      {/* STATUS */}
+      {!hiddenCols.includes('status') && <td style={{ padding:'4px 10px', position:'relative' }}>
         <div onClick={e=>e.stopPropagation()} onMouseDown={e=>{ e.stopPropagation(); const r=e.currentTarget.getBoundingClientRect(); const spaceBelow=window.innerHeight-r.bottom; const dropH=Math.min(320, statuses.length*40+60); const top=spaceBelow<dropH ? r.top-dropH-4 : r.bottom+4; setPickerPos({top,left:r.left}); setShowStatusPicker(s=>!s); setShowAssignPicker(false); }} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
           {item.status||'No Status'}
         </div>
@@ -2895,7 +2294,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
           {['Low','Medium','High','Critical'].map(p=><option key={p} style={{ background:'#1a2e4a', color:PRIORITY_COLORS[p] }}>{p}</option>)}
         </select>
       </td>}
-      <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}>
+      <td style={{ padding:'4px 10px' }}>
         <div style={{ display:'flex', alignItems:'center', gap:6 }}>
           <EditableCell field="date" type="date" />
           {(() => { const ds = dueDateStatus(item.date); if(!ds||ds.label==='On track') return null;
@@ -2909,7 +2308,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
       {!hiddenCols.includes('lock_expiration') && <td style={{ padding:'4px 10px' }}><EditableCell field="lock_expiration" type="date" /></td>}
       {!hiddenCols.includes('processor_contact') && <td style={{ padding:'4px 10px' }}><EditableCell field="processor_contact" /></td>}
       {!hiddenCols.includes('escrow_email') && <td style={{ padding:'4px 10px' }}><EditableCell field="escrow_email" /></td>}
-      <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}>
+      <td style={{ padding:'4px 10px' }}>
         <button onClick={onDelete} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:14, padding:4 }}>×</button>
       </td>
     </tr>
@@ -2926,13 +2325,9 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   const [posting, setPosting] = useState(false);
   const [files, setFiles] = useState([]);
   const [uploadingFile, setUploadingFile] = useState(false);
-  const [driveAttachments, setDriveAttachments] = useState([]);
-  const { pickFile } = useGoogleDrivePicker();
-  const [attachingDrive, setAttachingDrive] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
   const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionStart, setMentionStart] = useState(0);
-  const [mentionPos, setMentionPos] = useState({top:0,left:0});
   const [editingField, setEditingField] = useState(null);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showAssignPicker, setShowAssignPicker] = useState(false);
@@ -2940,7 +2335,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   const fileInputRef = React.useRef();
   const panelRef = React.useRef();
 
-  useEffect(() => { loadUpdates(); loadFiles(); loadDriveAttachments(); }, [item.id]);
+  useEffect(() => { loadUpdates(); loadFiles(); }, [item.id]);
 
   // Sync item updates back to parent
   const updateField = async (field, value) => {
@@ -2948,51 +2343,6 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
     setItem(updated);
     await supabase.from('workspace_items').update({ [field]: value }).eq('id', item.id);
     onUpdate(field, value);
-    // Fire notifications
-    if(field === 'status' && value) {
-      // Notify all assigned officers of status change
-      for(const name of (item.assigned_officers||[])) {
-        const member = teamMembers.find(m=>m.full_name===name||m.email===name);
-        if(member) {
-          await createNotification({
-            company_id:    profile.company_name,
-            recipient_id:  member.id,
-            recipient_name:member.full_name,
-            actor_id:      profile.id,
-            actor_name:    profile.full_name,
-            type:          'status_change',
-            message:       `changed status of "${item.name}" to ${value}`,
-            item_id:       item.id,
-            item_name:     item.name,
-            workspace_id:  group?.workspace_id||null,
-            workspace_name:group?.workspace_name||'',
-          });
-        }
-      }
-    }
-    if(field === 'assigned_officers' && Array.isArray(value)) {
-      // Notify newly assigned members
-      const prev = item.assigned_officers||[];
-      const newlyAdded = value.filter(n=>!prev.includes(n));
-      for(const name of newlyAdded) {
-        const member = teamMembers.find(m=>m.full_name===name||m.email===name);
-        if(member) {
-          await createNotification({
-            company_id:    profile.company_name,
-            recipient_id:  member.id,
-            recipient_name:member.full_name,
-            actor_id:      profile.id,
-            actor_name:    profile.full_name,
-            type:          'assignment',
-            message:       `assigned you to "${item.name}"`,
-            item_id:       item.id,
-            item_name:     item.name,
-            workspace_id:  group?.workspace_id||null,
-            workspace_name:group?.workspace_name||'',
-          });
-        }
-      }
-    }
   };
 
   const loadUpdates = async () => {
@@ -3007,59 +2357,11 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
     } catch(e) { setFiles([]); }
   };
 
-  const loadDriveAttachments = async () => {
-    const { data } = await supabase.from('drive_attachments').select('*').eq('item_id', item.id).order('created_at',{ascending:false});
-    setDriveAttachments(data||[]);
-  };
-
-  const attachDriveFile = async (fileInfo) => {
-    setAttachingDrive(true);
-    const { data } = await supabase.from('drive_attachments').insert([{
-      item_id: item.id,
-      company_id: profile.company_name,
-      created_by: profile.id,
-      creator_name: profile.full_name,
-      ...fileInfo
-    }]).select().single();
-    if(data) setDriveAttachments(d=>[data,...d]);
-    setAttachingDrive(false);
-    toast('📎 Google Drive file attached!');
-  };
-
-  const removeDriveAttachment = async (id) => {
-    await supabase.from('drive_attachments').delete().eq('id',id);
-    setDriveAttachments(d=>d.filter(x=>x.id!==id));
-    toast('Attachment removed');
-  };
-
   const postUpdate = async () => {
     if(!newUpdate.trim()) return;
     setPosting(true);
     const { data } = await supabase.from('workspace_updates').insert([{ item_id: item.id, author_name: profile.full_name, author_id: profile.id, body: newUpdate }]).select().single();
-    if(data) {
-      setUpdates(u=>[...u,data]);
-      // Fire notifications for each @mentioned team member
-      const mentioned = (newUpdate.match(/@([A-Za-z ]+?)(?=\s|$|@)/g)||[]).map(m=>m.slice(1).trim());
-      for(const name of mentioned) {
-        const member = teamMembers.find(m=>m.full_name===name||m.full_name?.startsWith(name));
-        if(member) {
-          await createNotification({
-            company_id:     profile.company_name,
-            recipient_id:   member.id,
-            recipient_name: member.full_name,
-            actor_id:       profile.id,
-            actor_name:     profile.full_name,
-            type:           'mention',
-            message:        `mentioned you in "${item.name}"`,
-            item_id:        item.id,
-            item_name:      item.name,
-            workspace_id:   group?.workspace_id||null,
-            workspace_name: group?.workspace_name||'',
-          });
-        }
-      }
-      setNewUpdate('');
-    }
+    if(data) { setUpdates(u=>[...u,data]); setNewUpdate(''); }
     setPosting(false);
   };
 
@@ -3080,10 +2382,6 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
         setMentionSearch(after.toLowerCase());
         setMentionStart(atIdx);
         setMentionOpen(true);
-        if(textareaRef.current) {
-          const r = textareaRef.current.getBoundingClientRect();
-          setMentionPos({ top: r.top - 8, left: r.left });
-        }
         return;
       }
     }
@@ -3144,9 +2442,9 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
             <input autoFocus value={item.name} onChange={e=>setItem(i=>({...i,name:e.target.value}))}
               onBlur={()=>{ updateField('name',item.name); setEditingField(null); }}
               onKeyDown={e=>{ if(e.key==='Enter'){updateField('name',item.name);setEditingField(null);} if(e.key==='Escape')setEditingField(null); }}
-              style={{ flex:1, fontSize:18, fontWeight:700, fontFamily:"Cormorant Garamond, Playfair Display, serif", background:'transparent', border:'none', borderBottom:'2px solid var(--accent)', outline:'none', color:'var(--text)', padding:'2px 0' }} />
+              style={{ flex:1, fontSize:18, fontWeight:700, fontFamily:'Playfair Display,serif', background:'transparent', border:'none', borderBottom:'2px solid var(--accent)', outline:'none', color:'var(--text)', padding:'2px 0' }} />
           ) : (
-            <div onClick={()=>setEditingField('name')} style={{ flex:1, fontSize:18, fontWeight:700, fontFamily:"Cormorant Garamond, Playfair Display, serif", cursor:'text', lineHeight:1.3 }} title="Click to edit">{item.name}</div>
+            <div onClick={()=>setEditingField('name')} style={{ flex:1, fontSize:18, fontWeight:700, fontFamily:'Playfair Display,serif', cursor:'text', lineHeight:1.3 }} title="Click to edit">{item.name}</div>
           )}
           <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:20, cursor:'pointer', flexShrink:0, padding:4, borderRadius:4 }}
             onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.1)'}
@@ -3294,7 +2592,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                 <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Post Update'}</button>
               </div>
               {mentionOpen && filteredMembers.length>0 && (
-                <div style={{ position:'fixed', top:mentionPos.top, left:mentionPos.left, transform:'translateY(-100%)', zIndex:9999, background:'var(--surface)', border:'1px solid var(--accent)', borderRadius:8, width:240, boxShadow:'0 8px 32px rgba(0,0,0,.5)', overflow:'hidden' }}>
+                <div style={{ position:'absolute', bottom:'calc(100% + 4px)', left:0, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, width:240, boxShadow:'0 8px 24px rgba(0,0,0,.4)', overflow:'hidden' }}>
                   <div style={{ padding:'6px 10px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--border)', background:'var(--surface2)' }}>Team Members</div>
                   {filteredMembers.slice(0,6).map(m=>(
                     <div key={m.id} onMouseDown={e=>{ e.preventDefault(); insertMention(m); }}
@@ -3333,54 +2631,11 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
         {/* FILES TAB */}
         {tab==='files' && (
           <div>
-            {/* Upload buttons row */}
-            <div style={{ display:'flex', gap:10, marginBottom:16 }}>
-              <input type="file" ref={fileInputRef} onChange={handleFileUpload} style={{ display:'none' }} />
-              <button onClick={()=>fileInputRef.current?.click()} disabled={uploadingFile}
-                style={{ flex:1, padding:'10px 0', background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}
-                onMouseOver={e=>e.currentTarget.style.borderColor='var(--accent)'}
-                onMouseOut={e=>e.currentTarget.style.borderColor='var(--border)'}>
-                {uploadingFile ? 'Uploading...' : <span style={{display:"flex",alignItems:"center",gap:6}}>{Icons.upload} Upload from Computer</span>}
-              </button>
-              <button onClick={()=>pickFile(attachDriveFile)} disabled={attachingDrive}
-                style={{ flex:1, padding:'10px 0', background:'rgba(66,133,244,.1)', border:'1px solid rgba(66,133,244,.35)', color:'#7baff5', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'all .15s' }}
-                onMouseOver={e=>e.currentTarget.style.background='rgba(66,133,244,.22)'}
-                onMouseOut={e=>e.currentTarget.style.background='rgba(66,133,244,.1)'}>
-                <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.5 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h12.1c-.5 2.7-2.1 5-4.5 6.5v5.4h7.3c4.3-3.9 6.6-9.7 6.6-15.6z"/><path fill="#34A853" d="M24 46c6.1 0 11.2-2 14.9-5.4l-7.3-5.4c-2 1.4-4.6 2.2-7.6 2.2-5.9 0-10.8-3.9-12.6-9.2H3.8v5.6C7.5 41.8 15.2 46 24 46z"/><path fill="#FBBC05" d="M11.4 28.2c-.5-1.4-.7-2.8-.7-4.2s.3-2.9.7-4.2v-5.6H3.8C2.3 17.1 1.5 20.4 1.5 24s.8 6.9 2.3 9.8l7.6-5.6z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35.1 4.1 29.9 2 24 2 15.2 2 7.5 6.2 3.8 12.8l7.6 5.6c1.8-5.3 6.7-7.6 12.6-7.6z"/></svg>
-                {attachingDrive ? 'Attaching...' : <span style={{display:"flex",alignItems:"center",gap:6}}>{Icons.paperclip} Attach from Google Drive</span>}
-              </button>
-            </div>
-
-            {/* Drive attachments */}
-            {driveAttachments.length > 0 && (
-              <div style={{ marginBottom:16 }}>
-                <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
-                  <svg width="12" height="12" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.5 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h12.1c-.5 2.7-2.1 5-4.5 6.5v5.4h7.3c4.3-3.9 6.6-9.7 6.6-15.6z"/><path fill="#34A853" d="M24 46c6.1 0 11.2-2 14.9-5.4l-7.3-5.4c-2 1.4-4.6 2.2-7.6 2.2-5.9 0-10.8-3.9-12.6-9.2H3.8v5.6C7.5 41.8 15.2 46 24 46z"/><path fill="#FBBC05" d="M11.4 28.2c-.5-1.4-.7-2.8-.7-4.2s.3-2.9.7-4.2v-5.6H3.8C2.3 17.1 1.5 20.4 1.5 24s.8 6.9 2.3 9.8l7.6-5.6z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35.1 4.1 29.9 2 24 2 15.2 2 7.5 6.2 3.8 12.8l7.6 5.6c1.8-5.3 6.7-7.6 12.6-7.6z"/></svg>
-                  Google Drive
-                </div>
-                {driveAttachments.map(da=>(
-                  <div key={da.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', background:'rgba(66,133,244,.07)', borderRadius:8, marginBottom:6, border:'1px solid rgba(66,133,244,.2)' }}>
-                    {da.icon_url ? <img src={da.icon_url} width="18" height="18" alt="" style={{ flexShrink:0 }} /> : <span style={{ fontSize:18 }}>📄</span>}
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:13, fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{da.file_name}</div>
-                      <div style={{ fontSize:11, color:'var(--muted)' }}>Added by {da.creator_name} · Google Drive</div>
-                    </div>
-                    <a href={da.file_url} target="_blank" rel="noreferrer" style={{ color:'#7baff5', fontSize:12, fontWeight:600, textDecoration:'none', flexShrink:0 }}>Open ↗</a>
-                    {(da.created_by===profile.id||profile.role==='admin') && (
-                      <button onClick={()=>removeDriveAttachment(da.id)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:16, padding:'0 2px', lineHeight:1 }} title="Remove">×</button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Regular uploaded files */}
-            {files.length > 0 && (
-              <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em', marginBottom:8 }}>Uploaded Files</div>
-            )}
-            {files.length===0 && driveAttachments.length===0 && (
-              <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No files attached yet</div>
-            )}
+            <input type="file" ref={fileInputRef} onChange={handleFileUpload} style={{ display:'none' }} />
+            <button className="btn-primary btn-sm" onClick={()=>fileInputRef.current?.click()} disabled={uploadingFile} style={{ marginBottom:16, width:'100%', padding:12 }}>
+              {uploadingFile ? '⏳ Uploading...' : '⬆️ Upload File'}
+            </button>
+            {files.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No files attached yet</div>}
             {files.map(f=>(
               <div key={f.name} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', background:'var(--surface2)', borderRadius:8, marginBottom:8, border:'1px solid var(--border)' }}>
                 <span style={{ fontSize:20 }}>{getFileIcon(f.name)}</span>
@@ -3388,7 +2643,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                   <div style={{ fontSize:13, fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.name.replace(/^[0-9]+_/,'')}</div>
                   <div style={{ fontSize:11, color:'var(--muted)' }}>{formatFileSize(f.metadata?.size)}</div>
                 </div>
-                <a href={getFileUrl(f.name)} target="_blank" rel="noreferrer" style={{ color:'var(--accent)', fontSize:12, textDecoration:'none', fontWeight:600 }} style={{display:'flex',alignItems:'center',gap:4}}>↓ Download</a>
+                <a href={getFileUrl(f.name)} target="_blank" rel="noreferrer" style={{ color:'var(--accent)', fontSize:12, textDecoration:'none', fontWeight:600 }}>⬇ Download</a>
               </div>
             ))}
           </div>
@@ -3544,7 +2799,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
       {/* Header */}
       <div style={{ padding:'20px 24px', borderBottom:'1px solid var(--border)' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
-          <div style={{ fontWeight:700, fontSize:16, fontFamily:"Cormorant Garamond, Playfair Display, serif" }}>{item.name}</div>
+          <div style={{ fontWeight:700, fontSize:16, fontFamily:"Playfair Display,serif" }}>{item.name}</div>
           <button onClick={onClose} style={{ background:'none', color:'var(--muted)', fontSize:20, border:'none', cursor:'pointer' }}>✕</button>
         </div>
         {item.status && <div style={{ display:'inline-block', background:item.status_color||'#4d8ef0', color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, marginBottom:10 }}>{item.status}</div>}
@@ -3630,7 +2885,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
           <div>
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} style={{ display:'none' }} />
             <button className="btn-primary btn-sm" onClick={()=>fileInputRef.current?.click()} disabled={uploadingFile} style={{ marginBottom:16, width:'100%', padding:12 }}>
-              {uploadingFile ? 'Uploading...' : '⬆️ Upload File'}
+              {uploadingFile ? '⏳ Uploading...' : '⬆️ Upload File'}
             </button>
             {files.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No files attached yet</div>}
             {files.map(f=>(
@@ -3743,7 +2998,7 @@ function TrashArchiveView({ profile, workspaces, toast }) {
 
   return (
     <div style={{ padding:32 }}>
-      <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700, marginBottom:6 }}>
+      <div style={{ fontFamily:'Playfair Display,serif', fontSize:26, fontWeight:700, marginBottom:6 }}>
         {tab==='archive' ? '🗄️ Archive' : '🗑️ Trash'}
       </div>
       <div style={{ color:'var(--muted)', fontSize:13, marginBottom:24 }}>
@@ -3827,2018 +3082,18 @@ function TrashArchiveView({ profile, workspaces, toast }) {
   );
 }
 
-
-
-// ─── GOOGLE INTEGRATION ───────────────────────────────────────────────────────
-const GOOGLE_CLIENT_ID = '1062524105477-sprjpqt5su4rrcgceuaodpbr1cb9il3g.apps.googleusercontent.com';
-const GOOGLE_API_KEY   = 'AIzaSyC_kNTbeCmQssx8ObsYKs5jv_bq-hZ4qjw';
-const GCAL_SCOPE  = 'https://www.googleapis.com/auth/calendar.events';
-const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
-
-function loadGoogleScript(id, src, onload) {
-  if(document.getElementById(id)) { onload&&onload(); return; }
-  const s = document.createElement('script');
-  s.id=id; s.src=src; s.async=true; s.onload=onload;
-  document.head.appendChild(s);
-}
-
-// Hook: get a Google OAuth2 access token for a given scope
-function useGoogleToken(scope) {
-  const storageKey = `gcal_token_${scope.replace(/[^a-z]/gi,'_')}`;
-  const expiryKey  = `gcal_expiry_${scope.replace(/[^a-z]/gi,'_')}`;
-
-  const getSaved = () => {
-    try {
-      const t = localStorage.getItem(storageKey);
-      const e = localStorage.getItem(expiryKey);
-      if(t && e && Date.now() < Number(e) - 60000) return t; // valid if >1min left
-    } catch(_){}
-    return null;
-  };
-
-  const [token, setToken]         = useState(getSaved);
-  const [connected, setConnected] = useState(()=>!!getSaved());
-  const [gsiLoaded, setGsiLoaded] = useState(false);
-  const clientRef = React.useRef(null);
-
-  useEffect(()=>{
-    if(window.google?.accounts?.oauth2) { setGsiLoaded(true); return; }
-    loadGoogleScript('gsi-script','https://accounts.google.com/gsi/client',()=>setGsiLoaded(true));
-  },[]);
-
-  const hasConnectedKey = `gcal_has_connected_${scope.replace(/[^a-z]/gi,'_')}`;
-
-  const saveToken = (t, expiresIn=3600) => {
-    try {
-      localStorage.setItem(storageKey, t);
-      localStorage.setItem(expiryKey, String(Date.now() + expiresIn*1000));
-      localStorage.setItem(hasConnectedKey, '1'); // remember user ever connected
-    } catch(_){}
-    setToken(t); setConnected(true);
-  };
-
-  const initClient = useCallback((onReady)=>{
-    if(clientRef.current){ onReady&&onReady(); return; }
-    clientRef.current = window.google.accounts.oauth2.initTokenClient({
-      client_id: GOOGLE_CLIENT_ID,
-      scope,
-      callback:(resp)=>{
-        if(resp.access_token) saveToken(resp.access_token, resp.expires_in||3600);
-        else console.error('Google auth failed', resp);
-      },
-      error_callback:(err)=>{
-        // silent re-auth failed (session expired) — reset so user sees connect button
-        if(err.type==='popup_failed_to_open'||err.type==='popup_closed') return;
-        try { localStorage.removeItem(hasConnectedKey); } catch(_){}
-        setConnected(false); setToken(null);
-      },
-    });
-    onReady&&onReady();
-  },[scope]);
-
-  // On load: if user previously connected, silently refresh token (no popup)
-  useEffect(()=>{
-    if(!gsiLoaded) return;
-    const hasConnected = localStorage.getItem(hasConnectedKey);
-    if(!hasConnected) return;
-    const saved = getSaved();
-    if(saved) return; // still valid, nothing to do
-    // Token expired but user has consented before — silently get a new one
-    initClient(()=>{
-      clientRef.current.requestAccessToken({ prompt:'' }); // prompt:'' = silent
-    });
-  },[gsiLoaded]);
-
-  // Also set up a refresh timer: 5 min before expiry, silently renew
-  useEffect(()=>{
-    if(!token || !connected) return;
-    try {
-      const expiry = Number(localStorage.getItem(expiryKey)||0);
-      const msUntilRefresh = expiry - Date.now() - 5*60*1000; // 5 min early
-      if(msUntilRefresh <= 0) return;
-      const timer = setTimeout(()=>{
-        if(!clientRef.current) return;
-        clientRef.current.requestAccessToken({ prompt:'' });
-      }, msUntilRefresh);
-      return ()=>clearTimeout(timer);
-    } catch(_){}
-  },[token, connected]);
-
-  const connect = useCallback(()=>{
-    if(!window.google?.accounts?.oauth2){ alert('Google Sign-In is still loading — please try again in a moment.'); return; }
-    initClient(()=>{
-      clientRef.current.requestAccessToken({ prompt:'consent' });
-    });
-  },[initClient]);
-
-  const disconnect = useCallback(()=>{
-    if(token) window.google?.accounts?.oauth2?.revoke(token,()=>{});
-    try {
-      localStorage.removeItem(storageKey);
-      localStorage.removeItem(expiryKey);
-      localStorage.removeItem(hasConnectedKey);
-    } catch(_){}
-    setToken(null); setConnected(false); clientRef.current=null;
-  },[token]);
-
-  return { token, connected, gsiLoaded, connect, disconnect };
-}
-
-// Hook: Google Drive Picker
-function useGoogleDrivePicker() {
-  const getDriveSaved = () => {
-    try {
-      const t = localStorage.getItem('gdrive_token');
-      const e = localStorage.getItem('gdrive_expiry');
-      if(t && e && Date.now() < Number(e) - 60000) return t;
-    } catch(_){}
-    return null;
-  };
-  const [driveToken, setDriveToken] = useState(getDriveSaved);
-  const [gapiReady, setGapiReady]   = useState(false);
-  const clientRef = React.useRef(null);
-
-  useEffect(()=>{
-    loadGoogleScript('gsi-script','https://accounts.google.com/gsi/client',()=>{});
-    loadGoogleScript('gapi-script','https://apis.google.com/js/api.js',()=>{
-      window.gapi.load('picker',()=>setGapiReady(true));
-    });
-  },[]);
-
-  const openPicker = useCallback((token, onPicked)=>{
-    if(!gapiReady||!window.google?.picker){ alert('Google Picker is still loading — please try again in a second.'); return; }
-    new window.google.picker.PickerBuilder()
-      .addView(new window.google.picker.DocsView(window.google.picker.ViewId.DOCS).setIncludeFolders(false))
-      .addView(window.google.picker.ViewId.PDFS)
-      .addView(window.google.picker.ViewId.PRESENTATIONS)
-      .addView(window.google.picker.ViewId.SPREADSHEETS)
-      .setOAuthToken(token)
-      .setDeveloperKey(GOOGLE_API_KEY)
-      .setTitle('Select a file from Google Drive')
-      .setCallback((data)=>{
-        if(data.action===window.google.picker.Action.PICKED){
-          const f = data.docs[0];
-          onPicked({ file_id:f.id, file_name:f.name, file_url:f.url||`https://drive.google.com/file/d/${f.id}/view`, mime_type:f.mimeType, icon_url:f.iconUrl });
-        }
-      })
-      .build()
-      .setVisible(true);
-  },[gapiReady]);
-
-  const pickFile = useCallback((onPicked)=>{
-    if(driveToken){ openPicker(driveToken, onPicked); return; }
-    if(!window.google?.accounts?.oauth2){ alert('Google Sign-In is still loading — please try again.'); return; }
-    if(!clientRef.current){
-      clientRef.current = window.google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: GDRIVE_SCOPE,
-        callback:(resp)=>{
-          if(resp.access_token){
-            try { localStorage.setItem('gdrive_token', resp.access_token); localStorage.setItem('gdrive_expiry', String(Date.now()+(resp.expires_in||3600)*1000)); } catch(_){}
-            setDriveToken(resp.access_token); openPicker(resp.access_token, onPicked);
-          }
-        }
-      });
-    }
-    clientRef.current.requestAccessToken({ prompt:'consent' });
-  },[driveToken, openPicker]);
-
-  return { pickFile };
-}
-
-// ─── CALENDAR VIEW ───────────────────────────────────────────────────────────
-const EVENT_TYPES = [
-  { id:'meeting',    label:'Meeting',     icon:Icons.calendar, color:'#4d8ef0' },
-  { id:'closing',   label:'Closing',     icon:Icons.home, color:'#2ecc8a' },
-  { id:'deadline',  label:'Deadline',    icon:Icons.alert, color:'#e05252' },
-  { id:'call',      label:'Call',        icon:Icons.phone, color:'#f0b429' },
-  { id:'followup',  label:'Follow-up',   icon:Icons.refresh, color:'#9b59b6' },
-  { id:'other',     label:'Other',       icon:Icons.pin, color:'#00b8c4' },
-];
-
-function CalendarView({ profile, workspaces, toast }) {
-  const today = new Date();
-  const [year, setYear]   = useState(today.getFullYear());
-  const [month, setMonth] = useState(today.getMonth()); // 0-indexed
-  const [events, setEvents]         = useState([]);
-  const [wsItems, setWsItems]       = useState([]);
-  const [teamMembers, setTeamMembers] = useState([]);
-  const [showModal, setShowModal]   = useState(false);
-  const [editEvent, setEditEvent]   = useState(null);   // null = new
-  const [selectedDate, setSelectedDate] = useState('');
-  const [viewMode, setViewMode]     = useState('month'); // 'month' | 'agenda'
-  const [adminView, setAdminView]   = useState(true);    // admins default all-team
-
-  // Google Calendar OAuth
-  const { token: calToken, connected: calConnected, gsiLoaded, connect: connectGCal, disconnect: disconnectGCal } = useGoogleToken(GCAL_SCOPE);
-
-  // form state
-  const blankForm = { title:'', description:'', event_date:'', start_time:'', end_time:'', event_type:'meeting', workspace_item_id:'', is_shared:true, color:'#4d8ef0' };
-  const [form, setForm] = useState(blankForm);
-  const setF = (k,v) => setForm(f=>({...f,[k]:v}));
-
-  // ── Google Calendar helpers ──
-  const toGCalDate = (dateStr, timeStr) => {
-    if(!dateStr) return '';
-    const d = dateStr.replace(/-/g,'');
-    if(!timeStr) return d;
-    const t = timeStr.replace(':','')+'00';
-    return `${d}T${t}`;
-  };
-
-  const openInGoogleCalendar = (ev) => {
-    const start = toGCalDate(ev.event_date || form.event_date, ev.start_time || form.start_time);
-    const end   = toGCalDate(ev.event_date || form.event_date, ev.end_time   || form.end_time) || start;
-    const title = encodeURIComponent(ev.title || form.title || '');
-    const desc  = encodeURIComponent(ev.description || form.description || '');
-    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${desc}`;
-    window.open(url, '_blank');
-  };
-
-  const exportICS = () => {
-    const lines = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Citizens Client Hub//EN','CALSCALE:GREGORIAN'];
-    visibleEvents.forEach(ev => {
-      const start = toGCalDate(ev.event_date, ev.start_time);
-      const end   = toGCalDate(ev.event_date, ev.end_time) || start;
-      lines.push('BEGIN:VEVENT');
-      lines.push(`UID:${ev.id}@citizensclienthub`);
-      lines.push(`DTSTAMP:${toGCalDate(new Date().toISOString().slice(0,10), new Date().toTimeString().slice(0,5))}`);
-      lines.push(`DTSTART:${start || toGCalDate(ev.event_date,'')}`);
-      lines.push(`DTEND:${end || toGCalDate(ev.event_date,'')}`);
-      lines.push(`SUMMARY:${ev.title}`);
-      if(ev.description) lines.push(`DESCRIPTION:${ev.description.replace(/\n/g,'\\n')}`);
-      lines.push('END:VEVENT');
-    });
-    lines.push('END:VCALENDAR');
-    const blob = new Blob([lines.join('\r\n')], { type:'text/calendar' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `citizens-calendar-${year}-${String(month+1).padStart(2,'0')}.ics`;
-    a.click();
-    toast('📅 Calendar exported!');
-  };
-
-  useEffect(() => { loadEvents(); loadWsItems(); loadTeam(); }, [year, month, profile.company_id]);
-
-  const loadEvents = async () => {
-    const start = `${year}-${String(month+1).padStart(2,'0')}-01`;
-    const endDate = new Date(year, month+1, 0);
-    const end   = `${year}-${String(month+1).padStart(2,'0')}-${String(endDate.getDate()).padStart(2,'0')}`;
-    let q = supabase.from('calendar_events').select('*')
-      .eq('company_id', profile.company_name)
-      .gte('event_date', start).lte('event_date', end)
-      .order('start_time', { ascending: true });
-    const { data } = await q;
-    setEvents(data||[]);
-  };
-
-  const loadWsItems = async () => {
-    const { data } = await supabase.from('workspace_items').select('id,name,date,status,group_id,trashed,archived').eq('company_id', profile.company_name).not('date','is',null).eq('archived', false);
-    setWsItems((data||[]).filter(i=>i.date && !i.trashed));
-  };
-
-  const loadTeam = async () => {
-    const { data } = await supabase.from('profiles').select('id,full_name,role').eq('company_name', profile.company_name);
-    setTeamMembers(data||[]);
-  };
-
-  const pushToGoogleCalendar = async (payload) => {
-    if(!calToken) return;
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-    const gCalEvent = {
-      summary: payload.title,
-      description: payload.description||'',
-      start: payload.start_time
-        ? { dateTime:`${payload.event_date}T${payload.start_time}:00`, timeZone:tz }
-        : { date: payload.event_date },
-      end: payload.end_time
-        ? { dateTime:`${payload.event_date}T${payload.end_time}:00`, timeZone:tz }
-        : { date: payload.event_date },
-    };
-    try {
-      const r = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events',{
-        method:'POST',
-        headers:{ 'Authorization':`Bearer ${calToken}`, 'Content-Type':'application/json' },
-        body:JSON.stringify(gCalEvent)
-      });
-      if(!r.ok) { const e=await r.json(); console.error('GCal error',e); return false; }
-      return true;
-    } catch(e) { console.error('GCal fetch error',e); return false; }
-  };
-
-  const saveEvent = async () => {
-    if(!form.title.trim() || !form.event_date) { toast('Title and date are required'); return; }
-    const payload = { ...form, company_id: profile.company_name, created_by: profile.id, creator_name: profile.full_name, workspace_item_id: form.workspace_item_id||null };
-    if(editEvent) {
-      await supabase.from('calendar_events').update(payload).eq('id', editEvent.id);
-      const pushed = await pushToGoogleCalendar(payload);
-      toast(pushed ? '✅ Event updated + synced to Google Calendar' : 'Event updated');
-    } else {
-      await supabase.from('calendar_events').insert([payload]);
-      const pushed = await pushToGoogleCalendar(payload);
-      toast(pushed ? '✅ Event created + added to Google Calendar!' : 'Event created ✅');
-    }
-    setShowModal(false); setEditEvent(null); setForm(blankForm);
-    loadEvents();
-  };
-
-  const deleteEvent = async (id) => {
-    await supabase.from('calendar_events').delete().eq('id', id);
-    setEvents(e=>e.filter(x=>x.id!==id));
-    setShowModal(false); setEditEvent(null); setForm(blankForm);
-    toast('Event deleted');
-  };
-
-  const openNew = (dateStr) => {
-    setEditEvent(null);
-    setForm({...blankForm, event_date: dateStr });
-    setSelectedDate(dateStr);
-    setShowModal(true);
-  };
-
-  const openEdit = (e, ev) => {
-    e.stopPropagation();
-    setEditEvent(ev);
-    setForm({ title:ev.title, description:ev.description||'', event_date:ev.event_date, start_time:ev.start_time||'', end_time:ev.end_time||'', event_type:ev.event_type||'meeting', workspace_item_id:ev.workspace_item_id||'', is_shared:ev.is_shared!==false, color:ev.color||'#4d8ef0' });
-    setShowModal(true);
-  };
-
-  // Visible events filter
-  const visibleEvents = events.filter(ev => {
-    if(profile.role==='admin' || profile.role==='manager') return adminView ? true : ev.created_by===profile.id;
-    return ev.created_by===profile.id || ev.is_shared;
-  });
-
-  // Build calendar grid
-  const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
-  const daysInMonth = new Date(year, month+1, 0).getDate();
-  const daysInPrev  = new Date(year, month, 0).getDate();
-  const totalCells  = Math.ceil((firstDay + daysInMonth) / 7) * 7;
-
-  const cells = [];
-  for(let i=0; i<totalCells; i++) {
-    let d, m2, y2, isCurrentMonth = true;
-    if(i < firstDay) {
-      d = daysInPrev - firstDay + i + 1; m2 = month-1 < 0 ? 11 : month-1; y2 = month-1 < 0 ? year-1 : year; isCurrentMonth=false;
-    } else if(i >= firstDay + daysInMonth) {
-      d = i - firstDay - daysInMonth + 1; m2 = month+1 > 11 ? 0 : month+1; y2 = month+1 > 11 ? year+1 : year; isCurrentMonth=false;
-    } else {
-      d = i - firstDay + 1; m2 = month; y2 = year;
-    }
-    const dateStr = `${y2}-${String(m2+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const isToday = d===today.getDate() && m2===today.getMonth() && y2===today.getFullYear() && isCurrentMonth;
-    const isWeekend = (i%7===0 || i%7===6);
-    const dayEvents = visibleEvents.filter(ev=>ev.event_date===dateStr);
-    const dayWsItems = wsItems.filter(wi=>wi.date===dateStr);
-    cells.push({ d, dateStr, isCurrentMonth, isToday, isWeekend, dayEvents, dayWsItems });
-  }
-
-  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const DAYS   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-
-  const prevMonth = () => { if(month===0){setMonth(11);setYear(y=>y-1);}else setMonth(m=>m-1); };
-  const nextMonth = () => { if(month===11){setMonth(0);setYear(y=>y+1);}else setMonth(m=>m+1); };
-
-  // Agenda view: next 30 days of events
-  const agendaEvents = [...visibleEvents].sort((a,b)=>a.event_date.localeCompare(b.event_date));
-
-  const creatorColor = (ev) => {
-    const m = teamMembers.find(t=>t.id===ev.created_by);
-    return m ? avatarColor(m.full_name) : ev.color || '#4d8ef0';
-  };
-
-  const evTypeObj = (type) => EVENT_TYPES.find(t=>t.id===type) || EVENT_TYPES[0];
-
-  return (
-    <div style={{ padding:'24px 28px', paddingBottom:60 }}>
-
-      {/* ── HEADER ── */}
-      <div style={{ marginBottom:20 }}>
-        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:12 }}>
-          <div>
-            <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700 }}>Team Calendar</div>
-            <div style={{ color:'var(--muted)', fontSize:13, marginTop:2 }}>
-              {profile.role==='admin'||profile.role==='manager' ? 'All team events and loan deadlines' : 'Your events and shared team events'}
-            </div>
-          </div>
-          <button className="btn-primary btn-sm" onClick={()=>openNew(`${year}-${String(month+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`)}>+ New Event</button>
-        </div>
-        <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
-          {(profile.role==='admin'||profile.role==='manager') && (
-            <div style={{ display:'flex', background:'var(--surface2)', borderRadius:8, border:'1px solid var(--border)', overflow:'hidden' }}>
-              <button onClick={()=>setAdminView(true)} style={{ padding:'6px 14px', background:adminView?'var(--accent)':'transparent', color:adminView?'#fff':'var(--muted)', border:'none', borderRight:'1px solid var(--border)', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Team View</button>
-              <button onClick={()=>setAdminView(false)} style={{ padding:'6px 14px', background:!adminView?'var(--accent)':'transparent', color:!adminView?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>My Events</button>
-            </div>
-          )}
-          <div style={{ display:'flex', background:'var(--surface2)', borderRadius:8, border:'1px solid var(--border)', overflow:'hidden' }}>
-            <button onClick={()=>setViewMode('month')} style={{ padding:'6px 14px', background:viewMode==='month'?'var(--accent)':'transparent', color:viewMode==='month'?'#fff':'var(--muted)', border:'none', borderRight:'1px solid var(--border)', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Month</button>
-            <button onClick={()=>setViewMode('agenda')} style={{ padding:'6px 14px', background:viewMode==='agenda'?'var(--accent)':'transparent', color:viewMode==='agenda'?'#fff':'var(--muted)', border:'none', fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}>Agenda</button>
-          </div>
-          <button onClick={exportICS} style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 14px', background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--muted)', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}
-            onMouseOver={e=>{e.currentTarget.style.borderColor='var(--accent)';e.currentTarget.style.color='var(--accent)';}}
-            onMouseOut={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--muted)';}}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Export .ics
-          </button>
-          {/* Google Calendar Connect */}
-          {calConnected ? (
-            <div style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 12px', background:'rgba(52,168,83,.15)', border:'1px solid rgba(52,168,83,.4)', borderRadius:6 }}>
-              <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#34A853" d="M24 46c6.1 0 11.2-2 14.9-5.4l-7.3-5.4c-2 1.4-4.6 2.2-7.6 2.2-5.9 0-10.8-3.9-12.6-9.2H3.8v5.6C7.5 41.8 15.2 46 24 46z"/><path fill="#4285F4" d="M45.5 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h12.1c-.5 2.7-2.1 5-4.5 6.5v5.4h7.3c4.3-3.9 6.6-9.7 6.6-15.6z"/><path fill="#FBBC05" d="M11.4 28.2c-.5-1.4-.7-2.8-.7-4.2s.3-2.9.7-4.2v-5.6H3.8C2.3 17.1 1.5 20.4 1.5 24s.8 6.9 2.3 9.8l7.6-5.6z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35.1 4.1 29.9 2 24 2 15.2 2 7.5 6.2 3.8 12.8l7.6 5.6c1.8-5.3 6.7-7.6 12.6-7.6z"/></svg>
-              <span style={{ fontSize:12, fontWeight:600, color:'#34A853' }}>GCal Connected</span>
-              <button onClick={disconnectGCal} style={{ background:'none', border:'none', color:'rgba(52,168,83,.7)', cursor:'pointer', fontSize:14, padding:'0 2px', lineHeight:1 }} title="Disconnect">×</button>
-            </div>
-          ) : (
-            <button onClick={connectGCal} disabled={!gsiLoaded}
-              style={{ display:'flex', alignItems:'center', gap:7, padding:'7px 13px', background:'rgba(66,133,244,.12)', border:'1px solid rgba(66,133,244,.35)', color:'#7baff5', borderRadius:6, fontSize:12, fontWeight:600, cursor:gsiLoaded?'pointer':'not-allowed', fontFamily:'inherit', transition:'all .15s' }}
-              onMouseOver={e=>{ if(gsiLoaded) e.currentTarget.style.background='rgba(66,133,244,.25)'; }}
-              onMouseOut={e=>e.currentTarget.style.background='rgba(66,133,244,.12)'}>
-              <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.5 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h12.1c-.5 2.7-2.1 5-4.5 6.5v5.4h7.3c4.3-3.9 6.6-9.7 6.6-15.6z"/><path fill="#34A853" d="M24 46c6.1 0 11.2-2 14.9-5.4l-7.3-5.4c-2 1.4-4.6 2.2-7.6 2.2-5.9 0-10.8-3.9-12.6-9.2H3.8v5.6C7.5 41.8 15.2 46 24 46z"/><path fill="#FBBC05" d="M11.4 28.2c-.5-1.4-.7-2.8-.7-4.2s.3-2.9.7-4.2v-5.6H3.8C2.3 17.1 1.5 20.4 1.5 24s.8 6.9 2.3 9.8l7.6-5.6z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35.1 4.1 29.9 2 24 2 15.2 2 7.5 6.2 3.8 12.8l7.6 5.6c1.8-5.3 6.7-7.6 12.6-7.6z"/></svg>
-              {gsiLoaded ? 'Connect Google Calendar' : 'Loading...'}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ── MONTH NAV ── */}
-      <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:16 }}>
-        <button onClick={prevMonth} style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', padding:'6px 12px', borderRadius:6, fontSize:16, cursor:'pointer', lineHeight:1 }}>‹</button>
-        <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:22, fontWeight:700, minWidth:220 }}>{MONTHS[month]} {year}</div>
-        <button onClick={nextMonth} style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', padding:'6px 12px', borderRadius:6, fontSize:16, cursor:'pointer', lineHeight:1 }}>›</button>
-        <button onClick={()=>{ setYear(today.getFullYear()); setMonth(today.getMonth()); }} style={{ background:'none', border:'1px solid var(--border)', color:'var(--muted)', padding:'5px 12px', borderRadius:6, fontSize:12, cursor:'pointer', fontFamily:'inherit', marginLeft:4 }}>Today</button>
-
-        {/* Legend */}
-        <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'var(--muted)' }}>
-            <div style={{ width:10, height:10, borderRadius:2, background:'#4d8ef0' }} /> Events
-          </div>
-          <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'var(--muted)' }}>
-            <div style={{ width:10, height:10, borderRadius:2, background:'#e05252', opacity:.7 }} /> Loan Deadlines
-          </div>
-          {adminView && (profile.role==='admin'||profile.role==='manager') && teamMembers.slice(0,4).map(m=>(
-            <div key={m.id} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'var(--muted)' }}>
-              <div style={{ width:10, height:10, borderRadius:'50%', background:avatarColor(m.full_name) }} /> {m.full_name.split(' ')[0]}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── MONTH VIEW ── */}
-      {viewMode==='month' && (
-        <div style={{ background:'var(--surface)', borderRadius:10, border:'1px solid var(--border)', overflow:'hidden', boxShadow:'0 4px 20px rgba(0,0,0,.2)' }}>
-          {/* Day headers */}
-          <div className="cal-grid" style={{ minHeight:'auto' }}>
-            {DAYS.map(d=>(
-              <div key={d} className="cal-header-day" style={{ background:'var(--surface2)' }}>{d}</div>
-            ))}
-          </div>
-          {/* Day cells */}
-          <div className="cal-grid">
-            {cells.map((cell,i)=>(
-              <div key={i}
-                className={`cal-cell${cell.isToday?' today':''}${!cell.isCurrentMonth?' other-month':''}${cell.isWeekend?' weekend':''}`}
-                onClick={()=>cell.isCurrentMonth && openNew(cell.dateStr)}>
-                <div className="cal-day-num">{cell.d}</div>
-
-                {/* Workspace item due dates */}
-                {cell.dayWsItems.map(wi=>(
-                  <span key={wi.id} className="cal-event-pill"
-                    style={{ background:'rgba(224,82,82,.18)', color:'#e05252', borderLeft:'2px solid #e05252' }}
-                    title={`Due: ${wi.name}`}
-                    onClick={e=>e.stopPropagation()}>
-                    ⚠ {wi.name}
-                  </span>
-                ))}
-
-                {/* Calendar events */}
-                {cell.dayEvents.slice(0,3).map(ev=>{
-                  const color = adminView && (profile.role==='admin'||profile.role==='manager') ? creatorColor(ev) : (ev.color||'#4d8ef0');
-                  const et = evTypeObj(ev.event_type);
-                  return (
-                    <span key={ev.id} className="cal-event-pill"
-                      style={{ background:color+'28', color:color, borderLeft:`2px solid ${color}` }}
-                      onClick={e=>openEdit(e,ev)}
-                      title={`${ev.start_time?ev.start_time.slice(0,5)+' ':''} ${ev.title}${ev.creator_name?' · '+ev.creator_name:''}`}>
-                      {et.icon} {ev.title}
-                    </span>
-                  );
-                })}
-                {cell.dayEvents.length > 3 && (
-                  <span style={{ fontSize:10, color:'var(--muted)', paddingLeft:4 }}>+{cell.dayEvents.length-3} more</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── AGENDA VIEW ── */}
-      {viewMode==='agenda' && (
-        <div style={{ background:'var(--surface)', borderRadius:10, border:'1px solid var(--border)' }}>
-          {agendaEvents.length===0 && (
-            <div style={{ padding:48, textAlign:'center', color:'var(--muted)' }}>
-              <div style={{ fontSize:32, marginBottom:10 }}>📅</div>
-              No events this month. Click + New Event to get started.
-            </div>
-          )}
-          {agendaEvents.map((ev,i)=>{
-            const et = evTypeObj(ev.event_type);
-            const color = adminView && (profile.role==='admin'||profile.role==='manager') ? creatorColor(ev) : (ev.color||'#4d8ef0');
-            const prevDate = i>0 ? agendaEvents[i-1].event_date : null;
-            const showDateHeader = ev.event_date !== prevDate;
-            return (
-              <React.Fragment key={ev.id}>
-                {showDateHeader && (
-                  <div style={{ padding:'10px 20px', background:'var(--surface2)', borderBottom:'1px solid var(--border)', fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.08em' }}>
-                    {new Date(ev.event_date+'T12:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}
-                  </div>
-                )}
-                <div onClick={e=>openEdit(e,ev)}
-                  style={{ display:'flex', alignItems:'center', gap:16, padding:'14px 20px', borderBottom:'1px solid var(--border)', cursor:'pointer', borderLeft:`3px solid ${color}`, transition:'background .1s' }}
-                  onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.04)'}
-                  onMouseOut={e=>e.currentTarget.style.background=''}>
-                  <div style={{ fontSize:22, width:32, textAlign:'center', flexShrink:0 }}>{et.icon}</div>
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontWeight:600, fontSize:14 }}>{ev.title}</div>
-                    {ev.description && <div style={{ color:'var(--muted)', fontSize:12, marginTop:2 }}>{ev.description}</div>}
-                  </div>
-                  <div style={{ textAlign:'right', flexShrink:0 }}>
-                    {ev.start_time && <div style={{ fontSize:13, fontWeight:600, color }}>{ev.start_time.slice(0,5)}{ev.end_time ? ` – ${ev.end_time.slice(0,5)}` : ''}</div>}
-                    <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{ev.is_shared ? '👥 Shared' : '🔒 Private'}</div>
-                  </div>
-                  {adminView && (profile.role==='admin'||profile.role==='manager') && (
-                    <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
-                      <div style={{ width:24, height:24, borderRadius:'50%', background:color, display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, color:'#fff' }}>{initials(ev.creator_name||'?')}</div>
-                      <span style={{ fontSize:11, color:'var(--muted)' }}>{ev.creator_name}</span>
-                    </div>
-                  )}
-                </div>
-              </React.Fragment>
-            );
-          })}
-        </div>
-      )}
-
-      {/* ── EVENT MODAL ── */}
-      {showModal && (
-        <div className="event-modal-overlay" onClick={()=>{setShowModal(false);setEditEvent(null);setForm(blankForm);}}>
-          <div className="event-modal" onClick={e=>e.stopPropagation()}>
-            {/* Header */}
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:20, fontWeight:700 }}>{editEvent ? 'Edit Event' : 'New Event'}</div>
-              <button onClick={()=>{setShowModal(false);setEditEvent(null);setForm(blankForm);}} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer', lineHeight:1, padding:4 }}>×</button>
-            </div>
-
-            {/* Event type selector */}
-            <div style={{ marginBottom:16 }}>
-              <label>Event Type</label>
-              <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:6 }}>
-                {EVENT_TYPES.map(t=>(
-                  <button key={t.id} className={`event-type-btn${form.event_type===t.id?' active':''}`}
-                    onClick={()=>{ setF('event_type',t.id); setF('color',t.color); }}>
-                    {t.icon} {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Title */}
-            <div className="form-group">
-              <label>Title *</label>
-              <input value={form.title} onChange={e=>setF('title',e.target.value)} placeholder="e.g. Closing — Smith Property" autoFocus />
-            </div>
-
-            {/* Date & Times */}
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, marginBottom:16 }}>
-              <div className="form-group" style={{ marginBottom:0 }}>
-                <label>Date *</label>
-                <input type="date" value={form.event_date} onChange={e=>setF('event_date',e.target.value)} />
-              </div>
-              <div className="form-group" style={{ marginBottom:0 }}>
-                <label>Start Time</label>
-                <input type="time" value={form.start_time} onChange={e=>setF('start_time',e.target.value)} />
-              </div>
-              <div className="form-group" style={{ marginBottom:0 }}>
-                <label>End Time</label>
-                <input type="time" value={form.end_time} onChange={e=>setF('end_time',e.target.value)} />
-              </div>
-            </div>
-
-            {/* Description */}
-            <div className="form-group">
-              <label>Notes / Description</label>
-              <textarea value={form.description} onChange={e=>setF('description',e.target.value)} rows={2} placeholder="Add any notes, location, or agenda..." style={{ resize:'vertical' }} />
-            </div>
-
-            {/* Link to workspace item */}
-            <div className="form-group">
-              <label>Link to Loan / Item (optional)</label>
-              <select value={form.workspace_item_id} onChange={e=>setF('workspace_item_id',e.target.value)} style={{ width:'100%' }}>
-                <option value="">— Not linked —</option>
-                {wsItems.map(wi=>(
-                  <option key={wi.id} value={wi.id}>{wi.name}{wi.date ? ` (due ${wi.date})` : ''}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Visibility */}
-            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20, padding:'10px 14px', background:'var(--surface2)', borderRadius:8, border:'1px solid var(--border)' }}>
-              <input type="checkbox" id="is_shared" checked={form.is_shared} onChange={e=>setF('is_shared',e.target.checked)} style={{ width:16, height:16, cursor:'pointer' }} />
-              <label htmlFor="is_shared" style={{ margin:0, textTransform:'none', fontSize:13, color:'var(--text)', cursor:'pointer', fontWeight:400 }}>
-                <span style={{ fontWeight:600 }}>Shared with team</span> — visible to all team members
-              </label>
-            </div>
-
-            {/* Google Calendar banner */}
-            {form.event_date && form.title && (
-              <div style={{ marginBottom:16, padding:'10px 14px', background:'rgba(66,133,244,.1)', border:'1px solid rgba(66,133,244,.3)', borderRadius:8, display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.5 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h12.1c-.5 2.7-2.1 5-4.5 6.5v5.4h7.3c4.3-3.9 6.6-9.7 6.6-15.6z"/><path fill="#34A853" d="M24 46c6.1 0 11.2-2 14.9-5.4l-7.3-5.4c-2 1.4-4.6 2.2-7.6 2.2-5.9 0-10.8-3.9-12.6-9.2H3.8v5.6C7.5 41.8 15.2 46 24 46z"/><path fill="#FBBC05" d="M11.4 28.2c-.5-1.4-.7-2.8-.7-4.2s.3-2.9.7-4.2v-5.6H3.8C2.3 17.1 1.5 20.4 1.5 24s.8 6.9 2.3 9.8l7.6-5.6z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35.1 4.1 29.9 2 24 2 15.2 2 7.5 6.2 3.8 12.8l7.6 5.6c1.8-5.3 6.7-7.6 12.6-7.6z"/></svg>
-                  <span style={{ fontSize:12, color:'#9db8d4' }}>Add this event to your personal Google Calendar</span>
-                </div>
-                <button onClick={()=>openInGoogleCalendar(editEvent||form)}
-                  style={{ flexShrink:0, padding:'6px 14px', background:'rgba(66,133,244,.2)', border:'1px solid rgba(66,133,244,.4)', color:'#7baff5', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer', fontFamily:'inherit', whiteSpace:'nowrap', transition:'all .15s' }}
-                  onMouseOver={e=>e.currentTarget.style.background='rgba(66,133,244,.35)'}
-                  onMouseOut={e=>e.currentTarget.style.background='rgba(66,133,244,.2)'}>
-                  Open in Google Calendar →
-                </button>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div style={{ display:'flex', gap:10, justifyContent:'space-between' }}>
-              <div>
-                {editEvent && (ev => ev.created_by===profile.id || profile.role==='admin')(editEvent) && (
-                  <button className="btn-danger btn-sm" onClick={()=>deleteEvent(editEvent.id)}>Delete</button>
-                )}
-              </div>
-              <div style={{ display:'flex', gap:10 }}>
-                <button className="btn-secondary btn-sm" onClick={()=>{setShowModal(false);setEditEvent(null);setForm(blankForm);}}>Cancel</button>
-                <button className="btn-primary btn-sm" onClick={saveEvent}>{editEvent?'Save Changes':'Create Event'}</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // SVG Icons
-
-
-// ─── PRESENTATION SYSTEM ──────────────────────────────────────────────────────
-
-// ── ScaledSlide: renders at 1280×720, scales to any container ─────────────────
-function ScaledSlide({ slide, index, total, companyName, style={} }) {
-  const ref = React.useRef(null);
-  const [scale, setScale] = React.useState(1);
-  React.useEffect(() => {
-    if (!ref.current) return;
-    const update = () => {
-      const { width, height } = ref.current.getBoundingClientRect();
-      setScale(Math.min(width / 1280, height / 720) * 0.98);
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(ref.current);
-    return () => ro.disconnect();
-  }, []);
-  return (
-    <div ref={ref} style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', ...style }}>
-      <div style={{ width:1280, height:720, flexShrink:0, transform:`scale(${scale})`, transformOrigin:'center center', borderRadius:10, overflow:'hidden', boxShadow:'0 20px 80px rgba(0,0,0,.5)' }}>
-        <SlideRenderer slide={slide} index={index} total={total} companyName={companyName} />
-      </div>
-    </div>
-  );
-}
-
-// ── SlideRenderer: renders at fixed 1280×720 ──────────────────────────────────
-const LOGO_URL = 'https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png';
-const CF = {
-  navy:  '#0c1a35',
-  green: '#1a9a5c',
-  lightGreen: '#e8f7ef',
-  text:  '#111827',
-  muted: '#6b7280',
-  light: '#f0f4f8',
-  border:'#e2e8f0',
-  white: '#ffffff',
+const Icons = {
+  dashboard: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>,
+  contacts: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+  pipeline: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>,
+  team: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>,
+  branding: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  workspace: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>,
+  chevron: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>,
+  plus: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+  comment: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
 };
-
-function SlideRenderer({ slide, index, total, companyName='Citizens Financial' }) {
-
-  // ── Shared micro-components ────────────────────────────────────────────────
-  const Pill = ({ label, dark=true }) => (
-    <span style={{ display:'inline-block', background: dark ? CF.navy : CF.green, color:'#fff', fontSize:11, fontWeight:800, padding:'4px 12px', borderRadius:30, textTransform:'uppercase', letterSpacing:'.1em' }}>{label}</span>
-  );
-
-  const Logo = ({ height=32, invert=true }) => (
-    <img src={LOGO_URL} alt={companyName} height={height}
-      style={{ objectFit:'contain', filter: invert ? 'brightness(0) invert(1)' : 'none', display:'block' }}
-      onError={e => { e.target.style.display='none'; }} />
-  );
-
-  const NavDots = () => (
-    <div style={{ position:'absolute', bottom:22, left:'50%', transform:'translateX(-50%)', display:'flex', gap:6 }}>
-      {Array.from({length:total}).map((_,i) => (
-        <div key={i} style={{ width: i===index?20:6, height:6, borderRadius:3, background: i===index ? CF.green : 'rgba(0,0,0,.15)', transition:'all .3s' }} />
-      ))}
-    </div>
-  );
-
-  // ── CF-COVER ───────────────────────────────────────────────────────────────
-  if (slide.type === 'cf-cover') {
-    const cards = slide.highlights || [];
-    return (
-      <div style={{ width:1280, height:720, background:CF.white, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', position:'relative', overflow:'hidden' }}>
-        {/* Header */}
-        <div style={{ background:CF.navy, height:70, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 52px', flexShrink:0 }}>
-          <Logo height={30} />
-          <div style={{ color:'rgba(255,255,255,.55)', fontSize:13, fontWeight:500 }}>{slide.date}</div>
-        </div>
-        {/* Hero strip */}
-        <div style={{ background:`linear-gradient(135deg, ${CF.navy} 0%, #1a3464 100%)`, padding:'28px 52px 32px', flexShrink:0 }}>
-          <div style={{ fontSize:11, color:'rgba(255,255,255,.45)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.14em', marginBottom:10 }}>Personalized Mortgage Analysis</div>
-          <div style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:38, fontWeight:700, color:'#fff', lineHeight:1.2 }}>
-            Hi, <span style={{ color:'#6ee7b7' }}>{slide.borrowerName || '{{name}}'}</span>! Here are some highlights
-            <span style={{ color:'rgba(255,255,255,.8)' }}> to help you make your </span>
-            <span style={{ color:'#6ee7b7' }}>{slide.loanPurpose||'loan'}</span>
-            <span style={{ color:'rgba(255,255,255,.8)' }}> decision:</span>
-          </div>
-        </div>
-        {/* 3 highlight cards */}
-        <div style={{ flex:1, display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:20, padding:'24px 52px 52px', background:CF.light }}>
-          {cards.map((c,i) => (
-            <div key={i} style={{ background:CF.white, border:`1px solid ${CF.border}`, borderRadius:14, padding:'24px 26px', display:'flex', flexDirection:'column', gap:10, boxShadow:'0 2px 12px rgba(0,0,0,.06)', position:'relative', overflow:'hidden' }}>
-              <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background: i===0?CF.green:CF.navy, borderRadius:'14px 14px 0 0' }} />
-              <Pill label={c.badge} dark={i!==0} />
-              <div style={{ fontSize:11, color:CF.muted, fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em' }}>OPTION 1</div>
-              <div style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:22, fontWeight:700, color:CF.navy, lineHeight:1.15 }}>{c.loanAmount}</div>
-              <div style={{ fontSize:14, fontWeight:700, color:CF.text }}>{c.product}</div>
-              <div style={{ marginTop:'auto', fontSize:22, fontWeight:900, color:CF.green, fontFamily:"'Cormorant Garamond',Georgia,serif", letterSpacing:'-.01em' }}>{c.value}</div>
-            </div>
-          ))}
-        </div>
-        {/* LO bar */}
-        <div style={{ height:48, background:CF.navy, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 52px', flexShrink:0 }}>
-          <div style={{ color:'rgba(255,255,255,.8)', fontSize:12, fontWeight:600 }}>{slide.loName}</div>
-          <div style={{ color:'rgba(255,255,255,.45)', fontSize:11 }}>{[slide.loPhone, slide.loEmail].filter(Boolean).join(' · ')}</div>
-        </div>
-        <NavDots />
-      </div>
-    );
-  }
-
-  // ── CF-PAYMENT ─────────────────────────────────────────────────────────────
-  if (slide.type === 'cf-payment') {
-    const current = slide.currentTotal || 0;
-    const newPay  = slide.newTotal || 0;
-    const maxH = 220;
-    const newBarH  = maxH;
-    const currBarH = Math.round(current / newPay * maxH);
-    return (
-      <div style={{ width:1280, height:720, background:CF.white, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', overflow:'hidden' }}>
-        {/* Header */}
-        <div style={{ background:CF.navy, height:64, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 52px', flexShrink:0 }}>
-          <Logo height={26} />
-          <div style={{ color:'rgba(255,255,255,.5)', fontSize:13 }}>Monthly Payment Comparison</div>
-        </div>
-        <div style={{ flex:1, display:'flex' }}>
-          {/* Left panel */}
-          <div style={{ width:300, background:`linear-gradient(180deg,${CF.navy} 0%,#1a3464 100%)`, padding:'36px 30px', display:'flex', flexDirection:'column', justifyContent:'center', flexShrink:0 }}>
-            <Pill label="Most Monthly Savings" />
-            <div style={{ color:'rgba(255,255,255,.45)', fontSize:11, textTransform:'uppercase', letterSpacing:'.07em', marginTop:16, marginBottom:4 }}>vs current loan · Option 1</div>
-            <div style={{ color:'rgba(255,255,255,.7)', fontSize:13, marginBottom:18 }}>Citizens Financial {slide.loanProduct}</div>
-            <div style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:68, fontWeight:900, color:'#6ee7b7', lineHeight:1, letterSpacing:'-.02em' }}>{slide.monthlySavings}</div>
-            <div style={{ color:'rgba(255,255,255,.5)', fontSize:13, marginTop:10 }}>saved every month</div>
-            <div style={{ marginTop:32, paddingTop:24, borderTop:'1px solid rgba(255,255,255,.1)' }}>
-              <div style={{ fontSize:11, color:'rgba(255,255,255,.35)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>Loan Product</div>
-              <div style={{ fontSize:14, fontWeight:700, color:'rgba(255,255,255,.85)' }}>{slide.loanProduct}</div>
-            </div>
-          </div>
-          {/* Right chart */}
-          <div style={{ flex:1, padding:'36px 52px', display:'flex', flexDirection:'column' }}>
-            <div style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:28, fontWeight:700, color:CF.text, marginBottom:8 }}>Total Monthly Payments</div>
-            {/* Legend */}
-            <div style={{ display:'flex', gap:20, marginBottom:32, fontSize:12 }}>
-              {[['#0c1a35','Principal'],['#7c3aed','Interest'],['#10b981','HOA, PMI, Ins.'],['#f59e0b','Taxes']].map(([c,l])=>(
-                <span key={l} style={{ display:'flex', alignItems:'center', gap:6, color:CF.muted }}>
-                  <span style={{ width:12, height:12, borderRadius:3, background:c, display:'inline-block' }}/>{l}
-                </span>
-              ))}
-            </div>
-            {/* Bar chart */}
-            <div style={{ flex:1, display:'flex', alignItems:'flex-end', gap:60, paddingBottom:20 }}>
-              {[
-                { label:'CURRENT LOAN', sub:'Existing Loan', total:current, barH:currBarH, highlight:false },
-                { label:'OPTION 1', sub:'Citizens Financial '+slide.loanProduct, total:newPay, barH:newBarH, highlight:true },
-              ].map((col,ci) => (
-                <div key={ci} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:10 }}>
-                  <div style={{ fontSize:11, color:CF.muted, fontWeight:600 }}>Total</div>
-                  <div style={{ fontSize:18, fontWeight:800, color: col.highlight ? CF.green : CF.text }}>${(col.total||0).toLocaleString()}</div>
-                  <div style={{ width:110, height:col.barH, borderRadius:'8px 8px 0 0', overflow:'hidden', position:'relative', background:'#e5e7eb' }}>
-                    <div style={{ position:'absolute', bottom:0, left:0, right:0, height:'52%', background: col.highlight?CF.navy:'#374151' }} />
-                    <div style={{ position:'absolute', bottom:'52%', left:0, right:0, height:'28%', background:'#7c3aed', opacity:.75 }} />
-                    <div style={{ position:'absolute', bottom:'80%', left:0, right:0, height:'12%', background:'#10b981', opacity:.8 }} />
-                    <div style={{ position:'absolute', top:0, left:0, right:0, height:'8%', background:'#f59e0b', opacity:.8 }} />
-                  </div>
-                  <div style={{ fontSize:11, color:CF.muted, textTransform:'uppercase', letterSpacing:'.06em', fontWeight:700, textAlign:'center' }}>{col.label}</div>
-                  <div style={{ fontSize:12, color:CF.text, fontWeight:600, textAlign:'center' }}>{col.sub}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <NavDots />
-      </div>
-    );
-  }
-
-  // ── CF-SAVINGS ─────────────────────────────────────────────────────────────
-  if (slide.type === 'cf-savings') {
-    const metrics = slide.metrics || [];
-    return (
-      <div style={{ width:1280, height:720, background:CF.light, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', overflow:'hidden' }}>
-        <div style={{ background:CF.navy, height:64, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 52px', flexShrink:0 }}>
-          <Logo height={26} />
-          <div style={{ color:'rgba(255,255,255,.5)', fontSize:13 }}>Interest Savings Analysis</div>
-        </div>
-        <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'32px 52px 60px', gap:20 }}>
-          <div style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:30, fontWeight:700, color:CF.text }}>Interest Savings Over Loan Life</div>
-          {/* 3 metric cards */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:18, flex:1 }}>
-            {metrics.map((m,i) => (
-              <div key={i} style={{ background:CF.white, border:`1px solid ${CF.border}`, borderRadius:14, padding:'24px 26px', display:'flex', flexDirection:'column', boxShadow:'0 2px 12px rgba(0,0,0,.05)', position:'relative', overflow:'hidden' }}>
-                <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:i===0?CF.green:CF.navy }} />
-                <Pill label={m.badge} dark={i!==0} />
-                <div style={{ fontSize:12, color:CF.muted, marginTop:10, marginBottom:14, lineHeight:1.5 }}>{m.label}</div>
-                <div style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:46, fontWeight:900, color:CF.green, lineHeight:1, letterSpacing:'-.01em', marginBottom:10 }}>{m.value}</div>
-                <div style={{ fontSize:12, color:CF.muted, lineHeight:1.6, marginTop:'auto', paddingTop:12, borderTop:`1px solid ${CF.border}` }}>{m.description}</div>
-              </div>
-            ))}
-          </div>
-          {/* Comparison bar */}
-          <div style={{ background:CF.white, border:`1px solid ${CF.border}`, borderRadius:10, padding:'18px 24px' }}>
-            <div style={{ fontSize:10, fontWeight:800, color:CF.muted, textTransform:'uppercase', letterSpacing:'.1em', marginBottom:14 }}>Total Interest Comparison</div>
-            {[
-              { label:'Current Loan', val:slide.currentInterest, pct:100, color:'#94a3b8' },
-              { label:'Citizens Financial', val:slide.newInterest, pct:parseFloat(slide.savingsPct||'85'), color:CF.green },
-            ].map((row,ri) => (
-              <div key={ri} style={{ display:'flex', alignItems:'center', gap:14, marginBottom:ri===0?10:0 }}>
-                <div style={{ width:160, fontSize:12, color:CF.muted, fontWeight:600, flexShrink:0 }}>{row.label}</div>
-                <div style={{ flex:1, height:14, background:'#f1f5f9', borderRadius:7, overflow:'hidden' }}>
-                  <div style={{ height:'100%', width:row.pct+'%', background:row.color, borderRadius:7, transition:'width .8s ease' }} />
-                </div>
-                <div style={{ width:90, fontSize:13, fontWeight:800, color:ri===1?CF.green:CF.text, textAlign:'right', flexShrink:0 }}>{row.val}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-        <NavDots />
-      </div>
-    );
-  }
-
-  // ── CF-BREAKEVEN ───────────────────────────────────────────────────────────
-  if (slide.type === 'cf-breakeven') {
-    return (
-      <div style={{ width:1280, height:720, background:CF.white, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', overflow:'hidden' }}>
-        <div style={{ background:CF.navy, height:64, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 52px', flexShrink:0 }}>
-          <Logo height={26} />
-          <div style={{ color:'rgba(255,255,255,.5)', fontSize:13 }}>Break Even Analysis</div>
-        </div>
-        <div style={{ flex:1, display:'flex' }}>
-          {/* Left stat */}
-          <div style={{ width:300, background:`linear-gradient(180deg,${CF.navy} 0%,#1a3464 100%)`, padding:'36px 30px', display:'flex', flexDirection:'column', justifyContent:'center', flexShrink:0 }}>
-            <Pill label="Quickest Breakeven" />
-            <div style={{ color:'rgba(255,255,255,.45)', fontSize:11, textTransform:'uppercase', letterSpacing:'.07em', marginTop:16, marginBottom:4 }}>Option 1</div>
-            <div style={{ color:'rgba(255,255,255,.7)', fontSize:13, marginBottom:18 }}>Citizens Financial</div>
-            <div style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:64, fontWeight:900, color:'#6ee7b7', lineHeight:1 }}>{slide.breakevenMonths}</div>
-            <div style={{ color:'rgba(255,255,255,.5)', fontSize:13, marginTop:10 }}>to break even on costs</div>
-            <div style={{ marginTop:32, paddingTop:24, borderTop:'1px solid rgba(255,255,255,.12)' }}>
-              <div style={{ fontSize:10, color:'rgba(255,255,255,.35)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:12 }}>Net Cost (Year 7)</div>
-              {[
-                { l:'Current Loan', v:slide.currentNetCost, hi:false },
-                { l:'Citizens Financial', v:slide.newNetCost, hi:true },
-              ].map((r,i) => (
-                <div key={i} style={{ display:'flex', justifyContent:'space-between', marginBottom:8, fontSize:12 }}>
-                  <span style={{ color:'rgba(255,255,255,.5)' }}>{r.l}</span>
-                  <span style={{ color: r.hi?'#6ee7b7':'rgba(255,255,255,.8)', fontWeight:r.hi?800:600 }}>{r.v}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          {/* Right chart */}
-          <div style={{ flex:1, padding:'36px 52px', display:'flex', flexDirection:'column' }}>
-            <div style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:28, fontWeight:700, color:CF.text, marginBottom:28 }}>Cumulative Cost Over Time</div>
-            <div style={{ flex:1, background:CF.light, borderRadius:12, border:`1px solid ${CF.border}`, padding:'24px 28px', display:'flex', flexDirection:'column', justifyContent:'flex-end', gap:10 }}>
-              {[1,2,3,4,5,6,7].map(yr => (
-                <div key={yr} style={{ display:'flex', alignItems:'center', gap:14, fontSize:12 }}>
-                  <div style={{ width:36, color:CF.muted, fontWeight:700, flexShrink:0, textAlign:'right' }}>Yr {yr}</div>
-                  <div style={{ flex:1, display:'flex', flexDirection:'column', gap:4 }}>
-                    <div style={{ height:12, background:'#374151', borderRadius:4, width:Math.round(yr/7*100)+'%', opacity:.7 }} />
-                    <div style={{ height:12, background:CF.green, borderRadius:4, width:Math.round(Math.max(0,yr/7-.09)*94)+'%' }} />
-                  </div>
-                </div>
-              ))}
-              <div style={{ display:'flex', gap:24, paddingTop:12, borderTop:`1px solid ${CF.border}`, marginTop:4 }}>
-                {[['#374151','Current Loan'],[CF.green,'Citizens Financial']].map(([c,l]) => (
-                  <span key={l} style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:CF.muted }}>
-                    <span style={{ width:14, height:10, background:c, borderRadius:3, display:'inline-block' }}/>{l}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-        <NavDots />
-      </div>
-    );
-  }
-
-  // ── CF-TABLE ───────────────────────────────────────────────────────────────
-  if (slide.type === 'cf-table') {
-    const rows = slide.rows || [];
-    return (
-      <div style={{ width:1280, height:720, background:CF.white, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', overflow:'hidden' }}>
-        <div style={{ background:CF.navy, height:64, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 52px', flexShrink:0 }}>
-          <Logo height={26} />
-          <div style={{ color:'rgba(255,255,255,.5)', fontSize:13 }}>True Cost Comparison</div>
-        </div>
-        <div style={{ flex:1, padding:'28px 52px 52px', display:'flex', flexDirection:'column', overflow:'hidden' }}>
-          <div style={{ marginBottom:18 }}>
-            <div style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:30, fontWeight:700, color:CF.text }}>True Cost Comparison</div>
-            <div style={{ fontSize:13, color:CF.muted, marginTop:4 }}>Take an in-depth look at each loan option.</div>
-          </div>
-          <div style={{ flex:1, border:`1px solid ${CF.border}`, borderRadius:12, overflow:'hidden' }}>
-            {/* Header row */}
-            <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', background:CF.navy }}>
-              <div style={{ padding:'12px 20px', fontSize:12, color:'rgba(255,255,255,.4)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em' }}></div>
-              <div style={{ padding:'12px 20px', fontSize:12, color:'rgba(255,255,255,.9)', fontWeight:700, borderLeft:'1px solid rgba(255,255,255,.08)' }}>Current Loan</div>
-              <div style={{ padding:'10px 20px', borderLeft:'1px solid rgba(255,255,255,.08)', display:'flex', alignItems:'center' }}>
-                <Logo height={20} />
-              </div>
-            </div>
-            {/* Data rows */}
-            {rows.map((row,ri) => (
-              <div key={ri} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', borderTop:`1px solid ${CF.border}`, background: row.highlight ? CF.lightGreen : ri%2===0?CF.white:CF.light }}>
-                <div style={{ padding:'11px 20px', fontSize:12, color:CF.muted, fontWeight:700, textTransform:'uppercase', letterSpacing:'.04em' }}>{row.label}</div>
-                <div style={{ padding:'11px 20px', fontSize:row.highlight?14:13, fontWeight:row.highlight?700:500, color:CF.text, borderLeft:`1px solid ${CF.border}` }}>{row.current||'—'}</div>
-                <div style={{ padding:'11px 20px', fontSize:row.highlight?15:13, fontWeight:row.highlight?800:500, color:row.highlight?CF.green:CF.text, borderLeft:`1px solid ${CF.border}` }}>{row.newVal||row.new||'—'}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ fontSize:10, color:CF.muted, lineHeight:1.7, marginTop:10, maxWidth:700 }}>Loan scenarios for informational purposes only. Rates may not be available at time of application. Not a commitment to lend. Your results may vary.</div>
-        </div>
-        <NavDots />
-      </div>
-    );
-  }
-
-  // ── CF-CLOSING ─────────────────────────────────────────────────────────────
-  if (slide.type === 'cf-closing') {
-    return (
-      <div style={{ width:1280, height:720, background:CF.navy, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', overflow:'hidden', position:'relative' }}>
-        {/* Decorative bg shapes */}
-        <div style={{ position:'absolute', top:-80, right:-80, width:400, height:400, borderRadius:'50%', background:'rgba(26,154,92,.06)' }} />
-        <div style={{ position:'absolute', bottom:-60, left:-60, width:300, height:300, borderRadius:'50%', background:'rgba(255,255,255,.03)' }} />
-        <div style={{ position:'absolute', bottom:0, left:0, right:0, height:4, background:`linear-gradient(90deg, ${CF.green} 0%, transparent 60%)` }} />
-        {/* Content */}
-        <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'48px 80px', position:'relative' }}>
-          <Logo height={42} />
-          <div style={{ width:48, height:3, background:CF.green, borderRadius:2, margin:'24px auto 28px' }} />
-          <div style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:48, fontWeight:700, color:'#fff', textAlign:'center', lineHeight:1.2, maxWidth:700, marginBottom:20 }}>
-            {slide.title || 'Ready to Move Forward?'}
-          </div>
-          <div style={{ fontSize:16, color:'rgba(255,255,255,.6)', textAlign:'center', maxWidth:560, lineHeight:1.8, marginBottom:40 }}>{slide.body}</div>
-          {/* LO card */}
-          <div style={{ background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.12)', borderRadius:16, padding:'22px 40px', textAlign:'center', backdropFilter:'blur(10px)' }}>
-            {slide.loName && <div style={{ fontWeight:700, fontSize:17, color:'#fff', marginBottom:6 }}>{slide.loName}</div>}
-            <div style={{ display:'flex', gap:24, justifyContent:'center', fontSize:13 }}>
-              {slide.loPhone && <span style={{ color:'rgba(255,255,255,.6)' }}>{slide.loPhone}</span>}
-              {slide.loEmail && <span style={{ color:'#6ee7b7', fontWeight:600 }}>{slide.loEmail}</span>}
-            </div>
-          </div>
-        </div>
-        <NavDots />
-      </div>
-    );
-  }
-
-  // ── Fallback ───────────────────────────────────────────────────────────────
-  return (
-    <div style={{ width:1280, height:720, background:CF.navy, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Inter',sans-serif" }}>
-      <div style={{ color:'rgba(255,255,255,.5)', fontSize:18 }}>Unknown slide type: {slide.type}</div>
-    </div>
-  );
-}
-
-
-// ─── PUBLIC PRESENTATION VIEWER ───────────────────────────────────────────────
-function PublicPresentationViewer({ token }) {
-  const [pres, setPres]       = useState(null);
-  const [slide, setSlide]     = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(null);
-
-  useEffect(()=>{
-    if(!token) return;
-    supabase.from('presentations').select('*').eq('view_token', token).single()
-      .then(({ data, error })=>{
-        if(error||!data) { setError('Presentation not found.'); setLoading(false); return; }
-        setPres(data);
-        setLoading(false);
-        // Mark as opened if not already
-        if(!data.opened_at) supabase.from('presentations').update({ opened_at: new Date().toISOString() }).eq('id', data.id);
-      });
-  },[token]);
-
-  useEffect(()=>{
-    const handler = e => {
-      if(e.key==='ArrowRight'||e.key==='ArrowDown') setSlide(s=>Math.min(s+1,(pres?.slides?.length||1)-1));
-      if(e.key==='ArrowLeft'||e.key==='ArrowUp')   setSlide(s=>Math.max(s-1,0));
-    };
-    window.addEventListener('keydown', handler);
-    return ()=>window.removeEventListener('keydown', handler);
-  },[pres]);
-
-  if(loading) return <div style={{ background:'#0f1c3f', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,.5)', fontFamily:'Inter,sans-serif' }}>Loading presentation...</div>;
-  if(error)   return <div style={{ background:'#0f1c3f', minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', color:'rgba(255,255,255,.5)', fontFamily:'Inter,sans-serif' }}>{error}</div>;
-
-  // ── PDF presentation viewer ──
-  if(pres.template_type==='pdf' && pres.pdf_url) {
-    return (
-      <div style={{ background:'#050d1a', minHeight:'100vh', display:'flex', flexDirection:'column' }}>
-        <div style={{ background:'#0f1c3f', padding:'12px 24px', display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom:'1px solid rgba(255,255,255,.1)' }}>
-          <div style={{ color:'#fff', fontFamily:"Cormorant Garamond,serif", fontSize:18, fontWeight:700 }}>{pres.company_name||'Citizens Financial'}</div>
-          <a href={pres.pdf_url} target="_blank" rel="noreferrer" style={{ background:'rgba(255,255,255,.1)', color:'#fff', padding:'7px 16px', borderRadius:6, textDecoration:'none', fontSize:13, border:'1px solid rgba(255,255,255,.15)' }}>Download PDF</a>
-        </div>
-        <iframe src={pres.pdf_url+'#toolbar=0&navpanes=0'} style={{ flex:1, width:'100%', border:'none', minHeight:'calc(100vh - 56px)' }} title="Presentation" />
-      </div>
-    );
-  }
-
-  const slides = pres.slides||[];
-  const curr   = slides[slide]||{};
-
-  return (
-    <div style={{ background:'#050d1a', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'20px 0' }}>
-      {/* Slide */}
-      <div style={{ width:'min(960px,96vw)', aspectRatio:'16/9', borderRadius:16, overflow:'hidden', boxShadow:'0 32px 80px rgba(0,0,0,.6)', position:'relative' }}>
-        <SlideRenderer slide={curr} index={slide} total={slides.length} brandColor={pres.brand_color||'#0f1c3f'} companyName={pres.company_name||'Citizens Financial'} />
-      </div>
-      {/* Controls */}
-      <div style={{ display:'flex', alignItems:'center', gap:20, marginTop:24 }}>
-        <button onClick={()=>setSlide(s=>Math.max(s-1,0))} disabled={slide===0}
-          style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', borderRadius:8, padding:'10px 20px', cursor:slide===0?'not-allowed':'pointer', opacity:slide===0?.4:1, fontFamily:'Inter,sans-serif', fontSize:13 }}>← Prev</button>
-        <div style={{ display:'flex', gap:6 }}>
-          {slides.map((_,i)=>(
-            <div key={i} onClick={()=>setSlide(i)} style={{ width: i===slide?24:8, height:8, borderRadius:4, background: i===slide?'#4d8ef0':'rgba(255,255,255,.25)', cursor:'pointer', transition:'all .2s' }} />
-          ))}
-        </div>
-        <button onClick={()=>setSlide(s=>Math.min(s+1,slides.length-1))} disabled={slide===slides.length-1}
-          style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', borderRadius:8, padding:'10px 20px', cursor:slide===slides.length-1?'not-allowed':'pointer', opacity:slide===slides.length-1?.4:1, fontFamily:'Inter,sans-serif', fontSize:13 }}>Next →</button>
-      </div>
-      <div style={{ marginTop:12, fontSize:11, color:'rgba(255,255,255,.25)', fontFamily:'Inter,sans-serif' }}>Use ← → arrow keys to navigate</div>
-    </div>
-  );
-}
-
-// ─── AI PRESENTATION BUILDER MODAL ────────────────────────────────────────────
-function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) {
-  const [step, setStep]         = useState('choose');
-  const [mode, setMode]         = useState(null);
-  const [templates, setTemplates] = useState([]);
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [generating, setGenerating] = useState(false);
-  const [slides, setSlides]     = useState([]);
-  const [slideIndex, setSlideIndex] = useState(0);
-  const [sending, setSending]   = useState(false);
-
-  const [form, setForm] = useState({
-    borrower_name:    contact?.full_name || '',
-    loan_type:        'Purchase',
-    loan_amount:      contact?.deal_value ? String(contact.deal_value) : '',
-    rate:             '',
-    term:             '30',
-    property_address: '',
-    lo_name:          profile?.full_name || '',
-    lo_phone:         '',
-    lo_email:         profile?.email || '',
-  });
-  const setF = (k,v) => setForm(f=>({...f,[k]:v}));
-
-  useEffect(()=>{
-    supabase.from('presentation_templates').select('*')
-      .eq('company_id', profile.company_name)
-      .order('created_at',{ascending:false})
-      .then(({data})=>setTemplates(data||[]));
-  },[]);
-
-  // ── Calculate & generate slides ────────────────────────────────────────────
-  const generatePresentation = () => {
-    const principal  = Number(form.loan_amount) || 0;
-    const annualRate = Number(form.rate) || 0;
-    const termYears  = Number(form.term) || 30;      // form.term is always a bare number string now
-    const mr  = annualRate / 100 / 12;
-    const n   = termYears * 12;
-    const mp  = mr > 0
-      ? Math.round(principal * mr * Math.pow(1+mr,n) / (Math.pow(1+mr,n)-1))
-      : principal > 0 ? Math.round(principal / n) : 0;
-    const totalPaid = mp * n;
-    const totalInt  = totalPaid - principal;
-    const equity5   = principal > 0 ? Math.round(
-      principal - (principal * Math.pow(1+mr,60) - mp*(Math.pow(1+mr,60)-1)/mr) / Math.pow(1+mr,60)
-    ) : 0;
-    const breakeven = principal > 0 ? Math.round(30 + (principal/100000)*6) : 0;
-    const fmt = n => n >= 1000000 ? '$'+(n/1000000).toFixed(2)+'M' : n >= 1000 ? '$'+n.toLocaleString() : '$'+n;
-    const lo = { loName:form.lo_name, loPhone:form.lo_phone, loEmail:form.lo_email };
-    const product = 'Citizens Financial '+form.loan_type;
-
-    setGenerating(true);
-    setSlides([]);
-    setSlideIndex(0);
-    setSelectedTemplate(null);
-    setStep('preview');
-
-    // Small delay so the loading state shows before heavy render
-    setTimeout(()=>{
-      setSlides([
-        {
-          type:'cf-cover',
-          borrowerName: form.borrower_name,
-          loanPurpose:  form.loan_type.toLowerCase(),
-          date: new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}),
-          highlights:[
-            { badge:'Lowest Monthly Payment', loanAmount:fmt(principal), product, value: mp>0?fmt(mp)+'/mo':'—' },
-            { badge:'Lowest Cost Loan',        loanAmount:fmt(principal), product, value: totalInt>0?'Save '+fmt(Math.round(totalInt*.1))+' total':'—' },
-            { badge:'Quickest Break Even',     loanAmount:fmt(principal), product, value: breakeven>0?'Break even in '+breakeven+' mos.':'—' },
-          ],
-          ...lo,
-        },
-        {
-          type:'cf-payment',
-          monthlySavings: mp>0 ? fmt(Math.round(mp*.09)) : '—',
-          currentTotal:   Math.round(mp*1.22),
-          newTotal:       mp,
-          loanProduct:    form.loan_type,
-          ...lo,
-        },
-        {
-          type:'cf-savings',
-          metrics:[
-            { badge:'Most Interest Savings', label:'Total over loan life',     value:totalInt>0?fmt(totalInt):'—',         description:'Total interest paid over the '+termYears+'-year term at '+annualRate+'% fixed rate' },
-            { badge:'Monthly Savings',        label:'vs average renter',       value:mp>0?fmt(Math.round(mp*.06)):'—',     description:'Estimated monthly savings vs continuing to rent in the local market' },
-            { badge:'Equity by Year 5',       label:'Through amortization',    value:equity5>0?fmt(equity5):'—',           description:'Approximate equity accumulated through principal paydown in first 5 years' },
-          ],
-          currentInterest: totalInt>0?fmt(Math.round(totalInt*1.16)):'—',
-          newInterest:     totalInt>0?fmt(totalInt):'—',
-          savingsPct:      '86',
-          ...lo,
-        },
-        {
-          type:'cf-breakeven',
-          breakevenMonths: breakeven>0?breakeven+' mos.':'—',
-          currentNetCost:  mp>0?fmt(Math.round(mp*1.22*84)):'—',
-          newNetCost:      mp>0?fmt(Math.round(mp*84*.96)):'—',
-          ...lo,
-        },
-        {
-          type:'cf-table',
-          rows:[
-            { label:'Loan Amount',     current:'Existing Loan',  newVal: fmt(principal) },
-            { label:'Loan Type',       current:'Current',        newVal: form.loan_type },
-            { label:'Term',            current:'Existing',       newVal: termYears+' Years' },
-            { label:'Interest Rate',   current:'Current Rate',   newVal: annualRate+'%' },
-            { label:'Monthly P&I',     current:'—',              newVal: mp>0?fmt(mp):'—',                      highlight:true },
-            { label:'Total Monthly',   current:'—',              newVal: mp>0?fmt(Math.round(mp*1.28)):'—',     highlight:true },
-            { label:'Total Interest',  current:'—',              newVal: totalInt>0?fmt(totalInt):'—' },
-            { label:'Total Cost',      current:'—',              newVal: totalPaid>0?fmt(totalPaid):'—',        highlight:true },
-          ],
-          ...lo,
-        },
-        {
-          type:'cf-closing',
-          title:'Ready to Move Forward?',
-          body:"You've taken the first step toward securing the right loan. I'm here to guide you through every step of the process — from application to closing. Let's make it happen.",
-          loName:  form.lo_name,
-          loPhone: form.lo_phone||'',
-          loEmail: form.lo_email||'',
-        },
-      ]);
-      setGenerating(false);
-    }, 400);
-  };
-
-  // ── Use a saved template ───────────────────────────────────────────────────
-  const useTemplate = tmpl => {
-    setSelectedTemplate(tmpl);
-    setSlideIndex(0);
-    if (tmpl.template_type==='pdf') { setSlides([]); setStep('preview'); return; }
-    const out = (tmpl.slides||[]).map(s => {
-      const str = JSON.stringify(s)
-        .replace(/\{\{borrower_name\}\}/g, form.borrower_name)
-        .replace(/\{\{loan_amount\}\}/g,   form.loan_amount?'$'+Number(form.loan_amount).toLocaleString():'')
-        .replace(/\{\{rate\}\}/g,          form.rate+'%')
-        .replace(/\{\{lo_name\}\}/g,       form.lo_name)
-        .replace(/\{\{lo_email\}\}/g,      form.lo_email);
-      return JSON.parse(str);
-    });
-    setSlides(out);
-    setStep('preview');
-  };
-
-  // ── Send ───────────────────────────────────────────────────────────────────
-  const send = async () => {
-    if (!contact?.email) { toast('Contact has no email address'); return; }
-    setSending(true);
-    try {
-      const token   = crypto.randomUUID();
-      const viewUrl = window.location.origin + window.location.pathname + '#present-' + token;
-      const isPdf   = selectedTemplate?.template_type === 'pdf';
-      const { error } = await supabase.from('presentations').insert([{
-        company_id:    profile.company_name,
-        company_name:  profile.company_name,
-        brand_color:   '#0c1a35',
-        contact_id:    contact.id,
-        contact_name:  contact.full_name,
-        contact_email: contact.email,
-        slides:        isPdf ? [] : slides,
-        template_type: isPdf ? 'pdf' : 'slides',
-        pdf_url:       isPdf ? selectedTemplate.pdf_url : null,
-        view_token:    token,
-        created_by:    profile.id,
-        lo_name:       form.lo_name,
-      }]);
-      if (error) throw error;
-
-      const emailHtml = `<div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto;background:#f0f4f8;border-radius:14px;overflow:hidden;">
-        <div style="background:#0c1a35;padding:36px 44px;">
-          <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style="height:38px;filter:brightness(0) invert(1);margin-bottom:14px;display:block;"/>
-          <p style="color:rgba(255,255,255,.5);margin:0;font-size:13px;letter-spacing:.08em;text-transform:uppercase;">Personalized Mortgage Presentation</p>
-        </div>
-        <div style="padding:36px 44px;background:#fff;">
-          <p style="font-size:17px;color:#111827;margin:0 0 10px;font-weight:600;">Hi ${contact.full_name},</p>
-          <p style="font-size:15px;color:#555;line-height:1.75;margin:0 0 28px;">I've prepared a personalized mortgage presentation just for you. It includes a full breakdown of your loan details, monthly payment analysis, interest savings, and next steps.</p>
-          <a href="${viewUrl}" style="display:inline-block;background:#1a9a5c;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;margin-bottom:28px;">View Your Presentation →</a>
-          <div style="padding-top:24px;border-top:1px solid #eee;font-size:13px;color:#888;">
-            Best regards,<br/>
-            <strong style="color:#444;">${form.lo_name}</strong>
-            ${form.lo_phone?'<br/>'+form.lo_phone:''}
-            ${form.lo_email?'<br/><a href="mailto:'+form.lo_email+'" style="color:#1a9a5c;">'+form.lo_email+'</a>':''}
-          </div>
-        </div>
-      </div>`;
-
-      const emailRes = await fetch(
-        process.env.REACT_APP_SUPABASE_URL + '/functions/v1/send-email',
-        { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+process.env.REACT_APP_SUPABASE_ANON_KEY},
-          body: JSON.stringify({ to:contact.email, subject:`Your Mortgage Presentation — ${profile.company_name}`, body:emailHtml }) }
-      );
-      if (!emailRes.ok) { const d=await emailRes.json().catch(()=>({})); throw new Error(d.error||emailRes.status); }
-      toast('Presentation sent to '+contact.email+'!');
-      onSent && onSent();
-      onClose();
-    } catch(e) { toast('Error: '+e.message); }
-    setSending(false);
-  };
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // STEP: CHOOSE
-  // ────────────────────────────────────────────────────────────────────────────
-  if (step==='choose') return (
-    <div className="overlay" onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{ width:'min(700px,95vw)', background:'var(--surface)', borderRadius:20, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', overflow:'hidden' }}>
-        {/* Header */}
-        <div style={{ background:'#0c1a35', padding:'28px 36px', display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-          <div>
-            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:26, fontWeight:700, color:'#fff', lineHeight:1.2 }}>Build Presentation</div>
-            {contact && <div style={{ color:'rgba(255,255,255,.45)', fontSize:14, marginTop:4 }}>for {contact.full_name}</div>}
-          </div>
-          <button onClick={onClose} style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.7)', width:34, height:34, borderRadius:8, cursor:'pointer', fontSize:20, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>✕</button>
-        </div>
-        {/* Two option cards */}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', borderTop:'1px solid var(--border)' }}>
-          {/* Generate */}
-          <div onClick={()=>{ setMode('ai'); setStep('form'); }}
-            style={{ padding:'32px 28px', cursor:'pointer', borderRight:'1px solid var(--border)', transition:'background .15s' }}
-            onMouseOver={e=>e.currentTarget.style.background='rgba(26,154,92,.04)'}
-            onMouseOut={e=>e.currentTarget.style.background=''}>
-            <div style={{ width:54, height:54, borderRadius:14, background:'linear-gradient(135deg,#1a9a5c,#0d7a47)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:18, boxShadow:'0 6px 20px rgba(26,154,92,.25)' }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            </div>
-            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:21, fontWeight:700, color:'var(--text)', marginBottom:8 }}>Generate Presentation</div>
-            <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.7, marginBottom:18 }}>Enter loan details and instantly get a fully branded Citizens Financial presentation — cover, payment analysis, interest savings, cost table, and closing.</div>
-            <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
-              {['Cover','Payment analysis','Savings breakdown','True cost table','Closing CTA'].map(t=>(
-                <span key={t} style={{ fontSize:10, fontWeight:700, color:'#1a9a5c', background:'rgba(26,154,92,.1)', padding:'3px 8px', borderRadius:20 }}>{t}</span>
-              ))}
-            </div>
-          </div>
-          {/* Template */}
-          <div onClick={()=>{ setMode('template'); setStep('form'); }}
-            style={{ padding:'32px 28px', cursor:'pointer', transition:'background .15s' }}
-            onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.04)'}
-            onMouseOut={e=>e.currentTarget.style.background=''}>
-            <div style={{ width:54, height:54, borderRadius:14, background:'linear-gradient(135deg,#0c1a35,#1e3a70)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:18, boxShadow:'0 6px 20px rgba(12,26,53,.2)' }}>
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-            </div>
-            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:21, fontWeight:700, color:'var(--text)', marginBottom:8 }}>From Template</div>
-            <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.7, marginBottom:18 }}>Choose a pre-built slide deck or PDF from your template library and send it directly to your client.</div>
-            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-              <div style={{ width:8, height:8, borderRadius:'50%', background:templates.length>0?'#1a9a5c':'#94a3b8', flexShrink:0 }} />
-              <span style={{ fontSize:12, color:templates.length>0?'#1a9a5c':'var(--muted)', fontWeight:600 }}>
-                {templates.length>0 ? `${templates.length} template${templates.length!==1?'s':''} ready` : 'No templates yet'}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // STEP: FORM — Template picker
-  // ────────────────────────────────────────────────────────────────────────────
-  if (step==='form' && mode==='template') return (
-    <div className="overlay" onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{ width:'min(640px,95vw)', background:'var(--surface)', borderRadius:20, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', overflow:'hidden', maxHeight:'85vh', display:'flex', flexDirection:'column' }}>
-        <div style={{ background:'#0c1a35', padding:'24px 32px', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
-          <div>
-            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700, color:'#fff' }}>Choose Template</div>
-            {contact && <div style={{ color:'rgba(255,255,255,.45)', fontSize:13, marginTop:2 }}>for {contact.full_name}</div>}
-          </div>
-          <button onClick={onClose} style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.7)', width:34, height:34, borderRadius:8, cursor:'pointer', fontSize:20, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
-        </div>
-        <div style={{ flex:1, overflowY:'auto', padding:'20px 28px' }}>
-          {templates.length===0 ? (
-            <div style={{ textAlign:'center', padding:'44px 0', color:'var(--muted)' }}>
-              <div style={{ fontSize:36, marginBottom:12 }}>📂</div>
-              <div style={{ fontWeight:700, fontSize:15, marginBottom:6 }}>No templates yet</div>
-              <div style={{ fontSize:13 }}>Go to Presentations → Upload Template to add slide decks or PDFs.</div>
-            </div>
-          ) : templates.map(t=>(
-            <div key={t.id} onClick={()=>useTemplate(t)}
-              style={{ display:'flex', alignItems:'center', gap:16, padding:'16px 18px', border:'1px solid var(--border)', borderRadius:12, cursor:'pointer', transition:'all .15s', marginBottom:10, background:'var(--surface2)' }}
-              onMouseOver={e=>{ e.currentTarget.style.borderColor='#1a9a5c'; e.currentTarget.style.background='rgba(26,154,92,.04)'; }}
-              onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background='var(--surface2)'; }}>
-              <div style={{ width:44, height:44, borderRadius:10, background:t.template_type==='pdf'?'rgba(224,82,82,.12)':'rgba(26,154,92,.1)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:22 }}>
-                {t.template_type==='pdf'?'📄':'🖼️'}
-              </div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontWeight:700, fontSize:14, marginBottom:3, display:'flex', alignItems:'center', gap:8 }}>
-                  {t.name}
-                  <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:20, background:t.template_type==='pdf'?'rgba(224,82,82,.12)':'rgba(26,154,92,.1)', color:t.template_type==='pdf'?'#e05252':'#1a9a5c' }}>
-                    {t.template_type==='pdf'?'PDF':`${(t.slides||[]).length} slides`}
-                  </span>
-                </div>
-                <div style={{ fontSize:12, color:'var(--muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.description||'No description'}</div>
-              </div>
-              <span style={{ color:'var(--muted)', fontSize:20 }}>›</span>
-            </div>
-          ))}
-        </div>
-        <div style={{ padding:'16px 28px', borderTop:'1px solid var(--border)', flexShrink:0 }}>
-          <button onClick={()=>setStep('choose')} style={{ background:'none', border:'1px solid var(--border)', color:'var(--muted)', padding:'8px 16px', borderRadius:8, cursor:'pointer', fontSize:13 }}>← Back</button>
-        </div>
-      </div>
-    </div>
-  );
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // STEP: FORM — Loan details
-  // ────────────────────────────────────────────────────────────────────────────
-  if (step==='form' && mode==='ai') return (
-    <div className="overlay" onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{ width:'min(620px,95vw)', background:'var(--surface)', borderRadius:20, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', overflow:'hidden' }}>
-        <div style={{ background:'#0c1a35', padding:'24px 32px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <div>
-            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700, color:'#fff' }}>Loan Details</div>
-            {contact && <div style={{ color:'rgba(255,255,255,.45)', fontSize:13, marginTop:2 }}>Presentation for {contact.full_name}</div>}
-          </div>
-          <button onClick={onClose} style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.7)', width:34, height:34, borderRadius:8, cursor:'pointer', fontSize:20, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
-        </div>
-        <div style={{ padding:'24px 32px 28px' }}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:14 }}>
-            <div className="form-group" style={{ marginBottom:0 }}>
-              <label>Borrower Name</label>
-              <input value={form.borrower_name} onChange={e=>setF('borrower_name',e.target.value)} placeholder="Full name" />
-            </div>
-            <div className="form-group" style={{ marginBottom:0 }}>
-              <label>Loan Type</label>
-              <select value={form.loan_type} onChange={e=>setF('loan_type',e.target.value)}>
-                {['Purchase','Refinance','VA Loan','FHA Loan','Jumbo','USDA','Reverse Mortgage'].map(t=><option key={t}>{t}</option>)}
-              </select>
-            </div>
-            <div className="form-group" style={{ marginBottom:0 }}>
-              <label>Loan Amount ($)</label>
-              <input value={form.loan_amount} onChange={e=>setF('loan_amount',e.target.value)} placeholder="485000" type="number" />
-            </div>
-            <div className="form-group" style={{ marginBottom:0 }}>
-              <label>Interest Rate (%)</label>
-              <input value={form.rate} onChange={e=>setF('rate',e.target.value)} placeholder="6.75" type="number" step="0.01" />
-            </div>
-            <div className="form-group" style={{ marginBottom:0 }}>
-              <label>Loan Term</label>
-              <select value={form.term} onChange={e=>setF('term',e.target.value)}>
-                <option value="10">10 years</option>
-                <option value="15">15 years</option>
-                <option value="20">20 years</option>
-                <option value="25">25 years</option>
-                <option value="30">30 years</option>
-              </select>
-            </div>
-            <div className="form-group" style={{ marginBottom:0 }}>
-              <label>Property Address <span style={{color:'var(--muted)',fontWeight:400}}>(optional)</span></label>
-              <input value={form.property_address} onChange={e=>setF('property_address',e.target.value)} placeholder="123 Main St" />
-            </div>
-            <div className="form-group" style={{ marginBottom:0 }}>
-              <label>Loan Officer Name</label>
-              <input value={form.lo_name} onChange={e=>setF('lo_name',e.target.value)} />
-            </div>
-            <div className="form-group" style={{ marginBottom:0 }}>
-              <label>LO Phone <span style={{color:'var(--muted)',fontWeight:400}}>(optional)</span></label>
-              <input value={form.lo_phone} onChange={e=>setF('lo_phone',e.target.value)} placeholder="(707) 555-0100" />
-            </div>
-          </div>
-          <div style={{ display:'flex', gap:10 }}>
-            <button onClick={()=>setStep('choose')} style={{ background:'none', border:'1px solid var(--border)', color:'var(--muted)', padding:'11px 18px', borderRadius:8, cursor:'pointer', fontSize:13 }}>← Back</button>
-            <button
-              onClick={generatePresentation}
-              disabled={!form.borrower_name||!form.loan_amount||!form.rate}
-              style={{ flex:1, background:'#1a9a5c', color:'#fff', border:'none', borderRadius:8, padding:'12px 20px', fontWeight:700, fontSize:14, cursor:(!form.borrower_name||!form.loan_amount||!form.rate)?'not-allowed':'pointer', opacity:(!form.borrower_name||!form.loan_amount||!form.rate)?.45:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-              Generate Presentation
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // STEP: PREVIEW — full screen
-  // ────────────────────────────────────────────────────────────────────────────
-  if (step==='preview') {
-    const isPdf   = selectedTemplate?.template_type === 'pdf';
-    const canSend = !generating && (slides.length > 0 || isPdf);
-
-    return (
-      <div
-        style={{ position:'fixed', inset:0, background:'#060f1d', zIndex:200, display:'flex', flexDirection:'column' }}
-        onKeyDown={e=>{
-          if (e.key==='ArrowRight'||e.key==='ArrowDown') setSlideIndex(s=>Math.min(s+1,slides.length-1));
-          if (e.key==='ArrowLeft'||e.key==='ArrowUp')   setSlideIndex(s=>Math.max(s-1,0));
-          if (e.key==='Escape') onClose();
-        }}
-        tabIndex={0}
-        ref={el=>el?.focus()}>
-
-        {/* ── Top bar ── */}
-        <div style={{ height:58, background:'#0c1a35', display:'flex', alignItems:'center', padding:'0 20px', gap:14, flexShrink:0, borderBottom:'1px solid rgba(255,255,255,.07)' }}>
-          <button onClick={onClose} style={{ background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.1)', color:'rgba(255,255,255,.75)', padding:'7px 16px', borderRadius:7, cursor:'pointer', fontSize:13, fontWeight:600, flexShrink:0 }}>← Back</button>
-          <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="" style={{ height:24, filter:'brightness(0) invert(1)', opacity:.6 }} onError={e=>e.target.style.display='none'} />
-          <div style={{ flex:1, color:'rgba(255,255,255,.5)', fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-            {generating ? 'Building presentation…' : isPdf ? selectedTemplate.name : `${contact?.full_name||''} · ${slides.length} slides · Use ← → arrow keys`}
-          </div>
-          {canSend && (
-            <button onClick={send} disabled={sending}
-              style={{ background:'#1a9a5c', color:'#fff', border:'none', borderRadius:8, padding:'9px 22px', fontWeight:700, fontSize:13, cursor:sending?'not-allowed':'pointer', flexShrink:0, opacity:sending?.65:1, display:'flex', alignItems:'center', gap:8 }}>
-              {sending ? 'Sending…' : `Send to ${contact?.full_name||'Contact'} →`}
-            </button>
-          )}
-        </div>
-
-        {/* ── Body ── */}
-        <div style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
-
-          {/* Thumbnail rail */}
-          {!isPdf && (slides.length > 0 || generating) && (
-            <div style={{ width:108, background:'rgba(0,0,0,.35)', borderRight:'1px solid rgba(255,255,255,.05)', overflowY:'auto', padding:'12px 8px', display:'flex', flexDirection:'column', gap:8, flexShrink:0 }}>
-              {generating
-                ? Array.from({length:6}).map((_,i)=>(
-                    <div key={i} style={{ aspectRatio:'16/9', borderRadius:5, background:'rgba(255,255,255,.07)', animation:'pulse 1.5s infinite' }} />
-                  ))
-                : slides.map((s,i)=>(
-                    <div key={i} onClick={()=>setSlideIndex(i)}
-                      style={{ aspectRatio:'16/9', borderRadius:5, overflow:'hidden', cursor:'pointer', border:`2px solid ${slideIndex===i?'#1a9a5c':'transparent'}`, flexShrink:0, opacity:slideIndex===i?1:.5, transition:'all .15s' }}>
-                      {/* Tiny thumbnail using ScaledSlide */}
-                      <ScaledSlide slide={s} index={i} total={slides.length} companyName={companyName||'Citizens Financial'} style={{ background:'#fff' }} />
-                    </div>
-                  ))
-              }
-            </div>
-          )}
-
-          {/* Main area */}
-          <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding: isPdf?0:'20px 28px', overflow:'hidden', minHeight:0 }}>
-            {generating ? (
-              <div style={{ textAlign:'center' }}>
-                <div style={{ width:52, height:52, borderRadius:'50%', border:'3px solid rgba(255,255,255,.06)', borderTopColor:'#1a9a5c', animation:'spin 1s linear infinite', margin:'0 auto 20px' }} />
-                <div style={{ color:'rgba(255,255,255,.65)', fontSize:16, fontWeight:600, marginBottom:8 }}>Building your presentation…</div>
-                <div style={{ color:'rgba(255,255,255,.3)', fontSize:13 }}>Calculating loan figures and generating slides</div>
-              </div>
-            ) : isPdf ? (
-              <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column' }}>
-                <div style={{ padding:'10px 20px', display:'flex', alignItems:'center', gap:12, borderBottom:'1px solid rgba(255,255,255,.05)', flexShrink:0 }}>
-                  <span style={{ fontSize:11, color:'rgba(255,255,255,.3)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em' }}>PDF Preview</span>
-                  <span style={{ fontSize:11, color:'rgba(255,255,255,.3)' }}>{selectedTemplate?.name}</span>
-                  <a href={selectedTemplate?.pdf_url} target="_blank" rel="noreferrer"
-                    style={{ marginLeft:'auto', fontSize:11, color:'rgba(255,255,255,.4)', border:'1px solid rgba(255,255,255,.1)', padding:'3px 10px', borderRadius:5, textDecoration:'none' }}>Open ↗</a>
-                </div>
-                <iframe src={(selectedTemplate?.pdf_url||'')+'#toolbar=0&navpanes=0'} style={{ flex:1, border:'none', background:'#fff' }} title="PDF" />
-              </div>
-            ) : slides.length > 0 ? (
-              <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:18 }}>
-                {/* Slide — uses ScaledSlide so it fills available space perfectly */}
-                <div style={{ flex:1, width:'100%', minHeight:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <ScaledSlide
-                    slide={slides[slideIndex]||{}}
-                    index={slideIndex}
-                    total={slides.length}
-                    companyName={profile.company_name||'Citizens Financial'}
-                  />
-                </div>
-                {/* Nav */}
-                <div style={{ display:'flex', alignItems:'center', gap:18, flexShrink:0, paddingBottom:4 }}>
-                  <button onClick={()=>setSlideIndex(s=>Math.max(s-1,0))} disabled={slideIndex===0}
-                    style={{ background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.1)', color:'#fff', padding:'8px 22px', borderRadius:7, cursor:slideIndex===0?'not-allowed':'pointer', opacity:slideIndex===0?.3:1, fontSize:13, fontWeight:600 }}>← Prev</button>
-                  <div style={{ display:'flex', gap:6 }}>
-                    {slides.map((_,i)=>(
-                      <div key={i} onClick={()=>setSlideIndex(i)}
-                        style={{ width:i===slideIndex?24:7, height:7, borderRadius:4, background:i===slideIndex?'#1a9a5c':'rgba(255,255,255,.25)', cursor:'pointer', transition:'all .25s' }} />
-                    ))}
-                  </div>
-                  <button onClick={()=>setSlideIndex(s=>Math.min(s+1,slides.length-1))} disabled={slideIndex===slides.length-1}
-                    style={{ background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.1)', color:'#fff', padding:'8px 22px', borderRadius:7, cursor:slideIndex===slides.length-1?'not-allowed':'pointer', opacity:slideIndex===slides.length-1?.3:1, fontSize:13, fontWeight:600 }}>Next →</button>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return null;
-}
-
-
-// ─── MASS PRESENTATION MODAL ──────────────────────────────────────────────────
-function MassPresentationModal({ contacts, profile, onClose, toast, onSent }) {
-  const [templates, setTemplates] = useState([]);
-  const [mode, setMode]           = useState('ai'); // 'ai' | 'template'
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
-  const [loanType, setLoanType]   = useState('Purchase');
-  const [loName, setLoName]       = useState(profile?.full_name||'');
-  const [loEmail, setLoEmail]     = useState('');
-  const [loPhone, setLoPhone]     = useState('');
-  const [keyPoints, setKeyPoints] = useState('');
-  const [sending, setSending]     = useState(false);
-  const [progress, setProgress]   = useState(0);
-  const [done, setDone]           = useState(false);
-
-  useEffect(()=>{
-    supabase.from('presentation_templates').select('*').eq('company_id', profile.company_name).then(({data})=>setTemplates(data||[]));
-  },[]);
-
-  const withEmail = contacts.filter(c=>c.email);
-
-  const generateSlidesForContact = async (contact) => {
-    const prompt = `Generate a short 5-slide mortgage presentation for ${contact.full_name}${contact.deal_value ? ', loan ~$'+Number(contact.deal_value).toLocaleString() : ''}, ${loanType} loan. LO: ${loName}. ${keyPoints||''}
-Return ONLY a JSON array. Use types: cover, stats, bullets, closing. Keep it concise.`;
-    const res = await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/generate-presentation', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + process.env.REACT_APP_SUPABASE_ANON_KEY
-      },
-      body: JSON.stringify({ prompt })
-    });
-    const data = await res.json();
-    if(data.error) throw new Error(data.error);
-    const text = (data.content||[]).map(b=>b.text||'').join('');
-    return JSON.parse(text.replace(/```json|```/g,'').trim());
-  };
-
-  const sendAll = async () => {
-    if(withEmail.length===0) { toast('No contacts with email addresses'); return; }
-    setSending(true);
-    let sent = 0;
-    for(const contact of withEmail) {
-      try {
-        let slides;
-        if(mode==='template' && selectedTemplate) {
-          slides = (selectedTemplate.slides||[]).map(s=>{
-            const str = JSON.stringify(s).replace(/\{\{borrower_name\}\}/g,contact.full_name).replace(/\{\{lo_name\}\}/g,loName).replace(/\{\{lo_email\}\}/g,loEmail);
-            return JSON.parse(str);
-          });
-        } else {
-          slides = await generateSlidesForContact(contact);
-        }
-        const token = crypto.randomUUID();
-        const viewUrl = window.location.origin+window.location.pathname+'#present-'+token;
-        await supabase.from('presentations').insert([{ company_id:profile.company_name, company_name:profile.company_name, brand_color:'#0f1c3f', contact_id:contact.id, contact_name:contact.full_name, contact_email:contact.email, slides, view_token:token, created_by:profile.id, lo_name:loName }]);
-        const emailHtml = `<div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto;"><div style="background:#0f1c3f;padding:28px 36px;border-radius:12px 12px 0 0;"><h1 style="color:#fff;font-family:Georgia,serif;font-size:22px;margin:0;">${profile.company_name}</h1></div><div style="background:#f8f9fc;padding:28px 36px;border-radius:0 0 12px 12px;"><p style="font-size:15px;color:#1a1a2e;">Dear ${contact.full_name},</p><p style="font-size:14px;color:#555;line-height:1.7;">I've prepared a personalized mortgage presentation for you.</p><a href="${viewUrl}" style="display:inline-block;background:#0f1c3f;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin:16px 0;">View Presentation →</a><p style="font-size:12px;color:#888;margin-top:20px;">Best regards,<br/><strong>${loName}</strong></p></div></div>`;
-        await fetch(process.env.REACT_APP_SUPABASE_URL+'/functions/v1/send-email', {
-          method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+process.env.REACT_APP_SUPABASE_ANON_KEY},
-          body:JSON.stringify({ to:contact.email, subject:`Your Mortgage Presentation from ${profile.company_name}`, html:emailHtml })
-        });
-        sent++;
-      } catch(e) { console.warn('Failed for', contact.full_name, e); }
-      setProgress(Math.round(((withEmail.indexOf(contact)+1)/withEmail.length)*100));
-    }
-    setSending(false);
-    setDone(true);
-    onSent && onSent(sent);
-  };
-
-  if(done) return (
-    <div className="overlay"><div className="modal" style={{ textAlign:'center', maxWidth:420 }}>
-      <div style={{ marginBottom:12, color:'var(--success)', display:'flex', justifyContent:'center' }}>{React.cloneElement(Icons.checkCircle,{width:48,height:48})}</div>
-      <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:24, fontWeight:700, marginBottom:8 }}>Presentations Sent!</div>
-      <div style={{ color:'var(--muted)', fontSize:14, marginBottom:24 }}>Each contact received a personalized presentation link via email.</div>
-      <button className="btn-primary" onClick={onClose}>Done</button>
-    </div></div>
-  );
-
-  return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:560 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-          <div>
-            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Mass Send Presentation</div>
-            <div style={{ fontSize:13, color:'var(--muted)', marginTop:2 }}>{withEmail.length} of {contacts.length} contacts have email addresses</div>
-          </div>
-          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
-        </div>
-        {/* Mode */}
-        <div style={{ display:'flex', gap:8, marginBottom:18 }}>
-          {[['ai','AI-Generated'],['template','From Template']].map(([m,l])=>(
-            <button key={m} onClick={()=>setMode(m)} style={{ flex:1, padding:'8px', borderRadius:8, border:`2px solid ${mode===m?'var(--accent)':'var(--border)'}`, background:mode===m?'rgba(77,142,240,.1)':'transparent', color:mode===m?'var(--accent)':'var(--muted)', cursor:'pointer', fontSize:13, fontWeight:600 }}>{l}</button>
-          ))}
-        </div>
-        {mode==='template' && (
-          <div style={{ marginBottom:14 }}>
-            {templates.length===0 ? <div style={{ fontSize:13, color:'var(--muted)', padding:'12px', background:'var(--surface2)', borderRadius:8 }}>No templates in library yet.</div>
-            : templates.map(t=>(
-              <div key={t.id} onClick={()=>setSelectedTemplate(t)}
-                style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:8, border:`1px solid ${selectedTemplate?.id===t.id?'var(--accent)':'var(--border)'}`, marginBottom:6, cursor:'pointer', background:selectedTemplate?.id===t.id?'rgba(77,142,240,.08)':'transparent' }}>
-                <div style={{ flex:1, fontSize:13, fontWeight:600 }}>{t.name}</div>
-                <div style={{ fontSize:11, color:'var(--muted)' }}>{(t.slides||[]).length} slides</div>
-              </div>
-            ))}
-          </div>
-        )}
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:16 }}>
-          <div className="form-group" style={{ marginBottom:0 }}>
-            <label>Loan Type</label>
-            <select value={loanType} onChange={e=>setLoanType(e.target.value)}>
-              {['Purchase','Refinance','VA Loan','FHA Loan','Jumbo','USDA'].map(t=><option key={t}>{t}</option>)}
-            </select>
-          </div>
-          <div className="form-group" style={{ marginBottom:0 }}>
-            <label>Loan Officer Name</label>
-            <input value={loName} onChange={e=>setLoName(e.target.value)} />
-          </div>
-          <div className="form-group" style={{ gridColumn:'1/-1', marginBottom:0 }}>
-            <label>Key Points for AI</label>
-            <input value={keyPoints} onChange={e=>setKeyPoints(e.target.value)} placeholder="e.g. competitive rates, first-time buyer programs" />
-          </div>
-        </div>
-        {/* Recipients preview */}
-        <div style={{ background:'var(--surface2)', borderRadius:8, padding:12, marginBottom:16, maxHeight:120, overflowY:'auto' }}>
-          <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:8 }}>Recipients ({withEmail.length})</div>
-          {withEmail.map(c=>(
-            <div key={c.id} style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:4 }}>
-              <span style={{ fontWeight:500 }}>{c.full_name}</span>
-              <span style={{ color:'var(--muted)' }}>{c.email}</span>
-            </div>
-          ))}
-          {contacts.filter(c=>!c.email).length>0 && (
-            <div style={{ fontSize:11, color:'var(--warning)', marginTop:6 }}>{contacts.filter(c=>!c.email).length} contact(s) skipped — no email</div>
-          )}
-        </div>
-        {sending && (
-          <div style={{ marginBottom:16 }}>
-            <div style={{ height:6, background:'var(--border)', borderRadius:3, overflow:'hidden' }}>
-              <div style={{ height:'100%', width:progress+'%', background:'var(--accent)', borderRadius:3, transition:'width .3s' }} />
-            </div>
-            <div style={{ fontSize:12, color:'var(--muted)', marginTop:6 }}>Sending... {progress}%</div>
-          </div>
-        )}
-        <div style={{ display:'flex', gap:10 }}>
-          <button className="btn-secondary" onClick={onClose} style={{ flex:1 }}>Cancel</button>
-          <button className="btn-primary" onClick={sendAll} disabled={sending||withEmail.length===0||(mode==='template'&&!selectedTemplate)} style={{ flex:2 }}>
-            {sending ? 'Sending...' : `Send to ${withEmail.length} Contact${withEmail.length!==1?'s':''}`}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── PRESENTATIONS PAGE ────────────────────────────────────────────────────────
-function PresentationsPage({ profile, toast }) {
-  const [tab, setTab]               = useState('sent');
-  const [presentations, setPresentations] = useState([]);
-  const [templates, setTemplates]   = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [showUpload, setShowUpload] = useState(false);
-  const [newTmpl, setNewTmpl]       = useState({ name:'', description:'', slides:'[]', type:'slides', pdf_url:'', pdf_name:'' });
-  const [saving, setSaving]         = useState(false);
-  const [uploading, setUploading]   = useState(false);
-  const pdfInputRef                 = React.useRef(null);
-  const [previewPres, setPreviewPres] = useState(null);
-  const [previewSlide, setPreviewSlide] = useState(0);
-
-  const [uploadError, setUploadError] = useState('');
-
-  const handlePdfUpload = async (file) => {
-    if(!file) return;
-    setUploadError('');
-    if(!file.type.includes('pdf')) { setUploadError('Please select a PDF file'); return; }
-    if(file.size > 50*1024*1024) { setUploadError('File is too large — max 50MB. Please compress your PDF first.'); return; }
-    setUploading(true);
-    try {
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-      const path = 'templates/' + profile.company_name + '/' + Date.now() + '-' + safeName;
-      console.log('[PDF Upload] Starting upload to path:', path);
-      const { data, error } = await supabase.storage
-        .from('presentation-pdfs')
-        .upload(path, file, { contentType:'application/pdf', upsert:true });
-      console.log('[PDF Upload] Result:', { data, error });
-      if(error) {
-        const msg = error.message || JSON.stringify(error);
-        console.error('[PDF Upload] Error:', error);
-        if(msg.toLowerCase().includes('bucket') || error.statusCode===400 || error.statusCode===404) {
-          setUploadError('Storage bucket "presentation-pdfs" not found or not configured correctly. Go to Supabase → Storage → New bucket → name it "presentation-pdfs" → enable Public → Save.');
-        } else if(error.statusCode===403 || msg.toLowerCase().includes('policy') || msg.toLowerCase().includes('permission')) {
-          setUploadError('Permission denied. In Supabase Storage, make sure the "presentation-pdfs" bucket is set to Public.');
-        } else {
-          setUploadError('Upload failed: ' + msg);
-        }
-        setUploading(false); return;
-      }
-      const { data:urlData } = supabase.storage.from('presentation-pdfs').getPublicUrl(path);
-      console.log('[PDF Upload] Public URL:', urlData?.publicUrl);
-      setNewTmpl(f=>({...f, pdf_url: urlData.publicUrl, pdf_name: file.name}));
-      setUploadError('');
-      toast('PDF uploaded successfully!');
-    } catch(e) {
-      console.error('[PDF Upload] Exception:', e);
-      setUploadError('Upload error: ' + e.message);
-    }
-    setUploading(false);
-  };
-
-  const load = async () => {
-    setLoading(true);
-    const [p, t] = await Promise.all([
-      supabase.from('presentations').select('*').eq('company_id', profile.company_name).order('created_at',{ascending:false}),
-      supabase.from('presentation_templates').select('*').eq('company_id', profile.company_name).order('created_at',{ascending:false}),
-    ]);
-    setPresentations(p.data||[]);
-    setTemplates(t.data||[]);
-    setLoading(false);
-  };
-  useEffect(()=>{ load(); },[]);
-
-  const saveTemplate = async () => {
-    if(!newTmpl.name.trim()) { toast('Template name required'); return; }
-    const isPdf = (newTmpl.type||'slides')==='pdf';
-    if(isPdf && !newTmpl.pdf_url) { toast('Please upload a PDF first'); return; }
-    setSaving(true);
-    let slidesJson = [];
-    if(!isPdf) {
-      try { slidesJson = JSON.parse(newTmpl.slides||'[]'); } catch(e) { toast('Invalid slide JSON'); setSaving(false); return; }
-    }
-    const { error } = await supabase.from('presentation_templates').insert([{
-      company_id:    profile.company_name,
-      name:          newTmpl.name,
-      description:   newTmpl.description,
-      template_type: isPdf ? 'pdf' : 'slides',
-      pdf_url:       isPdf ? newTmpl.pdf_url : null,
-      slides:        slidesJson,
-      created_by:    profile.id,
-    }]);
-    if(error) { toast('Error: '+error.message); setSaving(false); return; }
-    toast('Template saved!');
-    setShowUpload(false);
-    setNewTmpl({name:'',description:'',slides:'[]',type:'slides',pdf_url:'',pdf_name:''});
-    setSaving(false);
-    load();
-  };
-
-  const deleteTemplate = async (id) => {
-    if(!window.confirm('Delete this template?')) return;
-    await supabase.from('presentation_templates').delete().eq('id',id);
-    load(); toast('Template deleted');
-  };
-
-  const deletePres = async (id) => {
-    if(!window.confirm('Delete this presentation?')) return;
-    await supabase.from('presentations').delete().eq('id',id);
-    load(); toast('Deleted');
-  };
-
-  return (
-    <div style={{ padding:32 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
-        <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:26, fontWeight:700 }}>Presentations</div>
-        {profile.role==='admin' && tab==='templates' && (
-          <button className="btn-primary btn-sm" onClick={()=>setShowUpload(true)}>+ Add Template</button>
-        )}
-      </div>
-      {/* Tabs */}
-      <div style={{ display:'flex', gap:0, marginBottom:24, borderBottom:'2px solid var(--border)' }}>
-        {[['sent','Sent Presentations'],['templates','Template Library']].map(([id,label])=>(
-          <button key={id} onClick={()=>setTab(id)} style={{ padding:'10px 20px', background:'none', border:'none', borderBottom:`2px solid ${tab===id?'var(--accent)':'transparent'}`, color:tab===id?'var(--accent)':'var(--muted)', cursor:'pointer', fontWeight:tab===id?700:500, fontSize:14, marginBottom:-2, transition:'all .15s' }}>{label}</button>
-        ))}
-      </div>
-
-      {loading ? <div style={{ color:'var(--muted)', fontSize:13 }}>Loading...</div> :
-
-      tab==='sent' ? (
-        presentations.length===0 ? (
-          <div className="card" style={{ textAlign:'center', padding:48 }}>
-            <div style={{ marginBottom:12, color:'var(--muted)', display:'flex', justifyContent:'center' }}>{React.cloneElement(Icons.file,{width:36,height:36})}</div>
-            <div style={{ fontWeight:600, marginBottom:6 }}>No presentations sent yet</div>
-            <div style={{ color:'var(--muted)', fontSize:13 }}>Open a contact and click "Build Presentation" to get started.</div>
-          </div>
-        ) : (
-          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, overflow:'hidden' }}>
-            <table className="table">
-              <thead><tr>
-                <th>Contact</th><th>Sent</th><th>Status</th><th>Slides</th><th>Actions</th>
-              </tr></thead>
-              <tbody>
-                {presentations.map(p=>(
-                  <tr key={p.id}>
-                    <td>
-                      <div style={{ fontWeight:600, fontSize:14 }}>{p.contact_name||'—'}</div>
-                      <div style={{ fontSize:12, color:'var(--muted)' }}>{p.contact_email||''}</div>
-                    </td>
-                    <td style={{ color:'var(--muted)', fontSize:13 }}>{p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}</td>
-                    <td>
-                      {p.opened_at
-                        ? <span style={{ background:'rgba(46,204,138,.15)', color:'#2ecc8a', fontSize:11, fontWeight:700, padding:'3px 8px', borderRadius:10 }}>Viewed</span>
-                        : <span style={{ background:'rgba(240,180,41,.15)', color:'#f0b429', fontSize:11, fontWeight:700, padding:'3px 8px', borderRadius:10 }}>Sent</span>}
-                    </td>
-                    <td style={{ color:'var(--muted)', fontSize:13 }}>{(p.slides||[]).length}</td>
-                    <td>
-                      <div style={{ display:'flex', gap:8 }}>
-                        <button onClick={()=>{ setPreviewPres(p); setPreviewSlide(0); }} className="btn-secondary btn-sm">Preview</button>
-                        <button onClick={()=>{ const url=window.location.origin+window.location.pathname+'#present-'+p.view_token; window.open(url,'_blank'); }} className="btn-secondary btn-sm">Open Link</button>
-                        <button onClick={()=>deletePres(p.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:13, padding:'4px 8px' }}>{Icons.trash}</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )
-      ) : (
-        /* TEMPLATES TAB */
-        templates.length===0 ? (
-          <div className="card" style={{ textAlign:'center', padding:48 }}>
-            <div style={{ marginBottom:12, color:'var(--muted)', display:'flex', justifyContent:'center' }}>{React.cloneElement(Icons.file,{width:36,height:36})}</div>
-            <div style={{ fontWeight:600, marginBottom:6 }}>No templates yet</div>
-            <div style={{ color:'var(--muted)', fontSize:13, marginBottom:16 }}>Add pre-built templates that your team can use to quickly generate presentations.</div>
-            {profile.role==='admin' && <button className="btn-primary btn-sm" onClick={()=>setShowUpload(true)}>+ Add First Template</button>}
-          </div>
-        ) : (
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))', gap:16 }}>
-            {templates.map(t=>(
-              <div key={t.id} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, overflow:'hidden' }}>
-                {/* Preview thumbnail */}
-                <div style={{ aspectRatio:'16/9', background:'#050d1a', position:'relative', overflow:'hidden', cursor:'pointer' }}
-                  onClick={()=>{ if(t.template_type==='pdf'&&t.pdf_url) window.open(t.pdf_url,'_blank'); else { setPreviewPres(t); setPreviewSlide(0); } }}>
-                  {t.template_type==='pdf' ? (
-                    <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:8 }}>
-                      <div style={{ color:'rgba(255,255,255,.4)' }}>{React.cloneElement(Icons.file,{width:36,height:36})}</div>
-                      <div style={{ color:'rgba(255,255,255,.5)', fontSize:12, fontWeight:600 }}>PDF Document</div>
-                      <div style={{ color:'rgba(255,255,255,.3)', fontSize:11 }}>Click to open</div>
-                    </div>
-                  ) : (t.slides||[]).length>0 ? (
-                    <div style={{ transform:'scale(0.31)', transformOrigin:'top left', width:'323%', height:'323%', pointerEvents:'none' }}>
-                      <SlideRenderer slide={t.slides[0]} index={0} total={t.slides.length} brandColor='#0f1c3f' companyName={profile.company_name} />
-                    </div>
-                  ) : null}
-                  <div style={{ position:'absolute', top:6, left:8 }}>
-                    {t.template_type==='pdf'
-                      ? <span style={{ background:'#e05252', color:'#fff', fontSize:9, fontWeight:800, padding:'2px 6px', borderRadius:4, letterSpacing:'.06em' }}>PDF</span>
-                      : <span style={{ background:'rgba(77,142,240,.8)', color:'#fff', fontSize:9, fontWeight:800, padding:'2px 6px', borderRadius:4, letterSpacing:'.06em' }}>SLIDES</span>}
-                  </div>
-                  {t.template_type!=='pdf' && <div style={{ position:'absolute', bottom:6, right:8, background:'rgba(0,0,0,.5)', color:'#fff', fontSize:10, padding:'2px 6px', borderRadius:4 }}>{(t.slides||[]).length} slides</div>}
-                </div>
-                <div style={{ padding:'14px 16px' }}>
-                  <div style={{ fontWeight:700, fontSize:14, marginBottom:4 }}>{t.name}</div>
-                  {t.description && <div style={{ fontSize:12, color:'var(--muted)', marginBottom:10 }}>{t.description}</div>}
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                    <div style={{ fontSize:11, color:'var(--muted)' }}>Added {new Date(t.created_at).toLocaleDateString()}</div>
-                    {profile.role==='admin' && <button onClick={()=>deleteTemplate(t.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:12, display:'flex', alignItems:'center', gap:4 }}>{Icons.trash} Delete</button>}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )
-      )}
-
-      {/* Add Template Modal */}
-      {showUpload && (
-        <div className="overlay" onClick={()=>setShowUpload(false)}>
-          <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:580 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Add Template</div>
-              <button onClick={()=>setShowUpload(false)} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
-            </div>
-            {/* Type selector */}
-            <div style={{ display:'flex', gap:8, marginBottom:20 }}>
-              {[['slides','Slide Deck'],['pdf','PDF Document']].map(([t,l])=>(
-                <button key={t} onClick={()=>setNewTmpl(f=>({...f,type:t}))}
-                  style={{ flex:1, padding:'10px', borderRadius:8, border:`2px solid ${(newTmpl.type||'slides')===t?'var(--accent)':'var(--border)'}`, background:(newTmpl.type||'slides')===t?'rgba(77,142,240,.1)':'transparent', color:(newTmpl.type||'slides')===t?'var(--accent)':'var(--muted)', cursor:'pointer', fontSize:13, fontWeight:600, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-                  {t==='pdf'
-                    ? <>{React.cloneElement(Icons.file,{width:15,height:15})} {l}</>
-                    : <>{React.cloneElement(Icons.grid,{width:15,height:15})} {l}</>}
-                </button>
-              ))}
-            </div>
-            <div className="form-group"><label>Template Name</label><input value={newTmpl.name} onChange={e=>setNewTmpl(f=>({...f,name:e.target.value}))} placeholder="e.g. Purchase Loan Overview" /></div>
-            <div className="form-group"><label>Description (optional)</label><input value={newTmpl.description} onChange={e=>setNewTmpl(f=>({...f,description:e.target.value}))} placeholder="Brief description" /></div>
-            {(newTmpl.type||'slides')==='pdf' ? (
-              <div className="form-group">
-                <label>Upload PDF</label>
-                <input type="file" accept="application/pdf,.pdf" ref={pdfInputRef} style={{ display:'none' }}
-                  onChange={e=>{ handlePdfUpload(e.target.files?.[0]); e.target.value=''; }} />
-                {newTmpl.pdf_url ? (
-                  <div style={{ display:'flex', alignItems:'center', gap:10, padding:'12px 14px', background:'var(--surface2)', borderRadius:8, border:'1px solid var(--border)' }}>
-                    <div style={{ color:'var(--success)', display:'flex' }}>{React.cloneElement(Icons.checkCircle,{width:16,height:16})}</div>
-                    <span style={{ fontSize:13, flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'var(--text)' }}>{newTmpl.pdf_name||'PDF uploaded'}</span>
-                    <button onClick={()=>setNewTmpl(f=>({...f,pdf_url:'',pdf_name:''}))} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:12 }}>Remove</button>
-                  </div>
-                ) : (
-                  <div onClick={()=>pdfInputRef.current?.click()}
-                    style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:10, padding:'36px 20px', border:'2px dashed var(--border)', borderRadius:8, cursor:'pointer', transition:'all .15s' }}
-                    onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.background='rgba(77,142,240,.04)'; }}
-                    onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background='transparent'; }}>
-                    {uploading ? (
-                      <>
-                        <div style={{ width:24, height:24, borderRadius:'50%', border:'3px solid var(--border)', borderTopColor:'var(--accent)', animation:'spin 1s linear infinite' }} />
-                        <div style={{ fontSize:13, color:'var(--muted)' }}>Uploading...</div>
-                      </>
-                    ) : (
-                      <>
-                        <div style={{ color:'var(--muted)' }}>{React.cloneElement(Icons.upload,{width:28,height:28})}</div>
-                        <div style={{ fontSize:14, color:'var(--text)', fontWeight:500 }}>Click to upload PDF</div>
-                        <div style={{ fontSize:12, color:'var(--muted)' }}>Max 50MB</div>
-                      </>
-                    )}
-                  </div>
-                )}
-                {uploadError && (
-                  <div style={{ marginTop:10, padding:'10px 14px', background:'rgba(224,82,82,.12)', border:'1px solid rgba(224,82,82,.3)', borderRadius:8, fontSize:13, color:'#e05252', lineHeight:1.6 }}>
-                    {uploadError}
-                  </div>
-                )}
-              </div>) : (
-              <div className="form-group">
-                <label>Slides JSON</label>
-                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:6 }}>Paste a JSON array of slide objects. Use <code style={{background:'var(--surface2)',padding:'1px 4px',borderRadius:3}}>{'{{borrower_name}}'}</code> and <code style={{background:'var(--surface2)',padding:'1px 4px',borderRadius:3}}>{'{{lo_name}}'}</code> as tokens.</div>
-                <textarea rows={6} value={newTmpl.slides} onChange={e=>setNewTmpl(f=>({...f,slides:e.target.value}))} style={{ fontFamily:'JetBrains Mono,monospace', fontSize:12 }} />
-              </div>
-            )}
-            <div style={{ display:'flex', gap:10 }}>
-              <button className="btn-secondary" onClick={()=>setShowUpload(false)}>Cancel</button>
-              <button className="btn-primary" style={{ flex:1 }} onClick={saveTemplate} disabled={saving}>{saving?'Saving...':'Save Template'}</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Inline Preview Modal */}
-      {previewPres && (
-        <div className="overlay" onClick={()=>setPreviewPres(null)}>
-          <div onClick={e=>e.stopPropagation()} style={{ width:'min(900px,92vw)', background:'#050d1a', borderRadius:16, overflow:'hidden', boxShadow:'0 32px 80px rgba(0,0,0,.7)' }}>
-            <div style={{ aspectRatio:'16/9' }}>
-              <SlideRenderer slide={(previewPres.slides||[])[previewSlide]||{}} index={previewSlide} total={(previewPres.slides||[]).length} brandColor='#0f1c3f' companyName={profile.company_name} />
-            </div>
-            <div style={{ padding:'12px 20px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-              <button onClick={()=>setPreviewSlide(s=>Math.max(s-1,0))} disabled={previewSlide===0} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', borderRadius:6, padding:'6px 16px', cursor:'pointer', fontSize:13 }}>← Prev</button>
-              <div style={{ display:'flex', gap:5 }}>
-                {(previewPres.slides||[]).map((_,i)=><div key={i} onClick={()=>setPreviewSlide(i)} style={{ width:i===previewSlide?20:6, height:6, borderRadius:3, background:i===previewSlide?'#4d8ef0':'rgba(255,255,255,.25)', cursor:'pointer', transition:'all .2s' }} />)}
-              </div>
-              <button onClick={()=>setPreviewSlide(s=>Math.min(s+1,(previewPres.slides||[]).length-1))} disabled={previewSlide===(previewPres.slides||[]).length-1} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', borderRadius:6, padding:'6px 16px', cursor:'pointer', fontSize:13 }}>Next →</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
@@ -5857,7 +3112,22 @@ export default function App() {
   const [sidebarNewWs, setSidebarNewWs] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
-  const [presentToken, setPresentToken] = useState(()=>{ const h=window.location.hash; const m=h.match(/^#present-(.+)$/); return m?m[1]:null; });
+  const [quickPresContact, setQuickPresContact] = useState(null);
+  const [publicPresToken, setPublicPresToken] = useState(null);
+
+  // Listen for presentation builder open events from ContactDrawer
+  useEffect(()=>{
+    const handler = (e) => { setQuickPresContact(e.detail.contact); setView('presentations', null); };
+    window.addEventListener('openPresentationBuilder', handler);
+    return ()=>window.removeEventListener('openPresentationBuilder', handler);
+  },[]);
+
+  // Check for public presentation share URL on load
+  useEffect(()=>{
+    const hash = window.location.hash;
+    const match = hash.match(/^#presentation\/([a-f0-9]+)$/);
+    if(match) setPublicPresToken(match[1]);
+  },[]);
 
   // Browser history navigation
   const setView = useCallback((newView, workspace=null) => {
@@ -5930,7 +3200,6 @@ export default function App() {
 
   const logout = async () => { await supabase.auth.signOut(); };
 
-  if (presentToken) return <><style>{css}</style><PublicPresentationViewer token={presentToken} /></>;
   if (!session) return <><style>{css}</style><AuthScreen onAuth={()=>{}} /></>;
   if (!profile) return <><style>{css}</style><div style={{ padding:40, textAlign:'center', color:'var(--muted)' }}>Loading...</div></>;
 
@@ -5939,9 +3208,8 @@ export default function App() {
     { id:'dashboard', label:'Dashboard', icon:Icons.dashboard },
     { id:'contacts', label:'Contacts', icon:Icons.contacts },
     { id:'pipeline', label:'Lead Funnel', icon:Icons.pipeline },
-    { id:'presentations', label:'Presentations', icon:Icons.file },
+    { id:'presentations', label:'Presentations', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> },
     { id:'team', label:'Team', icon:Icons.team },
-    { id:'calendar', label:'Calendar', icon:Icons.calendar },
     ...(profile.role==='admin' ? [{ id:'branding', label:'Branding', icon:Icons.branding }] : []),
   ];
 
@@ -5949,9 +3217,9 @@ export default function App() {
     <>
       <style>{css}</style>
       <style>{`:root { --accent: ${accentColor}; }`}</style>
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+      {/* Public Presentation Viewer */}
+      {publicPresToken && <PublicPresentationLoader token={publicPresToken} onClose={()=>{ setPublicPresToken(null); window.location.hash=''; }} />}
 
       {/* Sidebar */}
       <div className="sidebar">
@@ -6012,7 +3280,7 @@ export default function App() {
       </div>
 
       {/* Top Bar */}
-      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>setView(v,null)} onLogout={logout} workspaces={workspaces} onOpenWorkspace={w=>setView('workspace',w)}
+      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>setView(v,null)} onLogout={logout}
         onGetResults={(q)=>{
           const r = [];
           const ql = q.toLowerCase();
@@ -6021,7 +3289,6 @@ export default function App() {
           if('contacts'.includes(ql)) r.push({icon:'👥',title:'Contacts',subtitle:'View all contacts',type:'Page',action:()=>setView('contacts',null)});
           if('pipeline'.includes(ql)||'funnel'.includes(ql)) r.push({icon:'〽️',title:'Lead Funnel',subtitle:'View pipeline',type:'Page',action:()=>setView('pipeline',null)});
           if('team'.includes(ql)) r.push({icon:'🏢',title:'Team',subtitle:'Manage team members',type:'Page',action:()=>setView('team',null)});
-          if('calendar'.includes(ql)||'events'.includes(ql)) r.push({icon:'📅',title:'Calendar',subtitle:'Team calendar & events',type:'Page',action:()=>setView('calendar',null)});
           return r;
         }}
       />
@@ -6031,11 +3298,10 @@ export default function App() {
         {view==='dashboard' && <Dashboard contacts={contacts} workspaces={workspaces} onOpenWorkspace={w=>{ setView('workspace', w); }} profile={profile} onCreateWorkspace={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setView('workspace',data);}}} onNavigate={v=>setView(v,null)} />}
         {view==='contacts' && <ContactsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} toast={toast} profile={profile} />}
         {view==='pipeline' && <PipelineView contacts={contacts} onSelect={c=>setSelectedContact(c)} />}
+        {view==='presentations' && <PresentationsView profile={profile} contacts={contacts} toast={toast} />}
         {view==='team' && <TeamView profile={profile} toast={toast} />}
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
         {view==='trash' && <TrashArchiveView profile={profile} workspaces={workspaces} toast={toast} />}
-        {view==='presentations' && <PresentationsPage profile={profile} toast={toast} />}
-        {view==='calendar' && <CalendarView profile={profile} workspaces={workspaces} toast={toast} />}
         {view==='workspace' && activeWorkspace && <WorkspaceView workspace={activeWorkspace} profile={profile} toast={toast}
   allWorkspaces={workspaces}
   onSwitchWorkspace={w=>setView('workspace',w)}
@@ -6051,7 +3317,6 @@ export default function App() {
         onEdit={()=>{ setEditContact(selectedContact); setSelectedContact(null); setShowForm(true); }}
         onDelete={async()=>{ await supabase.from('contacts').delete().eq('id',selectedContact.id); setSelectedContact(null); refresh(); toast('Contact deleted'); }}
         companyId={profile.company_name}
-        profile={profile}
         toast={toast}
       />
 
@@ -6065,8 +3330,707 @@ export default function App() {
         />
       )}
 
+      {quickPresContact && (
+        <PresentationBuilder
+          profile={profile} contacts={contacts} existing={null}
+          preContact={quickPresContact}
+          onClose={()=>setQuickPresContact(null)}
+          onSave={(pres)=>{ setQuickPresContact(null); toast('Presentation created! Go to Presentations to send it.'); }}
+          toast={toast}
+        />
+      )}
       {sidebarNewWs && <InputModal title="New Workspace" placeholder="e.g. Loans In Process" onConfirm={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setView('workspace',data); setSidebarNewWs(false);}}} onClose={()=>setSidebarNewWs(false)} />}
       <Toast msg={toastMsg} onClose={()=>setToastMsg('')} />
     </>
+  );
+}
+// ─── PRESENTATIONS ────────────────────────────────────────────────────────────
+function PresentationsView({ profile, contacts, toast }) {
+  const [presentations, setPresentations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showBuilder, setShowBuilder] = useState(false);
+  const [editPres, setEditPres] = useState(null);
+  const [previewPres, setPreviewPres] = useState(null);
+
+  useEffect(() => { loadPresentations(); }, []);
+
+  const loadPresentations = async () => {
+    setLoading(true);
+    const { data } = await supabase.from('presentations').select('*').eq('company_id', profile.company_name).order('created_at', { ascending: false });
+    setPresentations(data || []);
+    setLoading(false);
+  };
+
+  const deletePresentation = async (id) => {
+    if (!window.confirm('Delete this presentation?')) return;
+    await supabase.from('presentations').delete().eq('id', id);
+    setPresentations(p => p.filter(x => x.id !== id));
+    toast('Presentation deleted');
+  };
+
+  const getShareUrl = (token) => `${window.location.origin}${window.location.pathname}#presentation/${token}`;
+
+  const copyLink = (token) => {
+    navigator.clipboard.writeText(getShareUrl(token));
+    toast('Link copied to clipboard!');
+  };
+
+  const sendPresentation = async (pres) => {
+    const contact = contacts.find(c => c.id === pres.contact_id);
+    if (!contact?.email) { toast('No email address for this contact'); return; }
+    const shareUrl = getShareUrl(pres.share_token);
+    const firstName = (pres.borrower_name || contact.full_name || '').split(' ')[0];
+    try {
+      await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + process.env.REACT_APP_SUPABASE_ANON_KEY },
+        body: JSON.stringify({
+          to: contact.email,
+          subject: `Your Personalized Loan Comparison — ${pres.title}`,
+          body: `Hi ${firstName},\n\nI've put together an interactive loan comparison just for you. Click the link below to view your personalized presentation:\n\n${shareUrl}\n\nThis presentation shows your current loan vs. the refinance option we discussed, including monthly savings, interest savings, and break-even analysis.\n\nFeel free to reach out with any questions!\n\nBest regards,\n${profile.full_name}\nCitizens Financial\n${profile.phone || ''}`
+        })
+      });
+      await supabase.from('presentations').update({ sent_at: new Date().toISOString() }).eq('id', pres.id);
+      setPresentations(p => p.map(x => x.id === pres.id ? { ...x, sent_at: new Date().toISOString() } : x));
+      toast(`Presentation sent to ${contact.email}!`);
+    } catch (e) { toast('Send failed — check email configuration'); }
+  };
+
+  if (previewPres) return <PresentationViewer presentation={previewPres} onClose={() => setPreviewPres(null)} />;
+
+  return (
+    <div style={{ padding: 32 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div>
+          <div style={{ fontFamily: 'Playfair Display,serif', fontSize: 26, fontWeight: 700 }}>Mortgage Presentations</div>
+          <div style={{ color: 'var(--muted)', fontSize: 13, marginTop: 4 }}>Create and send personalized interactive loan comparisons</div>
+        </div>
+        <button className="btn-primary" onClick={() => { setEditPres(null); setShowBuilder(true); }}>
+          + New Presentation
+        </button>
+      </div>
+
+      {loading && <div style={{ color: 'var(--muted)', textAlign: 'center', padding: 40 }}>Loading...</div>}
+
+      {!loading && presentations.length === 0 && (
+        <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--muted)' }}>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>📊</div>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>No presentations yet</div>
+          <div style={{ fontSize: 13, marginBottom: 24 }}>Create an interactive loan comparison to send to your clients</div>
+          <button className="btn-primary" onClick={() => setShowBuilder(true)}>Create First Presentation</button>
+        </div>
+      )}
+
+      {!loading && presentations.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {presentations.map(pres => {
+            const contact = contacts.find(c => c.id === pres.contact_id);
+            const data = pres.data || {};
+            return (
+              <div key={pres.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                {/* Icon */}
+                <div style={{ width: 48, height: 48, borderRadius: 10, background: 'linear-gradient(135deg,#1a56db,#4d8ef0)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>📊</div>
+
+                {/* Info */}
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{pres.title || 'Untitled Presentation'}</div>
+                  <div style={{ display: 'flex', gap: 16, marginTop: 4, flexWrap: 'wrap' }}>
+                    {contact && <span style={{ fontSize: 12, color: 'var(--muted)' }}>👤 {contact.full_name}</span>}
+                    {data.current_rate && <span style={{ fontSize: 12, color: 'var(--muted)' }}>Current: {data.current_rate}%</span>}
+                    {data.new_rate && <span style={{ fontSize: 12, color: 'var(--accent)' }}>New: {data.new_rate}%</span>}
+                    {data.monthly_savings > 0 && <span style={{ fontSize: 12, color: '#2ecc8a', fontWeight: 700 }}>Save ${data.monthly_savings}/mo</span>}
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                    <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, fontWeight: 600, background: pres.sent_at ? 'rgba(46,204,138,.15)' : 'rgba(255,255,255,.08)', color: pres.sent_at ? '#2ecc8a' : 'var(--muted)' }}>
+                      {pres.sent_at ? '✓ Sent ' + new Date(pres.sent_at).toLocaleDateString() : 'Draft'}
+                    </span>
+                    {pres.view_count > 0 && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(77,142,240,.15)', color: 'var(--accent)', fontWeight: 600 }}>👁 {pres.view_count} views</span>}
+                    <span style={{ fontSize: 11, color: 'var(--muted)' }}>{new Date(pres.created_at).toLocaleDateString()}</span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <button onClick={() => setPreviewPres(pres)} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 6, padding: '6px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Preview</button>
+                  <button onClick={() => copyLink(pres.share_token)} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--text)', borderRadius: 6, padding: '6px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>🔗 Copy Link</button>
+                  <button onClick={() => sendPresentation(pres)} style={{ background: 'var(--accent)', border: 'none', color: '#fff', borderRadius: 6, padding: '6px 14px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>📧 Send</button>
+                  <button onClick={() => { setEditPres(pres); setShowBuilder(true); }} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', color: 'var(--muted)', borderRadius: 6, padding: '6px 10px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>✏️</button>
+                  <button onClick={() => deletePresentation(pres.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: 16, padding: '6px 8px' }}>×</button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {showBuilder && (
+        <PresentationBuilder
+          profile={profile}
+          contacts={contacts}
+          existing={editPres}
+          onClose={() => { setShowBuilder(false); setEditPres(null); }}
+          onSave={(pres) => {
+            if (editPres) setPresentations(p => p.map(x => x.id === pres.id ? pres : x));
+            else setPresentations(p => [pres, ...p]);
+            setShowBuilder(false);
+            setEditPres(null);
+            toast(editPres ? 'Presentation updated!' : 'Presentation created!');
+          }}
+          toast={toast}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── PRESENTATION BUILDER ─────────────────────────────────────────────────────
+function PresentationBuilder({ profile, contacts, existing, preContact, onClose, onSave, toast }) {
+  const d = existing?.data || {};
+  const [contactId, setContactId] = useState(existing?.contact_id || preContact?.id || '');
+  const [title, setTitle] = useState(existing?.title || (preContact ? `Loan Comparison — ${preContact.full_name||''}` : ''));
+  const [borrowerName, setBorrowerName] = useState(existing?.borrower_name || preContact?.full_name || '');
+  const [currentLoanAmount, setCurrentLoanAmount] = useState(d.current_loan_amount || '');
+  const [currentRate, setCurrentRate] = useState(d.current_rate || '');
+  const [currentPayment, setCurrentPayment] = useState(d.current_payment || '');
+  const [currentTerm, setCurrentTerm] = useState(d.current_term || '30');
+  const [newLoanAmount, setNewLoanAmount] = useState(d.new_loan_amount || '');
+  const [newRate, setNewRate] = useState(d.new_rate || '');
+  const [newPayment, setNewPayment] = useState(d.new_payment || '');
+  const [newTerm, setNewTerm] = useState(d.new_term || '30');
+  const [loanType, setLoanType] = useState(d.loan_type || 'FHA Fixed');
+  const [points, setPoints] = useState(d.points || '0');
+  const [closingCosts, setClosingCosts] = useState(d.closing_costs || '');
+  const [aiNarrative, setAiNarrative] = useState(d.ai_narrative || '');
+  const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [step, setStep] = useState(1);
+
+  // Auto-fill borrower name from contact
+  const handleContactChange = (id) => {
+    setContactId(id);
+    const c = contacts.find(x => x.id === id);
+    if (c && !borrowerName) setBorrowerName(c.full_name || '');
+    if (c && !title) setTitle(`Loan Comparison — ${(c.full_name || '').split(' ').slice(0, 2).join(' ')}`);
+  };
+
+  // Calculate key metrics
+  const monthlySavings = currentPayment && newPayment ? Math.round(parseFloat(currentPayment) - parseFloat(newPayment)) : 0;
+  const totalCosts = parseFloat(closingCosts || 0) + parseFloat(points || 0) * parseFloat(newLoanAmount || 0) / 100;
+  const breakEvenMonths = monthlySavings > 0 ? Math.round(totalCosts / monthlySavings) : 0;
+  const year7Savings = monthlySavings * 84;
+
+  const generateNarrative = async () => {
+    if (!borrowerName || !currentRate || !newRate) { toast('Fill in borrower name and rates first'); return; }
+    setGenerating(true);
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: `You are a friendly mortgage advisor at Citizens Financial. Write a short, personalized summary (3-4 sentences) for a loan comparison presentation for ${borrowerName}. 
+
+Current loan: ${currentRate}% rate, $${currentPayment}/month, $${currentLoanAmount} balance
+New option: ${newRate}% rate, $${newPayment}/month, ${loanType}, $${newLoanAmount} loan amount
+${monthlySavings > 0 ? `Monthly savings: $${monthlySavings}` : ''}
+${breakEvenMonths > 0 ? `Break-even: ${breakEvenMonths} months` : ''}
+${closingCosts ? `Closing costs: $${closingCosts}` : ''}
+
+Write in second person (addressing ${borrowerName.split(' ')[0]} directly). Be warm, professional, and specific about the benefits. Focus on the most compelling numbers. No generic filler.`
+          }]
+        })
+      });
+      const data = await response.json();
+      const text = data.content?.[0]?.text || '';
+      setAiNarrative(text);
+    } catch (e) { toast('AI generation failed'); }
+    setGenerating(false);
+  };
+
+  const save = async () => {
+    if (!title.trim()) { toast('Please add a title'); return; }
+    setSaving(true);
+    const presData = {
+      company_id: profile.company_name, contact_id: contactId || null,
+      title, borrower_name: borrowerName,
+      data: {
+        current_loan_amount: currentLoanAmount, current_rate: currentRate,
+        current_payment: currentPayment, current_term: currentTerm,
+        new_loan_amount: newLoanAmount, new_rate: newRate,
+        new_payment: newPayment, new_term: newTerm,
+        loan_type: loanType, points, closing_costs: closingCosts,
+        monthly_savings: monthlySavings, break_even_months: breakEvenMonths,
+        year7_savings: year7Savings, total_costs: Math.round(totalCosts),
+        ai_narrative: aiNarrative
+      }
+    };
+    let result;
+    if (existing) {
+      const { data } = await supabase.from('presentations').update(presData).eq('id', existing.id).select().single();
+      result = data;
+    } else {
+      const { data } = await supabase.from('presentations').insert([presData]).select().single();
+      result = data;
+    }
+    setSaving(false);
+    if (result) onSave(result);
+    else toast('Save failed');
+  };
+
+  return (
+    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 680, width: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 0, paddingBottom: 16, borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          <div>
+            <h2 style={{ fontFamily: 'Playfair Display,serif', fontWeight: 700, marginBottom: 4 }}>{existing ? 'Edit Presentation' : 'New Presentation'}</h2>
+            <div style={{ display: 'flex', gap: 0 }}>
+              {['Loan Details', 'New Option', 'AI Narrative'].map((s, i) => (
+                <div key={i} onClick={() => setStep(i + 1)} style={{ padding: '4px 14px', fontSize: 12, fontWeight: step === i + 1 ? 700 : 400, color: step === i + 1 ? 'var(--accent)' : 'var(--muted)', borderBottom: step === i + 1 ? '2px solid var(--accent)' : '2px solid transparent', cursor: 'pointer' }}>{i + 1}. {s}</div>
+              ))}
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', color: 'var(--muted)', fontSize: 20, border: 'none', cursor: 'pointer', padding: 4 }}>✕</button>
+        </div>
+
+        {/* Scrollable Content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 0' }}>
+
+          {/* STEP 1: Loan Details */}
+          {step === 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div className="form-group">
+                  <label>Contact</label>
+                  <select value={contactId} onChange={e => handleContactChange(e.target.value)} style={{ width: '100%' }}>
+                    <option value="">Select a contact...</option>
+                    {contacts.map(c => <option key={c.id} value={c.id}>{c.full_name}</option>)}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Borrower Name</label>
+                  <input value={borrowerName} onChange={e => setBorrowerName(e.target.value)} placeholder="Jason Gaines" />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Presentation Title</label>
+                <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Loan Comparison — Jason Gaines" />
+              </div>
+              <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: 16, border: '1px solid var(--border)' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 12, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Current Loan</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>Loan Balance</label>
+                    <input value={currentLoanAmount} onChange={e => setCurrentLoanAmount(e.target.value)} placeholder="639615" type="number" />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>Interest Rate %</label>
+                    <input value={currentRate} onChange={e => setCurrentRate(e.target.value)} placeholder="6.25" type="number" step="0.001" />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>Total Monthly Payment</label>
+                    <input value={currentPayment} onChange={e => setCurrentPayment(e.target.value)} placeholder="5330" type="number" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 2: New Option */}
+          {step === 2 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: 16, border: '1px solid var(--border)', borderTop: '3px solid var(--accent)' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 12, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '.06em' }}>New Loan Option</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>New Loan Amount</label>
+                    <input value={newLoanAmount} onChange={e => setNewLoanAmount(e.target.value)} placeholder="655580" type="number" />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>New Interest Rate %</label>
+                    <input value={newRate} onChange={e => setNewRate(e.target.value)} placeholder="5.375" type="number" step="0.001" />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>New Monthly Payment</label>
+                    <input value={newPayment} onChange={e => setNewPayment(e.target.value)} placeholder="5057" type="number" />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>Loan Type</label>
+                    <select value={loanType} onChange={e => setLoanType(e.target.value)} style={{ width: '100%' }}>
+                      {['FHA Fixed', 'Conventional Fixed', 'VA Fixed', 'USDA Fixed', 'FHA ARM', 'Conventional ARM', 'Jumbo Fixed'].map(t => <option key={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>Closing Costs ($)</label>
+                    <input value={closingCosts} onChange={e => setClosingCosts(e.target.value)} placeholder="12390" type="number" />
+                  </div>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label>Points</label>
+                    <input value={points} onChange={e => setPoints(e.target.value)} placeholder="0.9" type="number" step="0.1" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Live metrics */}
+              {monthlySavings !== 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+                  {[
+                    { label: 'Monthly Savings', value: `$${Math.abs(monthlySavings)}`, color: monthlySavings > 0 ? '#2ecc8a' : '#e05252', sub: monthlySavings > 0 ? 'per month' : 'per month increase' },
+                    { label: 'Break Even', value: breakEvenMonths > 0 ? `${breakEvenMonths} months` : '—', color: 'var(--accent)', sub: breakEvenMonths > 0 ? `${Math.round(breakEvenMonths / 12 * 10) / 10} years` : '' },
+                    { label: 'Year 7 Savings', value: year7Savings > 0 ? `$${year7Savings.toLocaleString()}` : '—', color: '#f0b429', sub: 'total interest saved' },
+                  ].map(m => (
+                    <div key={m.label} style={{ background: 'var(--surface2)', borderRadius: 8, padding: '14px 16px', border: '1px solid var(--border)', textAlign: 'center' }}>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 6 }}>{m.label}</div>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: m.color }}>{m.value}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>{m.sub}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* STEP 3: AI Narrative */}
+          {step === 3 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ background: 'linear-gradient(135deg, rgba(77,142,240,.1), rgba(155,89,182,.1))', borderRadius: 10, padding: 16, border: '1px solid rgba(77,142,240,.2)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>✨ AI-Powered Narrative</div>
+                    <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>Generate a personalized summary using Claude AI</div>
+                  </div>
+                  <button onClick={generateNarrative} disabled={generating} style={{ background: 'linear-gradient(135deg,#4d8ef0,#9b59b6)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: generating ? 0.7 : 1 }}>
+                    {generating ? '✨ Generating...' : '✨ Generate with AI'}
+                  </button>
+                </div>
+                {aiNarrative && (
+                  <div style={{ background: 'rgba(0,0,0,.2)', borderRadius: 8, padding: 12, fontSize: 13, lineHeight: 1.7, color: 'var(--text)', marginTop: 8 }}>
+                    {aiNarrative}
+                  </div>
+                )}
+              </div>
+              <div className="form-group">
+                <label>Edit Narrative (optional)</label>
+                <textarea rows={5} value={aiNarrative} onChange={e => setAiNarrative(e.target.value)} placeholder="Write a personalized message for this borrower, or generate one with AI above..." style={{ fontSize: 13 }} />
+              </div>
+
+              {/* Preview summary */}
+              <div style={{ background: 'var(--surface2)', borderRadius: 10, padding: 16, border: '1px solid var(--border)' }}>
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 12 }}>Presentation Preview</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+                  {[
+                    { label: 'Lowest Monthly Payment', sub: `Save $${Math.abs(monthlySavings)} monthly`, color: '#2ecc8a' },
+                    { label: 'Lowest Cost Loan', sub: `Save $${(monthlySavings * 84).toLocaleString()} total`, color: '#4d8ef0' },
+                    { label: 'Quickest Break Even', sub: `${breakEvenMonths} months`, color: '#f0b429' },
+                  ].map(card => (
+                    <div key={card.label} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.05em', background: '#1a2e4a', color: '#fff', padding: '2px 6px', borderRadius: 3, marginBottom: 8, display: 'inline-block' }}>{card.label}</div>
+                      <div style={{ fontSize: 12, fontWeight: 700 }}>Citizens Financial {loanType}</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: card.color, marginTop: 4 }}>{card.sub}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {step > 1 && <button className="btn-secondary" onClick={() => setStep(s => s - 1)}>← Back</button>}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn-secondary" onClick={onClose}>Cancel</button>
+            {step < 3
+              ? <button className="btn-primary" onClick={() => setStep(s => s + 1)}>Next →</button>
+              : <button className="btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : '💾 Save Presentation'}</button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── PRESENTATION VIEWER ──────────────────────────────────────────────────────
+function PresentationViewer({ presentation, onClose }) {
+  const d = presentation?.data || {};
+  const borrower = presentation?.borrower_name || 'Valued Client';
+  const firstName = borrower.split(' ')[0];
+  const monthlySavings = d.monthly_savings || 0;
+  const breakEven = d.break_even_months || 0;
+  const year7Savings = d.year7_savings || 0;
+  const currentPayment = parseFloat(d.current_payment || 0);
+  const newPayment = parseFloat(d.new_payment || 0);
+
+  // Bar chart helper
+  const BarChart = ({ current, newVal, currentLabel, newLabel, prefix = '$', color = '#4d8ef0' }) => {
+    const max = Math.max(current, newVal, 1);
+    return (
+      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-end', height: 160 }}>
+        {[{ val: current, label: currentLabel, color: '#2d3748' }, { val: newVal, label: newLabel, color }].map((b, i) => (
+          <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+            <div style={{ fontSize: 13, fontWeight: 700 }}>{prefix}{b.val.toLocaleString()}</div>
+            <div style={{ width: '100%', background: b.color, borderRadius: '4px 4px 0 0', height: `${(b.val / max) * 120}px`, transition: 'height .8s ease', minHeight: 4 }} />
+            <div style={{ fontSize: 11, color: '#666', textAlign: 'center', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>{b.label}</div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: '#fff', zIndex: 9999, overflowY: 'auto', color: '#1a1a2e' }}>
+      {/* Close button */}
+      {onClose && (
+        <button onClick={onClose} style={{ position: 'fixed', top: 16, right: 16, background: 'rgba(0,0,0,.6)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, cursor: 'pointer', zIndex: 99999, fontFamily: 'inherit', fontWeight: 600 }}>
+          ✕ Close Preview
+        </button>
+      )}
+
+      {/* Header */}
+      <div style={{ background: 'linear-gradient(135deg, #0a1628, #1a3a5c)', color: '#fff', padding: '40px 60px', textAlign: 'center' }}>
+        <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ maxHeight: 50, filter: 'brightness(0) invert(1)', marginBottom: 24 }} />
+        <h1 style={{ fontFamily: 'Playfair Display,serif', fontSize: 36, fontWeight: 700, marginBottom: 8 }}>
+          Hi, {firstName}! Here are some highlights to help you make your refinance decision:
+        </h1>
+        {d.ai_narrative && (
+          <p style={{ fontSize: 15, color: 'rgba(255,255,255,.8)', maxWidth: 700, margin: '16px auto 0', lineHeight: 1.7 }}>{d.ai_narrative}</p>
+        )}
+      </div>
+
+      {/* Highlight Cards */}
+      <div style={{ background: '#f8fafc', padding: '32px 60px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 20, maxWidth: 900, margin: '0 auto' }}>
+          {[
+            { badge: 'LOWEST MONTHLY PAYMENT', label: 'Citizens Financial ' + (d.loan_type || 'FHA'), value: `Save $${monthlySavings} monthly`, valueColor: '#16a34a', amount: `$${parseFloat(d.new_loan_amount || 0).toLocaleString()}` },
+            { badge: 'LOWEST COST LOAN', label: 'Citizens Financial ' + (d.loan_type || 'FHA'), value: `Save $${year7Savings.toLocaleString()} total`, valueColor: '#16a34a', amount: `$${parseFloat(d.new_loan_amount || 0).toLocaleString()}` },
+            { badge: 'QUICKEST BREAK EVEN', label: 'Citizens Financial ' + (d.loan_type || 'FHA'), value: `Break even in ${breakEven} months`, valueColor: '#16a34a', amount: `$${parseFloat(d.new_loan_amount || 0).toLocaleString()}` },
+          ].map((card, i) => (
+            <div key={i} style={{ background: '#fff', borderRadius: 12, padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,.06)', border: '1px solid #e2e8f0' }}>
+              <div style={{ background: '#1a2e4a', color: '#fff', fontSize: 10, fontWeight: 800, letterSpacing: '.08em', padding: '3px 8px', borderRadius: 4, display: 'inline-block', marginBottom: 10 }}>{card.badge}</div>
+              <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>OPTION 1</div>
+              <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>{card.amount}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>{card.label}</div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: card.valueColor }}>{card.value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 900, margin: '0 auto', padding: '40px 60px' }}>
+
+        {/* Monthly Payment Chart */}
+        <div style={{ marginBottom: 48 }}>
+          <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 28, fontWeight: 700, textAlign: 'center', marginBottom: 8 }}>Total Monthly Payments</h2>
+          <p style={{ textAlign: 'center', color: '#64748b', marginBottom: 32 }}>Side-by-side comparison of your monthly obligations</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 32, alignItems: 'center' }}>
+            <div style={{ background: '#f8fafc', borderRadius: 12, padding: 20, border: '1px solid #e2e8f0' }}>
+              <div style={{ background: '#1a2e4a', color: '#fff', fontSize: 10, fontWeight: 800, letterSpacing: '.08em', padding: '3px 8px', borderRadius: 4, display: 'inline-block', marginBottom: 10 }}>MOST MONTHLY SAVINGS</div>
+              <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700, textTransform: 'uppercase', marginBottom: 4 }}>vs current loan</div>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Citizens Financial {d.loan_type || 'FHA'}</div>
+              <div style={{ fontSize: 36, fontWeight: 800, color: '#16a34a' }}>${monthlySavings}</div>
+            </div>
+            <BarChart current={currentPayment} newVal={newPayment} currentLabel="Current Loan" newLabel={`Citizens Financial ${d.loan_type || 'FHA'}`} color="#7c3aed" />
+          </div>
+        </div>
+
+        {/* Break Even Chart */}
+        <div style={{ marginBottom: 48 }}>
+          <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 28, fontWeight: 700, textAlign: 'center', marginBottom: 8 }}>Break Even Analysis</h2>
+          <p style={{ textAlign: 'center', color: '#64748b', marginBottom: 32 }}>When the refinance savings surpass your closing costs</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 32, alignItems: 'center' }}>
+            <div style={{ background: '#f8fafc', borderRadius: 12, padding: 20, border: '1px solid #e2e8f0' }}>
+              <div style={{ background: '#1a2e4a', color: '#fff', fontSize: 10, fontWeight: 800, letterSpacing: '.08em', padding: '3px 8px', borderRadius: 4, display: 'inline-block', marginBottom: 10 }}>QUICKEST BREAKEVEN</div>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Citizens Financial {d.loan_type || 'FHA'}</div>
+              <div style={{ fontSize: 36, fontWeight: 800, color: '#16a34a' }}>{breakEven} months</div>
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>{Math.round(breakEven / 12 * 10) / 10} years</div>
+            </div>
+            {/* Break even line chart approximation */}
+            <div style={{ position: 'relative', height: 160, background: '#f8fafc', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', display: 'flex', alignItems: 'flex-end' }}>
+              {[0,1,2,3,4,5,6,7].map(yr => {
+                const savings = monthlySavings * yr * 12;
+                const costs = parseFloat(d.total_costs || 0);
+                const netSavings = Math.max(0, savings - costs);
+                const maxVal = monthlySavings * 7 * 12;
+                return (
+                  <div key={yr} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', gap: 4, padding: '0 2px 8px' }}>
+                    <div style={{ width: '70%', background: netSavings > 0 ? '#7c3aed' : '#1a2e4a', borderRadius: '3px 3px 0 0', height: `${Math.max(4, (netSavings / Math.max(maxVal, 1)) * 120)}px`, transition: 'height .6s ease' }} />
+                    <div style={{ fontSize: 10, color: '#64748b' }}>Yr {yr}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* True Cost Comparison Table */}
+        <div style={{ marginBottom: 48 }}>
+          <h2 style={{ fontFamily: 'Playfair Display,serif', fontSize: 28, fontWeight: 700, textAlign: 'center', marginBottom: 8 }}>True Cost Comparison</h2>
+          <p style={{ textAlign: 'center', color: '#64748b', marginBottom: 32 }}>An in-depth look at each loan option</p>
+          <div style={{ border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#1a2e4a', color: '#fff' }}>
+                  <th style={{ padding: '14px 20px', textAlign: 'left', fontSize: 13, fontWeight: 600 }}></th>
+                  <th style={{ padding: '14px 20px', textAlign: 'center', fontSize: 13, fontWeight: 600 }}>CURRENT LOAN</th>
+                  <th style={{ padding: '14px 20px', textAlign: 'center', fontSize: 13, fontWeight: 600, background: 'rgba(77,142,240,.3)' }}>OPTION 1<br /><span style={{ fontSize: 11, opacity: .8 }}>Citizens Financial {d.loan_type || 'FHA'}</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ['Loan Amount', d.current_loan_amount ? '$' + parseFloat(d.current_loan_amount).toLocaleString() : '—', d.new_loan_amount ? '$' + parseFloat(d.new_loan_amount).toLocaleString() : '—'],
+                  ['Interest Rate', d.current_rate ? d.current_rate + '%' : '—', d.new_rate ? d.new_rate + '%' : '—', true],
+                  ['Loan Type', 'Existing', d.loan_type || 'FHA Fixed'],
+                  ['Monthly P&I', d.current_payment ? '$' + parseFloat(d.current_payment).toLocaleString() : '—', d.new_payment ? '$' + parseFloat(d.new_payment).toLocaleString() : '—', true],
+                  ['Closing Costs', '—', d.closing_costs ? '$' + parseFloat(d.closing_costs).toLocaleString() : '—'],
+                  ['Points', '—', d.points ? d.points + ' pts' : '—'],
+                  ['Monthly Savings', '—', monthlySavings > 0 ? '$' + monthlySavings + '/mo' : '—', true],
+                  ['Break Even', '—', breakEven ? breakEven + ' months' : '—'],
+                ].map(([label, cur, opt, highlight], i) => (
+                  <tr key={i} style={{ background: highlight ? 'rgba(22,163,74,.05)' : i % 2 === 0 ? '#fff' : '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                    <td style={{ padding: '12px 20px', fontSize: 13, color: '#374151', fontWeight: 500 }}>{label}</td>
+                    <td style={{ padding: '12px 20px', textAlign: 'center', fontSize: 13, color: '#374151' }}>{cur}</td>
+                    <td style={{ padding: '12px 20px', textAlign: 'center', fontSize: 13, fontWeight: highlight ? 700 : 400, color: highlight ? '#16a34a' : '#374151', background: 'rgba(77,142,240,.04)' }}>{opt}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 24, display: 'flex', alignItems: 'center', gap: 20 }}>
+          <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ maxHeight: 40, maxWidth: 140 }} />
+          <div style={{ flex: 1, fontSize: 10, color: '#94a3b8', lineHeight: 1.6 }}>
+            Current as of {new Date().toLocaleDateString()}. Rates, programs, and APRs are subject to change without notice. This document should not be construed as investment or mortgage advice or a commitment to lend. Your results may vary. For actual and current terms and rate information, please contact your lender directly.
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── MASS PRESENTATION MODAL ──────────────────────────────────────────────────
+function MassPresentationModal({ contacts, profile, onClose, onSent }) {
+  const [loanType, setLoanType] = useState('FHA Fixed');
+  const [newRate, setNewRate] = useState('');
+  const [monthlySavings, setMonthlySavings] = useState('');
+  const [breakEven, setBreakEven] = useState('');
+  const [customMessage, setCustomMessage] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const withEmail = contacts.filter(c => c.email);
+
+  const generateAndSend = async () => {
+    if (!newRate) { alert('Please enter the new interest rate'); return; }
+    setSending(true);
+
+    for (let i = 0; i < withEmail.length; i++) {
+      const contact = withEmail[i];
+      const firstName = (contact.full_name || '').split(' ')[0];
+
+      // Create a presentation record for each contact
+      const presData = {
+        company_id: profile.company_name,
+        contact_id: contact.id,
+        title: `Loan Comparison — ${contact.full_name}`,
+        borrower_name: contact.full_name,
+        data: {
+          new_rate: newRate, loan_type: loanType,
+          monthly_savings: parseFloat(monthlySavings) || 0,
+          break_even_months: parseFloat(breakEven) || 0,
+          year7_savings: (parseFloat(monthlySavings) || 0) * 84,
+          ai_narrative: customMessage.replace(/{{name}}/gi, firstName)
+        }
+      };
+
+      try {
+        const { data: pres } = await supabase.from('presentations').insert([presData]).select().single();
+        if (!pres) continue;
+
+        const shareUrl = `${window.location.origin}${window.location.pathname}#presentation/${pres.share_token}`;
+        const emailBody = customMessage
+          ? customMessage.replace(/{{name}}/gi, firstName) + `\n\nView your personalized loan comparison here:\n${shareUrl}`
+          : `Hi ${firstName},\n\nI've put together a personalized loan comparison for you showing how a refinance at ${newRate}% could benefit you.${monthlySavings ? ` You could save $${monthlySavings}/month.` : ''}\n\nView your interactive presentation here:\n${shareUrl}\n\nBest regards,\n${profile.full_name}\nCitizens Financial`;
+
+        await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + process.env.REACT_APP_SUPABASE_ANON_KEY },
+          body: JSON.stringify({ to: contact.email, subject: `Your Personalized Loan Comparison — Citizens Financial`, body: emailBody })
+        });
+        await supabase.from('presentations').update({ sent_at: new Date().toISOString() }).eq('id', pres.id);
+      } catch (e) { console.error('Failed for', contact.email); }
+
+      setProgress(i + 1);
+    }
+    setSending(false);
+    onSent(withEmail.length);
+  };
+
+  return (
+    <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 560 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h2 style={{ fontFamily: 'Playfair Display,serif', fontWeight: 700 }}>📊 Mass Send Presentation</h2>
+          <button onClick={onClose} style={{ background: 'none', color: 'var(--muted)', fontSize: 20, border: 'none', cursor: 'pointer' }}>✕</button>
+        </div>
+
+        <div style={{ background: 'rgba(77,142,240,.1)', border: '1px solid rgba(77,142,240,.3)', borderRadius: 8, padding: 12, marginBottom: 16, fontSize: 13, color: 'var(--accent)' }}>
+          Creating personalized presentations for <strong>{withEmail.length}</strong> contacts ({contacts.length - withEmail.length} skipped — no email)
+        </div>
+
+        <div style={{ background: 'rgba(16,185,129,.08)', border: '1px solid rgba(16,185,129,.2)', borderRadius: 8, padding: '8px 12px', marginBottom: 16, fontSize: 12, color: '#34d399' }}>
+          💡 Each contact gets a unique interactive link. Use <strong>{"{{name}}"}</strong> for personalization.
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label>New Interest Rate %</label>
+            <input value={newRate} onChange={e => setNewRate(e.target.value)} placeholder="5.375" type="number" step="0.001" />
+          </div>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label>Loan Type</label>
+            <select value={loanType} onChange={e => setLoanType(e.target.value)} style={{ width: '100%' }}>
+              {['FHA Fixed', 'Conventional Fixed', 'VA Fixed', 'USDA Fixed', 'Jumbo Fixed'].map(t => <option key={t}>{t}</option>)}
+            </select>
+          </div>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label>Est. Monthly Savings ($)</label>
+            <input value={monthlySavings} onChange={e => setMonthlySavings(e.target.value)} placeholder="273" type="number" />
+          </div>
+          <div className="form-group" style={{ margin: 0 }}>
+            <label>Break-Even (months)</label>
+            <input value={breakEven} onChange={e => setBreakEven(e.target.value)} placeholder="69" type="number" />
+          </div>
+        </div>
+
+        <div className="form-group">
+          <label>Personalized Message (optional)</label>
+          <textarea rows={4} value={customMessage} onChange={e => setCustomMessage(e.target.value)} placeholder={`Hi {{name}},\n\nI've been reviewing your current loan and found an opportunity...`} style={{ fontSize: 13 }} />
+        </div>
+
+        {sending && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 6 }}>Sending {progress} of {withEmail.length}...</div>
+            <div style={{ height: 6, background: 'var(--surface2)', borderRadius: 3 }}>
+              <div style={{ height: '100%', width: `${(progress / withEmail.length) * 100}%`, background: 'var(--accent)', borderRadius: 3, transition: 'width .3s' }} />
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-primary" onClick={generateAndSend} disabled={sending || !newRate}>
+            {sending ? 'Sending...' : `📊 Send to ${withEmail.length} Contacts`}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
