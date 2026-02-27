@@ -203,9 +203,15 @@ function timeAgo(dateStr) {
 // ─── TOAST ───────────────────────────────────────────────────────────────────
 let toastTimer;
 function Toast({ msg, onClose }) {
-  useEffect(() => { toastTimer = setTimeout(onClose, 3000); return () => clearTimeout(toastTimer); }, [onClose]);
+  const isError = msg && (msg.toLowerCase().includes('error') || msg.toLowerCase().includes('failed') || msg.toLowerCase().includes('bucket') || msg.toLowerCase().includes('missing'));
+  useEffect(() => { toastTimer = setTimeout(onClose, isError ? 9000 : 3000); return () => clearTimeout(toastTimer); }, [msg, onClose]);
   if (!msg) return null;
-  return <div className="toast">{msg}</div>;
+  return (
+    <div className="toast" style={{ background: isError ? '#7f1d1d' : undefined, cursor:'pointer', maxWidth:480, lineHeight:1.5 }} onClick={onClose}>
+      {msg}
+      {isError && <div style={{ fontSize:11, opacity:.7, marginTop:4 }}>Click to dismiss</div>}
+    </div>
+  );
 }
 
 // ─── AUTH SCREEN ─────────────────────────────────────────────────────────────
@@ -5246,30 +5252,42 @@ function PresentationsPage({ profile, toast }) {
   const [previewPres, setPreviewPres] = useState(null);
   const [previewSlide, setPreviewSlide] = useState(0);
 
+  const [uploadError, setUploadError] = useState('');
+
   const handlePdfUpload = async (file) => {
     if(!file) return;
-    if(!file.type.includes('pdf')) { toast('Please select a PDF file'); return; }
-    if(file.size > 50*1024*1024) { toast('PDF must be under 50MB'); return; }
+    setUploadError('');
+    if(!file.type.includes('pdf')) { setUploadError('Please select a PDF file'); return; }
+    if(file.size > 50*1024*1024) { setUploadError('File is too large — max 50MB. Please compress your PDF first.'); return; }
     setUploading(true);
     try {
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
       const path = 'templates/' + profile.company_name + '/' + Date.now() + '-' + safeName;
-      const { error } = await supabase.storage
+      console.log('[PDF Upload] Starting upload to path:', path);
+      const { data, error } = await supabase.storage
         .from('presentation-pdfs')
         .upload(path, file, { contentType:'application/pdf', upsert:true });
+      console.log('[PDF Upload] Result:', { data, error });
       if(error) {
-        if(error.message?.includes('Bucket') || error.message?.includes('bucket') || error.statusCode===404) {
-          toast('Storage bucket not found — create a PUBLIC bucket named "presentation-pdfs" in Supabase Storage');
+        const msg = error.message || JSON.stringify(error);
+        console.error('[PDF Upload] Error:', error);
+        if(msg.toLowerCase().includes('bucket') || error.statusCode===400 || error.statusCode===404) {
+          setUploadError('Storage bucket "presentation-pdfs" not found or not configured correctly. Go to Supabase → Storage → New bucket → name it "presentation-pdfs" → enable Public → Save.');
+        } else if(error.statusCode===403 || msg.toLowerCase().includes('policy') || msg.toLowerCase().includes('permission')) {
+          setUploadError('Permission denied. In Supabase Storage, make sure the "presentation-pdfs" bucket is set to Public.');
         } else {
-          toast('Upload failed: ' + error.message);
+          setUploadError('Upload failed: ' + msg);
         }
         setUploading(false); return;
       }
       const { data:urlData } = supabase.storage.from('presentation-pdfs').getPublicUrl(path);
+      console.log('[PDF Upload] Public URL:', urlData?.publicUrl);
       setNewTmpl(f=>({...f, pdf_url: urlData.publicUrl, pdf_name: file.name}));
-      toast('PDF uploaded!');
+      setUploadError('');
+      toast('PDF uploaded successfully!');
     } catch(e) {
-      toast('Upload error: ' + e.message);
+      console.error('[PDF Upload] Exception:', e);
+      setUploadError('Upload error: ' + e.message);
     }
     setUploading(false);
   };
@@ -5478,6 +5496,11 @@ function PresentationsPage({ profile, toast }) {
                         <div style={{ fontSize:12, color:'var(--muted)' }}>Max 50MB</div>
                       </>
                     )}
+                  </div>
+                )}
+                {uploadError && (
+                  <div style={{ marginTop:10, padding:'10px 14px', background:'rgba(224,82,82,.12)', border:'1px solid rgba(224,82,82,.3)', borderRadius:8, fontSize:13, color:'#e05252', lineHeight:1.6 }}>
+                    {uploadError}
                   </div>
                 )}
               </div>) : (
