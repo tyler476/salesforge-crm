@@ -4725,7 +4725,7 @@ function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName=
               <div key={ri} style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr 1fr', fontSize:12, borderTop:`1px solid ${CF_BORDER}`, background:ri%2===0?CF_BG:CF_BG2 }}>
                 <div style={{ padding:'8px 14px', color:CF_MUTED, fontWeight:600, textTransform:'uppercase', fontSize:11, letterSpacing:'.03em' }}>{row.label}</div>
                 <div style={{ padding:'8px 14px', borderLeft:`1px solid ${CF_BORDER}`, fontWeight:500, color:CF_TEXT }}>{row.current||'—'}</div>
-                <div style={{ padding:'8px 14px', borderLeft:`1px solid ${CF_BORDER}`, fontWeight:row.highlight?800:500, color:row.highlight?CF_GREEN:CF_TEXT }}>{row.new||'—'}</div>
+                <div style={{ padding:'8px 14px', borderLeft:`1px solid ${CF_BORDER}`, fontWeight:row.highlight?800:500, color:row.highlight?CF_GREEN:CF_TEXT }}>{row.newVal||row.new||'—'}</div>
               </div>
             ))}
           </div>
@@ -4964,21 +4964,21 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
         {
           type: 'cf-table',
           rows: [
-            { label:'Loan Amount',      current:'Existing Loan',    new: fmt(principal) },
-            { label:'Loan Type',        current:'Current',          new: form.loan_type },
-            { label:'Term',             current:'Existing',         new: termYears+' Years' },
-            { label:'Rate',             current:'Current Rate',     new: annualRate+'%' },
-            { label:'Monthly P&I',      current:'Current Payment',  new: fmt(monthlyPayment),  highlight: true },
-            { label:'Total Monthly',    current:'Current Total',    new: fmt(Math.round(monthlyPayment*1.28)), highlight: true },
-            { label:'Total Interest',   current:'Current Total',    new: fmt(totalInterest) },
-            { label:'Total Cost',       current:'Current Total',    new: fmt(totalPaid),       highlight: true },
+            { label:'Loan Amount',      current:'Existing Loan',    newVal: fmt(principal) },
+            { label:'Loan Type',        current:'Current',          newVal: form.loan_type },
+            { label:'Term',             current:'Existing',         newVal: termYears+' Years' },
+            { label:'Rate',             current:'Current Rate',     newVal: annualRate+'%' },
+            { label:'Monthly P&I',      current:'Current Payment',  newVal: fmt(monthlyPayment),  highlight: true },
+            { label:'Total Monthly',    current:'Current Total',    newVal: fmt(Math.round(monthlyPayment*1.28)), highlight: true },
+            { label:'Total Interest',   current:'Current Total',    newVal: fmt(totalInterest) },
+            { label:'Total Cost',       current:'Current Total',    newVal: fmt(totalPaid),       highlight: true },
           ],
           ...loInfo,
         },
         {
           type: 'cf-closing',
           title: 'Ready to Move Forward?',
-          body:  "You\'ve taken the first step toward securing the right loan. I\'m here to guide you through every step — from application to closing. Let\'s make it happen.",
+          body:  "You've taken the first step toward securing the right loan. I'm here to guide you through every step — from application to closing. Let's make it happen.",
           loName:  form.lo_name,
           loPhone: form.lo_phone || 'Available upon request',
           loEmail: form.lo_email || '',
