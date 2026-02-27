@@ -4877,6 +4877,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
   const [slides, setSlides]     = useState([]);
   const [slideIndex, setSlideIndex] = useState(0);
   const [sending, setSending]   = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
 
   // AI form fields — pre-fill from contact
   const [form, setForm] = useState({
@@ -5213,6 +5214,29 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
 
   // ── STEP: PREVIEW ──
   if(step==='preview') return (
+    <>
+    {fullscreen && (
+      <div style={{ position:'fixed', inset:0, background:'#050d1a', zIndex:9999, display:'flex', flexDirection:'column' }}
+        onKeyDown={e=>{ if(e.key==='ArrowRight'||e.key==='ArrowDown') setSlideIndex(s=>Math.min(s+1,slides.length-1)); if(e.key==='ArrowLeft'||e.key==='ArrowUp') setSlideIndex(s=>Math.max(s-1,0)); if(e.key==='Escape') setFullscreen(false); }}
+        tabIndex={0} ref={el=>el?.focus()}>
+        <div style={{ padding:'12px 24px', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0, borderBottom:'1px solid rgba(255,255,255,.1)' }}>
+          <div style={{ color:'rgba(255,255,255,.5)', fontSize:13 }}>{slideIndex+1} / {slides.length} — Press ESC to exit</div>
+          <button onClick={()=>setFullscreen(false)} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', padding:'6px 16px', borderRadius:6, cursor:'pointer', fontSize:13 }}>✕ Exit Fullscreen</button>
+        </div>
+        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:24, minHeight:0 }}>
+          <div style={{ width:'100%', aspectRatio:'16/9', maxHeight:'100%', maxWidth:'100%', borderRadius:12, overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,.6)' }}>
+            <SlideRenderer slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} brandColor='#0f1c3f' companyName={profile.company_name||'Citizens Financial'} />
+          </div>
+        </div>
+        <div style={{ padding:'14px 24px', display:'flex', alignItems:'center', justifyContent:'center', gap:20, flexShrink:0, borderTop:'1px solid rgba(255,255,255,.1)' }}>
+          <button onClick={()=>setSlideIndex(s=>Math.max(s-1,0))} disabled={slideIndex===0} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', padding:'8px 24px', borderRadius:8, cursor:slideIndex===0?'not-allowed':'pointer', opacity:slideIndex===0?.4:1, fontSize:13 }}>← Prev</button>
+          <div style={{ display:'flex', gap:6 }}>
+            {slides.map((_,i)=><div key={i} onClick={()=>setSlideIndex(i)} style={{ width:i===slideIndex?20:7, height:7, borderRadius:4, background:i===slideIndex?'#4d8ef0':'rgba(255,255,255,.25)', cursor:'pointer', transition:'all .2s' }} />)}
+          </div>
+          <button onClick={()=>setSlideIndex(s=>Math.min(s+1,slides.length-1))} disabled={slideIndex===slides.length-1} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', padding:'8px 24px', borderRadius:8, cursor:slideIndex===slides.length-1?'not-allowed':'pointer', opacity:slideIndex===slides.length-1?.4:1, fontSize:13 }}>Next →</button>
+        </div>
+      </div>
+    )}
     <div className="overlay" onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{ width:'min(1400px,98vw)', background:'var(--surface)', borderRadius:16, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', display:'flex', flexDirection:'column', height:'90vh', overflow:'hidden' }}>
         {/* Header */}
@@ -5283,35 +5307,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
         )}
       </div>
     </div>
-  );
-
-  // Fullscreen overlay
-  if(fullscreen) return (
-    <div style={{ position:'fixed', inset:0, background:'#050d1a', zIndex:9999, display:'flex', flexDirection:'column' }}
-      onKeyDown={e=>{ if(e.key==='ArrowRight'||e.key==='ArrowDown') setSlideIndex(s=>Math.min(s+1,slides.length-1)); if(e.key==='ArrowLeft'||e.key==='ArrowUp') setSlideIndex(s=>Math.max(s-1,0)); if(e.key==='Escape') setFullscreen(false); }}
-      tabIndex={0} ref={el=>el?.focus()}>
-      {/* Top bar */}
-      <div style={{ padding:'12px 24px', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0, borderBottom:'1px solid rgba(255,255,255,.1)' }}>
-        <div style={{ color:'rgba(255,255,255,.5)', fontSize:13 }}>{slideIndex+1} / {slides.length} — Press ESC to exit</div>
-        <button onClick={()=>setFullscreen(false)} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', padding:'6px 16px', borderRadius:6, cursor:'pointer', fontSize:13 }}>Exit Fullscreen ✕</button>
-      </div>
-      {/* Slide */}
-      <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:24, minHeight:0 }}>
-        <div style={{ width:'100%', aspectRatio:'16/9', maxHeight:'100%', maxWidth:'100%', borderRadius:12, overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,.6)' }}>
-          <SlideRenderer slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} brandColor='#0f1c3f' companyName={profile.company_name||'Citizens Financial'} />
-        </div>
-      </div>
-      {/* Nav */}
-      <div style={{ padding:'14px 24px', display:'flex', alignItems:'center', justifyContent:'center', gap:20, flexShrink:0, borderTop:'1px solid rgba(255,255,255,.1)' }}>
-        <button onClick={()=>setSlideIndex(s=>Math.max(s-1,0))} disabled={slideIndex===0}
-          style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', padding:'8px 24px', borderRadius:8, cursor:slideIndex===0?'not-allowed':'pointer', opacity:slideIndex===0?.4:1, fontSize:13 }}>← Prev</button>
-        <div style={{ display:'flex', gap:6 }}>
-          {slides.map((_,i)=><div key={i} onClick={()=>setSlideIndex(i)} style={{ width:i===slideIndex?20:7, height:7, borderRadius:4, background:i===slideIndex?'#4d8ef0':'rgba(255,255,255,.25)', cursor:'pointer', transition:'all .2s' }} />)}
-        </div>
-        <button onClick={()=>setSlideIndex(s=>Math.min(s+1,slides.length-1))} disabled={slideIndex===slides.length-1}
-          style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', padding:'8px 24px', borderRadius:8, cursor:slideIndex===slides.length-1?'not-allowed':'pointer', opacity:slideIndex===slides.length-1?.4:1, fontSize:13 }}>Next →</button>
-      </div>
-    </div>
+    </>
   );
 
   return null;
