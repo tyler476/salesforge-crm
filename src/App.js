@@ -5055,11 +5055,15 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
           </div>
         </div>`;
 
-      await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/send-email', {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+process.env.REACT_APP_SUPABASE_ANON_KEY },
-        body: JSON.stringify({ to:contact.email, subject:`Your Mortgage Presentation from ${profile.company_name}`, html:emailHtml })
+      const emailRes = await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + process.env.REACT_APP_SUPABASE_ANON_KEY },
+        body: JSON.stringify({ to: contact.email, subject: `Your Mortgage Presentation from ${profile.company_name}`, body: emailHtml })
       });
+      if(!emailRes.ok) {
+        const errData = await emailRes.json().catch(()=>({}));
+        throw new Error('Email failed: ' + (errData.error || emailRes.status));
+      }
 
       toast('Presentation sent to ' + contact.email + '!');
       onSent && onSent();
@@ -5210,7 +5214,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
   // ── STEP: PREVIEW ──
   if(step==='preview') return (
     <div className="overlay" onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{ width:'min(1060px,95vw)', background:'var(--surface)', borderRadius:16, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', display:'flex', flexDirection:'column', maxHeight:'92vh', overflow:'hidden' }}>
+      <div onClick={e=>e.stopPropagation()} style={{ width:'min(1060px,95vw)', background:'var(--surface)', borderRadius:16, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', display:'flex', flexDirection:'column', maxHeight:'82vh', overflow:'hidden' }}>
         {/* Header */}
         <div style={{ padding:'16px 24px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
           <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:20, fontWeight:700 }}>
@@ -5227,7 +5231,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
           </div>
         </div>
         {/* Main area */}
-        <div style={{ display:'flex', flex:1, overflow:'hidden' }}>
+        <div style={{ display:'flex', flex:1, overflow:'hidden', minHeight:0 }}>
           {/* Slide thumbs */}
           <div style={{ width:160, borderRight:'1px solid var(--border)', overflowY:'auto', padding:12, display:'flex', flexDirection:'column', gap:8, flexShrink:0, background:'var(--surface2)' }}>
             {generating ? (
@@ -5258,8 +5262,14 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
                 <a href={selectedTemplate.pdf_url} target="_blank" rel="noreferrer" style={{ background:'rgba(255,255,255,.1)', color:'#fff', padding:'8px 18px', borderRadius:6, textDecoration:'none', fontSize:13, border:'1px solid rgba(255,255,255,.2)', display:'flex', alignItems:'center', gap:6 }}>{React.cloneElement(Icons.download,{width:14,height:14})} Preview PDF</a>
               </div>
             ) : slides.length>0 ? (
-              <div style={{ width:'100%', aspectRatio:'16/9', borderRadius:12, overflow:'hidden', boxShadow:'0 16px 48px rgba(0,0,0,.5)', flexShrink:0, maxHeight:'100%', maxWidth:'100%' }}>
-                <SlideRenderer slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} brandColor='#0f1c3f' companyName={profile.company_name||'Citizens Financial'} />
+              <div style={{ position:'relative', width:'100%', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:10 }}>
+                <div
+                  onClick={()=>setFullscreen(true)}
+                  title="Click to fullscreen"
+                  style={{ width:'100%', aspectRatio:'16/9', borderRadius:12, overflow:'hidden', boxShadow:'0 16px 48px rgba(0,0,0,.5)', flexShrink:0, maxHeight:'100%', maxWidth:'100%', cursor:'zoom-in' }}>
+                  <SlideRenderer slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} brandColor='#0f1c3f' companyName={profile.company_name||'Citizens Financial'} />
+                </div>
+                <div style={{ fontSize:11, color:'rgba(255,255,255,.3)' }}>Click slide to fullscreen · Use ← → keys to navigate</div>
               </div>
             ) : null}
           </div>
@@ -5272,6 +5282,35 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
             <button onClick={()=>setSlideIndex(s=>Math.min(s+1,slides.length-1))} disabled={slideIndex===slides.length-1} className="btn-secondary btn-sm">Next →</button>
           </div>
         )}
+      </div>
+    </div>
+  );
+
+  // Fullscreen overlay
+  if(fullscreen) return (
+    <div style={{ position:'fixed', inset:0, background:'#050d1a', zIndex:9999, display:'flex', flexDirection:'column' }}
+      onKeyDown={e=>{ if(e.key==='ArrowRight'||e.key==='ArrowDown') setSlideIndex(s=>Math.min(s+1,slides.length-1)); if(e.key==='ArrowLeft'||e.key==='ArrowUp') setSlideIndex(s=>Math.max(s-1,0)); if(e.key==='Escape') setFullscreen(false); }}
+      tabIndex={0} ref={el=>el?.focus()}>
+      {/* Top bar */}
+      <div style={{ padding:'12px 24px', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0, borderBottom:'1px solid rgba(255,255,255,.1)' }}>
+        <div style={{ color:'rgba(255,255,255,.5)', fontSize:13 }}>{slideIndex+1} / {slides.length} — Press ESC to exit</div>
+        <button onClick={()=>setFullscreen(false)} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', padding:'6px 16px', borderRadius:6, cursor:'pointer', fontSize:13 }}>Exit Fullscreen ✕</button>
+      </div>
+      {/* Slide */}
+      <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:24, minHeight:0 }}>
+        <div style={{ width:'100%', aspectRatio:'16/9', maxHeight:'100%', maxWidth:'100%', borderRadius:12, overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,.6)' }}>
+          <SlideRenderer slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} brandColor='#0f1c3f' companyName={profile.company_name||'Citizens Financial'} />
+        </div>
+      </div>
+      {/* Nav */}
+      <div style={{ padding:'14px 24px', display:'flex', alignItems:'center', justifyContent:'center', gap:20, flexShrink:0, borderTop:'1px solid rgba(255,255,255,.1)' }}>
+        <button onClick={()=>setSlideIndex(s=>Math.max(s-1,0))} disabled={slideIndex===0}
+          style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', padding:'8px 24px', borderRadius:8, cursor:slideIndex===0?'not-allowed':'pointer', opacity:slideIndex===0?.4:1, fontSize:13 }}>← Prev</button>
+        <div style={{ display:'flex', gap:6 }}>
+          {slides.map((_,i)=><div key={i} onClick={()=>setSlideIndex(i)} style={{ width:i===slideIndex?20:7, height:7, borderRadius:4, background:i===slideIndex?'#4d8ef0':'rgba(255,255,255,.25)', cursor:'pointer', transition:'all .2s' }} />)}
+        </div>
+        <button onClick={()=>setSlideIndex(s=>Math.min(s+1,slides.length-1))} disabled={slideIndex===slides.length-1}
+          style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', padding:'8px 24px', borderRadius:8, cursor:slideIndex===slides.length-1?'not-allowed':'pointer', opacity:slideIndex===slides.length-1?.4:1, fontSize:13 }}>Next →</button>
       </div>
     </div>
   );
