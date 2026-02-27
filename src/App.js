@@ -5020,16 +5020,16 @@ Return ONLY a valid JSON array of exactly 5 slides. No markdown, no explanation.
   }
 ]`;
 
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({
-          model:'claude-sonnet-4-20250514',
-          max_tokens:2000,
-          messages:[{ role:'user', content:prompt }]
-        })
+      const res = await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/generate-presentation', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + process.env.REACT_APP_SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({ prompt })
       });
       const data = await res.json();
+      if(data.error) throw new Error(data.error);
       const text = (data.content||[]).map(b=>b.text||'').join('');
       const clean = text.replace(/```json|```/g,'').trim();
       const parsed = JSON.parse(clean);
@@ -5358,11 +5358,16 @@ function MassPresentationModal({ contacts, profile, onClose, toast, onSent }) {
   const generateSlidesForContact = async (contact) => {
     const prompt = `Generate a short 5-slide mortgage presentation for ${contact.full_name}${contact.deal_value ? ', loan ~$'+Number(contact.deal_value).toLocaleString() : ''}, ${loanType} loan. LO: ${loName}. ${keyPoints||''}
 Return ONLY a JSON array. Use types: cover, stats, bullets, closing. Keep it concise.`;
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1500, messages:[{role:'user',content:prompt}] })
+    const res = await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/generate-presentation', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + process.env.REACT_APP_SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ prompt })
     });
     const data = await res.json();
+    if(data.error) throw new Error(data.error);
     const text = (data.content||[]).map(b=>b.text||'').join('');
     return JSON.parse(text.replace(/```json|```/g,'').trim());
   };
