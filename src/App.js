@@ -5214,7 +5214,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
   // ── STEP: PREVIEW ──
   if(step==='preview') return (
     <div className="overlay" onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{ width:'min(1060px,95vw)', background:'var(--surface)', borderRadius:16, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', display:'flex', flexDirection:'column', maxHeight:'82vh', overflow:'hidden' }}>
+      <div onClick={e=>e.stopPropagation()} style={{ width:'min(1400px,98vw)', background:'var(--surface)', borderRadius:16, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', display:'flex', flexDirection:'column', height:'90vh', overflow:'hidden' }}>
         {/* Header */}
         <div style={{ padding:'16px 24px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
           <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:20, fontWeight:700 }}>
@@ -5233,7 +5233,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
         {/* Main area */}
         <div style={{ display:'flex', flex:1, overflow:'hidden', minHeight:0 }}>
           {/* Slide thumbs */}
-          <div style={{ width:160, borderRight:'1px solid var(--border)', overflowY:'auto', padding:12, display:'flex', flexDirection:'column', gap:8, flexShrink:0, background:'var(--surface2)' }}>
+          <div style={{ width:130, borderRight:'1px solid var(--border)', overflowY:'auto', padding:8, display:'flex', flexDirection:'column', gap:6, flexShrink:0, background:'var(--surface2)' }}>
             {generating ? (
               Array.from({length:7}).map((_,i)=>(
                 <div key={i} style={{ aspectRatio:'16/9', borderRadius:6, background:'var(--border)', animation:'pulse 1.5s infinite', opacity:.6 }} />
@@ -5248,7 +5248,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
             ))}
           </div>
           {/* Main preview */}
-          <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:28, background:'#050d1a', minHeight:0, overflow:'hidden' }}>
+          <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:16, background:'#050d1a', minHeight:0, overflow:'hidden' }}>
             {generating ? (
               <div style={{ textAlign:'center', color:'rgba(255,255,255,.5)' }}>
                 <div style={{ width:40, height:40, borderRadius:'50%', border:'3px solid rgba(255,255,255,.15)', borderTopColor:'#4d8ef0', animation:'spin 1s linear infinite', margin:'0 auto 16px' }} />
@@ -5262,14 +5262,13 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
                 <a href={selectedTemplate.pdf_url} target="_blank" rel="noreferrer" style={{ background:'rgba(255,255,255,.1)', color:'#fff', padding:'8px 18px', borderRadius:6, textDecoration:'none', fontSize:13, border:'1px solid rgba(255,255,255,.2)', display:'flex', alignItems:'center', gap:6 }}>{React.cloneElement(Icons.download,{width:14,height:14})} Preview PDF</a>
               </div>
             ) : slides.length>0 ? (
-              <div style={{ position:'relative', width:'100%', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:10 }}>
+              <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <div
                   onClick={()=>setFullscreen(true)}
                   title="Click to fullscreen"
-                  style={{ width:'100%', aspectRatio:'16/9', borderRadius:12, overflow:'hidden', boxShadow:'0 16px 48px rgba(0,0,0,.5)', flexShrink:0, maxHeight:'100%', maxWidth:'100%', cursor:'zoom-in' }}>
+                  style={{ width:'100%', aspectRatio:'16/9', borderRadius:10, overflow:'hidden', boxShadow:'0 16px 48px rgba(0,0,0,.6)', cursor:'zoom-in', maxHeight:'100%' }}>
                   <SlideRenderer slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} brandColor='#0f1c3f' companyName={profile.company_name||'Citizens Financial'} />
                 </div>
-                <div style={{ fontSize:11, color:'rgba(255,255,255,.3)' }}>Click slide to fullscreen · Use ← → keys to navigate</div>
               </div>
             ) : null}
           </div>
