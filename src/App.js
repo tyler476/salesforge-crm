@@ -4501,22 +4501,7 @@ function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName=
   const CF_BG2    = '#f8f9fc';
 
   // Shared footer shown on every light slide
-  const Footer = ({ loName, loNmls, loPhone, loEmail }) => (
-    <div style={{ position:'absolute', bottom:0, left:0, right:0, borderTop:`1px solid ${CF_BORDER}`, padding:'10px 40px', display:'flex', justifyContent:'space-between', alignItems:'center', background:CF_BG, fontSize:11, color:CF_MUTED }}>
-      <div style={{ display:'flex', alignItems:'center', gap:16 }}>
-        <div style={{ width:28, height:28, borderRadius:'50%', background:CF_NAVY, display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', flexShrink:0 }}>
-          {(loName||companyName||'').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()}
-        </div>
-        <div>
-          <span style={{ fontWeight:700, color:CF_TEXT }}>{loName || companyName}</span>
-          {loNmls && <span style={{ marginLeft:8 }}>NMLS# {loNmls}</span>}
-          {loPhone && <span style={{ marginLeft:8 }}>{loPhone}</span>}
-          {loEmail && <span style={{ marginLeft:8 }}>{loEmail}</span>}
-        </div>
-      </div>
-      <div style={{ fontWeight:700, color:CF_NAVY, fontSize:12 }}>{companyName}</div>
-    </div>
-  );
+
 
   // Badge pill (dark bg, white text)
   const Badge = ({ label }) => (
@@ -4534,12 +4519,12 @@ function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName=
       <div style={{ width:'100%', height:'100%', background:CF_BG, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', position:'relative', overflow:'hidden', boxSizing:'border-box' }}>
         <SlideNum />
         {/* Header bar */}
-        <div style={{ background:CF_NAVY, padding:'18px 40px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <div style={{ color:'#fff', fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:20, fontWeight:700 }}>{companyName}</div>
+        <div style={{ background:CF_NAVY, padding:'12px 28px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ height:32, filter:'brightness(0) invert(1)' }} onError={{e=>e.target.style.display='none'}} />
           <div style={{ color:'rgba(255,255,255,.6)', fontSize:11 }}>{slide.date || new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div>
         </div>
         {/* Main content */}
-        <div style={{ flex:1, padding:'28px 40px 60px', display:'flex', flexDirection:'column' }}>
+        <div style={{ flex:1, padding:'24px 28px 54px', display:'flex', flexDirection:'column' }}>
           <h1 style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:28, fontWeight:700, color:CF_TEXT, lineHeight:1.2, marginBottom:24, textAlign:'center' }}>
             Hi, {slide.borrowerName || '{{borrower_name}}'}! Here are some highlights to help you<br/>make your {slide.loanPurpose||'loan'} decision:
           </h1>
@@ -4556,7 +4541,6 @@ function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName=
             ))}
           </div>
         </div>
-        <Footer loName={slide.loName} loNmls={slide.loNmls} loPhone={slide.loPhone} loEmail={slide.loEmail} />
       </div>
     );
   }
@@ -4568,7 +4552,7 @@ function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName=
     return (
       <div style={{ width:'100%', height:'100%', background:CF_BG2, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', position:'relative', overflow:'hidden', boxSizing:'border-box' }}>
         <SlideNum />
-        <div style={{ padding:'22px 40px 60px', flex:1, display:'flex', flexDirection:'column' }}>
+        <div style={{ padding:'18px 28px 54px', flex:1, display:'flex', flexDirection:'column' }}>
           <h2 style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:24, fontWeight:700, color:CF_TEXT, textAlign:'center', marginBottom:20 }}>Total Monthly Payments</h2>
           <div style={{ display:'flex', gap:20, flex:1 }}>
             {/* Highlight card */}
@@ -4606,7 +4590,6 @@ function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName=
             </div>
           </div>
         </div>
-        <Footer loName={slide.loName} loNmls={slide.loNmls} loPhone={slide.loPhone} loEmail={slide.loEmail} />
       </div>
     );
   }
@@ -4616,7 +4599,7 @@ function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName=
     return (
       <div style={{ width:'100%', height:'100%', background:CF_BG, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', position:'relative', overflow:'hidden', boxSizing:'border-box' }}>
         <SlideNum />
-        <div style={{ padding:'22px 40px 60px', flex:1, display:'flex', flexDirection:'column', gap:20 }}>
+        <div style={{ padding:'18px 28px 54px', flex:1, display:'flex', flexDirection:'column', gap:20 }}>
           <h2 style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:24, fontWeight:700, color:CF_TEXT, textAlign:'center' }}>Interest Savings Over Loan Life</h2>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, flex:1 }}>
             {(slide.metrics||[]).map((m,i) => (
@@ -4643,7 +4626,6 @@ function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName=
             </div>
           </div>
         </div>
-        <Footer loName={slide.loName} loNmls={slide.loNmls} loPhone={slide.loPhone} loEmail={slide.loEmail} />
       </div>
     );
   }
@@ -4653,7 +4635,7 @@ function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName=
     return (
       <div style={{ width:'100%', height:'100%', background:CF_BG2, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', position:'relative', overflow:'hidden', boxSizing:'border-box' }}>
         <SlideNum />
-        <div style={{ padding:'22px 40px 60px', flex:1, display:'flex', flexDirection:'column', gap:18 }}>
+        <div style={{ padding:'18px 28px 54px', flex:1, display:'flex', flexDirection:'column', gap:18 }}>
           <h2 style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:24, fontWeight:700, color:CF_TEXT, textAlign:'center' }}>Break Even Analysis</h2>
           <div style={{ display:'flex', gap:16, flex:1 }}>
             {/* Breakeven card */}
@@ -4701,7 +4683,6 @@ function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName=
             </div>
           </div>
         </div>
-        <Footer loName={slide.loName} loNmls={slide.loNmls} loPhone={slide.loPhone} loEmail={slide.loEmail} />
       </div>
     );
   }
@@ -4711,7 +4692,7 @@ function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName=
     return (
       <div style={{ width:'100%', height:'100%', background:CF_BG, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', position:'relative', overflow:'hidden', boxSizing:'border-box' }}>
         <SlideNum />
-        <div style={{ padding:'18px 40px 60px', flex:1, display:'flex', flexDirection:'column' }}>
+        <div style={{ padding:'16px 28px 54px', flex:1, display:'flex', flexDirection:'column' }}>
           <h2 style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:22, fontWeight:700, color:CF_TEXT, marginBottom:4 }}>True Cost Comparison</h2>
           <div style={{ fontSize:12, color:CF_MUTED, marginBottom:16 }}>Take an in-depth look at each loan option.</div>
           <div style={{ flex:1, border:`1px solid ${CF_BORDER}`, borderRadius:10, overflow:'hidden' }}>
@@ -4719,7 +4700,7 @@ function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName=
             <div style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr 1fr', background:CF_NAVY, color:'#fff', fontSize:12, fontWeight:700 }}>
               <div style={{ padding:'10px 14px' }}> </div>
               <div style={{ padding:'10px 14px', borderLeft:`1px solid rgba(255,255,255,.1)` }}>Current Loan</div>
-              <div style={{ padding:'10px 14px', borderLeft:`1px solid rgba(255,255,255,.1)`, color:'#6ee7b7' }}>Citizens Financial</div>
+              <div style={{ padding:'8px 14px', borderLeft:`1px solid rgba(255,255,255,.1)`, display:'flex', alignItems:'center' }}><img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ height:20, filter:'brightness(0) invert(1)' }} /></div>
             </div>
             {(slide.rows||[]).map((row,ri) => (
               <div key={ri} style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr 1fr', fontSize:12, borderTop:`1px solid ${CF_BORDER}`, background:ri%2===0?CF_BG:CF_BG2 }}>
@@ -4733,7 +4714,6 @@ function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName=
             Loan and monthly payment scenarios used for informational purposes only. Rates expressed may not be available at this time. Not a commitment to lend.
           </div>
         </div>
-        <Footer loName={slide.loName} loNmls={slide.loNmls} loPhone={slide.loPhone} loEmail={slide.loEmail} />
       </div>
     );
   }
@@ -4769,7 +4749,7 @@ function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName=
   const base = { width:'100%', height:'100%', position:'relative', overflow:'hidden', background:isLight?CF_BG2:bg, display:'flex', flexDirection:'column', justifyContent:'center', padding:'52px 64px', boxSizing:'border-box', color:textColor, fontFamily:"'Inter',sans-serif" };
   const accentBar = <div style={{ position:'absolute', left:0, top:0, bottom:0, width:5, background:CF_GREEN }} />;
   const slideNum = <div style={{ position:'absolute', bottom:22, right:36, fontSize:11, color:mutedColor, fontWeight:500 }}>{index+1}/{total}</div>;
-  const logo = <div style={{ position:'absolute', top:22, right:36, fontSize:11, color:mutedColor, fontWeight:700, letterSpacing:'.08em', textTransform:'uppercase' }}>{companyName}</div>;
+  const logo = <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ position:'absolute', top:18, right:28, height:24, filter:isLight?'none':'brightness(0) invert(1)', opacity:.85 }} onError={{e=>e.target.style.display='none'}} />;
 
   if(slide.type==='cover') return (
     <div style={{ ...base, justifyContent:'flex-end', background:`linear-gradient(135deg, ${bg} 0%, #1a2e5a 100%)` }}>
