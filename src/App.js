@@ -4961,7 +4961,7 @@ function PublicPresentationViewer({ token }) {
         const s0 = (data.slides||[])[0];
         if (s0) {
           const coverHi = s0.highlights?.[0];
-          if (coverHi?.loanAmount) setLiveAmount(coverHi.loanAmount.replace(/[\$,M]/g,'').replace('M',000000));
+          if (coverHi?.loanAmount) setLiveAmount(coverHi.loanAmount.replace(/[\$,M]/g,'').replace('M',''));
           setLiveRate('6.75');
         }
       });
