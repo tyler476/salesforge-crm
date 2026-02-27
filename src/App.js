@@ -4917,7 +4917,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
 
     const fmtDollar = (n) => n >= 1000000 ? '$'+(n/1000000).toFixed(2)+'M' : '$'+n.toLocaleString();
 
-    const prompt = \`You are a Citizens Financial loan officer assistant. Generate a professional loan presentation matching the Citizens Financial brand style.
+    const prompt = `You are a Citizens Financial loan officer assistant. Generate a professional loan presentation matching the Citizens Financial brand style.
 
 Return ONLY a valid JSON array of exactly 5 slides. No markdown, no explanation. Use these EXACT slide types:
 
@@ -5018,7 +5018,7 @@ Return ONLY a valid JSON array of exactly 5 slides. No markdown, no explanation.
     "loPhone": "\${form.lo_phone||'Available upon request'}",
     "loEmail": "\${form.lo_email||''}"
   }
-]\`;
+]`;
 
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method:'POST',
