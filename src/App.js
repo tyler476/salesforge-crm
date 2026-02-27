@@ -4488,290 +4488,248 @@ function CalendarView({ profile, workspaces, toast }) {
 
 // ─── PRESENTATION SYSTEM ──────────────────────────────────────────────────────
 
-// Slide renderer — Citizens Financial branded style
-// Matches the Loan_Comparison.pdf visual style:
-// white bg, green accent, dark badge pills, card containers, serif headings
+// Slide renderer — Citizens Financial premium quality
+const LOGO = 'https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png';
+const CF = { navy:'#0f1c3f', green:'#1a9a5c', text:'#111827', muted:'#6b7280', border:'#e5e7eb', bg:'#ffffff', bg2:'#f8fafc', lightgreen:'rgba(26,154,92,.08)' };
+
 function SlideRenderer({ slide, index, total, brandColor='#0f1c3f', companyName='Citizens Financial' }) {
-  const CF_GREEN  = '#1a9a5c';
-  const CF_NAVY   = '#0f1c3f';
-  const CF_TEXT   = '#1a1a2e';
-  const CF_MUTED  = '#6b7280';
-  const CF_BORDER = '#e5e7eb';
-  const CF_BG     = '#ffffff';
-  const CF_BG2    = '#f8f9fc';
 
-  // Shared footer shown on every light slide
-
-
-  // Badge pill (dark bg, white text)
-  const Badge = ({ label }) => (
-    <div style={{ display:'inline-block', background:CF_NAVY, color:'#fff', fontSize:9, fontWeight:800, padding:'3px 8px', borderRadius:20, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:6 }}>{label}</div>
-  );
-
-  // Slide number dot
   const SlideNum = () => (
-    <div style={{ position:'absolute', top:14, right:20, fontSize:10, color:CF_MUTED }}>{index+1}/{total}</div>
+    <div style={{ position:'absolute', top:14, right:18, fontSize:10, color:'rgba(255,255,255,0)', background:'rgba(0,0,0,.06)', padding:'2px 8px', borderRadius:10, fontWeight:600 }}>{index+1}/{total}</div>
   );
 
-  // ── CF COVER: "Hi [name]! Here are some highlights..." ──────────────────────
-  if (slide.type === 'cf-cover') {
-    return (
-      <div style={{ width:'100%', height:'100%', background:CF_BG, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', position:'relative', overflow:'hidden', boxSizing:'border-box' }}>
-        <SlideNum />
-        {/* Header bar */}
-        <div style={{ background:CF_NAVY, padding:'12px 28px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ height:32, filter:'brightness(0) invert(1)' }} onError={e=>e.target.style.display='none'} />
-          <div style={{ color:'rgba(255,255,255,.6)', fontSize:11 }}>{slide.date || new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</div>
-        </div>
-        {/* Main content */}
-        <div style={{ flex:1, padding:'24px 28px 54px', display:'flex', flexDirection:'column' }}>
-          <h1 style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:28, fontWeight:700, color:CF_TEXT, lineHeight:1.2, marginBottom:24, textAlign:'center' }}>
-            Hi, {slide.borrowerName || '{{borrower_name}}'}! Here are some highlights to help you<br/>make your {slide.loanPurpose||'loan'} decision:
-          </h1>
-          {/* 3 highlight cards */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, flex:1 }}>
-            {(slide.highlights||[]).map((h,i) => (
-              <div key={i} style={{ border:`1px solid ${CF_BORDER}`, borderRadius:10, padding:'16px 18px', display:'flex', flexDirection:'column', gap:4 }}>
-                <Badge label={h.badge} />
-                <div style={{ fontSize:11, color:CF_MUTED, textTransform:'uppercase', letterSpacing:'.06em', fontWeight:600, marginBottom:2 }}>{h.label}</div>
-                <div style={{ fontSize:16, fontWeight:700, color:CF_TEXT }}>{h.loanAmount}</div>
-                <div style={{ fontSize:13, fontWeight:700, color:CF_TEXT, marginBottom:4 }}>{h.product}</div>
-                <div style={{ fontSize:15, fontWeight:800, color:CF_GREEN, marginTop:'auto' }}>{h.value}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const Badge = ({ label, color=CF.navy }) => (
+    <div style={{ display:'inline-flex', alignItems:'center', background:color, color:'#fff', fontSize:9, fontWeight:800, padding:'3px 9px', borderRadius:20, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:7, flexShrink:0 }}>{label}</div>
+  );
 
-  // ── CF PAYMENT: Monthly payment comparison ──────────────────────────────────
-  if (slide.type === 'cf-payment') {
-    const maxBar = Math.max(slide.currentTotal||0, slide.newTotal||0) * 1.15;
-    const barPct = (v) => Math.round((v/maxBar)*100);
-    return (
-      <div style={{ width:'100%', height:'100%', background:CF_BG2, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', position:'relative', overflow:'hidden', boxSizing:'border-box' }}>
-        <SlideNum />
-        <div style={{ padding:'18px 28px 54px', flex:1, display:'flex', flexDirection:'column' }}>
-          <h2 style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:24, fontWeight:700, color:CF_TEXT, textAlign:'center', marginBottom:20 }}>Total Monthly Payments</h2>
-          <div style={{ display:'flex', gap:20, flex:1 }}>
-            {/* Highlight card */}
-            <div style={{ width:180, flexShrink:0, border:`1px solid ${CF_BORDER}`, borderRadius:10, padding:'16px', background:CF_BG, display:'flex', flexDirection:'column', gap:4 }}>
-              <Badge label="Most Monthly Savings" />
-              <div style={{ fontSize:10, color:CF_MUTED, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:2 }}>vs current loan</div>
-              <div style={{ fontSize:11, color:CF_MUTED }}>Citizens Financial</div>
-              <div style={{ fontSize:32, fontWeight:900, color:CF_GREEN, marginTop:8 }}>{slide.monthlySavings}</div>
-              <div style={{ fontSize:11, color:CF_MUTED, marginTop:4 }}>monthly savings</div>
-            </div>
-            {/* Visual bar comparison */}
-            <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', gap:16 }}>
-              <div style={{ display:'flex', gap:16, justifyContent:'center', fontSize:11, color:CF_MUTED, marginBottom:8 }}>
-                <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:10, background:'#1a1a2e', borderRadius:2, display:'inline-block' }}/> Principal</span>
-                <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:10, background:'#7c3aed', borderRadius:2, display:'inline-block' }}/> Interest</span>
-                <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:10, background:'#6ee7b7', borderRadius:2, display:'inline-block' }}/> Taxes/Ins</span>
-              </div>
-              <div style={{ display:'flex', gap:32, alignItems:'flex-end', justifyContent:'center' }}>
-                {[
-                  {label:'Current Loan', sub:'Existing', total:slide.currentTotal, color:'#1a1a2e'},
-                  {label:'Citizens Financial', sub:slide.loanProduct||'New Loan', total:slide.newTotal, color:CF_NAVY},
-                ].map((col,ci) => (
-                  <div key={ci} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
-                    <div style={{ fontSize:12, fontWeight:700, color:CF_MUTED }}>Total</div>
-                    <div style={{ fontSize:14, fontWeight:800, color:ci===1?CF_GREEN:CF_TEXT }}>${(col.total||0).toLocaleString()}</div>
-                    <div style={{ width:80, height:Math.round(barPct(col.total)*1.5)+'px', background:ci===1?CF_NAVY:'#4b5563', borderRadius:'4px 4px 0 0', position:'relative', minHeight:40 }}>
-                      <div style={{ position:'absolute', bottom:0, left:0, right:0, height:'30%', background:'#7c3aed', opacity:.7, borderRadius:'4px 4px 0 0' }} />
-                      <div style={{ position:'absolute', top:0, left:0, right:0, height:'15%', background:'#6ee7b7', opacity:.8, borderRadius:'4px 4px 0 0' }} />
-                    </div>
-                    <div style={{ fontSize:11, color:CF_MUTED, textTransform:'uppercase', letterSpacing:'.05em' }}>{col.label}</div>
-                    <div style={{ fontSize:11, color:CF_TEXT, fontWeight:600 }}>{col.sub}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── CF SAVINGS: Interest savings breakdown ──────────────────────────────────
-  if (slide.type === 'cf-savings') {
-    return (
-      <div style={{ width:'100%', height:'100%', background:CF_BG, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', position:'relative', overflow:'hidden', boxSizing:'border-box' }}>
-        <SlideNum />
-        <div style={{ padding:'18px 28px 54px', flex:1, display:'flex', flexDirection:'column', gap:20 }}>
-          <h2 style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:24, fontWeight:700, color:CF_TEXT, textAlign:'center' }}>Interest Savings Over Loan Life</h2>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, flex:1 }}>
-            {(slide.metrics||[]).map((m,i) => (
-              <div key={i} style={{ border:`1px solid ${CF_BORDER}`, borderRadius:10, padding:'18px', background:CF_BG2, display:'flex', flexDirection:'column' }}>
-                <Badge label={m.badge} />
-                <div style={{ fontSize:11, color:CF_MUTED, marginBottom:8 }}>{m.label}</div>
-                <div style={{ fontSize:28, fontWeight:900, color:CF_GREEN, lineHeight:1, marginBottom:6 }}>{m.value}</div>
-                <div style={{ fontSize:12, color:CF_MUTED, marginTop:'auto', lineHeight:1.5 }}>{m.description}</div>
-              </div>
-            ))}
-          </div>
-          {/* Simple visual bar */}
-          <div style={{ background:CF_BG2, borderRadius:10, padding:'14px 20px', border:`1px solid ${CF_BORDER}` }}>
-            <div style={{ fontSize:12, color:CF_MUTED, marginBottom:8, fontWeight:600 }}>TOTAL INTEREST COMPARISON</div>
-            <div style={{ display:'flex', gap:12, alignItems:'center' }}>
-              <div style={{ flex:1 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4, fontSize:12 }}><span style={{ color:CF_MUTED }}>Current Loan</span><span style={{ fontWeight:700 }}>{slide.currentInterest}</span></div>
-                <div style={{ height:14, background:'#e5e7eb', borderRadius:4, overflow:'hidden' }}><div style={{ height:'100%', width:'100%', background:'#4b5563', borderRadius:4 }} /></div>
-              </div>
-              <div style={{ flex:1 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4, fontSize:12 }}><span style={{ color:CF_MUTED }}>Citizens Financial</span><span style={{ fontWeight:700, color:CF_GREEN }}>{slide.newInterest}</span></div>
-                <div style={{ height:14, background:'#e5e7eb', borderRadius:4, overflow:'hidden' }}><div style={{ height:'100%', width:slide.savingsPct||'85%', background:CF_GREEN, borderRadius:4 }} /></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── CF BREAKEVEN: Break even analysis ──────────────────────────────────────
-  if (slide.type === 'cf-breakeven') {
-    return (
-      <div style={{ width:'100%', height:'100%', background:CF_BG2, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', position:'relative', overflow:'hidden', boxSizing:'border-box' }}>
-        <SlideNum />
-        <div style={{ padding:'18px 28px 54px', flex:1, display:'flex', flexDirection:'column', gap:18 }}>
-          <h2 style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:24, fontWeight:700, color:CF_TEXT, textAlign:'center' }}>Break Even Analysis</h2>
-          <div style={{ display:'flex', gap:16, flex:1 }}>
-            {/* Breakeven card */}
-            <div style={{ width:180, flexShrink:0, border:`1px solid ${CF_BORDER}`, borderRadius:10, padding:'16px', background:CF_BG, display:'flex', flexDirection:'column', gap:4 }}>
-              <Badge label="Quickest Breakeven" />
-              <div style={{ fontSize:11, color:CF_MUTED, marginBottom:4 }}>Citizens Financial</div>
-              <div style={{ fontSize:34, fontWeight:900, color:CF_GREEN, lineHeight:1, marginTop:8 }}>{slide.breakevenMonths}</div>
-              <div style={{ fontSize:13, color:CF_MUTED }}>months to break even</div>
-              <div style={{ marginTop:12, paddingTop:12, borderTop:`1px solid ${CF_BORDER}` }}>
-                <div style={{ fontSize:11, color:CF_MUTED, textTransform:'uppercase', letterSpacing:'.05em', marginBottom:4 }}>Net Cost Comparison</div>
-                <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:4 }}>
-                  <span style={{ color:CF_MUTED }}>Current</span>
-                  <span style={{ fontWeight:700 }}>{slide.currentNetCost}</span>
-                </div>
-                <div style={{ display:'flex', justifyContent:'space-between', fontSize:12 }}>
-                  <span style={{ color:CF_MUTED }}>New Loan</span>
-                  <span style={{ fontWeight:700, color:CF_GREEN }}>{slide.newNetCost}</span>
-                </div>
-              </div>
-            </div>
-            {/* Visual timeline */}
-            <div style={{ flex:1, display:'flex', flexDirection:'column', gap:10 }}>
-              <div style={{ fontSize:12, color:CF_MUTED, fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em' }}>Cumulative Cost Over Time</div>
-              <div style={{ flex:1, background:CF_BG, borderRadius:10, border:`1px solid ${CF_BORDER}`, padding:'16px', display:'flex', flexDirection:'column', justifyContent:'flex-end', gap:6 }}>
-                {/* Simplified year-by-year visualization */}
-                {[1,2,3,4,5,6,7].map(yr=>{
-                  const pct = yr/7;
-                  const currentW = Math.round(pct*100)+'%';
-                  const newW = Math.round(Math.max(0,pct-0.1)*95)+'%';
-                  return (
-                    <div key={yr} style={{ display:'flex', alignItems:'center', gap:8, fontSize:11 }}>
-                      <div style={{ width:20, color:CF_MUTED, textAlign:'right', flexShrink:0 }}>Yr {yr}</div>
-                      <div style={{ flex:1, display:'flex', flexDirection:'column', gap:3 }}>
-                        <div style={{ height:8, background:'#374151', borderRadius:2, width:currentW, opacity:.7 }} />
-                        <div style={{ height:8, background:CF_GREEN, borderRadius:2, width:newW, opacity:.85 }} />
-                      </div>
-                    </div>
-                  );
-                })}
-                <div style={{ display:'flex', gap:16, marginTop:6, fontSize:10, color:CF_MUTED }}>
-                  <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:8, background:'#374151', borderRadius:2, display:'inline-block', opacity:.7 }}/> Current Loan</span>
-                  <span style={{ display:'flex', alignItems:'center', gap:4 }}><span style={{ width:10, height:8, background:CF_GREEN, borderRadius:2, display:'inline-block' }}/> Citizens Financial</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── CF TABLE: True cost comparison table ────────────────────────────────────
-  if (slide.type === 'cf-table') {
-    return (
-      <div style={{ width:'100%', height:'100%', background:CF_BG, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', position:'relative', overflow:'hidden', boxSizing:'border-box' }}>
-        <SlideNum />
-        <div style={{ padding:'16px 28px 54px', flex:1, display:'flex', flexDirection:'column' }}>
-          <h2 style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:22, fontWeight:700, color:CF_TEXT, marginBottom:4 }}>True Cost Comparison</h2>
-          <div style={{ fontSize:12, color:CF_MUTED, marginBottom:16 }}>Take an in-depth look at each loan option.</div>
-          <div style={{ flex:1, border:`1px solid ${CF_BORDER}`, borderRadius:10, overflow:'hidden' }}>
-            {/* Header row */}
-            <div style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr 1fr', background:CF_NAVY, color:'#fff', fontSize:12, fontWeight:700 }}>
-              <div style={{ padding:'10px 14px' }}> </div>
-              <div style={{ padding:'10px 14px', borderLeft:`1px solid rgba(255,255,255,.1)` }}>Current Loan</div>
-              <div style={{ padding:'8px 14px', borderLeft:`1px solid rgba(255,255,255,.1)`, display:'flex', alignItems:'center' }}><img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ height:20, filter:'brightness(0) invert(1)' }} /></div>
-            </div>
-            {(slide.rows||[]).map((row,ri) => (
-              <div key={ri} style={{ display:'grid', gridTemplateColumns:'1.5fr 1fr 1fr', fontSize:12, borderTop:`1px solid ${CF_BORDER}`, background:ri%2===0?CF_BG:CF_BG2 }}>
-                <div style={{ padding:'8px 14px', color:CF_MUTED, fontWeight:600, textTransform:'uppercase', fontSize:11, letterSpacing:'.03em' }}>{row.label}</div>
-                <div style={{ padding:'8px 14px', borderLeft:`1px solid ${CF_BORDER}`, fontWeight:500, color:CF_TEXT }}>{row.current||'—'}</div>
-                <div style={{ padding:'8px 14px', borderLeft:`1px solid ${CF_BORDER}`, fontWeight:row.highlight?800:500, color:row.highlight?CF_GREEN:CF_TEXT }}>{row.newVal||row.new||'—'}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop:10, fontSize:10, color:CF_MUTED, lineHeight:1.5 }}>
-            Loan and monthly payment scenarios used for informational purposes only. Rates expressed may not be available at this time. Not a commitment to lend.
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── CF CLOSING ──────────────────────────────────────────────────────────────
-  if (slide.type === 'cf-closing') {
-    return (
-      <div style={{ width:'100%', height:'100%', background:CF_NAVY, fontFamily:"'Inter',sans-serif", display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', position:'relative', overflow:'hidden', boxSizing:'border-box', padding:'40px' }}>
-        <SlideNum />
-        <div style={{ position:'absolute', top:0, right:0, width:'40%', height:'100%', background:'rgba(255,255,255,.03)', clipPath:'polygon(20% 0, 100% 0, 100% 100%, 0% 100%)' }} />
-        <div style={{ textAlign:'center', position:'relative', maxWidth:520 }}>
-          <div style={{ fontSize:10, letterSpacing:'.15em', textTransform:'uppercase', color:'rgba(255,255,255,.4)', marginBottom:16, fontWeight:600 }}>Next Steps</div>
-          <h2 style={{ fontFamily:"'Cormorant Garamond',Georgia,serif", fontSize:36, fontWeight:700, color:'#fff', lineHeight:1.2, marginBottom:20 }}>{slide.title||"Ready to Move Forward?"}</h2>
-          <div style={{ width:40, height:3, background:CF_GREEN, margin:'0 auto 20px', borderRadius:2 }} />
-          <p style={{ fontSize:14, color:'rgba(255,255,255,.75)', lineHeight:1.8, marginBottom:32 }}>{slide.body||"Let's take the next step together."}</p>
-          <div style={{ display:'inline-flex', flexDirection:'column', gap:6, background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.15)', borderRadius:12, padding:'20px 32px', textAlign:'left' }}>
-            {slide.loName && <div style={{ fontWeight:700, fontSize:15, color:'#fff' }}>{slide.loName}</div>}
-            {slide.loNmls && <div style={{ fontSize:12, color:'rgba(255,255,255,.6)' }}>NMLS# {slide.loNmls}</div>}
-            {slide.loPhone && <div style={{ fontSize:13, color:'rgba(255,255,255,.7)' }}>{slide.loPhone}</div>}
-            {slide.loEmail && <div style={{ fontSize:13, color:CF_GREEN }}>{slide.loEmail}</div>}
-          </div>
-        </div>
-        <div style={{ position:'absolute', bottom:14, right:20, fontSize:10, color:'rgba(255,255,255,.3)' }}>{index+1}/{total}</div>
-      </div>
-    );
-  }
-
-  // ── Fallback for legacy slide types ─────────────────────────────────────────
-  const isLight = slide.lightBg || (!slide.bg || slide.bg==='#ffffff');
-  const bg = slide.bg||CF_NAVY;
-  const textColor = isLight?CF_TEXT:'#ffffff';
-  const mutedColor = isLight?CF_MUTED:'rgba(255,255,255,.7)';
-  const base = { width:'100%', height:'100%', position:'relative', overflow:'hidden', background:isLight?CF_BG2:bg, display:'flex', flexDirection:'column', justifyContent:'center', padding:'52px 64px', boxSizing:'border-box', color:textColor, fontFamily:"'Inter',sans-serif" };
-  const accentBar = <div style={{ position:'absolute', left:0, top:0, bottom:0, width:5, background:CF_GREEN }} />;
-  const slideNum = <div style={{ position:'absolute', bottom:22, right:36, fontSize:11, color:mutedColor, fontWeight:500 }}>{index+1}/{total}</div>;
-  const logo = <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ position:'absolute', top:18, right:28, height:24, filter:isLight?'none':'brightness(0) invert(1)', opacity:.85 }} onError={e=>e.target.style.display='none'} />;
-
-  if(slide.type==='cover') return (
-    <div style={{ ...base, justifyContent:'flex-end', background:`linear-gradient(135deg, ${bg} 0%, #1a2e5a 100%)` }}>
-      <div style={{ position:'absolute', top:0, right:0, width:'45%', height:'100%', background:'rgba(255,255,255,.04)', clipPath:'polygon(20% 0, 100% 0, 100% 100%, 0% 100%)' }} />
-      {logo}
-      <div style={{ maxWidth:'65%' }}>
-        <div style={{ fontSize:11, letterSpacing:'.15em', textTransform:'uppercase', color:'rgba(255,255,255,.5)', marginBottom:16, fontWeight:600 }}>{slide.category||'Mortgage Presentation'}</div>
-        <h1 style={{ fontSize:38, fontWeight:700, lineHeight:1.15, marginBottom:20, fontFamily:"'Cormorant Garamond',Georgia,serif", color:'#fff' }}>{slide.title}</h1>
-        <div style={{ width:40, height:3, background:CF_GREEN, marginBottom:20, borderRadius:2 }} />
-        <p style={{ fontSize:15, color:'rgba(255,255,255,.8)', lineHeight:1.7, marginBottom:28 }}>{slide.subtitle}</p>
-        {slide.preparedFor && <div style={{ fontSize:13, color:'rgba(255,255,255,.5)', borderTop:'1px solid rgba(255,255,255,.15)', paddingTop:16 }}>Prepared for <strong style={{ color:'rgba(255,255,255,.85)' }}>{slide.preparedFor}</strong></div>}
-      </div>
-      {slideNum}
+  const LogoHeader = ({ light=false, right=null }) => (
+    <div style={{ background: light ? CF.bg : CF.navy, padding:'11px 32px', display:'flex', alignItems:'center', justifyContent:'space-between', borderBottom: light?`1px solid ${CF.border}`:'none', flexShrink:0 }}>
+      <img src={LOGO} alt="Citizens Financial" style={{ height:28, filter:light?'none':'brightness(0) invert(1)', objectFit:'contain' }} onError={e=>e.target.style.display='none'} />
+      {right && <div style={{ fontSize:11, color:light?CF.muted:'rgba(255,255,255,.5)', fontWeight:500 }}>{right}</div>}
     </div>
   );
 
+  // ── CF-COVER ───────────────────────────────────────────────────────────────
+  if(slide.type==='cf-cover') return (
+    <div style={{ width:'100%', height:'100%', background:CF.bg, display:'flex', flexDirection:'column', fontFamily:"Inter,sans-serif", position:'relative', overflow:'hidden', boxSizing:'border-box' }}>
+      <LogoHeader right={slide.date} />
+      {/* Hero */}
+      <div style={{ background:CF.navy, padding:'20px 32px 24px', flexShrink:0 }}>
+        <div style={{ fontSize:11, color:'rgba(255,255,255,.4)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.1em', marginBottom:6 }}>Personalized Mortgage Analysis</div>
+        <h1 style={{ fontFamily:"Cormorant Garamond,Georgia,serif", fontSize:26, fontWeight:700, color:'#fff', lineHeight:1.2, margin:0 }}>
+          Hi, <span style={{ color:'#6ee7b7' }}>{slide.borrowerName||'{{name}}'}</span> — here are your highlights
+        </h1>
+      </div>
+      {/* 3 highlight cards */}
+      <div style={{ flex:1, display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, padding:'18px 28px', background:CF.bg2 }}>
+        {(slide.highlights||[]).map((h,i)=>(
+          <div key={i} style={{ background:CF.bg, border:`1px solid ${CF.border}`, borderRadius:10, padding:'16px 18px', display:'flex', flexDirection:'column', boxShadow:'0 1px 4px rgba(0,0,0,.06)' }}>
+            <Badge label={h.badge} color={i===0?CF.green:CF.navy} />
+            <div style={{ fontSize:10, color:CF.muted, textTransform:'uppercase', letterSpacing:'.06em', fontWeight:700, marginBottom:4 }}>{h.label}</div>
+            <div style={{ fontSize:13, fontWeight:700, color:CF.text, marginBottom:6, lineHeight:1.3 }}>{h.product}</div>
+            <div style={{ fontSize:26, fontWeight:900, color:CF.green, lineHeight:1, marginTop:'auto', fontFamily:"Cormorant Garamond,Georgia,serif", letterSpacing:'-.01em' }}>{h.value}</div>
+          </div>
+        ))}
+      </div>
+      {/* Bottom strip */}
+      <div style={{ background:CF.navy, padding:'10px 32px', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
+        <div style={{ color:'rgba(255,255,255,.7)', fontSize:11, fontWeight:600 }}>{slide.loName}</div>
+        <div style={{ color:'rgba(255,255,255,.4)', fontSize:10 }}>{slide.loPhone}{slide.loPhone&&slide.loEmail?' · ':''}{slide.loEmail}</div>
+      </div>
+    </div>
+  );
+
+  // ── CF-PAYMENT ─────────────────────────────────────────────────────────────
+  if(slide.type==='cf-payment') return (
+    <div style={{ width:'100%', height:'100%', background:CF.bg, display:'flex', flexDirection:'column', fontFamily:"Inter,sans-serif", overflow:'hidden', boxSizing:'border-box' }}>
+      <LogoHeader light right="Monthly Payment Comparison" />
+      <div style={{ flex:1, display:'flex', gap:0, overflow:'hidden' }}>
+        {/* Left panel */}
+        <div style={{ width:190, background:CF.navy, padding:'24px 22px', display:'flex', flexDirection:'column', justifyContent:'center', flexShrink:0 }}>
+          <Badge label="Most Monthly Savings" color={CF.green} />
+          <div style={{ fontSize:11, color:'rgba(255,255,255,.4)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:4 }}>vs current loan</div>
+          <div style={{ fontSize:11, color:'rgba(255,255,255,.6)', marginBottom:12 }}>Citizens Financial</div>
+          <div style={{ fontSize:46, fontWeight:900, color:'#6ee7b7', lineHeight:1, fontFamily:"Cormorant Garamond,Georgia,serif", letterSpacing:'-.02em' }}>{slide.monthlySavings}</div>
+          <div style={{ fontSize:12, color:'rgba(255,255,255,.5)', marginTop:6 }}>monthly savings</div>
+          <div style={{ marginTop:20, paddingTop:16, borderTop:'1px solid rgba(255,255,255,.1)' }}>
+            <div style={{ fontSize:10, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:8 }}>Loan Product</div>
+            <div style={{ fontSize:12, fontWeight:700, color:'rgba(255,255,255,.8)' }}>{slide.loanProduct}</div>
+          </div>
+        </div>
+        {/* Right chart area */}
+        <div style={{ flex:1, padding:'22px 28px', display:'flex', flexDirection:'column' }}>
+          <div style={{ fontSize:13, fontWeight:700, color:CF.text, marginBottom:16 }}>Total Monthly Payments</div>
+          <div style={{ display:'flex', gap:4, marginBottom:10, fontSize:10, color:CF.muted }}>
+            {[['#1a1a2e','Principal'],['#7c3aed','Interest'],['#6ee7b7','Ins/Taxes']].map(([c,l])=>(
+              <span key={l} style={{ display:'flex', alignItems:'center', gap:3, marginRight:8 }}>
+                <span style={{ width:8, height:8, borderRadius:2, background:c, display:'inline-block' }}/>{l}
+              </span>
+            ))}
+          </div>
+          <div style={{ flex:1, display:'flex', gap:32, alignItems:'flex-end', paddingBottom:8 }}>
+            {[
+              { label:'Current Loan', sub:'Existing', val:slide.currentTotal, pct:100 },
+              { label:'Citizens Financial', sub:slide.loanProduct, val:slide.newTotal, pct:Math.round(slide.newTotal/slide.currentTotal*100), highlight:true },
+            ].map((col,ci)=>(
+              <div key={ci} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6, flex:1 }}>
+                <div style={{ fontSize:12, fontWeight:800, color:col.highlight?CF.green:CF.text }}>${(col.val||0).toLocaleString()}</div>
+                <div style={{ width:'100%', maxWidth:80, borderRadius:'6px 6px 0 0', overflow:'hidden', background:'#e5e7eb', height:Math.round(col.pct*1.2)+'px', position:'relative', minHeight:50 }}>
+                  <div style={{ position:'absolute', bottom:0, left:0, right:0, height:'55%', background:col.highlight?CF.navy:'#374151' }} />
+                  <div style={{ position:'absolute', bottom:'55%', left:0, right:0, height:'28%', background:'#7c3aed', opacity:.7 }} />
+                  <div style={{ position:'absolute', top:0, left:0, right:0, height:'17%', background:'#6ee7b7', opacity:.85 }} />
+                </div>
+                <div style={{ fontSize:10, color:CF.muted, textAlign:'center', textTransform:'uppercase', letterSpacing:'.04em', fontWeight:600 }}>{col.label}</div>
+                <div style={{ fontSize:10, color:CF.text, fontWeight:700 }}>{col.sub}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── CF-SAVINGS ─────────────────────────────────────────────────────────────
+  if(slide.type==='cf-savings') return (
+    <div style={{ width:'100%', height:'100%', background:CF.bg2, display:'flex', flexDirection:'column', fontFamily:"Inter,sans-serif", overflow:'hidden', boxSizing:'border-box' }}>
+      <LogoHeader light right="Interest Savings Analysis" />
+      <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'16px 28px 18px', gap:14, overflow:'hidden' }}>
+        <div style={{ fontSize:18, fontFamily:"Cormorant Garamond,Georgia,serif", fontWeight:700, color:CF.text }}>Interest Savings Over Loan Life</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12, flex:1 }}>
+          {(slide.metrics||[]).map((m,i)=>(
+            <div key={i} style={{ background:CF.bg, border:`1px solid ${CF.border}`, borderRadius:10, padding:'16px', display:'flex', flexDirection:'column', boxShadow:'0 1px 4px rgba(0,0,0,.05)' }}>
+              <Badge label={m.badge} color={i===0?CF.green:CF.navy} />
+              <div style={{ fontSize:11, color:CF.muted, marginBottom:8, lineHeight:1.4 }}>{m.label}</div>
+              <div style={{ fontSize:28, fontWeight:900, color:CF.green, lineHeight:1, fontFamily:"Cormorant Garamond,Georgia,serif", letterSpacing:'-.01em', marginBottom:6 }}>{m.value}</div>
+              <div style={{ fontSize:11, color:CF.muted, marginTop:'auto', lineHeight:1.5, borderTop:`1px solid ${CF.border}`, paddingTop:8 }}>{m.description}</div>
+            </div>
+          ))}
+        </div>
+        {/* Comparison bar */}
+        <div style={{ background:CF.bg, border:`1px solid ${CF.border}`, borderRadius:8, padding:'12px 16px' }}>
+          <div style={{ fontSize:10, color:CF.muted, fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>TOTAL INTEREST COMPARISON</div>
+          {[{ label:'Current Loan', val:slide.currentInterest, pct:'100%', color:'#374151' },
+            { label:'Citizens Financial', val:slide.newInterest, pct:slide.savingsPct||'85%', color:CF.green }].map((row,ri)=>(
+            <div key={ri} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:ri===0?8:0 }}>
+              <div style={{ width:120, fontSize:11, color:CF.muted, fontWeight:600, flexShrink:0 }}>{row.label}</div>
+              <div style={{ flex:1, height:12, background:'#f3f4f6', borderRadius:4, overflow:'hidden' }}>
+                <div style={{ height:'100%', width:row.pct, background:row.color, borderRadius:4, transition:'width .5s' }} />
+              </div>
+              <div style={{ width:80, fontSize:11, fontWeight:800, color:ri===1?CF.green:CF.text, textAlign:'right', flexShrink:0 }}>{row.val}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── CF-BREAKEVEN ───────────────────────────────────────────────────────────
+  if(slide.type==='cf-breakeven') return (
+    <div style={{ width:'100%', height:'100%', background:CF.bg, display:'flex', flexDirection:'column', fontFamily:"Inter,sans-serif", overflow:'hidden', boxSizing:'border-box' }}>
+      <LogoHeader light right="Break Even Analysis" />
+      <div style={{ flex:1, display:'flex', gap:0, overflow:'hidden' }}>
+        {/* Left stat panel */}
+        <div style={{ width:190, background:CF.navy, padding:'24px 22px', display:'flex', flexDirection:'column', justifyContent:'center', flexShrink:0 }}>
+          <Badge label="Quickest Breakeven" color={CF.green} />
+          <div style={{ fontSize:11, color:'rgba(255,255,255,.5)', marginBottom:12 }}>Citizens Financial</div>
+          <div style={{ fontSize:44, fontWeight:900, color:'#6ee7b7', lineHeight:1, fontFamily:"Cormorant Garamond,Georgia,serif" }}>{slide.breakevenMonths}</div>
+          <div style={{ fontSize:12, color:'rgba(255,255,255,.4)', marginTop:8 }}>to break even</div>
+          <div style={{ marginTop:20, paddingTop:16, borderTop:'1px solid rgba(255,255,255,.1)' }}>
+            <div style={{ fontSize:10, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:8 }}>Net Cost (7yr)</div>
+            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6, fontSize:11 }}>
+              <span style={{ color:'rgba(255,255,255,.5)' }}>Current</span>
+              <span style={{ color:'rgba(255,255,255,.7)', fontWeight:700 }}>{slide.currentNetCost}</span>
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:11 }}>
+              <span style={{ color:'rgba(255,255,255,.5)' }}>New Loan</span>
+              <span style={{ color:'#6ee7b7', fontWeight:800 }}>{slide.newNetCost}</span>
+            </div>
+          </div>
+        </div>
+        {/* Right chart */}
+        <div style={{ flex:1, padding:'22px 28px', display:'flex', flexDirection:'column' }}>
+          <div style={{ fontSize:13, fontWeight:700, color:CF.text, marginBottom:16 }}>Cumulative Cost Over Time</div>
+          <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', gap:8, background:CF.bg2, borderRadius:8, padding:'14px 16px', border:`1px solid ${CF.border}` }}>
+            {[1,2,3,4,5,6,7].map(yr=>(
+              <div key={yr} style={{ display:'flex', alignItems:'center', gap:10, fontSize:11 }}>
+                <div style={{ width:28, color:CF.muted, textAlign:'right', flexShrink:0, fontWeight:600 }}>Yr {yr}</div>
+                <div style={{ flex:1, display:'flex', flexDirection:'column', gap:3 }}>
+                  <div style={{ height:9, background:'#374151', borderRadius:3, width:Math.round(yr/7*100)+'%', opacity:.75 }} />
+                  <div style={{ height:9, background:CF.green, borderRadius:3, width:Math.round(Math.max(0,(yr/7-.08))*95)+'%' }} />
+                </div>
+              </div>
+            ))}
+            <div style={{ display:'flex', gap:16, marginTop:4, paddingTop:8, borderTop:`1px solid ${CF.border}` }}>
+              {[['#374151','Current Loan'],[CF.green,'Citizens Financial']].map(([c,l])=>(
+                <span key={l} style={{ display:'flex', alignItems:'center', gap:5, fontSize:10, color:CF.muted }}>
+                  <span style={{ width:12, height:8, background:c, borderRadius:2, display:'inline-block' }}/>{l}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── CF-TABLE ────────────────────────────────────────────────────────────────
+  if(slide.type==='cf-table') return (
+    <div style={{ width:'100%', height:'100%', background:CF.bg, display:'flex', flexDirection:'column', fontFamily:"Inter,sans-serif", overflow:'hidden', boxSizing:'border-box' }}>
+      <LogoHeader light />
+      <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'14px 28px 18px', overflow:'hidden' }}>
+        <div style={{ marginBottom:14 }}>
+          <div style={{ fontSize:20, fontFamily:"Cormorant Garamond,Georgia,serif", fontWeight:700, color:CF.text }}>True Cost Comparison</div>
+          <div style={{ fontSize:12, color:CF.muted, marginTop:2 }}>An in-depth look at your loan details.</div>
+        </div>
+        <div style={{ flex:1, border:`1px solid ${CF.border}`, borderRadius:10, overflow:'hidden' }}>
+          {/* Header */}
+          <div style={{ display:'grid', gridTemplateColumns:'1.8fr 1fr 1fr', background:CF.navy }}>
+            {['', 'Current Loan', ''].map((h,i)=>(
+              <div key={i} style={{ padding:'10px 16px', fontSize:11, fontWeight:700, color: i===2?'transparent':'rgba(255,255,255,.9)', borderLeft:i?`1px solid rgba(255,255,255,.08)`:'none', display:'flex', alignItems:'center' }}>
+                {i===2 ? <img src={LOGO} alt="Citizens Financial" style={{ height:18, filter:'brightness(0) invert(1)' }} onError={e=>e.target.style.display='none'} /> : h}
+              </div>
+            ))}
+          </div>
+          {/* Rows */}
+          {(slide.rows||[]).map((row,ri)=>(
+            <div key={ri} style={{ display:'grid', gridTemplateColumns:'1.8fr 1fr 1fr', borderTop:`1px solid ${CF.border}`, background:row.highlight?CF.lightgreen:ri%2===0?CF.bg:CF.bg2 }}>
+              <div style={{ padding:'9px 16px', fontSize:11, color:CF.muted, fontWeight:600, textTransform:'uppercase', letterSpacing:'.03em' }}>{row.label}</div>
+              <div style={{ padding:'9px 16px', fontSize:row.highlight?13:12, fontWeight:row.highlight?700:500, color:CF.text, borderLeft:`1px solid ${CF.border}` }}>{row.current||'—'}</div>
+              <div style={{ padding:'9px 16px', fontSize:row.highlight?14:12, fontWeight:row.highlight?800:500, color:row.highlight?CF.green:CF.text, borderLeft:`1px solid ${CF.border}` }}>{row.newVal||row.new||'—'}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize:9, color:CF.muted, lineHeight:1.6, marginTop:8 }}>Loan scenarios used for informational purposes only. Rates may not be available at time of application. Not a commitment to lend.</div>
+      </div>
+    </div>
+  );
+
+  // ── CF-CLOSING ──────────────────────────────────────────────────────────────
+  if(slide.type==='cf-closing') return (
+    <div style={{ width:'100%', height:'100%', background:CF.navy, display:'flex', flexDirection:'column', fontFamily:"Inter,sans-serif", overflow:'hidden', boxSizing:'border-box', position:'relative' }}>
+      {/* Decorative shape */}
+      <div style={{ position:'absolute', top:0, right:0, width:'40%', height:'100%', background:'rgba(255,255,255,.02)', clipPath:'polygon(30% 0, 100% 0, 100% 100%, 0% 100%)' }} />
+      <div style={{ position:'absolute', bottom:0, left:0, right:0, height:4, background:`linear-gradient(90deg, ${CF.green}, transparent)` }} />
+      {/* Content */}
+      <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'32px 48px', position:'relative' }}>
+        <img src={LOGO} alt="Citizens Financial" style={{ height:36, filter:'brightness(0) invert(1)', marginBottom:24, opacity:.85 }} onError={e=>e.target.style.display='none'} />
+        <div style={{ width:40, height:3, background:CF.green, borderRadius:2, marginBottom:20 }} />
+        <h2 style={{ fontFamily:"Cormorant Garamond,Georgia,serif", fontSize:34, fontWeight:700, color:'#fff', textAlign:'center', lineHeight:1.2, marginBottom:16, maxWidth:460 }}>{slide.title||'Ready to Move Forward?'}</h2>
+        <p style={{ fontSize:14, color:'rgba(255,255,255,.6)', lineHeight:1.8, textAlign:'center', maxWidth:420, marginBottom:28 }}>{slide.body}</p>
+        {/* LO contact card */}
+        <div style={{ background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.12)', borderRadius:12, padding:'18px 28px', textAlign:'center', backdropFilter:'blur(10px)' }}>
+          {slide.loName && <div style={{ fontWeight:700, fontSize:15, color:'#fff', marginBottom:4 }}>{slide.loName}</div>}
+          {slide.loPhone && <div style={{ fontSize:12, color:'rgba(255,255,255,.6)', marginBottom:2 }}>{slide.loPhone}</div>}
+          {slide.loEmail && <div style={{ fontSize:12, color:CF.green, fontWeight:600 }}>{slide.loEmail}</div>}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Fallback ────────────────────────────────────────────────────────────────
   return (
-    <div style={base}>
-      {accentBar}{logo}
-      <h2 style={{ fontSize:32, fontWeight:700, marginBottom:16, fontFamily:"'Cormorant Garamond',Georgia,serif" }}>{slide.title}</h2>
-      {slide.body && <p style={{ fontSize:15, color:mutedColor, lineHeight:1.75, maxWidth:640 }}>{slide.body}</p>}
-      {slideNum}
+    <div style={{ width:'100%', height:'100%', background:CF.navy, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', fontFamily:"Inter,sans-serif", padding:40, boxSizing:'border-box', color:'#fff' }}>
+      <h2 style={{ fontFamily:"Cormorant Garamond,Georgia,serif", fontSize:28, fontWeight:700, marginBottom:12 }}>{slide.title}</h2>
+      {slide.body && <p style={{ fontSize:14, color:'rgba(255,255,255,.7)', lineHeight:1.75, textAlign:'center', maxWidth:500 }}>{slide.body}</p>}
     </div>
   );
 }
@@ -4849,135 +4807,129 @@ function PublicPresentationViewer({ token }) {
 
 // ─── AI PRESENTATION BUILDER MODAL ────────────────────────────────────────────
 function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) {
-  const [step, setStep]         = useState('choose'); // choose | form | preview | sending
-  const [mode, setMode]         = useState(null);     // 'ai' | 'template'
+  const [step, setStep]         = useState('choose');
+  const [mode, setMode]         = useState(null);
   const [templates, setTemplates] = useState([]);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [slides, setSlides]     = useState([]);
   const [slideIndex, setSlideIndex] = useState(0);
   const [sending, setSending]   = useState(false);
-  const [fullscreen, setFullscreen] = useState(false);
-
-  // AI form fields — pre-fill from contact
   const [form, setForm] = useState({
-    borrower_name: contact?.full_name || '',
-    loan_type: 'Purchase',
-    loan_amount: contact?.deal_value ? String(contact.deal_value) : '',
-    rate: '',
-    term: '30',
+    borrower_name:    contact?.full_name || '',
+    loan_type:        'Purchase',
+    loan_amount:      contact?.deal_value ? String(contact.deal_value) : '',
+    rate:             '',
+    term:             '30',
     property_address: '',
-    lo_name: profile?.full_name || '',
-    lo_phone: '',
-    lo_email: profile?.email || '',
-    key_points: '',
+    lo_name:          profile?.full_name || '',
+    lo_phone:         '',
+    lo_email:         profile?.email || '',
+    key_points:       '',
   });
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
   useEffect(()=>{
-    supabase.from('presentation_templates').select('*').eq('company_id', profile.company_name).order('created_at',{ascending:false})
+    supabase.from('presentation_templates').select('*')
+      .eq('company_id', profile.company_name)
+      .order('created_at',{ascending:false})
       .then(({data})=>setTemplates(data||[]));
   },[]);
 
-  const generateWithAI = async () => {
+  // ── Generate slides from loan data ──────────────────────────────────────────
+  const generatePresentation = async () => {
     setGenerating(true);
     setStep('preview');
+    setSelectedTemplate(null);
     try {
-      // Pre-calculate all numbers in JS — no API needed
-      const principal    = Number(form.loan_amount||0);
-      const annualRate   = Number(form.rate||0);
-      const termYears    = Number(form.term||30);
-      const monthlyRate  = annualRate / 100 / 12;
-      const numPayments  = termYears * 12;
+      const principal   = Number(form.loan_amount||0);
+      const annualRate  = Number(form.rate||0);
+      const termYears   = Number(form.term||30);
+      const monthlyRate = annualRate / 100 / 12;
+      const numPayments = termYears * 12;
       const monthlyPayment = monthlyRate > 0
         ? Math.round(principal * (monthlyRate * Math.pow(1+monthlyRate,numPayments)) / (Math.pow(1+monthlyRate,numPayments)-1))
         : Math.round(principal / numPayments);
-      const totalPaid      = monthlyPayment * numPayments;
-      const totalInterest  = totalPaid - principal;
-      const fmt = (n) => n >= 1000000 ? '$'+(n/1000000).toFixed(2)+'M' : '$'+n.toLocaleString();
-      const monthlySavings = Math.round(monthlyPayment * 0.08);
-      const currentMonthly = Math.round(monthlyPayment * 1.22);
-      const equity5yr      = Math.round(principal * 0.09 / 1000);
-      const breakeven      = Math.round(36 + (principal / 100000) * 8);
+      const totalPaid     = monthlyPayment * numPayments;
+      const totalInterest = totalPaid - principal;
+      const fmt = n => n >= 1000000 ? '$'+(n/1000000).toFixed(2)+'M' : '$'+n.toLocaleString();
+      const equity5yr = Math.round(principal * 0.09 / 1000);
+      const breakeven = Math.round(36 + (principal / 100000) * 8);
+      const lo = { loName: form.lo_name, loPhone: form.lo_phone||'', loEmail: form.lo_email||'' };
 
-      const loInfo = { loName: form.lo_name, loPhone: form.lo_phone||'', loEmail: form.lo_email||'' };
-
-      const generated = [
+      setSlides([
         {
-          type: 'cf-cover',
+          type:'cf-cover',
           borrowerName: form.borrower_name,
-          loanPurpose: form.loan_type.toLowerCase(),
+          loanPurpose:  form.loan_type.toLowerCase(),
           date: new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}),
-          highlights: [
-            { badge:'Lowest Monthly Payment', label:'Option 1', loanAmount:fmt(principal), product:'Citizens Financial '+form.loan_type, value:fmt(monthlyPayment)+'/mo' },
-            { badge:'Best Rate Available',    label:'Option 1', loanAmount:fmt(principal), product:'Citizens Financial '+form.loan_type, value:annualRate+'% Rate' },
-            { badge:'Interest Savings',       label:'Option 1', loanAmount:fmt(principal), product:'Citizens Financial '+form.loan_type, value:fmt(Math.round(totalInterest*0.12))+' saved' },
+          highlights:[
+            { badge:'Monthly Payment',   label:'Citizens Financial '+form.loan_type, loanAmount:fmt(principal), product:form.loan_type, value:fmt(monthlyPayment)+'/mo' },
+            { badge:'Interest Rate',     label:'Citizens Financial '+form.loan_type, loanAmount:fmt(principal), product:form.loan_type, value:annualRate+'% Fixed' },
+            { badge:'Total Loan',        label:'Citizens Financial '+form.loan_type, loanAmount:fmt(principal), product:form.loan_type, value:fmt(principal) },
           ],
-          ...loInfo,
+          ...lo,
         },
         {
-          type: 'cf-payment',
-          monthlySavings: fmt(monthlySavings),
-          currentTotal:   currentMonthly,
+          type:'cf-payment',
+          monthlySavings: fmt(Math.round(monthlyPayment * 0.08)),
+          currentTotal:   Math.round(monthlyPayment * 1.22),
           newTotal:       monthlyPayment,
           loanProduct:    form.loan_type,
-          ...loInfo,
+          ...lo,
         },
         {
-          type: 'cf-savings',
-          metrics: [
-            { badge:'Total Interest Savings', label:'Over loan life',       value: fmt(totalInterest),       description: 'Total interest paid over '+termYears+'-year term at '+annualRate+'% fixed rate' },
-            { badge:'Monthly Savings',        label:'vs average renter',    value: fmt(monthlySavings),      description: 'Estimated monthly savings vs continuing to rent in the current market' },
-            { badge:'Equity in Year 5',       label:'Estimated equity gained', value: '~$'+equity5yr+'k',   description: 'Approximate equity accumulated through amortization by year 5' },
+          type:'cf-savings',
+          metrics:[
+            { badge:'Total Interest', label:'Over '+termYears+'-year term', value:fmt(totalInterest), description:'At '+annualRate+'% fixed rate on '+fmt(principal) },
+            { badge:'Monthly Savings', label:'vs avg renter', value:fmt(Math.round(monthlyPayment*0.06)), description:'Estimated savings vs continuing to rent locally' },
+            { badge:'Equity Yr 5', label:'Approx equity gained', value:'~$'+equity5yr+'k', description:'Through amortization paydown in first 5 years' },
           ],
-          currentInterest: fmt(Math.round(totalInterest * 1.15)),
+          currentInterest: fmt(Math.round(totalInterest*1.15)),
           newInterest:     fmt(totalInterest),
           savingsPct:      '85%',
-          ...loInfo,
+          ...lo,
         },
         {
-          type: 'cf-breakeven',
+          type:'cf-breakeven',
           breakevenMonths: breakeven+' mos.',
-          currentNetCost:  fmt(Math.round(currentMonthly * 84)),
-          newNetCost:      fmt(Math.round(monthlyPayment * 84 * 0.96)),
-          ...loInfo,
+          currentNetCost:  fmt(Math.round(monthlyPayment*1.22*84)),
+          newNetCost:      fmt(Math.round(monthlyPayment*84*0.96)),
+          ...lo,
         },
         {
-          type: 'cf-table',
-          rows: [
-            { label:'Loan Amount',      current:'Existing Loan',    newVal: fmt(principal) },
-            { label:'Loan Type',        current:'Current',          newVal: form.loan_type },
-            { label:'Term',             current:'Existing',         newVal: termYears+' Years' },
-            { label:'Rate',             current:'Current Rate',     newVal: annualRate+'%' },
-            { label:'Monthly P&I',      current:'Current Payment',  newVal: fmt(monthlyPayment),  highlight: true },
-            { label:'Total Monthly',    current:'Current Total',    newVal: fmt(Math.round(monthlyPayment*1.28)), highlight: true },
-            { label:'Total Interest',   current:'Current Total',    newVal: fmt(totalInterest) },
-            { label:'Total Cost',       current:'Current Total',    newVal: fmt(totalPaid),       highlight: true },
+          type:'cf-table',
+          rows:[
+            { label:'Loan Amount',   current:'—',              newVal: fmt(principal) },
+            { label:'Loan Type',     current:'Current',        newVal: form.loan_type },
+            { label:'Term',          current:'—',              newVal: termYears+' Years' },
+            { label:'Interest Rate', current:'Current Rate',   newVal: annualRate+'%' },
+            { label:'Monthly P&I',   current:'—',              newVal: fmt(monthlyPayment),  highlight:true },
+            { label:'Total Monthly', current:'—',              newVal: fmt(Math.round(monthlyPayment*1.28)), highlight:true },
+            { label:'Total Interest',current:'—',              newVal: fmt(totalInterest) },
+            { label:'Total Cost',    current:'—',              newVal: fmt(totalPaid), highlight:true },
           ],
-          ...loInfo,
+          ...lo,
         },
         {
-          type: 'cf-closing',
-          title: 'Ready to Move Forward?',
-          body:  "You've taken the first step toward securing the right loan. I'm here to guide you through every step — from application to closing. Let's make it happen.",
+          type:'cf-closing',
+          title:'Ready to Move Forward?',
+          body:"You've taken the first step toward securing the right loan. I'm here to guide you through every step — from application to closing. Let's make it happen.",
           loName:  form.lo_name,
-          loPhone: form.lo_phone || 'Available upon request',
+          loPhone: form.lo_phone || '',
           loEmail: form.lo_email || '',
         },
-      ];
-
-      setSlides(generated);
+      ]);
     } catch(e) {
-      console.error('[Presentation] Error:', e);
-      toast('Error building presentation: ' + e.message);
+      toast('Error: '+e.message);
     }
     setGenerating(false);
   };
 
-    const useTemplate = (tmpl) => {
+  // ── Use a saved template ─────────────────────────────────────────────────────
+  const useTemplate = tmpl => {
     setSelectedTemplate(tmpl);
     if(tmpl.template_type==='pdf') {
-      // PDF — skip slide editing, go straight to preview/send
       setSlides([]);
       setStep('preview');
       return;
@@ -4995,15 +4947,14 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
     setStep('preview');
   };
 
+  // ── Send presentation ────────────────────────────────────────────────────────
   const sendPresentation = async () => {
-    if(!contact?.email) { toast('Contact has no email address'); return; }
+    if(!contact?.email){ toast('Contact has no email address'); return; }
     setSending(true);
     try {
-      const token = crypto.randomUUID();
+      const token  = crypto.randomUUID();
       const viewUrl = window.location.origin + window.location.pathname + '#present-' + token;
-      
-      const isPdf = selectedTemplate?.template_type==='pdf';
-      // Save presentation
+      const isPdf  = selectedTemplate?.template_type==='pdf';
       const { error } = await supabase.from('presentations').insert([{
         company_id:    profile.company_name,
         company_name:  profile.company_name,
@@ -5019,127 +4970,150 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
         lo_name:       form.lo_name,
       }]);
       if(error) throw error;
-
-      // Send email via existing email function
-      const { data:{ session } } = await supabase.auth.getSession();
-      const emailHtml = `
-        <div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto;background:#f8f9fc;border-radius:12px;overflow:hidden;">
-          <div style="background:#0f1c3f;padding:32px 40px;">
-            <h1 style="color:#fff;font-family:Georgia,serif;font-size:26px;margin:0 0 8px;">${profile.company_name}</h1>
-            <p style="color:rgba(255,255,255,.6);margin:0;font-size:14px;">Mortgage Presentation</p>
-          </div>
-          <div style="padding:32px 40px;">
-            <p style="font-size:16px;color:#1a1a2e;margin:0 0 12px;">Dear ${contact.full_name},</p>
-            <p style="font-size:15px;color:#444;line-height:1.7;margin:0 0 24px;">I've prepared a personalized mortgage presentation for you. Click the button below to view it at any time.</p>
-            <a href="${viewUrl}" style="display:inline-block;background:#0f1c3f;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:15px;margin-bottom:28px;">View Your Presentation →</a>
-            <p style="font-size:13px;color:#888;margin:0;">Best regards,<br/><strong style="color:#444;">${form.lo_name}</strong><br/>${form.lo_email||''}</p>
-          </div>
-        </div>`;
-
-      const emailRes = await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + process.env.REACT_APP_SUPABASE_ANON_KEY },
-        body: JSON.stringify({ to: contact.email, subject: `Your Mortgage Presentation from ${profile.company_name}`, body: emailHtml })
+      const emailHtml = `<div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto;background:#f8f9fc;border-radius:12px;overflow:hidden;">
+        <div style="background:#0f1c3f;padding:32px 40px;">
+          <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style="height:40px;filter:brightness(0) invert(1);margin-bottom:12px;display:block;" />
+          <p style="color:rgba(255,255,255,.6);margin:0;font-size:14px;">Personalized Mortgage Presentation</p>
+        </div>
+        <div style="padding:32px 40px;">
+          <p style="font-size:16px;color:#1a1a2e;margin:0 0 8px;">Dear ${contact.full_name},</p>
+          <p style="font-size:15px;color:#555;line-height:1.7;margin:0 0 28px;">I've prepared a personalized mortgage presentation for you. Click below to view it at any time.</p>
+          <a href="${viewUrl}" style="display:inline-block;background:#1a9a5c;color:#fff;padding:14px 32px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;margin-bottom:28px;">View Your Presentation →</a>
+          <p style="font-size:13px;color:#888;margin:0;border-top:1px solid #eee;padding-top:20px;">Best regards,<br/><strong style="color:#444;">${form.lo_name}</strong>${form.lo_phone?'<br/>'+form.lo_phone:''}<br/>${form.lo_email||''}</p>
+        </div>
+      </div>`;
+      const emailRes = await fetch(process.env.REACT_APP_SUPABASE_URL+'/functions/v1/send-email',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+process.env.REACT_APP_SUPABASE_ANON_KEY},
+        body: JSON.stringify({ to:contact.email, subject:`Your Mortgage Presentation — ${profile.company_name}`, body:emailHtml })
       });
-      if(!emailRes.ok) {
-        const errData = await emailRes.json().catch(()=>({}));
-        throw new Error('Email failed: ' + (errData.error || emailRes.status));
-      }
-
-      toast('Presentation sent to ' + contact.email + '!');
+      if(!emailRes.ok){ const d=await emailRes.json().catch(()=>({})); throw new Error(d.error||emailRes.status); }
+      toast('Presentation sent to '+contact.email+'!');
       onSent && onSent();
       onClose();
-    } catch(e) { toast('Error: ' + e.message); }
+    } catch(e){ toast('Error: '+e.message); }
     setSending(false);
   };
 
-  // ── STEP: CHOOSE mode ──
+  // ────────────────────────────────────────────────────────────────────────────
+  // STEP: CHOOSE
+  // ────────────────────────────────────────────────────────────────────────────
   if(step==='choose') return (
     <div className="overlay" onClick={onClose}>
-      <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:600 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
+      <div onClick={e=>e.stopPropagation()} style={{ width:'min(680px,95vw)', background:'var(--surface)', borderRadius:20, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', overflow:'hidden' }}>
+        {/* Header */}
+        <div style={{ background:'#0f1c3f', padding:'28px 32px', display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
           <div>
-            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Build Presentation</div>
-            {contact && <div style={{ color:'var(--muted)', fontSize:13, marginTop:2 }}>for {contact.full_name}</div>}
+            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:26, fontWeight:700, color:'#fff', marginBottom:4 }}>Build Presentation</div>
+            {contact && <div style={{ color:'rgba(255,255,255,.55)', fontSize:14 }}>for {contact.full_name}</div>}
           </div>
-          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
+          <button onClick={onClose} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', width:32, height:32, borderRadius:8, cursor:'pointer', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:20 }}>
+        {/* Cards */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:0 }}>
+          {/* Generate */}
           <div onClick={()=>{ setMode('ai'); setStep('form'); }}
-            style={{ border:'2px solid var(--border)', borderRadius:12, padding:24, cursor:'pointer', transition:'all .15s' }}
-            onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.background='rgba(77,142,240,.05)'; }}
-            onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background=''; }}>
-            <div style={{ width:40, height:40, borderRadius:10, background:'linear-gradient(135deg,#6366f1,#8b5cf6)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:14 }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/></svg>
+            style={{ padding:'32px 28px', cursor:'pointer', borderRight:'1px solid var(--border)', borderBottom:'none', transition:'background .15s' }}
+            onMouseOver={e=>e.currentTarget.style.background='rgba(26,154,92,.05)'}
+            onMouseOut={e=>e.currentTarget.style.background=''}>
+            <div style={{ width:52, height:52, borderRadius:14, background:'linear-gradient(135deg,#1a9a5c,#0d7a47)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:18, boxShadow:'0 4px 16px rgba(26,154,92,.3)' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             </div>
-            <div style={{ fontWeight:700, fontSize:15, marginBottom:6 }}>AI-Generated</div>
-            <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.6 }}>Claude builds a custom presentation from your loan details in seconds</div>
+            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:20, fontWeight:700, color:'var(--text)', marginBottom:8 }}>Generate Presentation</div>
+            <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.7, marginBottom:16 }}>Enter loan details and get a complete, branded Citizens Financial presentation built instantly — no templates needed.</div>
+            <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+              {['Cover slide','Payment breakdown','Savings analysis','True cost table','Closing CTA'].map(tag=>(
+                <span key={tag} style={{ fontSize:10, fontWeight:600, color:'#1a9a5c', background:'rgba(26,154,92,.1)', padding:'3px 8px', borderRadius:20, letterSpacing:'.03em' }}>{tag}</span>
+              ))}
+            </div>
           </div>
+          {/* From Template */}
           <div onClick={()=>{ setMode('template'); setStep('form'); }}
-            style={{ border:'2px solid var(--border)', borderRadius:12, padding:24, cursor:'pointer', transition:'all .15s' }}
-            onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.background='rgba(77,142,240,.05)'; }}
-            onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background=''; }}>
-            <div style={{ width:40, height:40, borderRadius:10, background:'linear-gradient(135deg,#0f1c3f,#1a56db)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:14 }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            style={{ padding:'32px 28px', cursor:'pointer', transition:'background .15s' }}
+            onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.05)'}
+            onMouseOut={e=>e.currentTarget.style.background=''}>
+            <div style={{ width:52, height:52, borderRadius:14, background:'linear-gradient(135deg,#0f1c3f,#1a3a6e)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:18, boxShadow:'0 4px 16px rgba(15,28,63,.3)' }}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
             </div>
-            <div style={{ fontWeight:700, fontSize:15, marginBottom:6 }}>From Template</div>
-            <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.6 }}>{templates.length>0 ? `${templates.length} template${templates.length!==1?'s':''} available in your library` : 'Use a pre-built template from the library'}</div>
+            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:20, fontWeight:700, color:'var(--text)', marginBottom:8 }}>From Template</div>
+            <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.7, marginBottom:16 }}>Choose a pre-built template from your library — slide decks or PDF documents — and send directly.</div>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <div style={{ width:8, height:8, borderRadius:'50%', background: templates.length>0?'#1a9a5c':'var(--muted)' }} />
+              <span style={{ fontSize:12, color: templates.length>0?'#1a9a5c':'var(--muted)', fontWeight:600 }}>
+                {templates.length>0 ? `${templates.length} template${templates.length!==1?'s':''} in library` : 'No templates yet'}
+              </span>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 
-  // ── STEP: FORM ──
-  if(step==='form') {
-    if(mode==='template') return (
-      <div className="overlay" onClick={onClose}>
-        <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:620 }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Choose Template</div>
-            <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
+  // ────────────────────────────────────────────────────────────────────────────
+  // STEP: FORM — Template picker
+  // ────────────────────────────────────────────────────────────────────────────
+  if(step==='form' && mode==='template') return (
+    <div className="overlay" onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{ width:'min(640px,95vw)', background:'var(--surface)', borderRadius:20, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', overflow:'hidden', maxHeight:'85vh', display:'flex', flexDirection:'column' }}>
+        <div style={{ background:'#0f1c3f', padding:'24px 28px', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
+          <div>
+            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700, color:'#fff' }}>Choose Template</div>
+            {contact && <div style={{ color:'rgba(255,255,255,.5)', fontSize:13, marginTop:2 }}>for {contact.full_name}</div>}
           </div>
+          <button onClick={onClose} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', width:32, height:32, borderRadius:8, cursor:'pointer', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+        </div>
+        <div style={{ flex:1, overflowY:'auto', padding:'20px 24px' }}>
           {templates.length===0 ? (
-            <div style={{ textAlign:'center', padding:'32px 0', color:'var(--muted)' }}>
-              <div style={{ marginBottom:8, display:'flex', justifyContent:'center' }}>{React.cloneElement(Icons.file,{width:32,height:32})}</div>
-              <div style={{ fontWeight:600, marginBottom:4 }}>No templates yet</div>
-              <div style={{ fontSize:13 }}>Ask an admin to upload templates in the Presentations page.</div>
+            <div style={{ textAlign:'center', padding:'40px 0', color:'var(--muted)' }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>📂</div>
+              <div style={{ fontWeight:700, fontSize:15, marginBottom:6 }}>No templates yet</div>
+              <div style={{ fontSize:13 }}>Go to Presentations → Upload Template to add slide decks or PDFs.</div>
             </div>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {templates.map(t=>(
                 <div key={t.id} onClick={()=>useTemplate(t)}
-                  style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 16px', border:'1px solid var(--border)', borderRadius:10, cursor:'pointer', transition:'all .15s' }}
-                  onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.background='rgba(77,142,240,.05)'; }}
-                  onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background=''; }}>
-                  <div style={{ width:36, height:36, borderRadius:8, background:t.template_type==='pdf'?'#e05252':'var(--accent)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                    {React.cloneElement(Icons.file,{width:18,height:18,stroke:'#fff'})}
+                  style={{ display:'flex', alignItems:'center', gap:16, padding:'16px 18px', border:'1px solid var(--border)', borderRadius:12, cursor:'pointer', transition:'all .15s', background:'var(--surface2)' }}
+                  onMouseOver={e=>{ e.currentTarget.style.borderColor='#1a9a5c'; e.currentTarget.style.background='rgba(26,154,92,.05)'; }}
+                  onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background='var(--surface2)'; }}>
+                  <div style={{ width:44, height:44, borderRadius:10, background:t.template_type==='pdf'?'rgba(224,82,82,.15)':'rgba(26,154,92,.12)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    <span style={{ fontSize:20 }}>{t.template_type==='pdf'?'📄':'🖼️'}</span>
                   </div>
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontWeight:600, fontSize:14, display:'flex', alignItems:'center', gap:8 }}>{t.name}{t.template_type==='pdf'&&<span style={{background:'rgba(224,82,82,.15)',color:'#e05252',fontSize:9,fontWeight:800,padding:'1px 5px',borderRadius:3}}>PDF</span>}</div>
-                    <div style={{ fontSize:12, color:'var(--muted)' }}>{t.description||''}{t.template_type!=='pdf'?` · ${(t.slides||[]).length} slides`:' · PDF document'}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:700, fontSize:14, marginBottom:3, display:'flex', alignItems:'center', gap:8 }}>
+                      {t.name}
+                      <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:20, background:t.template_type==='pdf'?'rgba(224,82,82,.15)':'rgba(26,154,92,.12)', color:t.template_type==='pdf'?'#e05252':'#1a9a5c' }}>{t.template_type==='pdf'?'PDF':`${(t.slides||[]).length} slides`}</span>
+                    </div>
+                    <div style={{ fontSize:12, color:'var(--muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.description||'No description'}</div>
                   </div>
-                  <span style={{ fontSize:12, color:'var(--accent)' }}>{Icons.arrowRight}</span>
+                  <div style={{ color:'var(--muted)', fontSize:18, flexShrink:0 }}>›</div>
                 </div>
               ))}
             </div>
           )}
-          <div style={{ marginTop:16, paddingTop:16, borderTop:'1px solid var(--border)' }}>
-            <button className="btn-secondary btn-sm" onClick={()=>setStep('choose')}>← Back</button>
-          </div>
+        </div>
+        <div style={{ padding:'16px 24px', borderTop:'1px solid var(--border)', flexShrink:0 }}>
+          <button onClick={()=>setStep('choose')} style={{ background:'none', border:'1px solid var(--border)', color:'var(--muted)', padding:'8px 16px', borderRadius:8, cursor:'pointer', fontSize:13 }}>← Back</button>
         </div>
       </div>
-    );
+    </div>
+  );
 
-    // AI form
-    return (
-      <div className="overlay" onClick={onClose}>
-        <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:580 }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Loan Details</div>
-            <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
+  // ────────────────────────────────────────────────────────────────────────────
+  // STEP: FORM — Loan details for generation
+  // ────────────────────────────────────────────────────────────────────────────
+  if(step==='form' && mode==='ai') return (
+    <div className="overlay" onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{ width:'min(620px,95vw)', background:'var(--surface)', borderRadius:20, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', overflow:'hidden' }}>
+        <div style={{ background:'#0f1c3f', padding:'24px 28px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div>
+            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700, color:'#fff' }}>Loan Details</div>
+            {contact && <div style={{ color:'rgba(255,255,255,.5)', fontSize:13, marginTop:2 }}>for {contact.full_name}</div>}
           </div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+          <button onClick={onClose} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', width:32, height:32, borderRadius:8, cursor:'pointer', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+        </div>
+        <div style={{ padding:'24px 28px' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginBottom:14 }}>
             <div className="form-group" style={{ marginBottom:0 }}>
               <label>Borrower Name</label>
               <input value={form.borrower_name} onChange={e=>set('borrower_name',e.target.value)} placeholder="Full name" />
@@ -5159,139 +5133,146 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
               <input value={form.rate} onChange={e=>set('rate',e.target.value)} placeholder="6.75" type="number" step="0.01" />
             </div>
             <div className="form-group" style={{ marginBottom:0 }}>
-              <label>Term (years)</label>
+              <label>Loan Term</label>
               <select value={form.term} onChange={e=>set('term',e.target.value)}>
-                {['10','15','20','25','30'].map(t=><option key={t}>{t}</option>)}
+                {['10','15','20','25','30'].map(t=><option key={t}>{t} years</option>)}
               </select>
             </div>
             <div className="form-group" style={{ marginBottom:0 }}>
-              <label>Property Address</label>
-              <input value={form.property_address} onChange={e=>set('property_address',e.target.value)} placeholder="Optional" />
+              <label>Property Address <span style={{ color:'var(--muted)', fontWeight:400 }}>(optional)</span></label>
+              <input value={form.property_address} onChange={e=>set('property_address',e.target.value)} placeholder="123 Main St" />
             </div>
             <div className="form-group" style={{ marginBottom:0 }}>
               <label>Loan Officer Name</label>
               <input value={form.lo_name} onChange={e=>set('lo_name',e.target.value)} />
             </div>
             <div className="form-group" style={{ marginBottom:0 }}>
-              <label>LO Phone</label>
-              <input value={form.lo_phone} onChange={e=>set('lo_phone',e.target.value)} placeholder="Optional" />
-            </div>
-            <div className="form-group" style={{ gridColumn:'1/-1', marginBottom:0 }}>
-              <label>Key Points / Notes for AI (optional)</label>
-              <input value={form.key_points} onChange={e=>set('key_points',e.target.value)} placeholder="e.g. First-time buyer, competitive local market, low down payment program eligible" />
+              <label>LO Phone <span style={{ color:'var(--muted)', fontWeight:400 }}>(optional)</span></label>
+              <input value={form.lo_phone} onChange={e=>set('lo_phone',e.target.value)} placeholder="(707) 555-0100" />
             </div>
           </div>
-          <div style={{ display:'flex', gap:10, marginTop:20 }}>
-            <button className="btn-secondary btn-sm" onClick={()=>setStep('choose')}>← Back</button>
-            <button className="btn-primary" style={{ flex:1 }} onClick={generateWithAI} disabled={!form.borrower_name||!form.loan_amount||!form.rate}>
-              Generate Presentation with AI
+          <div style={{ display:'flex', gap:10, paddingTop:4 }}>
+            <button onClick={()=>setStep('choose')} style={{ background:'none', border:'1px solid var(--border)', color:'var(--muted)', padding:'10px 18px', borderRadius:8, cursor:'pointer', fontSize:13 }}>← Back</button>
+            <button onClick={generatePresentation} disabled={!form.borrower_name||!form.loan_amount||!form.rate}
+              style={{ flex:1, background:'#1a9a5c', color:'#fff', border:'none', borderRadius:8, padding:'12px 20px', fontWeight:700, fontSize:14, cursor:(!form.borrower_name||!form.loan_amount||!form.rate)?'not-allowed':'pointer', opacity:(!form.borrower_name||!form.loan_amount||!form.rate)?.5:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              Generate Presentation
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // STEP: PREVIEW — Full screen
+  // ────────────────────────────────────────────────────────────────────────────
+  if(step==='preview') {
+    const isPdf = selectedTemplate?.template_type==='pdf';
+    const canSend = !generating && (slides.length>0 || isPdf);
+    return (
+      <div style={{ position:'fixed', inset:0, background:'#07111f', zIndex:200, display:'flex', flexDirection:'column' }}
+        onKeyDown={e=>{
+          if(e.key==='ArrowRight'||e.key==='ArrowDown') setSlideIndex(s=>Math.min(s+1,slides.length-1));
+          if(e.key==='ArrowLeft'||e.key==='ArrowUp')   setSlideIndex(s=>Math.max(s-1,0));
+          if(e.key==='Escape') onClose();
+        }}
+        tabIndex={0} ref={el=>el?.focus()}>
+
+        {/* ── Top bar ── */}
+        <div style={{ height:56, background:'#0f1c3f', display:'flex', alignItems:'center', paddingLeft:20, paddingRight:20, gap:16, flexShrink:0, borderBottom:'1px solid rgba(255,255,255,.08)' }}>
+          <button onClick={onClose} style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.8)', padding:'6px 14px', borderRadius:6, cursor:'pointer', fontSize:13, fontWeight:600, flexShrink:0 }}>← Back</button>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ color:'rgba(255,255,255,.9)', fontSize:13, fontWeight:600, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+              {generating ? 'Building presentation…' : isPdf ? selectedTemplate.name : `${contact?.full_name||''} — ${slides.length} slides`}
+            </div>
+          </div>
+          {canSend && (
+            <button onClick={sendPresentation} disabled={sending}
+              style={{ background:'#1a9a5c', color:'#fff', border:'none', borderRadius:8, padding:'8px 20px', fontWeight:700, fontSize:13, cursor:sending?'not-allowed':'pointer', flexShrink:0, opacity:sending?.7:1, display:'flex', alignItems:'center', gap:8 }}>
+              {sending ? 'Sending…' : `Send to ${contact?.full_name||'Contact'} →`}
+            </button>
+          )}
+        </div>
+
+        {/* ── Body ── */}
+        <div style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
+
+          {/* Thumbnail rail — only for slides */}
+          {!isPdf && slides.length>0 && (
+            <div style={{ width:110, background:'rgba(0,0,0,.4)', borderRight:'1px solid rgba(255,255,255,.06)', overflowY:'auto', padding:'12px 8px', display:'flex', flexDirection:'column', gap:8, flexShrink:0 }}>
+              {generating ? Array.from({length:6}).map((_,i)=>(
+                <div key={i} style={{ aspectRatio:'16/9', borderRadius:5, background:'rgba(255,255,255,.08)', animation:'pulse 1.5s infinite' }} />
+              )) : slides.map((s,i)=>(
+                <div key={i} onClick={()=>setSlideIndex(i)}
+                  style={{ aspectRatio:'16/9', borderRadius:5, overflow:'hidden', cursor:'pointer', border:`2px solid ${slideIndex===i?'#1a9a5c':'transparent'}`, flexShrink:0, opacity:slideIndex===i?1:.55, transition:'all .15s', boxShadow:slideIndex===i?'0 0 0 1px rgba(26,154,92,.3)':'' }}>
+                  <div style={{ transform:'scale(0.175)', transformOrigin:'top left', width:'572%', height:'572%', pointerEvents:'none' }}>
+                    <SlideRenderer slide={s} index={i} total={slides.length} brandColor='#0f1c3f' companyName={profile.company_name||'Citizens Financial'} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Main content */}
+          <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding: isPdf?'0':'16px 24px', overflow:'hidden', minHeight:0 }}>
+            {generating ? (
+              <div style={{ textAlign:'center' }}>
+                <div style={{ width:52, height:52, borderRadius:'50%', border:'3px solid rgba(255,255,255,.08)', borderTopColor:'#1a9a5c', animation:'spin 1s linear infinite', margin:'0 auto 20px' }} />
+                <div style={{ color:'rgba(255,255,255,.7)', fontSize:15, fontWeight:600 }}>Building your presentation…</div>
+                <div style={{ color:'rgba(255,255,255,.3)', fontSize:12, marginTop:6 }}>Calculating loan details and generating slides</div>
+              </div>
+            ) : isPdf ? (
+              // PDF full preview
+              <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column' }}>
+                <div style={{ padding:'10px 20px', display:'flex', alignItems:'center', gap:12, borderBottom:'1px solid rgba(255,255,255,.06)', flexShrink:0 }}>
+                  <span style={{ fontSize:11, color:'rgba(255,255,255,.35)', fontWeight:600, textTransform:'uppercase', letterSpacing:'.06em' }}>PDF PREVIEW</span>
+                  <span style={{ fontSize:11, color:'rgba(255,255,255,.35)' }}>{selectedTemplate.name}</span>
+                  <a href={selectedTemplate.pdf_url} target="_blank" rel="noreferrer"
+                    style={{ marginLeft:'auto', fontSize:11, color:'rgba(255,255,255,.5)', textDecoration:'none', border:'1px solid rgba(255,255,255,.1)', padding:'3px 10px', borderRadius:5 }}>Open full ↗</a>
+                </div>
+                <iframe src={selectedTemplate.pdf_url+'#toolbar=0&navpanes=0&scrollbar=0'} style={{ flex:1, border:'none', background:'#fff' }} title="PDF Preview" />
+              </div>
+            ) : slides.length>0 ? (
+              // Slide — fill available height, derive width from aspect ratio
+              <div style={{ height:'100%', width:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16, minHeight:0 }}>
+                <div style={{
+                  height:'calc(100% - 70px)',
+                  width:'min(calc((100% - 48px)), calc((100vh - 172px) * (16/9)))',
+                  aspectRatio:'16/9',
+                  maxHeight:'calc(100% - 70px)',
+                  borderRadius:10,
+                  overflow:'hidden',
+                  boxShadow:'0 24px 80px rgba(0,0,0,.8)',
+                  flexShrink:0,
+                  background:'#fff',
+                }}>
+                  <SlideRenderer slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} brandColor='#0f1c3f' companyName={profile.company_name||'Citizens Financial'} />
+                </div>
+                {/* Nav */}
+                <div style={{ display:'flex', alignItems:'center', gap:16, flexShrink:0 }}>
+                  <button onClick={()=>setSlideIndex(s=>Math.max(s-1,0))} disabled={slideIndex===0}
+                    style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.1)', color:'#fff', padding:'7px 20px', borderRadius:7, cursor:slideIndex===0?'not-allowed':'pointer', opacity:slideIndex===0?.35:1, fontSize:13, fontWeight:600 }}>← Prev</button>
+                  <div style={{ display:'flex', gap:5 }}>
+                    {slides.map((_,i)=>(
+                      <div key={i} onClick={()=>setSlideIndex(i)}
+                        style={{ width:i===slideIndex?24:7, height:7, borderRadius:4, background:i===slideIndex?'#1a9a5c':'rgba(255,255,255,.25)', cursor:'pointer', transition:'all .2s' }} />
+                    ))}
+                  </div>
+                  <button onClick={()=>setSlideIndex(s=>Math.min(s+1,slides.length-1))} disabled={slideIndex===slides.length-1}
+                    style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.1)', color:'#fff', padding:'7px 20px', borderRadius:7, cursor:slideIndex===slides.length-1?'not-allowed':'pointer', opacity:slideIndex===slides.length-1?.35:1, fontSize:13, fontWeight:600 }}>Next →</button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
     );
   }
 
-  // ── STEP: PREVIEW ──
-  if(step==='preview') return (
-    <>
-    {fullscreen && (
-      <div style={{ position:'fixed', inset:0, background:'#050d1a', zIndex:9999, display:'flex', flexDirection:'column' }}
-        onKeyDown={e=>{ if(e.key==='ArrowRight'||e.key==='ArrowDown') setSlideIndex(s=>Math.min(s+1,slides.length-1)); if(e.key==='ArrowLeft'||e.key==='ArrowUp') setSlideIndex(s=>Math.max(s-1,0)); if(e.key==='Escape') setFullscreen(false); }}
-        tabIndex={0} ref={el=>el?.focus()}>
-        <div style={{ padding:'12px 24px', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0, borderBottom:'1px solid rgba(255,255,255,.1)' }}>
-          <div style={{ color:'rgba(255,255,255,.5)', fontSize:13 }}>{slideIndex+1} / {slides.length} — Press ESC to exit</div>
-          <button onClick={()=>setFullscreen(false)} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', padding:'6px 16px', borderRadius:6, cursor:'pointer', fontSize:13 }}>✕ Exit Fullscreen</button>
-        </div>
-        <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:24, minHeight:0 }}>
-          <div style={{ width:'100%', aspectRatio:'16/9', maxHeight:'100%', maxWidth:'100%', borderRadius:12, overflow:'hidden', boxShadow:'0 24px 64px rgba(0,0,0,.6)' }}>
-            <SlideRenderer slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} brandColor='#0f1c3f' companyName={profile.company_name||'Citizens Financial'} />
-          </div>
-        </div>
-        <div style={{ padding:'14px 24px', display:'flex', alignItems:'center', justifyContent:'center', gap:20, flexShrink:0, borderTop:'1px solid rgba(255,255,255,.1)' }}>
-          <button onClick={()=>setSlideIndex(s=>Math.max(s-1,0))} disabled={slideIndex===0} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', padding:'8px 24px', borderRadius:8, cursor:slideIndex===0?'not-allowed':'pointer', opacity:slideIndex===0?.4:1, fontSize:13 }}>← Prev</button>
-          <div style={{ display:'flex', gap:6 }}>
-            {slides.map((_,i)=><div key={i} onClick={()=>setSlideIndex(i)} style={{ width:i===slideIndex?20:7, height:7, borderRadius:4, background:i===slideIndex?'#4d8ef0':'rgba(255,255,255,.25)', cursor:'pointer', transition:'all .2s' }} />)}
-          </div>
-          <button onClick={()=>setSlideIndex(s=>Math.min(s+1,slides.length-1))} disabled={slideIndex===slides.length-1} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', padding:'8px 24px', borderRadius:8, cursor:slideIndex===slides.length-1?'not-allowed':'pointer', opacity:slideIndex===slides.length-1?.4:1, fontSize:13 }}>Next →</button>
-        </div>
-      </div>
-    )}
-    <div className="overlay" onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{ width:'min(1400px,98vw)', background:'var(--surface)', borderRadius:16, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', display:'flex', flexDirection:'column', height:'90vh', overflow:'hidden' }}>
-        {/* Header */}
-        <div style={{ padding:'16px 24px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
-          <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:20, fontWeight:700 }}>
-            {generating ? 'Generating presentation...' : selectedTemplate?.template_type==='pdf' ? `Preview — ${selectedTemplate.name}` : `Preview — ${slides.length} slide${slides.length!==1?'s':''}`}
-          </div>
-          <div style={{ display:'flex', gap:10, alignItems:'center' }}>
-            {!generating && slides.length>0 && (
-              <button className="btn-primary" onClick={sendPresentation} disabled={sending} style={{ display:'flex', alignItems:'center', gap:8 }}>
-                {React.cloneElement(Icons.messageSquare,{width:15,height:15})}
-                {sending ? 'Sending...' : contact ? `Send to ${contact.full_name}` : 'Send Presentation'}
-              </button>
-            )}
-            <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
-          </div>
-        </div>
-        {/* Main area */}
-        <div style={{ display:'flex', flex:1, overflow:'hidden', minHeight:0 }}>
-          {/* Slide thumbs */}
-          <div style={{ width:130, borderRight:'1px solid var(--border)', overflowY:'auto', padding:8, display:'flex', flexDirection:'column', gap:6, flexShrink:0, background:'var(--surface2)' }}>
-            {generating ? (
-              Array.from({length:7}).map((_,i)=>(
-                <div key={i} style={{ aspectRatio:'16/9', borderRadius:6, background:'var(--border)', animation:'pulse 1.5s infinite', opacity:.6 }} />
-              ))
-            ) : slides.map((s,i)=>(
-              <div key={i} onClick={()=>setSlideIndex(i)}
-                style={{ aspectRatio:'16/9', borderRadius:6, overflow:'hidden', cursor:'pointer', border:`2px solid ${slideIndex===i?'var(--accent)':'transparent'}`, flexShrink:0, transform: slideIndex===i?'scale(1)':'scale(0.97)', transition:'all .15s' }}>
-                <div style={{ transform:'scale(0.19)', transformOrigin:'top left', width:'526%', height:'526%', pointerEvents:'none' }}>
-                  <SlideRenderer slide={s} index={i} total={slides.length} brandColor='#0f1c3f' companyName={profile.company_name||'Citizens Financial'} />
-                </div>
-              </div>
-            ))}
-          </div>
-          {/* Main preview */}
-          <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', padding:16, background:'#050d1a', minHeight:0, overflow:'hidden' }}>
-            {generating ? (
-              <div style={{ textAlign:'center', color:'rgba(255,255,255,.5)' }}>
-                <div style={{ width:40, height:40, borderRadius:'50%', border:'3px solid rgba(255,255,255,.15)', borderTopColor:'#4d8ef0', animation:'spin 1s linear infinite', margin:'0 auto 16px' }} />
-                <div style={{ fontFamily:'Inter,sans-serif', fontSize:14 }}>Claude is building your presentation...</div>
-              </div>
-            ) : selectedTemplate?.template_type==='pdf' && selectedTemplate?.pdf_url ? (
-              <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:16 }}>
-                <div style={{ color:'rgba(255,255,255,.5)', display:'flex' }}>{React.cloneElement(Icons.file,{width:48,height:48})}</div>
-                <div style={{ color:'#fff', fontWeight:600, fontSize:16 }}>{selectedTemplate.name}</div>
-                <div style={{ color:'rgba(255,255,255,.5)', fontSize:13 }}>PDF presentation — will be sent as a link</div>
-                <a href={selectedTemplate.pdf_url} target="_blank" rel="noreferrer" style={{ background:'rgba(255,255,255,.1)', color:'#fff', padding:'8px 18px', borderRadius:6, textDecoration:'none', fontSize:13, border:'1px solid rgba(255,255,255,.2)', display:'flex', alignItems:'center', gap:6 }}>{React.cloneElement(Icons.download,{width:14,height:14})} Preview PDF</a>
-              </div>
-            ) : slides.length>0 ? (
-              <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <div
-                  onClick={()=>setFullscreen(true)}
-                  title="Click to fullscreen"
-                  style={{ width:'100%', aspectRatio:'16/9', borderRadius:10, overflow:'hidden', boxShadow:'0 16px 48px rgba(0,0,0,.6)', cursor:'zoom-in', maxHeight:'100%' }}>
-                  <SlideRenderer slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} brandColor='#0f1c3f' companyName={profile.company_name||'Citizens Financial'} />
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-        {/* Nav footer */}
-        {!generating && slides.length>0 && (
-          <div style={{ padding:'12px 24px', borderTop:'1px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center', gap:16, flexShrink:0 }}>
-            <button onClick={()=>setSlideIndex(s=>Math.max(s-1,0))} disabled={slideIndex===0} className="btn-secondary btn-sm">← Prev</button>
-            <span style={{ fontSize:13, color:'var(--muted)' }}>{slideIndex+1} / {slides.length}</span>
-            <button onClick={()=>setSlideIndex(s=>Math.min(s+1,slides.length-1))} disabled={slideIndex===slides.length-1} className="btn-secondary btn-sm">Next →</button>
-          </div>
-        )}
-      </div>
-    </div>
-    </>
-  );
-
   return null;
 }
+
 
 // ─── MASS PRESENTATION MODAL ──────────────────────────────────────────────────
 function MassPresentationModal({ contacts, profile, onClose, toast, onSent }) {
