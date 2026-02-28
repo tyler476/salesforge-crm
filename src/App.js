@@ -4963,7 +4963,16 @@ function PublicPresentationViewer({ token }) {
         const s0 = (data.slides||[])[0];
         if (s0) {
           const coverHi = s0.highlights?.[0];
-          if (coverHi?.loanAmount) setLiveAmount(coverHi.loanAmount.replace(/[\$,M]/g,'').replace('M',''));
+          if (coverHi?.loanAmount) {
+            const raw = coverHi.loanAmount.trim();
+            let amt = 0;
+            if (raw.includes('M')) {
+              amt = Math.round(parseFloat(raw.replace(/[^0-9.]/g,'')) * 1000000);
+            } else {
+              amt = parseInt(raw.replace(/[^0-9]/g,''), 10);
+            }
+            if (amt > 0) setLiveAmount(String(amt));
+          }
           setLiveRate('6.75');
         }
       });
