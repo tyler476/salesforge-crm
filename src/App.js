@@ -5163,6 +5163,9 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
   const [sending, setSending]         = useState(false);
   const [showAdjust, setShowAdjust]   = useState(false);
 
+  // Must be at top level — used in preview step
+  const slideDims = usePreviewDims(showAdjust);
+
   const [form, setForm] = useState({
     borrower_name:    contact?.full_name || '',
     loan_type:        'Purchase',
@@ -5441,7 +5444,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
     const liveFmt = v => v>=1000000?'$'+(v/1000000).toFixed(2)+'M':v>=1000?'$'+v.toLocaleString():'$'+v;
 
     // Compute exact slide dimensions from window — bypasses all flex height issues
-    const slideDims = usePreviewDims(showAdjust);
+    // (hook moved to component top level)
 
     return (
       <div style={{ position:'fixed', inset:0, zIndex:200, display:'flex', flexDirection:'column', background:'#060f1d', overflow:'hidden' }}
