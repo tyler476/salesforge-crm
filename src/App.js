@@ -4600,64 +4600,31 @@ function buildSlides({ borrowerName, loanType, loanAmount, rate, term, loName, l
 }
 
 // ── ScaledSlide: renders at 1280×720, scales to fill any container ────────────
-// ScaledSlide: accepts explicit pixel dimensions OR falls back to container measurement
-function ScaledSlide({ slide, index, total, companyName, w: forcedW, h: forcedH }) {
-  const ref = React.useRef(null);
-  const [dims, setDims] = React.useState({ w: forcedW||800, h: forcedH||450 });
+// ScaledSlide — measures its OWN container via ref, scale is always correct
+function ScaledSlide({ slide, index, total, companyName }) {
+  const outer = React.useRef(null);
+  const [scale, setScale] = React.useState(0);
   React.useEffect(() => {
-    if (forcedW && forcedH) { setDims({ w: forcedW, h: forcedH }); return; }
-    if (!ref.current) return;
-    const update = () => {
-      const w = ref.current.offsetWidth;
-      const h = ref.current.offsetHeight;
-      if (w > 0 && h > 0) setDims({ w, h });
+    if (!outer.current) return;
+    const calc = () => {
+      const w = outer.current.offsetWidth;
+      const h = outer.current.offsetHeight;
+      if (w > 0 && h > 0) setScale(Math.min(w / 1280, h / 720));
     };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(ref.current);
+    calc();
+    const ro = new ResizeObserver(calc);
+    ro.observe(outer.current);
     return () => ro.disconnect();
-  }, [forcedW, forcedH]);
-  const scale = Math.min(dims.w / 1280, dims.h / 720);
-  if (forcedW && forcedH) {
-    return (
-      <div style={{ width: forcedW, height: forcedH, overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-        <div style={{ width:1280, height:720, flexShrink:0, transform:`scale(${scale})`, transformOrigin:'center center' }}>
-          <SlideRenderer slide={slide} index={index} total={total} companyName={companyName} />
-        </div>
-      </div>
-    );
-  }
+  }, []);
   return (
-    <div ref={ref} style={{ width:'100%', height:'100%', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ width:1280, height:720, flexShrink:0, transform:`scale(${scale})`, transformOrigin:'center center' }}>
+    <div ref={outer} style={{ width:'100%', height:'100%', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <div style={{ width:1280, height:720, flexShrink:0, transform:`scale(${scale})`, transformOrigin:'center center', opacity: scale > 0 ? 1 : 0 }}>
         <SlideRenderer slide={slide} index={index} total={total} companyName={companyName} />
       </div>
     </div>
   );
 }
 
-// Hook: returns available slide dimensions for the fullscreen preview
-function usePreviewDims(adjustOpen) {
-  const [dims, setDims] = React.useState({ w: window.innerWidth - 104, h: window.innerHeight - 56 - 52 });
-  React.useEffect(() => {
-    const update = () => {
-      const railW   = 104;
-      const topBarH = 56;
-      const navH    = 52;
-      const adjH    = adjustOpen ? 110 : 0;
-      const availW  = window.innerWidth  - railW;
-      const availH  = window.innerHeight - topBarH - navH - adjH;
-      // Maintain 16:9 — pick whichever axis is the constraint
-      const byW = { w: availW,            h: availW * 9/16 };
-      const byH = { w: availH * 16/9,     h: availH };
-      setDims(byW.h <= availH ? byW : byH);
-    };
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, [adjustOpen]);
-  return dims;
-}
 
 // ── SlideRenderer: fixed 1280×720, animated, with tooltips ───────────────────
 const LOGO_URL = 'https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png';
@@ -5163,8 +5130,6 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
   const [sending, setSending]         = useState(false);
   const [showAdjust, setShowAdjust]   = useState(false);
 
-  // Must be at top level — used in preview step
-  const slideDims = usePreviewDims(showAdjust);
 
   const [form, setForm] = useState({
     borrower_name:    contact?.full_name || '',
@@ -5442,12 +5407,10 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
     const canSend = !generating && (slides.length > 0 || isPdf);
     const { mp:liveMp, totalInt:liveInt } = calcLoan({ loanAmount:liveAmount, rate:liveRate, term:liveTerm });
     const liveFmt = v => v>=1000000?'$'+(v/1000000).toFixed(2)+'M':v>=1000?'$'+v.toLocaleString():'$'+v;
-
-    // Compute exact slide dimensions from window — bypasses all flex height issues
-    // (hook moved to component top level)
+    const adjH = showAdjust ? 110 : 0;
 
     return (
-      <div style={{ position:'fixed', inset:0, zIndex:200, display:'flex', flexDirection:'column', background:'#060f1d', overflow:'hidden' }}
+      <div style={{ position:'fixed', inset:0, zIndex:200, background:'#060f1d', display:'flex', flexDirection:'column', overflow:'hidden' }}
         onKeyDown={e=>{
           if(e.key==='ArrowRight'||e.key==='ArrowDown') setSlideIndex(s=>Math.min(s+1,slides.length-1));
           if(e.key==='ArrowLeft'||e.key==='ArrowUp')   setSlideIndex(s=>Math.max(s-1,0));
@@ -5455,31 +5418,30 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
         }}
         tabIndex={0} ref={el=>el?.focus()}>
 
-        {/* ── Top bar ── */}
-        <div style={{ height:56, minHeight:56, flexShrink:0, background:'#0c1a35', display:'flex', alignItems:'center', gap:10, padding:'0 16px', borderBottom:'1px solid rgba(255,255,255,.07)' }}>
-          <button onClick={onClose} style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'#fff', padding:'7px 14px', borderRadius:7, cursor:'pointer', fontSize:13, fontWeight:600, flexShrink:0, whiteSpace:'nowrap' }}>← Back</button>
+        {/* ── Top bar: fixed 56px ── */}
+        <div style={{ height:56, flexShrink:0, background:'#0c1a35', display:'flex', alignItems:'center', padding:'0 16px', gap:10, borderBottom:'1px solid rgba(255,255,255,.08)' }}>
+          <button onClick={onClose} style={{ flexShrink:0, background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'#fff', padding:'7px 14px', borderRadius:7, cursor:'pointer', fontSize:13, fontWeight:600, whiteSpace:'nowrap' }}>← Back</button>
           <img src={LOGO_URL} alt="" style={{ height:22, filter:'brightness(0) invert(1)', opacity:.5, flexShrink:0 }} onError={e=>e.target.style.display='none'} />
-          <div style={{ flex:1, minWidth:0 }} />
+          <div style={{ flex:1 }} />
           {!isPdf && slides.length > 0 && (
-            <button onClick={()=>setShowAdjust(a=>!a)} style={{ background:showAdjust?'rgba(26,154,92,.25)':'rgba(255,255,255,.08)', border:'1px solid', borderColor:showAdjust?'#1a9a5c':'rgba(255,255,255,.12)', color:showAdjust?'#6ee7b7':'#fff', padding:'7px 14px', borderRadius:7, cursor:'pointer', fontSize:12, fontWeight:700, display:'flex', alignItems:'center', gap:7, flexShrink:0, whiteSpace:'nowrap' }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+            <button onClick={()=>setShowAdjust(a=>!a)} style={{ flexShrink:0, whiteSpace:'nowrap', background:showAdjust?'rgba(26,154,92,.25)':'rgba(255,255,255,.08)', border:'1px solid', borderColor:showAdjust?'#1a9a5c':'rgba(255,255,255,.12)', color:showAdjust?'#6ee7b7':'#fff', padding:'7px 14px', borderRadius:7, cursor:'pointer', fontSize:12, fontWeight:700, display:'flex', alignItems:'center', gap:6 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
               Adjust Scenario
             </button>
           )}
           {canSend && (
-            <button onClick={send} disabled={sending}
-              style={{ background:'#1a9a5c', color:'#fff', border:'none', borderRadius:8, padding:'9px 18px', fontWeight:700, fontSize:13, cursor:sending?'not-allowed':'pointer', flexShrink:0, whiteSpace:'nowrap', opacity:sending?.65:1 }}>
+            <button onClick={send} disabled={sending} style={{ flexShrink:0, whiteSpace:'nowrap', background:'#1a9a5c', color:'#fff', border:'none', borderRadius:8, padding:'9px 18px', fontWeight:700, fontSize:13, cursor:sending?'not-allowed':'pointer', opacity:sending?.65:1 }}>
               {sending ? 'Sending…' : `Send to ${contact?.full_name||'Contact'} →`}
             </button>
           )}
         </div>
 
-        {/* ── Adjust Scenario panel ── */}
+        {/* ── Adjust Scenario panel: fixed ~110px when open ── */}
         {showAdjust && !isPdf && (
-          <div style={{ flexShrink:0, background:'#0c1a35', borderBottom:'1px solid rgba(255,255,255,.08)', padding:'12px 24px' }}>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr auto', gap:20, alignItems:'end', maxWidth:900 }}>
+          <div style={{ flexShrink:0, background:'#0c1a35', borderBottom:'1px solid rgba(255,255,255,.08)', padding:'12px 20px' }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr auto', gap:16, alignItems:'end' }}>
               <div>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
                   <span style={{ fontSize:10, color:'rgba(255,255,255,.5)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em' }}>Rate</span>
                   <span style={{ fontSize:13, color:'#6ee7b7', fontWeight:900 }}>{liveRate}%</span>
                 </div>
@@ -5487,7 +5449,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:9, color:'rgba(255,255,255,.2)', marginTop:3 }}><span>2%</span><span>12%</span></div>
               </div>
               <div>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
                   <span style={{ fontSize:10, color:'rgba(255,255,255,.5)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em' }}>Loan Amount</span>
                   <span style={{ fontSize:13, color:'#6ee7b7', fontWeight:900 }}>${Number(liveAmount||0).toLocaleString()}</span>
                 </div>
@@ -5495,7 +5457,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:9, color:'rgba(255,255,255,.2)', marginTop:3 }}><span>$100k</span><span>$2M</span></div>
               </div>
               <div>
-                <div style={{ fontSize:10, color:'rgba(255,255,255,.5)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em', marginBottom:6 }}>Term</div>
+                <div style={{ fontSize:10, color:'rgba(255,255,255,.5)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em', marginBottom:5 }}>Term</div>
                 <div style={{ display:'flex', gap:4 }}>
                   {['10','15','20','25','30'].map(t=>(
                     <button key={t} onClick={()=>setLiveTerm(t)} style={{ flex:1, padding:'5px 0', borderRadius:5, border:`1px solid ${liveTerm===t?'#1a9a5c':'rgba(255,255,255,.1)'}`, background:liveTerm===t?'rgba(26,154,92,.2)':'transparent', color:liveTerm===t?'#6ee7b7':'rgba(255,255,255,.4)', fontSize:10, fontWeight:700, cursor:'pointer' }}>{t}yr</button>
@@ -5503,81 +5465,69 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
                 </div>
               </div>
               <div style={{ background:'rgba(26,154,92,.1)', border:'1px solid rgba(26,154,92,.2)', borderRadius:8, padding:'8px 14px', whiteSpace:'nowrap' }}>
-                <div style={{ fontSize:9, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:6 }}>Live Estimates</div>
-                <div style={{ display:'flex', gap:16 }}>
-                  <div>
-                    <div style={{ fontSize:9, color:'rgba(255,255,255,.3)', marginBottom:1 }}>Monthly P&I</div>
-                    <div style={{ fontSize:16, fontWeight:900, color:'#6ee7b7', fontFamily:"Cormorant Garamond,serif" }}>{liveMp>0?liveFmt(liveMp):'—'}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize:9, color:'rgba(255,255,255,.3)', marginBottom:1 }}>Total Interest</div>
-                    <div style={{ fontSize:16, fontWeight:900, color:'#6ee7b7', fontFamily:"Cormorant Garamond,serif" }}>{liveInt>0?liveFmt(liveInt):'—'}</div>
-                  </div>
+                <div style={{ fontSize:9, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:5 }}>Live Estimates</div>
+                <div style={{ display:'flex', gap:14 }}>
+                  <div><div style={{ fontSize:9, color:'rgba(255,255,255,.3)', marginBottom:1 }}>Monthly P&I</div><div style={{ fontSize:15, fontWeight:900, color:'#6ee7b7', fontFamily:"Cormorant Garamond,serif" }}>{liveMp>0?liveFmt(liveMp):'—'}</div></div>
+                  <div><div style={{ fontSize:9, color:'rgba(255,255,255,.3)', marginBottom:1 }}>Total Interest</div><div style={{ fontSize:15, fontWeight:900, color:'#6ee7b7', fontFamily:"Cormorant Garamond,serif" }}>{liveInt>0?liveFmt(liveInt):'—'}</div></div>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* ── Body row: rail + main ── */}
-        <div style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
+        {/* ── Body: rail + main, explicit CSS height so ResizeObserver works ── */}
+        <div style={{ display:'flex', height:`calc(100vh - ${56 + adjH}px)`, overflow:'hidden' }}>
 
-          {/* Thumbnail rail */}
+          {/* Thumbnail rail: fixed 104px */}
           {!isPdf && (
             <div style={{ width:104, flexShrink:0, background:'rgba(0,0,0,.4)', borderRight:'1px solid rgba(255,255,255,.06)', overflowY:'auto', padding:'10px 7px', display:'flex', flexDirection:'column', gap:8 }}>
               {generating
-                ? Array.from({length:6}).map((_,i)=>(
-                    <div key={i} style={{ aspectRatio:'16/9', borderRadius:5, background:'rgba(255,255,255,.07)', animation:'pulse 1.5s infinite' }} />
+                ? Array.from({length:6}).map((_,i)=>(<div key={i} style={{ aspectRatio:'16/9', borderRadius:5, background:'rgba(255,255,255,.07)', animation:'pulse 1.5s infinite' }} />))
+                : slides.map((s,i)=>(
+                    <div key={i} onClick={()=>setSlideIndex(i)}
+                      style={{ width:90, height:51, borderRadius:5, overflow:'hidden', cursor:'pointer', border:`2px solid ${slideIndex===i?'#1a9a5c':'transparent'}`, flexShrink:0, opacity:slideIndex===i?1:.55, transition:'all .15s' }}>
+                      <ScaledSlide slide={s} index={i} total={slides.length} companyName={profile.company_name||'Citizens Financial'} />
+                    </div>
                   ))
-                : slides.map((s,i)=>{
-                    const tw = 90, th = Math.round(90 * 9/16);
-                    return (
-                      <div key={i} onClick={()=>setSlideIndex(i)}
-                        style={{ width:tw, height:th, borderRadius:5, overflow:'hidden', cursor:'pointer', border:`2px solid ${slideIndex===i?'#1a9a5c':'transparent'}`, flexShrink:0, opacity:slideIndex===i?1:.55, transition:'all .15s' }}>
-                        <ScaledSlide slide={s} index={i} total={slides.length} companyName={profile.company_name||'Citizens Financial'} w={tw} h={th} />
-                      </div>
-                    );
-                  })
               }
             </div>
           )}
 
-          {/* Main slide area */}
-          <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:'#060f1d' }}>
+          {/* Main area: takes remaining width, explicit height from parent */}
+          <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', height:'100%' }}>
             {generating ? (
-              <div style={{ textAlign:'center' }}>
-                <div style={{ width:48, height:48, borderRadius:'50%', border:'3px solid rgba(255,255,255,.08)', borderTopColor:'#1a9a5c', animation:'spin 1s linear infinite', margin:'0 auto 18px' }} />
-                <div style={{ color:'rgba(255,255,255,.6)', fontSize:15, fontWeight:600, marginBottom:6 }}>Building your presentation…</div>
-                <div style={{ color:'rgba(255,255,255,.3)', fontSize:12 }}>Calculating loan figures and generating slides</div>
+              <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <div style={{ textAlign:'center' }}>
+                  <div style={{ width:48, height:48, borderRadius:'50%', border:'3px solid rgba(255,255,255,.08)', borderTopColor:'#1a9a5c', animation:'spin 1s linear infinite', margin:'0 auto 18px' }} />
+                  <div style={{ color:'rgba(255,255,255,.6)', fontSize:15, fontWeight:600, marginBottom:6 }}>Building your presentation…</div>
+                  <div style={{ color:'rgba(255,255,255,.3)', fontSize:12 }}>Calculating loan figures</div>
+                </div>
               </div>
             ) : isPdf ? (
-              <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column' }}>
+              <div style={{ flex:1, display:'flex', flexDirection:'column' }}>
                 <div style={{ padding:'10px 20px', display:'flex', alignItems:'center', borderBottom:'1px solid rgba(255,255,255,.06)', flexShrink:0 }}>
                   <span style={{ fontSize:11, color:'rgba(255,255,255,.3)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em' }}>PDF Preview</span>
-                  <a href={selectedTemplate?.pdf_url} target="_blank" rel="noreferrer"
-                    style={{ marginLeft:'auto', fontSize:11, color:'rgba(255,255,255,.4)', border:'1px solid rgba(255,255,255,.1)', padding:'3px 10px', borderRadius:5, textDecoration:'none' }}>Open full ↗</a>
+                  <a href={selectedTemplate?.pdf_url} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:'rgba(255,255,255,.4)', border:'1px solid rgba(255,255,255,.1)', padding:'3px 10px', borderRadius:5, textDecoration:'none' }}>Open full ↗</a>
                 </div>
                 <iframe src={(selectedTemplate?.pdf_url||'')+'#toolbar=0&navpanes=0'} style={{ flex:1, border:'none', background:'#fff' }} title="PDF" />
               </div>
             ) : slides.length > 0 ? (
-              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:14 }}>
-                {/* Slide — explicit pixel size, NO flex height dependency */}
-                <div style={{ width:slideDims.w, height:slideDims.h, borderRadius:10, overflow:'hidden', boxShadow:'0 24px 70px rgba(0,0,0,.8)', flexShrink:0 }}>
-                  <ScaledSlide slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} companyName={profile.company_name||'Citizens Financial'} w={slideDims.w} h={slideDims.h} />
+              <>
+                {/* Slide area: explicit height = parent height minus nav bar */}
+                <div style={{ flex:1, padding:'16px', overflow:'hidden', position:'relative' }}>
+                  <ScaledSlide slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} companyName={profile.company_name||'Citizens Financial'} />
                 </div>
-                {/* Nav */}
-                <div style={{ display:'flex', alignItems:'center', gap:16 }}>
+                {/* Nav bar: fixed 48px */}
+                <div style={{ height:48, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', gap:14, borderTop:'1px solid rgba(255,255,255,.06)' }}>
                   <button onClick={()=>setSlideIndex(s=>Math.max(s-1,0))} disabled={slideIndex===0}
-                    style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'#fff', padding:'7px 20px', borderRadius:7, cursor:slideIndex===0?'not-allowed':'pointer', opacity:slideIndex===0?.3:1, fontSize:13, fontWeight:600 }}>← Prev</button>
+                    style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'#fff', padding:'6px 18px', borderRadius:7, cursor:slideIndex===0?'not-allowed':'pointer', opacity:slideIndex===0?.3:1, fontSize:13, fontWeight:600 }}>← Prev</button>
                   <div style={{ display:'flex', gap:6 }}>
-                    {slides.map((_,i)=>(
-                      <div key={i} onClick={()=>setSlideIndex(i)} style={{ width:i===slideIndex?22:7, height:7, borderRadius:4, background:i===slideIndex?'#1a9a5c':'rgba(255,255,255,.2)', cursor:'pointer', transition:'all .25s' }} />
-                    ))}
+                    {slides.map((_,i)=>(<div key={i} onClick={()=>setSlideIndex(i)} style={{ width:i===slideIndex?20:6, height:6, borderRadius:3, background:i===slideIndex?'#1a9a5c':'rgba(255,255,255,.2)', cursor:'pointer', transition:'all .25s' }} />))}
                   </div>
                   <button onClick={()=>setSlideIndex(s=>Math.min(s+1,slides.length-1))} disabled={slideIndex===slides.length-1}
-                    style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'#fff', padding:'7px 20px', borderRadius:7, cursor:slideIndex===slides.length-1?'not-allowed':'pointer', opacity:slideIndex===slides.length-1?.3:1, fontSize:13, fontWeight:600 }}>Next →</button>
+                    style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'#fff', padding:'6px 18px', borderRadius:7, cursor:slideIndex===slides.length-1?'not-allowed':'pointer', opacity:slideIndex===slides.length-1?.3:1, fontSize:13, fontWeight:600 }}>Next →</button>
                 </div>
-              </div>
+              </>
             ) : null}
           </div>
         </div>
