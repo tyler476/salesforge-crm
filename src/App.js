@@ -4606,8 +4606,9 @@ function ScaledSlide({ slide, index, total, companyName, style={} }) {
   React.useEffect(() => {
     if (!ref.current) return;
     const update = () => {
-      const { width, height } = ref.current.getBoundingClientRect();
-      if (width > 0 && height > 0) setScale(Math.min(width/1280, height/720));
+      const w = ref.current.offsetWidth;
+      const h = ref.current.offsetHeight;
+      if (w > 0 && h > 0) setScale(Math.min(w / 1280, h / 720));
     };
     update();
     const ro = new ResizeObserver(update);
@@ -4615,7 +4616,7 @@ function ScaledSlide({ slide, index, total, companyName, style={} }) {
     return () => ro.disconnect();
   }, []);
   return (
-    <div ref={ref} style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', ...style }}>
+    <div ref={ref} style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', ...style }}>
       <div style={{ width:1280, height:720, flexShrink:0, transform:`scale(${scale})`, transformOrigin:'center center' }}>
         <SlideRenderer slide={slide} index={index} total={total} companyName={companyName} />
       </div>
@@ -5405,7 +5406,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
     const liveFmt = v => v>=1000000?'$'+(v/1000000).toFixed(2)+'M':v>=1000?'$'+v.toLocaleString():'$'+v;
 
     return (
-      <div style={{ position:'fixed', inset:0, background:'#060f1d', zIndex:200, display:'flex', flexDirection:'column' }}
+      <div style={{ position:'fixed', inset:0, zIndex:200, display:'flex', flexDirection:'column', background:'#060f1d', overflow:'hidden' }}
         onKeyDown={e=>{
           if(e.key==='ArrowRight'||e.key==='ArrowDown') setSlideIndex(s=>Math.min(s+1,slides.length-1));
           if(e.key==='ArrowLeft'||e.key==='ArrowUp')   setSlideIndex(s=>Math.max(s-1,0));
@@ -5413,16 +5414,15 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
         }}
         tabIndex={0} ref={el=>el?.focus()}>
 
-        {/* Top bar */}
-        <div style={{ height:56, background:'#0c1a35', display:'flex', alignItems:'center', padding:'0 20px 0 18px', gap:10, flexShrink:0, borderBottom:'1px solid rgba(255,255,255,.07)', minWidth:0 }}>
-          <button onClick={onClose} style={{ background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.1)', color:'rgba(255,255,255,.75)', padding:'7px 14px', borderRadius:7, cursor:'pointer', fontSize:13, fontWeight:600, flexShrink:0 }}>← Back</button>
-          <img src={LOGO_URL} alt="" style={{ height:22, filter:'brightness(0) invert(1)', opacity:.55 }} onError={e=>e.target.style.display='none'} />
-          <div style={{ flex:1, color:'rgba(255,255,255,.45)', fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-            {generating ? 'Building presentation…' : isPdf ? selectedTemplate.name : `${contact?.full_name||''} · ${slides.length} slides · ← → to navigate`}
+        {/* Top bar — fixed height */}
+        <div style={{ height:56, minHeight:56, background:'#0c1a35', display:'flex', alignItems:'center', padding:'0 20px', gap:10, borderBottom:'1px solid rgba(255,255,255,.07)', flexShrink:0 }}>
+          <button onClick={onClose} style={{ background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.1)', color:'rgba(255,255,255,.75)', padding:'7px 14px', borderRadius:7, cursor:'pointer', fontSize:13, fontWeight:600, flexShrink:0, whiteSpace:'nowrap' }}>← Back</button>
+          <img src={LOGO_URL} alt="" style={{ height:22, filter:'brightness(0) invert(1)', opacity:.5, flexShrink:0 }} onError={e=>e.target.style.display='none'} />
+          <div style={{ flex:1, minWidth:0, color:'rgba(255,255,255,.4)', fontSize:12, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+            {generating ? 'Building presentation…' : isPdf ? selectedTemplate.name : `${contact?.full_name||''} · ${slides.length} slides`}
           </div>
-          {/* Adjust Scenario button */}
           {!isPdf && slides.length > 0 && (
-            <button onClick={()=>setShowAdjust(a=>!a)} style={{ background:showAdjust?'rgba(26,154,92,.2)':'rgba(255,255,255,.07)', border:'1px solid', borderColor:showAdjust?'#1a9a5c':'rgba(255,255,255,.1)', color:showAdjust?'#6ee7b7':'rgba(255,255,255,.7)', padding:'7px 14px', borderRadius:7, cursor:'pointer', fontSize:12, fontWeight:700, display:'flex', alignItems:'center', gap:7, flexShrink:0 }}>
+            <button onClick={()=>setShowAdjust(a=>!a)} style={{ background:showAdjust?'rgba(26,154,92,.2)':'rgba(255,255,255,.07)', border:'1px solid', borderColor:showAdjust?'#1a9a5c':'rgba(255,255,255,.1)', color:showAdjust?'#6ee7b7':'rgba(255,255,255,.7)', padding:'7px 14px', borderRadius:7, cursor:'pointer', fontSize:12, fontWeight:700, display:'flex', alignItems:'center', gap:7, flexShrink:0, whiteSpace:'nowrap' }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
               Adjust Scenario
             </button>
@@ -5435,121 +5435,117 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
           )}
         </div>
 
-        {/* Body */}
-        <div style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
+        {/* Live slider panel — fixed height when open */}
+        {showAdjust && !isPdf && (
+          <div style={{ background:'#0c1a35', borderBottom:'1px solid rgba(255,255,255,.08)', padding:'14px 28px', flexShrink:0 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1.3fr', gap:24, alignItems:'end', maxWidth:1000 }}>
+              <div>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:7 }}>
+                  <span style={{ fontSize:11, color:'rgba(255,255,255,.55)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em' }}>Rate</span>
+                  <span style={{ fontSize:14, color:'#6ee7b7', fontWeight:900 }}>{liveRate}%</span>
+                </div>
+                <input type="range" min="2" max="12" step="0.125" value={liveRate} onChange={e=>setLiveRate(e.target.value)} style={{ width:'100%', accentColor:'#1a9a5c', cursor:'pointer' }} />
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'rgba(255,255,255,.2)', marginTop:4 }}><span>2%</span><span>12%</span></div>
+              </div>
+              <div>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:7 }}>
+                  <span style={{ fontSize:11, color:'rgba(255,255,255,.55)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em' }}>Loan Amount</span>
+                  <span style={{ fontSize:14, color:'#6ee7b7', fontWeight:900 }}>${Number(liveAmount||0).toLocaleString()}</span>
+                </div>
+                <input type="range" min="100000" max="2000000" step="5000" value={liveAmount||500000} onChange={e=>setLiveAmount(e.target.value)} style={{ width:'100%', accentColor:'#1a9a5c', cursor:'pointer' }} />
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'rgba(255,255,255,.2)', marginTop:4 }}><span>$100k</span><span>$2M</span></div>
+              </div>
+              <div>
+                <div style={{ fontSize:11, color:'rgba(255,255,255,.55)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:7 }}>Term</div>
+                <div style={{ display:'flex', gap:5 }}>
+                  {['10','15','20','25','30'].map(t=>(
+                    <button key={t} onClick={()=>setLiveTerm(t)} style={{ flex:1, padding:'6px 0', borderRadius:6, border:`1px solid ${liveTerm===t?'#1a9a5c':'rgba(255,255,255,.1)'}`, background:liveTerm===t?'rgba(26,154,92,.2)':'transparent', color:liveTerm===t?'#6ee7b7':'rgba(255,255,255,.45)', fontSize:11, fontWeight:700, cursor:'pointer' }}>{t}yr</button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ background:'rgba(26,154,92,.1)', border:'1px solid rgba(26,154,92,.2)', borderRadius:10, padding:'11px 16px' }}>
+                <div style={{ fontSize:9, color:'rgba(255,255,255,.35)', textTransform:'uppercase', letterSpacing:'.1em', marginBottom:8 }}>Live Estimates</div>
+                <div style={{ display:'flex', gap:20 }}>
+                  <div>
+                    <div style={{ fontSize:9, color:'rgba(255,255,255,.35)', marginBottom:2 }}>Monthly P&I</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:'#6ee7b7', fontFamily:"Cormorant Garamond,serif" }}>{liveMp>0?liveFmt(liveMp):'—'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize:9, color:'rgba(255,255,255,.35)', marginBottom:2 }}>Total Interest</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:'#6ee7b7', fontFamily:"Cormorant Garamond,serif" }}>{liveInt>0?liveFmt(liveInt):'—'}</div>
+                  </div>
+                </div>
+                <div style={{ fontSize:9, color:'rgba(26,154,92,.7)', marginTop:6 }}>All slides update automatically</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Body — takes all remaining height */}
+        <div style={{ flex:1, display:'flex', minHeight:0, overflow:'hidden' }}>
 
           {/* Thumbnail rail */}
           {!isPdf && (slides.length > 0 || generating) && (
-            <div style={{ width:104, background:'rgba(0,0,0,.35)', borderRight:'1px solid rgba(255,255,255,.05)', overflowY:'auto', padding:'10px 7px', display:'flex', flexDirection:'column', gap:7, flexShrink:0 }}>
+            <div style={{ width:104, flexShrink:0, background:'rgba(0,0,0,.4)', borderRight:'1px solid rgba(255,255,255,.06)', overflowY:'auto', padding:'10px 7px', display:'flex', flexDirection:'column', gap:8 }}>
               {generating
                 ? Array.from({length:6}).map((_,i)=>(
                     <div key={i} style={{ aspectRatio:'16/9', borderRadius:5, background:'rgba(255,255,255,.07)', animation:'pulse 1.5s infinite' }} />
                   ))
                 : slides.map((s,i)=>(
                     <div key={i} onClick={()=>setSlideIndex(i)}
-                      style={{ aspectRatio:'16/9', borderRadius:5, overflow:'hidden', cursor:'pointer', border:`2px solid ${slideIndex===i?'#1a9a5c':'transparent'}`, flexShrink:0, opacity:slideIndex===i?1:.5, transition:'all .15s' }}>
-                      <ScaledSlide slide={s} index={i} total={slides.length} companyName={profile.company_name||'Citizens Financial'} style={{ background:'#fff' }} />
+                      style={{ aspectRatio:'16/9', borderRadius:5, overflow:'hidden', cursor:'pointer', border:`2px solid ${slideIndex===i?'#1a9a5c':'transparent'}`, flexShrink:0, opacity:slideIndex===i?1:.5, transition:'all .15s', position:'relative' }}>
+                      <ScaledSlide slide={s} index={i} total={slides.length} companyName={profile.company_name||'Citizens Financial'} />
                     </div>
                   ))
               }
             </div>
           )}
 
-          {/* Main slide area */}
-          <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0 }}>
-            {/* Live slider panel */}
-            {showAdjust && !isPdf && (
-              <div style={{ background:'#0c1a35', borderBottom:'1px solid rgba(255,255,255,.08)', padding:'14px 28px', flexShrink:0, animation:'slideInR .25s ease' }}>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1.3fr', gap:24, alignItems:'end', maxWidth:1000 }}>
-                  <div>
-                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:7 }}>
-                      <span style={{ fontSize:11, color:'rgba(255,255,255,.55)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em' }}>Rate</span>
-                      <span style={{ fontSize:14, color:'#6ee7b7', fontWeight:900 }}>{liveRate}%</span>
-                    </div>
-                    <input type="range" min="2" max="12" step="0.125" value={liveRate} onChange={e=>setLiveRate(e.target.value)}
-                      style={{ width:'100%', accentColor:'#1a9a5c', cursor:'pointer', height:4 }} />
-                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'rgba(255,255,255,.2)', marginTop:4 }}><span>2%</span><span>12%</span></div>
-                  </div>
-                  <div>
-                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:7 }}>
-                      <span style={{ fontSize:11, color:'rgba(255,255,255,.55)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em' }}>Loan Amount</span>
-                      <span style={{ fontSize:14, color:'#6ee7b7', fontWeight:900 }}>${Number(liveAmount||0).toLocaleString()}</span>
-                    </div>
-                    <input type="range" min="100000" max="2000000" step="5000" value={liveAmount||500000} onChange={e=>setLiveAmount(e.target.value)}
-                      style={{ width:'100%', accentColor:'#1a9a5c', cursor:'pointer', height:4 }} />
-                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'rgba(255,255,255,.2)', marginTop:4 }}><span>$100k</span><span>$2M</span></div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize:11, color:'rgba(255,255,255,.55)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:7 }}>Term</div>
-                    <div style={{ display:'flex', gap:5 }}>
-                      {['10','15','20','25','30'].map(t=>(
-                        <button key={t} onClick={()=>setLiveTerm(t)} style={{ flex:1, padding:'6px 0', borderRadius:6, border:`1px solid ${liveTerm===t?'#1a9a5c':'rgba(255,255,255,.1)'}`, background:liveTerm===t?'rgba(26,154,92,.2)':'transparent', color:liveTerm===t?'#6ee7b7':'rgba(255,255,255,.45)', fontSize:11, fontWeight:700, cursor:'pointer' }}>{t}yr</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div style={{ background:'rgba(26,154,92,.1)', border:'1px solid rgba(26,154,92,.2)', borderRadius:10, padding:'11px 16px' }}>
-                    <div style={{ fontSize:9, color:'rgba(255,255,255,.35)', textTransform:'uppercase', letterSpacing:'.1em', marginBottom:8 }}>Live Estimates</div>
-                    <div style={{ display:'flex', gap:20 }}>
-                      <div>
-                        <div style={{ fontSize:9, color:'rgba(255,255,255,.35)', marginBottom:2 }}>Monthly P&I</div>
-                        <div style={{ fontSize:18, fontWeight:900, color:'#6ee7b7', fontFamily:"Cormorant Garamond,serif" }}>{liveMp>0?liveFmt(liveMp):'—'}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize:9, color:'rgba(255,255,255,.35)', marginBottom:2 }}>Total Interest</div>
-                        <div style={{ fontSize:18, fontWeight:900, color:'#6ee7b7', fontFamily:"Cormorant Garamond,serif" }}>{liveInt>0?liveFmt(liveInt):'—'}</div>
-                      </div>
-                    </div>
-                    <div style={{ fontSize:9, color:'rgba(26,154,92,.7)', marginTop:6 }}>All slides update automatically</div>
-                  </div>
+          {/* Main area — slide + nav */}
+          <div style={{ flex:1, minWidth:0, display:'flex', flexDirection:'column', minHeight:0 }}>
+            {generating ? (
+              <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <div style={{ textAlign:'center' }}>
+                  <div style={{ width:52, height:52, borderRadius:'50%', border:'3px solid rgba(255,255,255,.06)', borderTopColor:'#1a9a5c', animation:'spin 1s linear infinite', margin:'0 auto 20px' }} />
+                  <div style={{ color:'rgba(255,255,255,.65)', fontSize:16, fontWeight:600, marginBottom:8 }}>Building your presentation…</div>
+                  <div style={{ color:'rgba(255,255,255,.3)', fontSize:13 }}>Calculating loan figures and generating slides</div>
                 </div>
               </div>
-            )}
-
-            {/* Slide */}
-            <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0, height:0 }}>
-              {generating ? (
-                <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <div style={{ textAlign:'center' }}>
-                    <div style={{ width:52, height:52, borderRadius:'50%', border:'3px solid rgba(255,255,255,.06)', borderTopColor:'#1a9a5c', animation:'spin 1s linear infinite', margin:'0 auto 20px' }} />
-                    <div style={{ color:'rgba(255,255,255,.65)', fontSize:16, fontWeight:600, marginBottom:8 }}>Building your presentation…</div>
-                    <div style={{ color:'rgba(255,255,255,.3)', fontSize:13 }}>Calculating loan figures and generating slides</div>
-                  </div>
+            ) : isPdf ? (
+              <div style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0 }}>
+                <div style={{ padding:'10px 20px', display:'flex', alignItems:'center', gap:12, borderBottom:'1px solid rgba(255,255,255,.06)', flexShrink:0 }}>
+                  <span style={{ fontSize:11, color:'rgba(255,255,255,.3)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em' }}>PDF Preview</span>
+                  <a href={selectedTemplate?.pdf_url} target="_blank" rel="noreferrer"
+                    style={{ marginLeft:'auto', fontSize:11, color:'rgba(255,255,255,.4)', border:'1px solid rgba(255,255,255,.1)', padding:'3px 10px', borderRadius:5, textDecoration:'none' }}>Open full ↗</a>
                 </div>
-              ) : isPdf ? (
-                <div style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0, height:0 }}>
-                  <div style={{ padding:'10px 20px', display:'flex', alignItems:'center', gap:12, borderBottom:'1px solid rgba(255,255,255,.05)', flexShrink:0 }}>
-                    <span style={{ fontSize:11, color:'rgba(255,255,255,.3)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em' }}>PDF Preview</span>
-                    <a href={selectedTemplate?.pdf_url} target="_blank" rel="noreferrer"
-                      style={{ marginLeft:'auto', fontSize:11, color:'rgba(255,255,255,.4)', border:'1px solid rgba(255,255,255,.1)', padding:'3px 10px', borderRadius:5, textDecoration:'none' }}>Open full ↗</a>
-                  </div>
-                  <iframe src={(selectedTemplate?.pdf_url||'')+'#toolbar=0&navpanes=0'} style={{ flex:1, border:'none', background:'#fff' }} title="PDF" />
+                <iframe src={(selectedTemplate?.pdf_url||'')+'#toolbar=0&navpanes=0'} style={{ flex:1, border:'none', background:'#fff', minHeight:0 }} title="PDF" />
+              </div>
+            ) : slides.length > 0 ? (
+              <>
+                {/* Slide fills all available space */}
+                <div style={{ flex:1, minHeight:0, margin:'16px 20px 8px', position:'relative', borderRadius:10, overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,.7)' }}>
+                  <ScaledSlide slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} companyName={profile.company_name||'Citizens Financial'} />
                 </div>
-              ) : slides.length > 0 ? (
-                <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'16px 24px 12px', minHeight:0, height:0 }}>
-                  <div style={{ flex:1, minHeight:0, position:'relative', borderRadius:10, overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,.6)' }}>
-                    <div style={{ position:'absolute', inset:0 }}>
-                      <ScaledSlide slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} companyName={profile.company_name||'Citizens Financial'} />
-                    </div>
+                {/* Nav bar */}
+                <div style={{ flexShrink:0, height:52, display:'flex', alignItems:'center', justifyContent:'center', gap:16, borderTop:'1px solid rgba(255,255,255,.05)' }}>
+                  <button onClick={()=>setSlideIndex(s=>Math.max(s-1,0))} disabled={slideIndex===0}
+                    style={{ background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.1)', color:'#fff', padding:'7px 20px', borderRadius:7, cursor:slideIndex===0?'not-allowed':'pointer', opacity:slideIndex===0?.3:1, fontSize:13, fontWeight:600 }}>← Prev</button>
+                  <div style={{ display:'flex', gap:6 }}>
+                    {slides.map((_,i)=>(
+                      <div key={i} onClick={()=>setSlideIndex(i)} style={{ width:i===slideIndex?22:7, height:7, borderRadius:4, background:i===slideIndex?'#1a9a5c':'rgba(255,255,255,.2)', cursor:'pointer', transition:'all .25s' }} />
+                    ))}
                   </div>
-                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:16, flexShrink:0, padding:'12px 0' }}>
-                    <button onClick={()=>setSlideIndex(s=>Math.max(s-1,0))} disabled={slideIndex===0}
-                      style={{ background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.1)', color:'#fff', padding:'8px 20px', borderRadius:7, cursor:slideIndex===0?'not-allowed':'pointer', opacity:slideIndex===0?.3:1, fontSize:13, fontWeight:600 }}>← Prev</button>
-                    <div style={{ display:'flex', gap:5 }}>
-                      {slides.map((_,i)=>(
-                        <div key={i} onClick={()=>setSlideIndex(i)} style={{ width:i===slideIndex?22:7, height:7, borderRadius:4, background:i===slideIndex?'#1a9a5c':'rgba(255,255,255,.2)', cursor:'pointer', transition:'all .25s' }} />
-                      ))}
-                    </div>
-                    <button onClick={()=>setSlideIndex(s=>Math.min(s+1,slides.length-1))} disabled={slideIndex===slides.length-1}
-                      style={{ background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.1)', color:'#fff', padding:'8px 20px', borderRadius:7, cursor:slideIndex===slides.length-1?'not-allowed':'pointer', opacity:slideIndex===slides.length-1?.3:1, fontSize:13, fontWeight:600 }}>Next →</button>
-                  </div>
+                  <button onClick={()=>setSlideIndex(s=>Math.min(s+1,slides.length-1))} disabled={slideIndex===slides.length-1}
+                    style={{ background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.1)', color:'#fff', padding:'7px 20px', borderRadius:7, cursor:slideIndex===slides.length-1?'not-allowed':'pointer', opacity:slideIndex===slides.length-1?.3:1, fontSize:13, fontWeight:600 }}>Next →</button>
                 </div>
-              ) : null}
-            </div>
+              </>
+            ) : null}
           </div>
         </div>
       </div>
     );
   }
+
 
   return null;
 }
