@@ -5419,10 +5419,10 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
         tabIndex={0} ref={el=>el?.focus()}>
 
         {/* ── Top bar: fixed 56px ── */}
-        <div style={{ height:56, flexShrink:0, background:'#0c1a35', display:'flex', alignItems:'center', padding:'0 16px', gap:10, borderBottom:'1px solid rgba(255,255,255,.08)' }}>
+        <div style={{ height:56, flexShrink:0, background:'#0c1a35', display:'flex', alignItems:'center', padding:'0 16px', gap:8, borderBottom:'1px solid rgba(255,255,255,.08)', overflow:'visible' }}>
           <button onClick={onClose} style={{ flexShrink:0, background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'#fff', padding:'7px 14px', borderRadius:7, cursor:'pointer', fontSize:13, fontWeight:600, whiteSpace:'nowrap' }}>← Back</button>
-          <img src={LOGO_URL} alt="" style={{ height:22, filter:'brightness(0) invert(1)', opacity:.5, flexShrink:0 }} onError={e=>e.target.style.display='none'} />
-          <div style={{ flex:1 }} />
+          <img src={LOGO_URL} alt="" style={{ height:22, filter:'brightness(0) invert(1)', opacity:.5, flexShrink:1, minWidth:0, maxWidth:120 }} onError={e=>e.target.style.display='none'} />
+          <div style={{ flex:1, minWidth:0 }} />
           {!isPdf && slides.length > 0 && (
             <button onClick={()=>setShowAdjust(a=>!a)} style={{ flexShrink:0, whiteSpace:'nowrap', background:showAdjust?'rgba(26,154,92,.25)':'rgba(255,255,255,.08)', border:'1px solid', borderColor:showAdjust?'#1a9a5c':'rgba(255,255,255,.12)', color:showAdjust?'#6ee7b7':'#fff', padding:'7px 14px', borderRadius:7, cursor:'pointer', fontSize:12, fontWeight:700, display:'flex', alignItems:'center', gap:6 }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
