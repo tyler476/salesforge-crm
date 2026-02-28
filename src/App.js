@@ -5506,7 +5506,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
             )}
 
             {/* Slide */}
-            <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:isPdf?0:'16px 24px', overflow:'hidden', minHeight:0 }}>
+            <div style={{ flex:1, display:'flex', flexDirection:'column', padding:isPdf?0:'12px 20px', overflow:'hidden', minHeight:0 }}>
               {generating ? (
                 <div style={{ textAlign:'center' }}>
                   <div style={{ width:52, height:52, borderRadius:'50%', border:'3px solid rgba(255,255,255,.06)', borderTopColor:'#1a9a5c', animation:'spin 1s linear infinite', margin:'0 auto 20px' }} />
@@ -5523,11 +5523,13 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
                   <iframe src={(selectedTemplate?.pdf_url||'')+'#toolbar=0&navpanes=0'} style={{ flex:1, border:'none', background:'#fff' }} title="PDF" />
                 </div>
               ) : slides.length > 0 ? (
-                <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14 }}>
-                  <div style={{ flex:1, width:'100%', minHeight:0 }}>
-                    <ScaledSlide slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} companyName={profile.company_name||'Citizens Financial'} />
+                <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column' }}>
+                  <div style={{ flex:1, minHeight:0, position:'relative' }}>
+                    <div style={{ position:'absolute', inset:0 }}>
+                      <ScaledSlide slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} companyName={profile.company_name||'Citizens Financial'} />
+                    </div>
                   </div>
-                  <div style={{ display:'flex', alignItems:'center', gap:16, flexShrink:0 }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:16, flexShrink:0, padding:'12px 0' }}>
                     <button onClick={()=>setSlideIndex(s=>Math.max(s-1,0))} disabled={slideIndex===0}
                       style={{ background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.1)', color:'#fff', padding:'8px 20px', borderRadius:7, cursor:slideIndex===0?'not-allowed':'pointer', opacity:slideIndex===0?.3:1, fontSize:13, fontWeight:600 }}>← Prev</button>
                     <div style={{ display:'flex', gap:5 }}>
