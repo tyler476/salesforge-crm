@@ -5414,7 +5414,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
         tabIndex={0} ref={el=>el?.focus()}>
 
         {/* Top bar */}
-        <div style={{ height:56, background:'#0c1a35', display:'flex', alignItems:'center', padding:'0 18px', gap:12, flexShrink:0, borderBottom:'1px solid rgba(255,255,255,.07)' }}>
+        <div style={{ height:56, background:'#0c1a35', display:'flex', alignItems:'center', padding:'0 20px 0 18px', gap:10, flexShrink:0, borderBottom:'1px solid rgba(255,255,255,.07)', minWidth:0 }}>
           <button onClick={onClose} style={{ background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.1)', color:'rgba(255,255,255,.75)', padding:'7px 14px', borderRadius:7, cursor:'pointer', fontSize:13, fontWeight:600, flexShrink:0 }}>← Back</button>
           <img src={LOGO_URL} alt="" style={{ height:22, filter:'brightness(0) invert(1)', opacity:.55 }} onError={e=>e.target.style.display='none'} />
           <div style={{ flex:1, color:'rgba(255,255,255,.45)', fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
@@ -5429,7 +5429,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
           )}
           {canSend && (
             <button onClick={send} disabled={sending}
-              style={{ background:'#1a9a5c', color:'#fff', border:'none', borderRadius:8, padding:'9px 20px', fontWeight:700, fontSize:13, cursor:sending?'not-allowed':'pointer', flexShrink:0, opacity:sending?.65:1 }}>
+              style={{ background:'#1a9a5c', color:'#fff', border:'none', borderRadius:8, padding:'9px 20px', fontWeight:700, fontSize:13, cursor:sending?'not-allowed':'pointer', flexShrink:0, whiteSpace:'nowrap', opacity:sending?.65:1 }}>
               {sending ? 'Sending…' : `Send to ${contact?.full_name||'Contact'} →`}
             </button>
           )}
@@ -5506,15 +5506,17 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
             )}
 
             {/* Slide */}
-            <div style={{ flex:1, display:'flex', flexDirection:'column', padding:isPdf?0:'12px 20px', overflow:'hidden', minHeight:0 }}>
+            <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden', minHeight:0, height:0 }}>
               {generating ? (
-                <div style={{ textAlign:'center' }}>
-                  <div style={{ width:52, height:52, borderRadius:'50%', border:'3px solid rgba(255,255,255,.06)', borderTopColor:'#1a9a5c', animation:'spin 1s linear infinite', margin:'0 auto 20px' }} />
-                  <div style={{ color:'rgba(255,255,255,.65)', fontSize:16, fontWeight:600, marginBottom:8 }}>Building your presentation…</div>
-                  <div style={{ color:'rgba(255,255,255,.3)', fontSize:13 }}>Calculating loan figures and generating slides</div>
+                <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                  <div style={{ textAlign:'center' }}>
+                    <div style={{ width:52, height:52, borderRadius:'50%', border:'3px solid rgba(255,255,255,.06)', borderTopColor:'#1a9a5c', animation:'spin 1s linear infinite', margin:'0 auto 20px' }} />
+                    <div style={{ color:'rgba(255,255,255,.65)', fontSize:16, fontWeight:600, marginBottom:8 }}>Building your presentation…</div>
+                    <div style={{ color:'rgba(255,255,255,.3)', fontSize:13 }}>Calculating loan figures and generating slides</div>
+                  </div>
                 </div>
               ) : isPdf ? (
-                <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column' }}>
+                <div style={{ flex:1, display:'flex', flexDirection:'column', minHeight:0, height:0 }}>
                   <div style={{ padding:'10px 20px', display:'flex', alignItems:'center', gap:12, borderBottom:'1px solid rgba(255,255,255,.05)', flexShrink:0 }}>
                     <span style={{ fontSize:11, color:'rgba(255,255,255,.3)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em' }}>PDF Preview</span>
                     <a href={selectedTemplate?.pdf_url} target="_blank" rel="noreferrer"
@@ -5523,8 +5525,8 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
                   <iframe src={(selectedTemplate?.pdf_url||'')+'#toolbar=0&navpanes=0'} style={{ flex:1, border:'none', background:'#fff' }} title="PDF" />
                 </div>
               ) : slides.length > 0 ? (
-                <div style={{ width:'100%', height:'100%', display:'flex', flexDirection:'column' }}>
-                  <div style={{ flex:1, minHeight:0, position:'relative' }}>
+                <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'16px 24px 12px', minHeight:0, height:0 }}>
+                  <div style={{ flex:1, minHeight:0, position:'relative', borderRadius:10, overflow:'hidden', boxShadow:'0 20px 60px rgba(0,0,0,.6)' }}>
                     <div style={{ position:'absolute', inset:0 }}>
                       <ScaledSlide slide={slides[slideIndex]||{}} index={slideIndex} total={slides.length} companyName={profile.company_name||'Citizens Financial'} />
                     </div>
