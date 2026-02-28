@@ -364,7 +364,7 @@ function ContactForm({ contact, onSave, onClose, companyId }) {
 }
 
 // ─── CONTACT DRAWER ───────────────────────────────────────────────────────────
-function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, profile }) {
+function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, profile, onBuildPresentation }) {
   const [activities, setActivities] = useState([]);
   const [showPresBuilder, setShowPresBuilder] = useState(false);
   const [note, setNote] = useState('');
@@ -462,12 +462,11 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
           <button className="btn-secondary btn-sm" onClick={onEdit}>Edit</button>
           <button className="btn-danger btn-sm" onClick={onDelete}><span style={{display:"flex",alignItems:"center",gap:5}}>{Icons.trash} Delete</span></button>
           <button className="btn-sm" onClick={launchAICall} style={{ background:'linear-gradient(135deg,#6366f1,#8b5cf6)', color:'#fff', border:'none' }}>AI Call</button>
-          <button className="btn-sm" onClick={()=>setShowPresBuilder(true)} style={{ background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', display:'flex', alignItems:'center', gap:6 }}>
+          <button className="btn-sm" onClick={()=>{ onBuildPresentation && onBuildPresentation(contact); }} style={{ background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', display:'flex', alignItems:'center', gap:6 }}>
             {React.cloneElement(Icons.file,{width:13,height:13,stroke:'#fff'})} Build Presentation
           </button>
         </div>
-        {showPresBuilder && <PresentationBuilderModal contact={contact} profile={profile} onClose={()=>setShowPresBuilder(false)} toast={toast} onSent={()=>setShowPresBuilder(false)} />}
-
+        
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20 }}>
           {[['📧','Email',contact.email],['📞','Phone',contact.phone],['💰','Deal Value',contact.deal_value?fmt(contact.deal_value):'—'],['🏭','Industry',contact.industry],['📌','Source',contact.source]].map(([icon,label,val])=>val&&(
             <div key={label} style={{ background:'var(--surface2)', borderRadius:8, padding:10 }}>
@@ -5419,10 +5418,9 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
         tabIndex={0} ref={el=>el?.focus()}>
 
         {/* ── Top bar: fixed 56px ── */}
-        <div style={{ height:56, flexShrink:0, background:'#0c1a35', display:'flex', alignItems:'center', padding:'0 16px', gap:8, borderBottom:'1px solid rgba(255,255,255,.08)', overflow:'visible' }}>
+        <div style={{ height:56, flexShrink:0, background:'#0c1a35', display:'flex', alignItems:'center', padding:'0 16px', gap:8, borderBottom:'1px solid rgba(255,255,255,.08)' }}>
           <button onClick={onClose} style={{ flexShrink:0, background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'#fff', padding:'7px 14px', borderRadius:7, cursor:'pointer', fontSize:13, fontWeight:600, whiteSpace:'nowrap' }}>← Back</button>
-          <img src={LOGO_URL} alt="" style={{ height:22, filter:'brightness(0) invert(1)', opacity:.5, flexShrink:1, minWidth:0, maxWidth:120 }} onError={e=>e.target.style.display='none'} />
-          <div style={{ flex:1, minWidth:0 }} />
+          <div style={{ flex:1 }} />
           {!isPdf && slides.length > 0 && (
             <button onClick={()=>setShowAdjust(a=>!a)} style={{ flexShrink:0, whiteSpace:'nowrap', background:showAdjust?'rgba(26,154,92,.25)':'rgba(255,255,255,.08)', border:'1px solid', borderColor:showAdjust?'#1a9a5c':'rgba(255,255,255,.12)', color:showAdjust?'#6ee7b7':'#fff', padding:'7px 14px', borderRadius:7, cursor:'pointer', fontSize:12, fontWeight:700, display:'flex', alignItems:'center', gap:6 }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
@@ -6013,6 +6011,7 @@ export default function App() {
   const [sidebarNewWs, setSidebarNewWs] = useState(false);
   const [globalSearch, setGlobalSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [presContact, setPresContact] = useState(null);
   const [presentToken, setPresentToken] = useState(()=>{ const h=window.location.hash; const m=h.match(/^#present-(.+)$/); return m?m[1]:null; });
 
   // Browser history navigation
@@ -6209,7 +6208,19 @@ export default function App() {
         companyId={profile.company_name}
         profile={profile}
         toast={toast}
+        onBuildPresentation={c=>setPresContact(c)}
       />
+
+      {/* Presentation Builder — rendered at root so fixed overlay covers full screen */}
+      {presContact && (
+        <PresentationBuilderModal
+          contact={presContact}
+          profile={profile}
+          onClose={()=>setPresContact(null)}
+          toast={toast}
+          onSent={()=>setPresContact(null)}
+        />
+      )}
 
       {/* Contact Form Modal */}
       {showForm && (
