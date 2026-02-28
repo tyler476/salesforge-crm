@@ -6186,6 +6186,180 @@ function PresentationsPage({ profile, toast }) {
 
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
+// ─── CF ASSISTANT ────────────────────────────────────────────────────────────
+function CFAssistant({ profile }) {
+  const [open, setOpen]       = useState(false);
+  const [messages, setMessages] = useState([
+    { role:'assistant', content:"Hi! I'm Hannah, your Citizens Financial assistant. Ask me anything about loan programs, CRM features, or how to use the presentation tools." }
+  ]);
+  const [input, setInput]     = useState('');
+  const [loading, setLoading] = useState(false);
+  const bottomRef             = React.useRef(null);
+  const inputRef              = React.useRef(null);
+
+  React.useEffect(()=>{ bottomRef.current?.scrollIntoView({ behavior:'smooth' }); }, [messages]);
+  React.useEffect(()=>{ if(open) setTimeout(()=>inputRef.current?.focus(), 100); }, [open]);
+
+  const SYSTEM = `You are a helpful AI assistant embedded in SalesForge CRM, used by loan officers at Citizens Financial Home Services.
+
+CITIZENS FINANCIAL LOAN PROGRAMS:
+- Conventional Purchase & Refinance: Fixed 10/15/20/25/30yr terms, competitive rates, up to 97% LTV for first-time buyers
+- FHA Loans: 3.5% down, flexible credit requirements (580+ FICO), great for first-time buyers
+- VA Loans: 0% down for eligible veterans/active military, no PMI, competitive rates
+- USDA Loans: 0% down for rural/suburban eligible areas, income limits apply
+- Jumbo Loans: Loan amounts above conforming limits ($766,550 in most counties), requires stronger credit
+- Reverse Mortgage: For homeowners 62+, converts equity to cash, no monthly payment required
+
+CRM FEATURES YOU CAN HELP WITH:
+- Contacts & Workspaces: Organize contacts into deal pipelines with custom stages
+- Presentations: Build personalized CF-branded mortgage presentations with animated charts. Single or mass send with live scenario sliders for clients
+- Calendar: Schedule calls, meetings, follow-ups linked to contacts
+- Files: Upload and share documents with contacts
+- Templates: Save reusable slide decks or PDFs for quick sending
+- Mass Send: Send personalized presentations to multiple contacts at once with name personalization
+- Notifications: Activity alerts, follow-up reminders
+- Client Viewer: Clients receive interactive presentations where they can explore rate/amount/term scenarios
+
+Be concise, helpful, and specific. If asked about rates, remind the user rates change daily and to check current pricing. Always keep answers relevant to mortgage lending and this CRM.`;
+
+  const send = async () => {
+    const text = input.trim();
+    if (!text || loading) return;
+    const newMessages = [...messages, { role:'user', content:text }];
+    setMessages(newMessages);
+    setInput('');
+    setLoading(true);
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          system: SYSTEM,
+          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+        }),
+      });
+      const data = await res.json();
+      const reply = data.content?.[0]?.text || 'Sorry, I had trouble responding. Please try again.';
+      setMessages(m => [...m, { role:'assistant', content:reply }]);
+    } catch(e) {
+      setMessages(m => [...m, { role:'assistant', content:'Connection error. Please check your network and try again.' }]);
+    }
+    setLoading(false);
+  };
+
+  const suggestions = [
+    'What loan programs do you offer?',
+    'How do I send a mass presentation?',
+    'What is the FHA minimum down payment?',
+    'How do I use the scenario sliders?',
+  ];
+
+  if (!profile) return null;
+
+  return (
+    <>
+      {/* Floating button */}
+      <button onClick={()=>setOpen(o=>!o)} style={{
+        position:'fixed', bottom:24, right:24, zIndex:900,
+        width:56, height:56, borderRadius:'50%',
+        background:'linear-gradient(135deg,#1a9a5c,#0d7a47)',
+        border:'none', cursor:'pointer', boxShadow:'0 4px 20px rgba(26,154,92,.45)',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        transition:'transform .2s, box-shadow .2s',
+      }}
+        onMouseOver={e=>{ e.currentTarget.style.transform='scale(1.08)'; e.currentTarget.style.boxShadow='0 6px 28px rgba(26,154,92,.55)'; }}
+        onMouseOut={e=>{ e.currentTarget.style.transform='scale(1)'; e.currentTarget.style.boxShadow='0 4px 20px rgba(26,154,92,.45)'; }}>
+        {open
+          ? <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          : <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        }
+      </button>
+
+      {/* Chat panel */}
+      {open && (
+        <div style={{
+          position:'fixed', bottom:92, right:24, zIndex:900,
+          width:'min(400px,calc(100vw - 48px))', height:'min(560px,calc(100vh - 120px))',
+          background:'var(--surface)', border:'1px solid var(--border)',
+          borderRadius:20, boxShadow:'0 24px 80px rgba(0,0,0,.35)',
+          display:'flex', flexDirection:'column', overflow:'hidden',
+          animation:'fadeUp .2s ease',
+        }}>
+          {/* Header */}
+          <div style={{ background:'#0c1a35', padding:'16px 20px', display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
+            <div style={{ width:36, height:36, borderRadius:10, background:'linear-gradient(135deg,#1a9a5c,#0d7a47)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </div>
+            <div>
+              <div style={{ fontFamily:"Cormorant Garamath,serif", fontSize:16, fontWeight:700, color:'#fff', lineHeight:1.2 }}>Hannah</div>
+              <div style={{ fontSize:11, color:'rgba(255,255,255,.4)' }}>Loan programs · CRM help · Instant answers</div>
+            </div>
+            <div style={{ marginLeft:'auto', width:8, height:8, borderRadius:'50%', background:'#1a9a5c', boxShadow:'0 0 6px #1a9a5c' }} />
+          </div>
+
+          {/* Messages */}
+          <div style={{ flex:1, overflowY:'auto', padding:'16px', display:'flex', flexDirection:'column', gap:12, minHeight:0 }}>
+            {messages.map((m,i)=>(
+              <div key={i} style={{ display:'flex', flexDirection:'column', alignItems:m.role==='user'?'flex-end':'flex-start' }}>
+                <div style={{
+                  maxWidth:'85%', padding:'10px 14px', borderRadius: m.role==='user'?'14px 14px 4px 14px':'14px 14px 14px 4px',
+                  background: m.role==='user'?'#1a9a5c':'var(--surface2)',
+                  color: m.role==='user'?'#fff':'var(--text)',
+                  fontSize:13, lineHeight:1.6,
+                  border: m.role==='user'?'none':'1px solid var(--border)',
+                }}>
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div style={{ display:'flex', alignItems:'flex-start' }}>
+                <div style={{ padding:'10px 14px', borderRadius:'14px 14px 14px 4px', background:'var(--surface2)', border:'1px solid var(--border)', display:'flex', gap:5, alignItems:'center' }}>
+                  {[0,1,2].map(i=>(
+                    <div key={i} style={{ width:6, height:6, borderRadius:'50%', background:'#1a9a5c', animation:`pulse 1.2s ease ${i*.2}s infinite` }} />
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Suggestions when only greeting shown */}
+            {messages.length===1 && (
+              <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                {suggestions.map((s,i)=>(
+                  <button key={i} onClick={()=>{ setInput(s); setTimeout(()=>inputRef.current?.focus(),50); }}
+                    style={{ textAlign:'left', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:10, padding:'8px 12px', fontSize:12, color:'var(--text)', cursor:'pointer', transition:'all .15s' }}
+                    onMouseOver={e=>{ e.currentTarget.style.borderColor='#1a9a5c'; e.currentTarget.style.background='rgba(26,154,92,.06)'; }}
+                    onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background='var(--surface2)'; }}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
+
+          {/* Input */}
+          <div style={{ padding:'12px 16px', borderTop:'1px solid var(--border)', display:'flex', gap:8, flexShrink:0 }}>
+            <input
+              ref={inputRef}
+              value={input}
+              onChange={e=>setInput(e.target.value)}
+              onKeyDown={e=>{ if(e.key==='Enter'&&!e.shiftKey) { e.preventDefault(); send(); } }}
+              placeholder="Ask anything about CF programs or this CRM…"
+              style={{ flex:1, padding:'9px 14px', borderRadius:10, border:'1px solid var(--border)', background:'var(--surface2)', color:'var(--text)', fontSize:13, outline:'none', fontFamily:'Inter,sans-serif' }}
+            />
+            <button onClick={send} disabled={!input.trim()||loading}
+              style={{ width:38, height:38, borderRadius:10, background:input.trim()&&!loading?'#1a9a5c':'var(--border)', border:'none', cursor:input.trim()&&!loading?'pointer':'default', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, transition:'background .15s' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -6425,6 +6599,7 @@ export default function App() {
 
       {sidebarNewWs && <InputModal title="New Workspace" placeholder="e.g. Loans In Process" onConfirm={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setView('workspace',data); setSidebarNewWs(false);}}} onClose={()=>setSidebarNewWs(false)} />}
       <Toast msg={toastMsg} onClose={()=>setToastMsg('')} />
+      <CFAssistant profile={profile} />
     </>
   );
 }
