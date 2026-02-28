@@ -46,7 +46,7 @@ const css = `
   ::-webkit-scrollbar { width:5px; height:5px; }
   ::-webkit-scrollbar-track { background:var(--bg); }
   ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
-  .overlay { position:fixed; inset:0; background:rgba(15,28,63,.5); z-index:100; display:flex; align-items:center; justify-content:center; }
+  .overlay { position:fixed; inset:0; background:rgba(15,28,63,.5); z-index:1000; display:flex; align-items:center; justify-content:center; }
   .modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:32px; width:90%; max-width:540px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.4); }
   .toast { position:fixed; bottom:24px; right:24px; background:var(--sidebar-bg); color:#fff; border-radius:8px; padding:14px 20px; z-index:999; font-size:14px; animation:slideIn .2s ease; box-shadow:0 8px 24px rgba(0,0,0,.2); }
   @keyframes slideIn { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
@@ -5409,7 +5409,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
     const adjH = showAdjust ? 110 : 0;
 
     return (
-      <div style={{ position:'fixed', inset:0, zIndex:200, background:'#060f1d', display:'flex', flexDirection:'column', overflow:'hidden' }}
+      <div style={{ position:'fixed', inset:0, zIndex:1000, background:'#060f1d', display:'flex', flexDirection:'column', overflow:'hidden' }}
         onKeyDown={e=>{
           if(e.key==='ArrowRight'||e.key==='ArrowDown') setSlideIndex(s=>Math.min(s+1,slides.length-1));
           if(e.key==='ArrowLeft'||e.key==='ArrowUp')   setSlideIndex(s=>Math.max(s-1,0));
