@@ -364,7 +364,7 @@ function ContactForm({ contact, onSave, onClose, companyId }) {
 }
 
 // ─── CONTACT DRAWER ───────────────────────────────────────────────────────────
-function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, profile, onBuildPresentation }) {
+function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, profile, onBuildPresentation, onImportMISMO, onExportMISMO }) {
   const [activities, setActivities] = useState([]);
   const [showPresBuilder, setShowPresBuilder] = useState(false);
   const [note, setNote] = useState('');
@@ -464,6 +464,12 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
           <button className="btn-sm" onClick={launchAICall} style={{ background:'linear-gradient(135deg,#6366f1,#8b5cf6)', color:'#fff', border:'none' }}>AI Call</button>
           <button className="btn-sm" onClick={()=>{ onBuildPresentation && onBuildPresentation(contact); }} style={{ background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', display:'flex', alignItems:'center', gap:6 }}>
             {React.cloneElement(Icons.file,{width:13,height:13,stroke:'#fff'})} Build Presentation
+          </button>
+          <button className="btn-sm" onClick={()=>onImportMISMO&&onImportMISMO()} style={{ background:'rgba(26,154,92,.15)', border:'1px solid rgba(26,154,92,.3)', color:'#1a9a5c', display:'flex', alignItems:'center', gap:5 }}>
+            ⬇️ Import MISMO
+          </button>
+          <button className="btn-sm" onClick={()=>onExportMISMO&&onExportMISMO(contact)} style={{ background:'rgba(240,180,41,.12)', border:'1px solid rgba(240,180,41,.3)', color:'#c8960a', display:'flex', alignItems:'center', gap:5 }}>
+            ⬆️ Export MISMO
           </button>
         </div>
         
@@ -1572,6 +1578,9 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
           {selected.length > 0 && <button className="btn-secondary" onClick={()=>setShowMassPresentation(true)} style={{ display:'flex', alignItems:'center', gap:6 }}>{React.cloneElement(Icons.file,{width:14,height:14})} Send Presentation</button>}
           <button className="btn-secondary" onClick={()=>setShowGroupSend(true)} style={{ display:'flex', alignItems:'center', gap:6 }}>
             {React.cloneElement(Icons.users,{width:14,height:14})} Send by Group
+          </button>
+          <button className="btn-secondary" onClick={()=>window.dispatchEvent(new CustomEvent('openMISMOImport'))} style={{ display:'flex', alignItems:'center', gap:6 }}>
+            ⬇️ Import MISMO
           </button>
           <button className="btn-primary" onClick={onAdd}>+ Add Contact</button>
         </div>
@@ -5127,7 +5136,7 @@ function PublicPresentationViewer({ token }) {
 
 
 // ─── AI PRESENTATION BUILDER MODAL ────────────────────────────────────────────
-function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) {
+function PresentationBuilderModal({ contact, profile, onClose, toast, onSent, pricingRate, importedLoanData }) {
   const [step, setStep]               = useState('choose');
   const [mode, setMode]               = useState(null);
   const [templates, setTemplates]     = useState([]);
@@ -5139,18 +5148,29 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
   const [showAdjust, setShowAdjust]   = useState(false);
 
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(()=>({
     borrower_name:    contact?.full_name || '',
-    loan_type:        'Purchase',
-    loan_amount:      contact?.deal_value ? String(contact.deal_value) : '',
-    rate:             '',
-    term:             '30',
-    property_address: '',
+    loan_type:        importedLoanData?.loan_purpose || importedLoanData?.mortgage_type || 'Purchase',
+    loan_amount:      importedLoanData?.loan_amount || (contact?.deal_value ? String(contact.deal_value) : ''),
+    rate:             pricingRate?.rate || importedLoanData?.note_rate || '',
+    term:             importedLoanData?.loan_term || pricingRate?.term || '30',
+    property_address: importedLoanData?.property_address || '',
     lo_name:          profile?.full_name || '',
     lo_phone:         '',
     lo_email:         profile?.email || '',
-  });
+  }));
   const setF = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  // Sync when pricing engine applies a rate
+  useEffect(()=>{
+    if(!pricingRate) return;
+    setF('rate', pricingRate.rate);
+    if(pricingRate.loan_amount) setF('loan_amount', pricingRate.loan_amount);
+    if(pricingRate.loan_type)   setF('loan_type',   pricingRate.loan_type);
+    if(pricingRate.term)        setF('term',         pricingRate.term);
+    setLiveRate(pricingRate.rate);
+    if(pricingRate.loan_amount) setLiveAmount(pricingRate.loan_amount);
+  }, [pricingRate]);
 
   // Live adjustment state (mirrors form, updated by sliders)
   const [liveRate,   setLiveRate]   = useState('');
@@ -5350,6 +5370,10 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent }) 
           <div>
             <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700, color:'#fff' }}>Loan Details</div>
             {contact && <div style={{ color:'rgba(255,255,255,.4)', fontSize:13, marginTop:2 }}>Presentation for {contact.full_name}</div>}
+            <div style={{ display:'flex', gap:6, marginTop:6, flexWrap:'wrap' }}>
+              {pricingRate && <span style={{ fontSize:11, padding:'2px 8px', borderRadius:4, background:'rgba(26,154,92,.25)', color:'#4ade80', fontWeight:700 }}>💰 Rate from Pricing Engine: {pricingRate.rate}%</span>}
+              {importedLoanData?.loan_amount && <span style={{ fontSize:11, padding:'2px 8px', borderRadius:4, background:'rgba(77,142,240,.2)', color:'#60a5fa', fontWeight:700 }}>📄 MISMO data loaded</span>}
+            </div>
           </div>
           <button onClick={onClose} style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.7)', width:34, height:34, borderRadius:8, cursor:'pointer', fontSize:20, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
         </div>
@@ -6185,6 +6209,486 @@ function PresentationsPage({ profile, toast }) {
 }
 
 
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MISMO 3.4 IMPORT / EXPORT ENGINE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function parseMISMO(xmlString) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlString, 'application/xml');
+  const ns = 'http://www.mismo.org/residential/2009/schemas';
+  const get = (parent, tag) => {
+    const el = parent.getElementsByTagNameNS(ns, tag)[0] || parent.getElementsByTagName(tag)[0];
+    return el ? el.textContent.trim() : '';
+  };
+  const getAll = (parent, tag) => Array.from(
+    parent.getElementsByTagNameNS(ns, tag).length
+      ? parent.getElementsByTagNameNS(ns, tag)
+      : parent.getElementsByTagName(tag)
+  );
+  const loan = {};
+  loan.loan_purpose        = get(doc, 'LoanPurposeType');
+  loan.mortgage_type       = get(doc, 'MortgageType');
+  loan.lien_priority       = get(doc, 'LienPriorityType');
+  loan.amortization_type   = get(doc, 'AmortizationType');
+  loan.loan_amount         = get(doc, 'BaseLoanAmount') || get(doc, 'LoanAmount');
+  loan.note_rate           = get(doc, 'NoteRatePercent') || get(doc, 'RequestedInterestRatePercent');
+  loan.loan_term_months    = get(doc, 'LoanTermMonths');
+  loan.loan_term           = loan.loan_term_months ? String(Math.round(parseInt(loan.loan_term_months)/12)) : '30';
+  loan.estimated_closing_costs = get(doc, 'EstimatedClosingCostsAmount');
+  loan.sales_price         = get(doc, 'SalesPriceAmount') || get(doc, 'PropertyAppraisedValueAmount');
+  loan.down_payment        = get(doc, 'DownPaymentAmount');
+  loan.ltv                 = get(doc, 'LoanToValueRatioPercent');
+  loan.origination_system  = get(doc, 'LoanOriginationSystemName');
+  loan.origination_version = get(doc, 'LoanOriginationSystemVersionIdentifier');
+  const propEl = getAll(doc, 'SUBJECT_PROPERTY')[0] || doc;
+  loan.property_street  = get(propEl, 'StreetAddress') || get(propEl, 'AddressLineText');
+  loan.property_city    = get(propEl, 'CityName');
+  loan.property_state   = get(propEl, 'StateCode');
+  loan.property_zip     = get(propEl, 'PostalCode');
+  loan.property_address = [loan.property_street, loan.property_city, loan.property_state, loan.property_zip].filter(Boolean).join(', ');
+  loan.appraised_value  = get(doc, 'PropertyAppraisedValueAmount');
+  const borrowers = getAll(doc, 'BORROWER');
+  const contact = {};
+  if (borrowers.length > 0) {
+    const b = borrowers[0];
+    contact.full_name = [get(b,'FirstName'), get(b,'MiddleName'), get(b,'LastName')].filter(Boolean).join(' ');
+    getAll(b, 'CONTACT_POINT').forEach(cp => {
+      const type = get(cp, 'ContactPointRoleType');
+      const tel  = get(cp, 'ContactPointTelephoneValue');
+      const eml  = get(cp, 'ContactPointEmailValue');
+      if ((type==='Mobile'||type==='Home') && tel) contact.phone = tel;
+      if ((type==='Work'||type==='Email') && eml)  contact.email = eml;
+    });
+    contact.email = contact.email || get(b, 'ContactPointEmailValue');
+    contact.phone = contact.phone || get(b, 'ContactPointTelephoneValue');
+  }
+  loan.employer_name = get(doc, 'EmployerName');
+  loan.base_income   = get(doc, 'BasePayAmount') || get(doc, 'EmploymentMonthlyIncomeAmount');
+  return { contact, loan };
+}
+
+function exportMISMO(contact, loan, profile) {
+  const parts      = (contact.full_name || '').split(' ');
+  const firstName  = parts[0] || '';
+  const lastName   = parts.slice(1).join(' ') || '';
+  const now        = new Date().toISOString();
+  const termMos    = (parseInt(loan.loan_term || loan.term || '30') * 12).toString();
+  const purposeMap = { Purchase:'Purchase', Refinance:'Refinance', 'Rate/Term Refinance':'Refinance', 'Cash-Out Refinance':'Refinance', 'VA Loan':'Purchase', 'FHA Loan':'Purchase', Jumbo:'Purchase', USDA:'Purchase', 'Reverse Mortgage':'Refinance' };
+  const loanPurpose   = purposeMap[loan.loan_purpose || loan.loan_type] || 'Purchase';
+  const mtMap         = { 'VA Loan':'VA', 'FHA Loan':'FHA', USDA:'USDA', Conventional:'Conventional', Jumbo:'Conventional', FHA:'FHA', VA:'VA' };
+  const mortgageType  = mtMap[loan.loan_type || loan.mortgage_type] || 'Conventional';
+  const addr          = (loan.property_address || '').split(',').map(s=>s.trim());
+  const loanAmt       = loan.loan_amount || '';
+  const rate          = loan.note_rate || loan.rate || '';
+  const loFirst       = (profile?.full_name||'').split(' ')[0];
+  const loLast        = (profile?.full_name||'').split(' ').slice(1).join(' ');
+  return `<?xml version="1.0" encoding="utf-8"?>
+<MESSAGE MISMOReferenceModelIdentifier="3.4.032420160128"
+  xmlns="http://www.mismo.org/residential/2009/schemas"
+  xmlns:xlink="http://www.w3.org/1999/xlink"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.mismo.org/residential/2009/schemas DU_Wrapper_3.4.0_B324.xsd">
+  <ABOUT_VERSIONS><ABOUT_VERSION>
+    <AboutVersionIdentifier>DU Spec 1.8.5</AboutVersionIdentifier>
+    <CreatedDatetime>${now}</CreatedDatetime>
+  </ABOUT_VERSION></ABOUT_VERSIONS>
+  <DEAL_SETS><DEAL_SET><DEALS><DEAL>
+    <LOANS><LOAN LoanRoleType="SubjectLoan" xlink:label="LOAN_1">
+      <AMORTIZATION><AMORTIZATION_RULE>
+        <AmortizationType>Fixed</AmortizationType>
+        <LoanAmortizationPeriodCount>${termMos}</LoanAmortizationPeriodCount>
+        <LoanAmortizationPeriodType>Month</LoanAmortizationPeriodType>
+      </AMORTIZATION_RULE></AMORTIZATION>
+      <DOCUMENT_SPECIFIC_DATA_SETS><DOCUMENT_SPECIFIC_DATA_SET>
+        <URLA><URLA_DETAIL>
+          <EstimatedClosingCostsAmount>${loan.estimated_closing_costs||'0.00'}</EstimatedClosingCostsAmount>
+        </URLA_DETAIL></URLA>
+      </DOCUMENT_SPECIFIC_DATA_SET></DOCUMENT_SPECIFIC_DATA_SETS>
+      <HMDA_LOAN><HMDA_LOAN_DETAIL>
+        <HMDA_HOEPALoanStatusIndicator>false</HMDA_HOEPALoanStatusIndicator>
+      </HMDA_LOAN_DETAIL></HMDA_LOAN>
+      <LOAN_DETAIL>
+        <BalloonIndicator>false</BalloonIndicator>
+        <InterestOnlyIndicator>false</InterestOnlyIndicator>
+        <NegativeAmortizationIndicator>false</NegativeAmortizationIndicator>
+        <PrepaymentPenaltyIndicator>false</PrepaymentPenaltyIndicator>
+      </LOAN_DETAIL>
+      ${loanAmt ? `<LOAN_PRODUCT><LOAN_PRODUCT_FEATURE>
+        <LoanTermMonths>${termMos}</LoanTermMonths>
+        <BaseLoanAmount>${loanAmt}</BaseLoanAmount>
+        ${rate ? `<NoteRatePercent>${rate}</NoteRatePercent>` : ''}
+        ${loan.sales_price ? `<SalesPriceAmount>${loan.sales_price}</SalesPriceAmount>` : ''}
+      </LOAN_PRODUCT_FEATURE></LOAN_PRODUCT>` : ''}
+      <ORIGINATION_SYSTEMS><ORIGINATION_SYSTEM>
+        <LoanOriginationSystemName>Citizens Financial CRM — SalesForge</LoanOriginationSystemName>
+        <LoanOriginationSystemVendorIdentifier>CF-SALESFORGE</LoanOriginationSystemVendorIdentifier>
+        <LoanOriginationSystemVersionIdentifier>2.0</LoanOriginationSystemVersionIdentifier>
+      </ORIGINATION_SYSTEM></ORIGINATION_SYSTEMS>
+      <TERMS_OF_LOAN>
+        <LienPriorityType>FirstLien</LienPriorityType>
+        <LoanPurposeType>${loanPurpose}</LoanPurposeType>
+        <MortgageType>${mortgageType}</MortgageType>
+      </TERMS_OF_LOAN>
+    </LOAN></LOANS>
+    <PARTIES>
+      <PARTY xlink:label="PARTY_Borrower_1">
+        <INDIVIDUAL><n><FirstName>${firstName}</FirstName><LastName>${lastName}</LastName></n></INDIVIDUAL>
+        <ROLES><ROLE><BORROWER><CONTACT_POINTS>
+          ${contact.email ? `<CONTACT_POINT><ContactPointEmailValue>${contact.email}</ContactPointEmailValue><ContactPointRoleType>Work</ContactPointRoleType></CONTACT_POINT>` : ''}
+          ${contact.phone ? `<CONTACT_POINT><ContactPointTelephoneValue>${contact.phone}</ContactPointTelephoneValue><ContactPointRoleType>Mobile</ContactPointRoleType></CONTACT_POINT>` : ''}
+        </CONTACT_POINTS></BORROWER></ROLE></ROLES>
+      </PARTY>
+      ${profile ? `<PARTY xlink:label="PARTY_LO_1">
+        <INDIVIDUAL><n><FirstName>${loFirst}</FirstName><LastName>${loLast}</LastName></n></INDIVIDUAL>
+        <ROLES><ROLE><LOAN_ORIGINATOR><CONTACT_POINTS>
+          ${profile.email ? `<CONTACT_POINT><ContactPointEmailValue>${profile.email}</ContactPointEmailValue><ContactPointRoleType>Work</ContactPointRoleType></CONTACT_POINT>` : ''}
+        </CONTACT_POINTS></LOAN_ORIGINATOR></ROLE></ROLES>
+      </PARTY>` : ''}
+    </PARTIES>
+    ${loan.property_address ? `<COLLATERALS><COLLATERAL><SUBJECT_PROPERTY>
+      <ADDRESS>
+        <AddressLineText>${addr[0]||''}</AddressLineText>
+        <CityName>${addr[1]||''}</CityName>
+        <StateCode>${addr[2]||''}</StateCode>
+        <PostalCode>${addr[3]||''}</PostalCode>
+      </ADDRESS>
+      ${loan.appraised_value ? `<PROPERTY_DETAIL><PropertyAppraisedValueAmount>${loan.appraised_value}</PropertyAppraisedValueAmount></PROPERTY_DETAIL>` : ''}
+    </SUBJECT_PROPERTY></COLLATERAL></COLLATERALS>` : ''}
+  </DEAL></DEALS></DEAL_SET></DEAL_SETS>
+</MESSAGE>`;
+}
+
+// ─── MISMO IMPORT MODAL ───────────────────────────────────────────────────────
+function MISMOImportModal({ onClose, onImport, toast }) {
+  const [dragging, setDragging] = useState(false);
+  const [parsed, setParsed]     = useState(null);
+  const [raw, setRaw]           = useState('');
+  const [error, setError]       = useState('');
+  const fileRef = React.useRef(null);
+
+  const processFile = file => {
+    if (!file) return;
+    if (!file.name.match(/\.(xml|mismo)$/i)) { setError('Please upload a .xml or .mismo file'); return; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      try { setParsed(parseMISMO(e.target.result)); setRaw(e.target.result); setError(''); }
+      catch(err) { setError('Could not parse: ' + err.message); }
+    };
+    reader.readAsText(file);
+  };
+
+  const FIELD_LABELS = { loan_purpose:'Loan Purpose', mortgage_type:'Mortgage Type', loan_amount:'Loan Amount', note_rate:'Interest Rate', loan_term:'Term (yrs)', sales_price:'Sales Price', property_address:'Property Address', estimated_closing_costs:'Closing Costs', origination_system:'Source System' };
+
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{ width:'min(700px,95vw)', background:'var(--surface)', borderRadius:20, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', maxHeight:'90vh', display:'flex', flexDirection:'column' }}>
+        <div style={{ background:'linear-gradient(135deg,#0c1a35,#1a3a6e)', padding:'22px 28px', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0, borderRadius:'20px 20px 0 0' }}>
+          <div>
+            <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:22, fontWeight:700, color:'#fff' }}>Import MISMO Loan File</div>
+            <div style={{ fontSize:12, color:'rgba(255,255,255,.5)', marginTop:3 }}>MISMO 3.4 · Calyx Point · Encompass · BytePro · MortgageBot</div>
+          </div>
+          <button onClick={onClose} style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.7)', width:34, height:34, borderRadius:8, cursor:'pointer', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+        </div>
+        <div style={{ flex:1, overflowY:'auto', padding:'24px 28px' }}>
+          {!parsed ? (
+            <div>
+              <div
+                onDragOver={e=>{e.preventDefault();setDragging(true);}}
+                onDragLeave={()=>setDragging(false)}
+                onDrop={e=>{e.preventDefault();setDragging(false);processFile(e.dataTransfer.files[0]);}}
+                onClick={()=>fileRef.current.click()}
+                style={{ border:`2px dashed ${dragging?'#1a9a5c':'var(--border)'}`, borderRadius:14, padding:'44px 24px', textAlign:'center', cursor:'pointer', background:dragging?'rgba(26,154,92,.05)':'var(--surface2)', transition:'all .2s', marginBottom:16 }}>
+                <div style={{ fontSize:44, marginBottom:12 }}>📂</div>
+                <div style={{ fontWeight:700, fontSize:16, marginBottom:6 }}>Drop your MISMO file here</div>
+                <div style={{ fontSize:13, color:'var(--muted)', marginBottom:16 }}>or click to browse · .xml and .mismo supported</div>
+                <div style={{ display:'flex', gap:8, justifyContent:'center', flexWrap:'wrap' }}>
+                  {['Calyx Point','Encompass','BytePro','OpenClose','MortgageBot','LendingQB'].map(s=>(
+                    <span key={s} style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(77,142,240,.12)', color:'var(--accent)', fontWeight:600 }}>{s}</span>
+                  ))}
+                </div>
+                <input ref={fileRef} type="file" accept=".xml,.mismo" style={{ display:'none' }} onChange={e=>processFile(e.target.files[0])} />
+              </div>
+              <div>
+                <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:6 }}>Or paste XML directly</label>
+                <textarea rows={5} value={raw} onChange={e=>setRaw(e.target.value)} placeholder="Paste MISMO 3.4 XML here..." style={{ width:'100%', fontFamily:'JetBrains Mono,monospace', fontSize:12 }} />
+                {raw && <button onClick={()=>{try{setParsed(parseMISMO(raw));setError('');}catch(err){setError('Parse error: '+err.message);}}} style={{ marginTop:8, background:'var(--accent)', color:'#fff', border:'none', borderRadius:7, padding:'8px 18px', cursor:'pointer', fontWeight:600, fontSize:13, fontFamily:'inherit' }}>Parse XML →</button>}
+              </div>
+              {error && <div style={{ marginTop:12, background:'rgba(224,82,82,.12)', border:'1px solid rgba(224,82,82,.3)', borderRadius:8, padding:'10px 14px', color:'#e05252', fontSize:13 }}>{error}</div>}
+            </div>
+          ) : (
+            <div>
+              <div style={{ background:'rgba(26,154,92,.08)', border:'1px solid rgba(26,154,92,.2)', borderRadius:10, padding:'12px 16px', marginBottom:20, display:'flex', alignItems:'center', gap:10 }}>
+                <span style={{ fontSize:20 }}>✅</span>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:14, color:'#1a9a5c' }}>Parsed successfully</div>
+                  <div style={{ fontSize:12, color:'var(--muted)' }}>Review below then click Import to add this borrower to your CRM</div>
+                </div>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
+                <div>
+                  <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10, paddingBottom:6, borderBottom:'1px solid var(--border)' }}>👤 Borrower</div>
+                  {Object.entries(parsed.contact).filter(([,v])=>v).map(([k,v])=>(
+                    <div key={k} style={{ display:'flex', justifyContent:'space-between', marginBottom:7, gap:8 }}>
+                      <span style={{ fontSize:12, color:'var(--muted)', textTransform:'capitalize' }}>{k.replace(/_/g,' ')}</span>
+                      <span style={{ fontSize:12, fontWeight:600, textAlign:'right', maxWidth:'60%', wordBreak:'break-all' }}>{v}</span>
+                    </div>
+                  ))}
+                  {!Object.values(parsed.contact).some(Boolean) && <div style={{ fontSize:12, color:'var(--muted)', fontStyle:'italic' }}>No borrower data in file</div>}
+                </div>
+                <div>
+                  <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10, paddingBottom:6, borderBottom:'1px solid var(--border)' }}>🏦 Loan Details</div>
+                  {Object.entries(FIELD_LABELS).filter(([k])=>parsed.loan[k]).map(([k,label])=>(
+                    <div key={k} style={{ display:'flex', justifyContent:'space-between', marginBottom:7, gap:8 }}>
+                      <span style={{ fontSize:12, color:'var(--muted)' }}>{label}</span>
+                      <span style={{ fontSize:12, fontWeight:600, textAlign:'right', maxWidth:'60%' }}>
+                        {['loan_amount','sales_price','estimated_closing_costs'].includes(k) ? '$'+Number(parsed.loan[k]).toLocaleString()
+                          : k==='note_rate' ? parsed.loan[k]+'%'
+                          : k==='loan_term' ? parsed.loan[k]+' yrs'
+                          : parsed.loan[k]}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <button onClick={()=>setParsed(null)} style={{ background:'none', border:'1px solid var(--border)', color:'var(--muted)', padding:'8px 16px', borderRadius:8, cursor:'pointer', fontSize:13 }}>← Re-upload</button>
+            </div>
+          )}
+        </div>
+        <div style={{ padding:'16px 28px', borderTop:'1px solid var(--border)', display:'flex', justifyContent:'flex-end', gap:10, flexShrink:0 }}>
+          <button onClick={onClose} style={{ background:'none', border:'1px solid var(--border)', color:'var(--muted)', padding:'9px 20px', borderRadius:8, cursor:'pointer', fontSize:13 }}>Cancel</button>
+          {parsed && (
+            <button onClick={()=>{ onImport(parsed.contact, parsed.loan); onClose(); toast('Loan data imported!'); }}
+              style={{ background:'linear-gradient(135deg,#1a9a5c,#0f7a48)', color:'#fff', border:'none', borderRadius:8, padding:'9px 24px', fontWeight:700, fontSize:14, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:8 }}>
+              ⬇️ Import to CRM
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── PRICING ENGINE PANEL ─────────────────────────────────────────────────────
+function PricingEnginePanel({ onClose, onApplyRate }) {
+  const [loanAmount,   setLoanAmount]   = useState('500000');
+  const [loanType,     setLoanType]     = useState('Conventional');
+  const [loanPurpose,  setLoanPurpose]  = useState('Purchase');
+  const [creditScore,  setCreditScore]  = useState('740');
+  const [ltv,          setLtv]          = useState('80');
+  const [propertyType, setPropertyType] = useState('Single Family');
+  const [occupancy,    setOccupancy]    = useState('Primary');
+  const [term,         setTerm]         = useState('30');
+  const [lockDays,     setLockDays]     = useState('30');
+  const [pricingRows,  setPricingRows]  = useState([]);
+  const [loading,      setLoading]      = useState(false);
+  const [selectedRow,  setSelectedRow]  = useState(null);
+  const [manualRate,   setManualRate]   = useState('');
+  const [manualPoints, setManualPoints] = useState('0');
+  const [tab,          setTab]          = useState('grid');
+  const [notes,        setNotes]        = useState('');
+  const [lastPriced,   setLastPriced]   = useState(null);
+
+  const computeBase = (type, fico, ltvN, termN, purpose) => {
+    let base = 6.875;
+    if(termN===15) base-=0.625; else if(termN===10) base-=0.875; else if(termN===20) base-=0.375;
+    if(type==='FHA') base+=0.125; else if(type==='VA') base-=0.25; else if(type==='USDA') base-=0.125; else if(type==='Jumbo') base+=0.375;
+    if(fico>=780) base-=0.375; else if(fico>=760) base-=0.25; else if(fico>=740) base-=0.125;
+    else if(fico>=700) base+=0.125; else if(fico>=680) base+=0.375; else if(fico>=660) base+=0.625; else base+=1.0;
+    if(ltvN<=60) base-=0.25; else if(ltvN<=70) base-=0.125; else if(ltvN>80&&ltvN<=90) base+=0.25; else if(ltvN>90) base+=0.5;
+    if(purpose==='Rate/Term Refinance'||purpose==='Refinance') base+=0.25;
+    if(purpose==='Cash-Out Refinance') base+=0.5;
+    return Math.round(base*1000)/1000;
+  };
+
+  const runPricing = () => {
+    setLoading(true); setSelectedRow(null);
+    setTimeout(()=>{
+      const base = computeBase(loanType, parseInt(creditScore), parseFloat(ltv), parseInt(term), loanPurpose);
+      const rows = [];
+      for(let pts=-0.5; pts<=2.001; pts=Math.round((pts+0.125)*1000)/1000) {
+        const rate = Math.round((base - pts*0.25)*1000)/1000;
+        if(rate<3||rate>12) continue;
+        const { mp, totalInt } = calcLoan({ loanAmount, rate, term });
+        rows.push({ rate:rate.toFixed(3), points:pts.toFixed(3), pointsDollar:Math.round(parseFloat(loanAmount||0)*(pts/100)), monthly_payment:mp, total_interest:totalInt, apr:(rate+pts*0.08).toFixed(3) });
+      }
+      setPricingRows(rows); setLoading(false); setLastPriced(new Date());
+    }, 600);
+  };
+
+  useEffect(()=>{ runPricing(); }, []);
+
+  const ptColor = pts => {
+    const p = parseFloat(pts);
+    if(Math.abs(p)<0.126) return '#f0b429';
+    if(p<=0) return '#2ecc8a';
+    if(p<0.5) return 'var(--text)';
+    if(p<1.0) return '#e08c52';
+    return '#e05252';
+  };
+
+  const applySelected = () => {
+    const row = selectedRow || (manualRate ? { rate:manualRate, points:manualPoints, monthly_payment:calcLoan({loanAmount,rate:manualRate,term}).mp } : null);
+    if(!row) return;
+    onApplyRate({ rate:row.rate, points:row.points, monthly_payment:row.monthly_payment, loan_amount:loanAmount, loan_type:loanType, term, loan_purpose:loanPurpose });
+  };
+
+  const liveCalc = manualRate ? calcLoan({loanAmount,rate:manualRate,term}) : null;
+
+  return (
+    <div style={{ position:'fixed', top:0, right:0, width:480, height:'100vh', background:'var(--surface)', borderLeft:'1px solid var(--border)', zIndex:500, display:'flex', flexDirection:'column', boxShadow:'-8px 0 48px rgba(0,0,0,.4)' }}>
+      {/* Header */}
+      <div style={{ background:'linear-gradient(135deg,#0c1a35,#1a3a6e)', padding:'18px 22px', flexShrink:0 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ width:34, height:34, borderRadius:9, background:'rgba(255,255,255,.1)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+            <div>
+              <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:19, fontWeight:700, color:'#fff', letterSpacing:'.01em' }}>Pricing Engine</div>
+              <div style={{ fontSize:11, color:'rgba(255,255,255,.4)' }}>Live rate &amp; point scenarios</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.6)', width:30, height:30, borderRadius:7, cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+        </div>
+        {lastPriced && <div style={{ fontSize:11, color:'rgba(255,255,255,.3)', marginTop:4 }}>Last priced: {lastPriced.toLocaleTimeString()}</div>}
+      </div>
+      {/* Tabs */}
+      <div style={{ display:'flex', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
+        {[['grid','📊 Rate Grid'],['inputs','⚙️ Parameters'],['manual','✏️ Manual'],['notes','📋 Notes']].map(([id,lbl])=>(
+          <div key={id} onClick={()=>setTab(id)} style={{ flex:1, padding:'10px 4px', textAlign:'center', fontSize:11, fontWeight:tab===id?700:400, color:tab===id?'var(--accent)':'var(--muted)', borderBottom:tab===id?'2px solid var(--accent)':'2px solid transparent', cursor:'pointer', transition:'color .15s' }}>{lbl}</div>
+        ))}
+      </div>
+      {/* Body */}
+      <div style={{ flex:1, overflowY:'auto', padding:16 }}>
+
+        {tab==='grid' && (<div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:14 }}>
+            {[['Loan','$'+Number(loanAmount||0).toLocaleString()],['Type',loanType],['FICO',creditScore],['LTV',ltv+'%']].map(([l,v])=>(
+              <div key={l} style={{ background:'var(--surface2)', borderRadius:7, padding:'8px 10px', textAlign:'center' }}>
+                <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600, textTransform:'uppercase', marginBottom:3 }}>{l}</div>
+                <div style={{ fontSize:13, fontWeight:700 }}>{v}</div>
+              </div>
+            ))}
+          </div>
+          {loading ? (
+            <div style={{ textAlign:'center', padding:'40px 0', color:'var(--muted)' }}>
+              <div style={{ width:32,height:32,borderRadius:'50%',border:'3px solid var(--border)',borderTop:'3px solid var(--accent)',animation:'spin 1s linear infinite',margin:'0 auto 12px' }} />
+              Pricing...
+            </div>
+          ) : (
+            <div>
+              <div style={{ display:'grid', gridTemplateColumns:'68px 68px 82px 84px 1fr', marginBottom:4 }}>
+                {['Rate','Points','Pts $','Mo. Pmt',''].map(h=>(
+                  <div key={h} style={{ fontSize:10, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', padding:'4px 5px' }}>{h}</div>
+                ))}
+              </div>
+              {pricingRows.map((row,i)=>{
+                const sel = selectedRow?.rate===row.rate;
+                const par = Math.abs(parseFloat(row.points))<0.126;
+                return (
+                  <div key={i} onClick={()=>setSelectedRow(sel?null:row)}
+                    style={{ display:'grid', gridTemplateColumns:'68px 68px 82px 84px 1fr', padding:'7px 5px', borderRadius:7, cursor:'pointer', background:sel?'rgba(26,154,92,.1)':par?'rgba(240,180,41,.04)':'transparent', border:sel?'1px solid rgba(26,154,92,.3)':par?'1px solid rgba(240,180,41,.15)':'1px solid transparent', marginBottom:2, transition:'all .1s' }}>
+                    <div style={{ fontSize:13, fontWeight:700 }}>{row.rate}%</div>
+                    <div style={{ fontSize:13, fontWeight:600, color:ptColor(row.points) }}>{parseFloat(row.points)===0?'Par':parseFloat(row.points)>0?'+'+row.points:row.points}</div>
+                    <div style={{ fontSize:12, color:'var(--muted)' }}>{row.pointsDollar===0?'—':row.pointsDollar>0?'+$'+row.pointsDollar.toLocaleString():'-$'+Math.abs(row.pointsDollar).toLocaleString()}</div>
+                    <div style={{ fontSize:12, fontWeight:600 }}>${row.monthly_payment.toLocaleString()}</div>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', gap:4 }}>
+                      {par && <span style={{ fontSize:9, padding:'1px 5px', borderRadius:3, background:'rgba(240,180,41,.2)', color:'#f0b429', fontWeight:700 }}>PAR</span>}
+                      {sel && <span style={{ fontSize:9, padding:'1px 5px', borderRadius:3, background:'rgba(26,154,92,.2)', color:'#1a9a5c', fontWeight:700 }}>✓</span>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>)}
+
+        {tab==='inputs' && (
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            {[
+              ['Loan Amount ($)', <input key="la" type="number" value={loanAmount} onChange={e=>setLoanAmount(e.target.value)} placeholder="500000" />],
+              ['Loan Type',       <select key="lt" value={loanType} onChange={e=>setLoanType(e.target.value)} style={{width:'100%'}}>{['Conventional','FHA','VA','USDA','Jumbo','Non-QM'].map(t=><option key={t}>{t}</option>)}</select>],
+              ['Loan Purpose',    <select key="lp" value={loanPurpose} onChange={e=>setLoanPurpose(e.target.value)} style={{width:'100%'}}>{['Purchase','Rate/Term Refinance','Cash-Out Refinance','Streamline Refi'].map(t=><option key={t}>{t}</option>)}</select>],
+              ['Credit Score',    <select key="cs" value={creditScore} onChange={e=>setCreditScore(e.target.value)} style={{width:'100%'}}>{['800','780','760','740','720','700','680','660','640','620'].map(s=><option key={s}>{s}</option>)}</select>],
+              ['LTV (%)',         <input key="lv" type="number" value={ltv} onChange={e=>setLtv(e.target.value)} placeholder="80" min="50" max="100" />],
+              ['Property Type',   <select key="pt" value={propertyType} onChange={e=>setPropertyType(e.target.value)} style={{width:'100%'}}>{['Single Family','Condo','2 Unit','3 Unit','4 Unit','PUD','Manufactured'].map(t=><option key={t}>{t}</option>)}</select>],
+              ['Occupancy',       <select key="oc" value={occupancy} onChange={e=>setOccupancy(e.target.value)} style={{width:'100%'}}>{['Primary','Second Home','Investment'].map(t=><option key={t}>{t}</option>)}</select>],
+              ['Term',            <select key="tm" value={term} onChange={e=>setTerm(e.target.value)} style={{width:'100%'}}>{['10','15','20','25','30'].map(t=><option key={t} value={t}>{t} year</option>)}</select>],
+              ['Rate Lock',       <select key="rl" value={lockDays} onChange={e=>setLockDays(e.target.value)} style={{width:'100%'}}>{['15','30','45','60','90'].map(d=><option key={d} value={d}>{d}-day lock</option>)}</select>],
+            ].map(([label,input])=>(
+              <div className="form-group" key={label} style={{ margin:0 }}><label style={{ fontSize:12 }}>{label}</label>{input}</div>
+            ))}
+            <button onClick={runPricing} style={{ background:'linear-gradient(135deg,#1a9a5c,#0f7a48)', color:'#fff', border:'none', borderRadius:8, padding:11, fontWeight:700, fontSize:14, cursor:'pointer', fontFamily:'inherit', marginTop:4 }}>🔄 Run Pricing</button>
+          </div>
+        )}
+
+        {tab==='manual' && (
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <div style={{ background:'rgba(77,142,240,.08)', border:'1px solid rgba(77,142,240,.2)', borderRadius:8, padding:'10px 14px', fontSize:12, color:'var(--accent)' }}>
+              Enter a rate directly from your lender's pricing sheet to apply to the presentation builder.
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label>Interest Rate (%)</label>
+              <input type="number" step="0.001" value={manualRate} onChange={e=>setManualRate(e.target.value)} placeholder="6.875" style={{ fontSize:18, fontWeight:700 }} />
+            </div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label>Points (negative = lender credit)</label>
+              <input type="number" step="0.125" value={manualPoints} onChange={e=>setManualPoints(e.target.value)} placeholder="0.000" />
+            </div>
+            {liveCalc && (
+              <div style={{ background:'var(--surface2)', borderRadius:10, padding:14, border:'1px solid var(--border)' }}>
+                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:10, fontWeight:600, textTransform:'uppercase' }}>Preview</div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                  {[
+                    ['Monthly P&I',   '$'+liveCalc.mp.toLocaleString()],
+                    ['Total Interest', '$'+liveCalc.totalInt.toLocaleString()],
+                    ['Points Cost',    '$'+Math.round(parseFloat(loanAmount||0)*parseFloat(manualPoints||0)/100).toLocaleString()],
+                    ['APR (est.)',     (parseFloat(manualRate||0)+parseFloat(manualPoints||0)*0.08).toFixed(3)+'%'],
+                  ].map(([l,v])=>(
+                    <div key={l} style={{ textAlign:'center' }}>
+                      <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600, textTransform:'uppercase', marginBottom:3 }}>{l}</div>
+                      <div style={{ fontSize:16, fontWeight:700 }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab==='notes' && (
+          <div>
+            <div style={{ fontSize:12, color:'var(--muted)', marginBottom:8 }}>Pricing notes, lender conditions, lock desk instructions:</div>
+            <textarea rows={14} value={notes} onChange={e=>setNotes(e.target.value)}
+              placeholder="e.g. Rate sheet UWM 2/27/26. LLPA: condo +0.25, investment +0.5. Lock desk closes 4 PM PST..."
+              style={{ width:'100%', fontSize:13, resize:'vertical' }} />
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{ padding:'14px 16px', borderTop:'1px solid var(--border)', flexShrink:0, display:'flex', flexDirection:'column', gap:8 }}>
+        {(selectedRow||manualRate) && (
+          <div style={{ background:'rgba(26,154,92,.08)', border:'1px solid rgba(26,154,92,.2)', borderRadius:8, padding:'8px 12px', fontSize:13 }}>
+            Selected: <strong style={{ color:'#1a9a5c' }}>{selectedRow?.rate||manualRate}%</strong>
+            {' · '}{selectedRow?(parseFloat(selectedRow.points)>=0?'+':'')+selectedRow.points+' pts':manualPoints+' pts'}
+            {' · '}Mo. Pmt: <strong>${(selectedRow?.monthly_payment||liveCalc?.mp||0).toLocaleString()}</strong>
+          </div>
+        )}
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={runPricing} style={{ flex:1, background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', borderRadius:8, padding:9, cursor:'pointer', fontSize:12, fontWeight:600, fontFamily:'inherit' }}>🔄 Re-price</button>
+          <button onClick={applySelected} disabled={!selectedRow&&!manualRate}
+            style={{ flex:2, background:'linear-gradient(135deg,#1a9a5c,#0f7a48)', color:'#fff', border:'none', borderRadius:8, padding:'9px 14px', fontWeight:700, fontSize:13, cursor:(!selectedRow&&!manualRate)?'not-allowed':'pointer', fontFamily:'inherit', opacity:(!selectedRow&&!manualRate)?.45:1 }}>
+            ✅ Apply Rate to Presentation
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 // ─── CF ASSISTANT ────────────────────────────────────────────────────────────
 function CFAssistant({ profile }) {
@@ -6377,7 +6881,18 @@ export default function App() {
   const [globalSearch, setGlobalSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [presContact, setPresContact] = useState(null);
+  const [pricingOpen, setPricingOpen] = useState(false);
+  const [pricingRate, setPricingRate] = useState(null);
+  const [mismoImportOpen, setMismoImportOpen] = useState(false);
+  const [importedLoanData, setImportedLoanData] = useState(null);
   const [presentToken, setPresentToken] = useState(()=>{ const h=window.location.hash; const m=h.match(/^#present-(.+)$/); return m?m[1]:null; });
+
+  // MISMO import event from ContactsView toolbar
+  useEffect(()=>{
+    const h = ()=>setMismoImportOpen(true);
+    window.addEventListener('openMISMOImport', h);
+    return ()=>window.removeEventListener('openMISMOImport', h);
+  }, []);
 
   // Browser history navigation
   const setView = useCallback((newView, workspace=null) => {
@@ -6460,6 +6975,7 @@ export default function App() {
     { id:'contacts', label:'Contacts', icon:Icons.contacts },
     { id:'pipeline', label:'Lead Funnel', icon:Icons.pipeline },
     { id:'presentations', label:'Presentations', icon:Icons.file },
+    { id:'pricing', label:'Pricing Engine', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
     { id:'team', label:'Team', icon:Icons.team },
     { id:'calendar', label:'Calendar', icon:Icons.calendar },
     ...(profile.role==='admin' ? [{ id:'branding', label:'Branding', icon:Icons.branding }] : []),
@@ -6480,7 +6996,7 @@ export default function App() {
         </div>
         <nav style={{ flex:1, padding:'12px 0', overflowY:'auto' }}>
           {navItems.map(n=>(
-            <div key={n.id} className={`nav-item ${view===n.id&&!activeWorkspace?'active':''}`} onClick={()=>{ setView(n.id, null); }}>
+            <div key={n.id} className={`nav-item ${(n.id==='pricing'?pricingOpen:view===n.id&&!activeWorkspace)?'active':''}`} onClick={()=>{ if(n.id==='pricing'){setPricingOpen(o=>!o);}else{setView(n.id,null);} }}>
               <span>{n.icon}</span><span className="nav-label">{n.label}</span>
             </div>
           ))}
@@ -6574,6 +7090,18 @@ export default function App() {
         profile={profile}
         toast={toast}
         onBuildPresentation={c=>setPresContact(c)}
+        onImportMISMO={()=>setMismoImportOpen(true)}
+        onExportMISMO={contact=>{
+          const xml = exportMISMO(contact, importedLoanData||{}, profile);
+          const blob = new Blob([xml], {type:'application/xml'});
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = (contact.full_name||'loan').replace(/[^a-z0-9]/gi,'-') + '-MISMO.xml';
+          a.click();
+          URL.revokeObjectURL(url);
+          toast('MISMO file downloaded!');
+        }}
       />
 
       {/* Presentation Builder — rendered at root so fixed overlay covers full screen */}
@@ -6584,6 +7112,8 @@ export default function App() {
           onClose={()=>setPresContact(null)}
           toast={toast}
           onSent={()=>setPresContact(null)}
+          pricingRate={pricingRate}
+          importedLoanData={importedLoanData}
         />
       )}
 
@@ -6599,6 +7129,31 @@ export default function App() {
 
       {sidebarNewWs && <InputModal title="New Workspace" placeholder="e.g. Loans In Process" onConfirm={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setView('workspace',data); setSidebarNewWs(false);}}} onClose={()=>setSidebarNewWs(false)} />}
       <Toast msg={toastMsg} onClose={()=>setToastMsg('')} />
+      {/* MISMO Import Modal */}
+      {mismoImportOpen && <MISMOImportModal
+        onClose={()=>setMismoImportOpen(false)}
+        toast={toast}
+        onImport={(contactData, loanData)=>{
+          setImportedLoanData(loanData);
+          setEditContact({
+            ...contactData,
+            deal_value: loanData.loan_amount || '',
+            notes: loanData.property_address ? 'Property: ' + loanData.property_address : '',
+            stage: 'New Lead',
+            source: 'Import',
+            tags: [],
+          });
+          setShowForm(true);
+          setMismoImportOpen(false);
+        }}
+      />}
+
+      {/* Pricing Engine Panel */}
+      {pricingOpen && <PricingEnginePanel
+        onClose={()=>setPricingOpen(false)}
+        onApplyRate={rateData=>{ setPricingRate(rateData); toast('Rate applied — open Build Presentation to use it'); }}
+      />}
+
       <CFAssistant profile={profile} />
     </>
   );
