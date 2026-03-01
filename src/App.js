@@ -2394,7 +2394,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
               {[
                 {id:'table', icon:'⊞', label:'Main Table', desc:'Spreadsheet-style rows'},
                 {id:'kanban', icon:'▦', label:'Kanban Board', desc:'Cards by status column'},
-                {id:'chart', icon:'chart'', label:'Chart / Stats', desc:'Visual charts & metrics'},
+                {id:'chart', icon:'chart', label:'Chart / Stats', desc:'Visual charts & metrics'},
               ].map(v=>(
                 <div key={v.id} onClick={()=>{ setViewMode(v.id); setShowAddView(false); }}
                   style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', cursor:'pointer', background:viewMode===v.id?'rgba(77,142,240,.12)':'' }}
