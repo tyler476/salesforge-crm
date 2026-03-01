@@ -479,7 +479,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
         </div>
         
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20 }}>
-          {[['📧','Email',contact.email],['📞','Phone',contact.phone],['🏠','Address',contact.address],['💼','Occupation',contact.occupation]].map(([icon,label,val])=>val&&(
+          {[['📧','Email',contact.email],['📞','Phone',contact.phone||'—'],['🏠','Address',contact.address||'—'],['💼','Occupation',contact.occupation||'—']].map(([icon,label,val])=>(
             <div key={label} style={{ background:'var(--surface2)', borderRadius:8, padding:10 }}>
               <div style={{ fontSize:11, color:'var(--muted)', marginBottom:2 }}>{icon} {label}</div>
               <div style={{ fontSize:13, fontWeight:500 }}>{val}</div>
