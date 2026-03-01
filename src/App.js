@@ -1047,21 +1047,23 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
     if(!workspaces.length || !profile?.company_name) return;
     const wsIds = workspaces.map(w=>w.id);
     supabase.from('workspace_groups').select('id,workspace_id').in('workspace_id',wsIds)
-      .then(({data:grps})=>{
-        if(!grps?.length) return;
+      .then(({data:grps,error:e1})=>{
+        if(e1||!grps?.length) return;
         const gMap={};
         grps.forEach(g=>{gMap[g.id]=g.workspace_id;});
+        const gids = grps.map(g=>g.id);
+        // Count items per group — no archived filter to avoid NULL mismatch
         supabase.from('workspace_items').select('id,group_id')
-          .eq('company_id',profile.company_name).eq('archived',false)
-          .in('group_id',grps.map(g=>g.id))
-          .then(({data:its})=>{
+          .in('group_id',gids).is('parent_id',null).neq('trashed',true)
+          .then(({data:its,error:e2})=>{
+            if(e2) return;
             const c={};
             wsIds.forEach(id=>{c[id]=0;});
             (its||[]).forEach(i=>{if(gMap[i.group_id]) c[gMap[i.group_id]]=(c[gMap[i.group_id]]||0)+1;});
             setWsCounts(c);
           });
       });
-  },[workspaces,profile?.company_name]);
+  },[workspaces.length,profile?.company_name]);
 
   // Load everything in parallel
   React.useEffect(()=>{
