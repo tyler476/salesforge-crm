@@ -2979,7 +2979,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
 }
 
 // ─── WORKSPACE ITEM ROW ───────────────────────────────────────────────────────
-function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdate, onDelete, onOpenUpdates, onAddSubItem, onToggleExpand, isExpanded, subItemCount, selected, onSelect, PRIORITY_COLORS, hiddenCols=[], onDragStart, onDragOver, onDrop }) {
+function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdate, onDelete, onOpenUpdates, onAddSubItem, onToggleExpand, isExpanded, subItemCount, selected, onSelect, PRIORITY_COLORS, hiddenCols=[], onDragStart, onDragOver, onDrop, isTrinidadWs=false }) {
   const [editing, setEditing] = useState(null);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showAssignPicker, setShowAssignPicker] = useState(false);
@@ -3133,11 +3133,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
       {!hiddenCols.includes('lock_expiration') && <td style={{ padding:'4px 10px' }}><EditableCell field="lock_expiration" type="date" /></td>}
       {!hiddenCols.includes('processor_contact') && <td style={{ padding:'4px 10px' }}><EditableCell field="processor_contact" /></td>}
       {!hiddenCols.includes('escrow_email') && <td style={{ padding:'4px 10px' }}><EditableCell field="escrow_email" /></td>}
-      {!hiddenCols.includes('deal_value') && <td style={{ padding:'4px 10px' }}>{item.deal_value ? '$'+Number(item.deal_value).toLocaleString() : '—'}</td>}
-      {!hiddenCols.includes('loan_amount') && <td style={{ padding:'4px 10px' }}>{item.loan_amount ? '$'+Number(item.loan_amount).toLocaleString() : '—'}</td>}
-      {!hiddenCols.includes('mortgage_rate') && <td style={{ padding:'4px 10px' }}>{item.mortgage_rate ? item.mortgage_rate+'%' : '—'}</td>}
-      {!hiddenCols.includes('phone') && <td style={{ padding:'4px 10px' }}><EditableCell field="phone" /></td>}
-      {!hiddenCols.includes('alt_phone') && <td style={{ padding:'4px 10px' }}><EditableCell field="alt_phone" /></td>}
+
       </>)}
       <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}>
         <button onClick={onDelete} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:14, padding:4 }}>×</button>
