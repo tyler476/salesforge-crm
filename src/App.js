@@ -1048,12 +1048,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
       supabase.from('workspace_items').select('id, group_id, status, date, assigned_officers').eq('company_id', profile.company_name).eq('archived', false).neq('trashed', true),
       supabase.from('workspace_updates').select('*').eq('company_id', profile.company_name).order('created_at',{ascending:false}).limit(30),
       supabase.from('profiles').select('*').eq('company_name', profile.company_name),
-      supabase.from('workspace_groups').select('id, workspace_id').eq('company_id', profile.company_name),
-    ]).then(([items, updates, members, grps])=>{
-      // Build group→workspace map for stats
-      const grpWsMapData = {};
-      (grps.data||[]).forEach(g=>{ grpWsMapData[g.id]=g.workspace_id; });
-      setGrpWsMap(grpWsMapData);
+    ]).then(([items, updates, members])=>{
       const data = items.data||[];
       setAllItems(data);
       const mine = data.filter(i=>(i.assigned_officers||[]).some(o=>o===profile.full_name||o===profile.email||o?.toLowerCase()===profile.full_name?.toLowerCase()));
@@ -7819,6 +7814,16 @@ export default function App() {
   const loadWorkspaces = useCallback(async (company) => {
     const { data } = await supabase.from('workspaces').select('*').eq('company_id', company).order('created_at', { ascending:true });
     setWorkspaces(data||[]);
+    // Build group→workspace map for dashboard counts
+    if(data && data.length > 0) {
+      const wsIds = data.map(w=>w.id);
+      const { data: grps } = await supabase.from('workspace_groups').select('id, workspace_id').in('workspace_id', wsIds);
+      if(grps) {
+        const map = {};
+        grps.forEach(g=>{ map[g.id] = g.workspace_id; });
+        setGrpWsMap(map);
+      }
+    }
   }, []);
 
   const refresh = () => { if(profile) { loadContacts(profile.company_name); loadWorkspaces(profile.company_name); } };
