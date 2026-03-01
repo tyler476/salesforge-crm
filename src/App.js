@@ -6736,7 +6736,7 @@ Be concise, helpful, and specific. If asked about rates, remind the user rates c
     setInput('');
     setLoading(true);
     try {
-      const res = await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/hannah', {
+      const res = await fetch('https://tiwsuwbalvnrqsmudjfy.supabase.co/functions/v1/hannah', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
