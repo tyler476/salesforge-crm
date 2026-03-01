@@ -3098,23 +3098,27 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
           {item.status||'No Status'}
         </div>
         {showStatusPicker && (
-          <div ref={statusPickerRef} style={{ position:'fixed', top:pickerPos.top, left:pickerPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:240, maxHeight:400, overflowY:'auto', boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
-            {statuses.length===0 && <div style={{ padding:'8px', color:'var(--muted)', fontSize:12 }}>No statuses yet — click <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg> Statuses to add some</div>}
-            {statuses.map(s=>(
-              <div key={s.id} onClick={()=>{ onUpdate('status',s.label); onUpdate('status_color',s.color); setShowStatusPicker(false); }}
-                style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', borderRadius:4, cursor:'pointer' }}
-                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.07)'}
-                onMouseOut={e=>e.currentTarget.style.background=''}>
-                <div style={{ width:14, height:14, borderRadius:3, background:s.color, flexShrink:0 }} />
-                <span style={{ fontSize:13 }}>{s.label}</span>
-              </div>
-            ))}
-            <div style={{ borderTop:'1px solid var(--border)', marginTop:4, paddingTop:4 }}>
+          <div ref={statusPickerRef} style={{ position:'fixed', top:pickerPos.top, left:pickerPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:12, boxShadow:'0 8px 32px rgba(0,0,0,.4)', width:340, maxHeight:400, overflowY:'auto' }}>
+            <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.08em', fontWeight:600, marginBottom:10 }}>Set Status</div>
+            {statuses.length===0 && <div style={{ padding:'8px', color:'var(--muted)', fontSize:12 }}>No statuses yet — click Statuses in the toolbar to add some.</div>}
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+              {statuses.map(s=>(
+                <div key={s.id}
+                  onClick={()=>{ onUpdate('status',s.label); onUpdate('status_color',s.color); setShowStatusPicker(false); }}
+                  style={{ background:s.color, color:'#fff', padding:'8px 10px', borderRadius:6, cursor:'pointer', fontSize:12, fontWeight:600, textAlign:'center', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', transition:'opacity .15s', border: item.status===s.label ? '2px solid #fff' : '2px solid transparent' }}
+                  onMouseOver={e=>e.currentTarget.style.opacity='0.85'}
+                  onMouseOut={e=>e.currentTarget.style.opacity='1'}
+                  title={s.label}>
+                  {s.label}
+                </div>
+              ))}
+            </div>
+            <div style={{ borderTop:'1px solid var(--border)', marginTop:10, paddingTop:8 }}>
               <div onClick={()=>{ onUpdate('status',''); onUpdate('status_color',''); setShowStatusPicker(false); }}
-                style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 10px', borderRadius:4, cursor:'pointer', color:'var(--muted)', fontSize:12 }}
+                style={{ padding:'6px 10px', borderRadius:4, cursor:'pointer', color:'var(--muted)', fontSize:12, textAlign:'center' }}
                 onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
                 onMouseOut={e=>e.currentTarget.style.background=''}>
-                Clear status
+                ✕ Clear status
               </div>
             </div>
           </div>
