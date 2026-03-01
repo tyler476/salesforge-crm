@@ -6822,7 +6822,7 @@ Be concise and use bullet points. Keep responses under 80 words. Never use long 
             </div>
             <div>
               <div style={{ fontFamily:"Cormorant Garamath,serif", fontSize:16, fontWeight:700, color:'#fff', lineHeight:1.2 }}>Hannah</div>
-              <div style={{ fontSize:11, color:'rgba(255,255,255,.4)' }}>Loan programs · CRM help · Instant answers</div>
+              <div style={{ fontSize:11, color:'rgba(255,255,255,.4)' }}>CRM assistance · Loan programs · Instant answers</div>
             </div>
             <div style={{ marginLeft:'auto', width:8, height:8, borderRadius:'50%', background:'#1a9a5c', boxShadow:'0 0 6px #1a9a5c' }} />
           </div>
