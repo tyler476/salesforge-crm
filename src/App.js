@@ -331,9 +331,29 @@ function ContactForm({ contact, onSave, onClose, companyId }) {
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
   const save = async () => {
-    const payload = { ...form, tags: form.tags ? form.tags.split(',').map(t=>t.trim()).filter(Boolean) : [], company_id: companyId };
-    if (contact?.id) { await supabase.from('contacts').update(payload).eq('id', contact.id); }
-    else { await supabase.from('contacts').insert([payload]); }
+    const payload = {
+      full_name: form.full_name || '',
+      email: form.email || '',
+      phone: form.phone || '',
+      company: form.company || '',
+      title: form.title || '',
+      address: form.address || '',
+      occupation: form.occupation || '',
+      stage: form.stage || 'New Lead',
+      contact_group: form.contact_group || '',
+      tags: form.tags ? form.tags.split(',').map(t=>t.trim()).filter(Boolean) : [],
+      notes: form.notes || '',
+      company_id: companyId,
+    };
+    let err;
+    if (contact?.id) {
+      const res = await supabase.from('contacts').update(payload).eq('id', contact.id);
+      err = res.error;
+    } else {
+      const res = await supabase.from('contacts').insert([payload]);
+      err = res.error;
+    }
+    if (err) { alert('Save failed: ' + err.message); return; }
     onSave();
   };
 
@@ -365,7 +385,7 @@ function ContactForm({ contact, onSave, onClose, companyId }) {
 }
 
 // ─── CONTACT DRAWER ───────────────────────────────────────────────────────────
-function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, profile, onBuildPresentation, onImportMISMO, onExportMISMO }) {
+function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, profile, onBuildPresentation, onImportMISMO, onExportMISMO, onContactUpdate }) {
   const [activities, setActivities] = useState([]);
   const [showPresBuilder, setShowPresBuilder] = useState(false);
   const [note, setNote] = useState('');
@@ -443,12 +463,14 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
 
   const changeGroup = async (group) => {
     setLocalGroup(group);
-    supabase.from('contacts').update({ contact_group: group }).eq('id', contact.id);
+    const { error } = await supabase.from('contacts').update({ contact_group: group }).eq('id', contact.id);
+    if (!error && onContactUpdate) onContactUpdate({ ...contact, contact_group: group });
   };
 
   const changeStage = async (stage) => {
     setLocalStage(stage);
-    supabase.from('contacts').update({ stage }).eq('id', contact.id);
+    await supabase.from('contacts').update({ stage }).eq('id', contact.id);
+    if (onContactUpdate) onContactUpdate({ ...contact, stage });
     supabase.from('activities').insert([{ contact_id:contact.id, company_id:companyId, type:'stage', body:`Stage changed to ${stage}` }]);
     setActivities(a=>[{type:'stage', body:`Stage changed to ${stage}`, created_at:new Date().toISOString()}, ...a]);
   };
@@ -7752,6 +7774,7 @@ export default function App() {
         onClose={()=>setSelectedContact(null)}
         onEdit={()=>{ setEditContact(selectedContact); setSelectedContact(null); setShowForm(true); }}
         onDelete={async()=>{ await supabase.from('contacts').delete().eq('id',selectedContact.id); setSelectedContact(null); refresh(); toast('Contact deleted'); }}
+        onContactUpdate={updated=>{ setSelectedContact(updated); setContacts(cs=>cs.map(c=>c.id===updated.id?updated:c)); }}
         companyId={profile.company_name}
         profile={profile}
         toast={toast}
