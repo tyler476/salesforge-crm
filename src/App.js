@@ -6704,7 +6704,9 @@ function CFAssistant({ profile }) {
   React.useEffect(()=>{ bottomRef.current?.scrollIntoView({ behavior:'smooth' }); }, [messages]);
   React.useEffect(()=>{ if(open) setTimeout(()=>inputRef.current?.focus(), 100); }, [open]);
 
-  const SYSTEM = `You are a helpful AI assistant embedded in SalesForge CRM, used by loan officers at Citizens Financial Home Services.
+  const HANNAH_PHOTO = 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=80&h=80&fit=crop&crop=face';
+
+`You are a helpful AI assistant embedded in SalesForge CRM, used by loan officers at Citizens Financial Home Services.
 
 CITIZENS FINANCIAL LOAN PROGRAMS:
 - Conventional Purchase & Refinance: Fixed 10/15/20/25/30yr terms, competitive rates, up to 97% LTV for first-time buyers
@@ -6736,7 +6738,12 @@ Be concise, helpful, and specific. If asked about rates, remind the user rates c
     try {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+          'x-api-key': process.env.REACT_APP_ANTHROPIC_API_KEY || '',
+        },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
           max_tokens: 1000,
@@ -6793,8 +6800,8 @@ Be concise, helpful, and specific. If asked about rates, remind the user rates c
         }}>
           {/* Header */}
           <div style={{ background:'#0c1a35', padding:'16px 20px', display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
-            <div style={{ width:36, height:36, borderRadius:10, background:'linear-gradient(135deg,#1a9a5c,#0d7a47)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <div style={{ width:40, height:40, borderRadius:'50%', overflow:'hidden', flexShrink:0, border:'2px solid rgba(26,154,92,.4)' }}>
+              <img src={HANNAH_PHOTO} alt="Hannah" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
             </div>
             <div>
               <div style={{ fontFamily:"Cormorant Garamath,serif", fontSize:16, fontWeight:700, color:'#fff', lineHeight:1.2 }}>Hannah</div>
@@ -6807,15 +6814,21 @@ Be concise, helpful, and specific. If asked about rates, remind the user rates c
           <div style={{ flex:1, overflowY:'auto', padding:'16px', display:'flex', flexDirection:'column', gap:12, minHeight:0 }}>
             {messages.map((m,i)=>(
               <div key={i} style={{ display:'flex', flexDirection:'column', alignItems:m.role==='user'?'flex-end':'flex-start' }}>
-                <div style={{
-                  maxWidth:'85%', padding:'10px 14px', borderRadius: m.role==='user'?'14px 14px 4px 14px':'14px 14px 14px 4px',
-                  background: m.role==='user'?'#1a9a5c':'var(--surface2)',
-                  color: m.role==='user'?'#fff':'var(--text)',
-                  fontSize:13, lineHeight:1.6,
-                  border: m.role==='user'?'none':'1px solid var(--border)',
-                }}>
-                  {m.content}
-                </div>
+                {m.role==='assistant' && (
+                  <div style={{ display:'flex', alignItems:'flex-end', gap:8 }}>
+                    <div style={{ width:26, height:26, borderRadius:'50%', overflow:'hidden', flexShrink:0, border:'1px solid rgba(26,154,92,.3)' }}>
+                      <img src={HANNAH_PHOTO} alt="Hannah" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                    </div>
+                    <div style={{ maxWidth:'80%', padding:'10px 14px', borderRadius:'14px 14px 14px 4px', background:'var(--surface2)', color:'var(--text)', fontSize:13, lineHeight:1.6, border:'1px solid var(--border)' }}>
+                      {m.content}
+                    </div>
+                  </div>
+                )}
+                {m.role==='user' && (
+                  <div style={{ maxWidth:'85%', padding:'10px 14px', borderRadius:'14px 14px 4px 14px', background:'#1a9a5c', color:'#fff', fontSize:13, lineHeight:1.6 }}>
+                    {m.content}
+                  </div>
+                )}
               </div>
             ))}
             {loading && (
