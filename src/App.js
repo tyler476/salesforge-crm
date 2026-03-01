@@ -324,7 +324,7 @@ function AuthScreen({ onAuth }) {
 }
 
 // ─── CONTACT FORM ─────────────────────────────────────────────────────────────
-function ContactForm({ contact, onSave, onClose, companyId }) {
+function ContactForm({ contact, onSave, onClose, companyId, toast }) {
   const CONTACT_GROUPS = ['CDCR','CHCF','CMF','FHA/VA Nor-Cal','FHA/VA So-Cal','SQ'];
   const blank = { full_name:'', email:'', phone:'', company:'', title:'', address:'', occupation:'', stage:'New Lead', tags:'', notes:'', contact_group:'' };
   const [form, setForm] = useState(contact ? {...contact, tags:(contact.tags||[]).join(',')} : blank);
@@ -345,8 +345,13 @@ function ContactForm({ contact, onSave, onClose, companyId }) {
       notes: form.notes || '',
       company_id: companyId,
     };
-    if (contact?.id) { await supabase.from('contacts').update(payload).eq('id', contact.id); }
-    else { await supabase.from('contacts').insert([payload]); }
+    if (contact?.id) {
+      const { error } = await supabase.from('contacts').update(payload).eq('id', contact.id);
+      if (error) { console.error('Contact update error:', error); toast && toast('Error: ' + error.message); return; }
+    } else {
+      const { error } = await supabase.from('contacts').insert([payload]);
+      if (error) { console.error('Contact insert error:', error); toast && toast('Error: ' + error.message); return; }
+    }
     onSave();
   };
 
@@ -7805,6 +7810,7 @@ export default function App() {
         <ContactForm
           contact={editContact}
           companyId={profile.company_name}
+          toast={toast}
           onSave={()=>{ setShowForm(false); setEditContact(null); refresh(); toast(editContact?'Contact updated':'Contact added!'); }}
           onClose={()=>{ setShowForm(false); setEditContact(null); }}
         />
