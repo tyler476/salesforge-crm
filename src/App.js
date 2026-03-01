@@ -3039,7 +3039,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
         </div>
       </td>
       {/* OWNER — right after name to match header order */}
-      <td style={{ padding:'4px 10px', position:'relative' }} onClick={e=>e.stopPropagation()}>
+      {!isTrinidadWs && <td style={{ padding:'4px 10px', position:'relative' }} onClick={e=>e.stopPropagation()}>
         <div onMouseDown={e=>{ e.stopPropagation(); const r=e.currentTarget.getBoundingClientRect(); setAssignPos({top:r.bottom+4,left:Math.max(0,r.right-240)}); setShowAssignPicker(s=>!s); setShowStatusPicker(false); }} style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}>
           {(item.assigned_officers||[]).length===0 && (
             <div style={{ width:28, height:28, borderRadius:'50%', border:'2px dashed var(--border)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--border)', fontSize:14 }}>+</div>
@@ -3077,10 +3077,10 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
             <button onClick={()=>setShowAssignPicker(false)} style={{ width:'100%', marginTop:6, background:'var(--surface2)', color:'var(--muted)', border:'1px solid var(--border)', borderRadius:4, padding:'4px 8px', fontSize:12 }}>Done</button>
           </div>
         )}
-      </td>
+      </td>}
       {isTrinidadWs ? (<>
         <td style={{ padding:'4px 10px' }}>{item.deal_value ? '$'+Number(item.deal_value).toLocaleString() : '—'}</td>
-        <td style={{ padding:'4px 10px' }}>{item.date || '—'}</td>
+        <td style={{ padding:'4px 10px' }}>{item.date ? item.date.split('T')[0] : '—'}</td>
         <td style={{ padding:'4px 10px' }}>{item.loan_amount ? '$'+Number(item.loan_amount).toLocaleString() : '—'}</td>
         <td style={{ padding:'4px 10px' }}>{item.mortgage_rate ? item.mortgage_rate+'%' : '—'}</td>
         <td style={{ padding:'4px 10px' }}>{item.lender || '—'}</td>
