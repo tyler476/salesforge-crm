@@ -7885,8 +7885,7 @@ export default function App() {
                              <td style={{ padding:'4px 10px' }}>
                                <button onClick={async(e)=>{ e.stopPropagation(); await supabase.from('workspace_items').delete().eq('id',sub.id); setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).filter(s=>s.id!==sub.id)})); }} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:14, opacity:0.6 }}>×</button>
                              </td>
-                           </tr>t React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from './lib/supabase';
+                           </tr>
 
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 const css = `
