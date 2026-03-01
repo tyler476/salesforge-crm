@@ -2669,6 +2669,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                           subItemCount={(subItems[item.id]||[]).length}
                           PRIORITY_COLORS={PRIORITY_COLORS}
                           hiddenCols={hiddenCols}
+                          isTrinidadWs={isTrinidadWs}
                           onDragStart={e=>handleDragStart(e,group.id,item.id)}
                           onDragOver={e=>{ e.preventDefault(); setDragOverGroup(group.id); setDragOverIdx(idx); }}
                           onDrop={e=>handleDrop(e,group.id,idx)}
