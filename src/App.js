@@ -436,6 +436,11 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
     } catch(e) { toast('Error: ' + e.message); }
   };
 
+  const changeGroup = async (group) => {
+    await supabase.from('contacts').update({ contact_group: group }).eq('id', contact.id);
+    contact.contact_group = group;
+  };
+
   const changeStage = async (stage) => {
     await supabase.from('contacts').update({ stage }).eq('id', contact.id);
     contact.stage = stage;
@@ -483,13 +488,16 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
         </div>
 
         <div style={{ marginBottom:20 }}>
-          {contact.contact_group && (
-            <div style={{ marginBottom:16 }}>
-              <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em', marginBottom:8 }}>Group</div>
-              <span style={{ background:'rgba(26,154,92,.12)', color:'#1a9a5c', fontSize:13, fontWeight:700, padding:'5px 12px', borderRadius:20, border:'1px solid rgba(26,154,92,.25)' }}>{contact.contact_group}</span>
-            </div>
-          )}
-          <div style={{ fontSize:12, color:'var(--muted)', marginBottom:8, fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em' }}>Stage</div>
+          <div style={{ fontSize:12, color:'var(--muted)', marginBottom:8, fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em' }}>Group</div>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+            {['CDCR','CHCF','CMF','FHA/VA Nor-Cal','FHA/VA So-Cal','SQ'].map(g=>(
+              <button key={g} onClick={()=>changeGroup(g)} style={{ padding:'5px 12px', borderRadius:20, fontSize:12, border:'1px solid', borderColor:contact.contact_group===g?'#1a9a5c':'var(--border)', background:contact.contact_group===g?'rgba(26,154,92,.2)':'transparent', color:contact.contact_group===g?'#1a9a5c':'var(--muted)', cursor:'pointer' }}>{g}</button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ marginBottom:20 }}>
+          <div style={{ fontSize:12, color:'var(--muted)', marginBottom:8, fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em' }}>Stage</div>, textTransform:'uppercase', letterSpacing:'.05em' }}>Stage</div>
           <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
             {STAGES.map(s=>(
               <button key={s} onClick={()=>changeStage(s)} style={{ padding:'5px 12px', borderRadius:20, fontSize:12, border:'1px solid', borderColor:contact.stage===s?'var(--accent)':'var(--border)', background:contact.stage===s?'rgba(59,130,246,.2)':'transparent', color:contact.stage===s?'var(--accent)':'var(--muted)', cursor:'pointer' }}>{s}</button>
