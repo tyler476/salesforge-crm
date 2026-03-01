@@ -3548,6 +3548,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                 </div>
                 <div style={{ paddingLeft:36, fontSize:13, lineHeight:1.6, whiteSpace:'pre-wrap', color:'var(--text)' }}>{renderBody(u.body)}</div>
               </div>
+            ))}
           </div>
         )}
 
