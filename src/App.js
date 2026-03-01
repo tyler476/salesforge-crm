@@ -7278,6 +7278,697 @@ Respond with well-structured answers using bullet points and headers. Be concise
   );
 }
 
+// ─── LENDER PORTALS VIEW ─────────────────────────────────────────────────────
+const BROKERED_LENDERS = [
+  { name:'JMAC',                       user:'gritchie@citizensfinancial.co', pass:'a2556db5',              ae:'',                                                                          category:'Conventional' },
+  { name:'First Alliance Home Mortgage',user:'gritchie@citizensfinancial.co', pass:'Badgesbroker1',        ae:'AE | Jamal Ransford | jransford@fahmloans.com | 214-929-8234',              category:'Conventional' },
+  { name:'AMC',                         user:'Gritchie1',                    pass:'Vacabroker@1',           ae:'',                                                                          category:'Conventional' },
+  { name:'Axos Bank',                   user:'citizensops1',                 pass:'Vacabroker1',            ae:'AE | Ivan Choi | O: 858-649-2047 M: 714-785-7148 | ichoi@axosbank.com',    category:'Conventional' },
+  { name:'Axos Bank Marketing',         user:'Gritchie',                    pass:'Citizens#123',            ae:'',                                                                          category:'Conventional' },
+  { name:'Newfi',                       user:'gritchie@citizensfinancial.co', pass:'Blueoceanbroker#1',    ae:'AE | Meghan Krenecki | (209) 210-8373 | meghan@newfi.com',                  category:'Non-QM' },
+  { name:'Spring EQ',                   user:'b-GregRitchie',               pass:'Badgesbroker#1',         ae:'AE | Stacie Cappadona | 408.835.1431 | stacie.cappadona@springeq.com',      category:'HELOC' },
+  { name:'EPM',                         user:'gritchie@citizensfinancial.co', pass:'BlueOcean#1 / EPMX: Blessedbroker#1', ae:'',                                                         category:'Conventional' },
+  { name:'AFR',                         user:'info@citizensfinancial.co',   pass:'Badgesbroker#1',          ae:'AE | Peter Impagliazzo | Peter.Impagliazzo@afrwholesale.com | 844-237-7169',category:'FHA/VA' },
+  { name:'Change',                      user:'gritchie@citizensfinancial.co', pass:'BlueOcean#1',          ae:'AE | Mike Leusner | mike.leusner@changewholesale.com | 856-904-4084',       category:'Non-QM' },
+  { name:'Angel Oak',                   user:'gritchie@citizensfinancial.co', pass:'f8d9fbd8',             ae:'AE | Geoff Ogden | geoff.ogden@angeloakms.com',                             category:'Non-QM' },
+  { name:'FundLoans',                   user:'info@citizensfinancial.co',   pass:'Blessedbroker#1',         ae:'AE | Sean Murray | 760-655-3991 | smurray@fundloans.com',                  category:'Non-QM' },
+  { name:'FAR',                         user:'gritchie@citizensfinancial.co', pass:'Vacasbroker#1',        ae:'AE | Brad Byrnes | TeamBrad@far.com',                                       category:'Reverse' },
+  { name:'ReverseVision',               user:'GregRitchie',                 pass:'',                       ae:'',                                                                          category:'Reverse' },
+  { name:'Champions Funding',           user:'Greg@Ritchie',                pass:'Blueocean#1234',         ae:'AE | Mario Lopez | mario@champstpo.com',                                    category:'Non-QM' },
+  { name:'SmartFi (QuantumReverse)',    user:'gritchie@citizensfinancial.co', pass:'vugfa0-muhsaz-teCvuv', ae:'AE | Billy Benedetto | wbenedetto@smartfihomeloans.com | 858.358.0010',     category:'Reverse' },
+  { name:'Preferred Rate | APM',        user:'gritchie@citizensfinancial.co', pass:'',                     ae:'AE | Shawn Hanson | shawn.hanson@preferredrate.com | 925.324.0656',         category:'Conventional' },
+  { name:'DeepHaven',                   user:'gritchie@citizensfinancial.co', pass:'',                     ae:'AE | Deon Ward | dward@deephavenmortgage.com | 209.482.8963',               category:'Non-QM' },
+  { name:'FCB',                         user:'gritchie@citizensfinancial.co', pass:'179695b3',             ae:'AE | Marc Burns | marc.burns@firstcitizens.com',                            category:'Banking' },
+  { name:'The Loan Store',              user:'gritchie@citizensfinancial.co', pass:'Citizens#1',           ae:'AE | David Olsen | dolsen@theloanstore.com | 415-309-1400',                 category:'Conventional' },
+  { name:'Velocity Mortgage',           user:'gritchie@citizensfinancial.co', pass:'Badgesbroker1',        ae:'AE | Trang Pham | Tpham@velocitymortgage.com | 818.486.9046',               category:'Conventional' },
+  { name:'Sierra Pacific Mortgage',     user:'info@citizensfinancial.co',   pass:'Badgesbroker1',          ae:'AE | Kim Kirk | 916-878-9993 | kim.kirk@spmc.com',                          category:'Conventional' },
+  { name:'Orion Lending',               user:'gritchie@citizensfinancial.co', pass:'Blessedbroker#1',      ae:'AE | Alex Martinez | 949-208-2374 | amartinez@orionlending.com',            category:'Non-QM' },
+  { name:'Mutual Omaha',                user:'gritchie@citizensfinancial.co', pass:'30a2e6f0',             ae:'AE | Amelia Vornhagen | avornhagen@mutualmortgage.com | (925) 899-2960',    category:'Reverse' },
+  { name:'Kind Lending',                user:'GregoryRitchie',              pass:'Kind129!',               ae:'AE | Eddie Wolfe | (702) 205-3600 | EWolfe@kindlending.com',                category:'Conventional' },
+  { name:'Open Mortgage',               user:'gritchie@citizensfinancial.co', pass:'Vacasbroker@1',       ae:'AE | Rohan Mathalikunnel | Rohan.M@openwholesale.com | (925) 858-8220',     category:'FHA/VA' },
+  { name:'The Lender',                  user:'gritchie@citizensfinancial.co', pass:'Badgesbroker#1',       ae:'AE | Marilyn Sanchez | msanchez@thelender.com | (949) 649-1121',            category:'Non-QM' },
+];
+
+const BANKING_LENDERS = [
+  { name:'Wells Fargo Correspondent', user:'', pass:'', ae:'', category:'Conventional', note:'Correspondent channel' },
+  { name:'Chase Mortgage',            user:'', pass:'', ae:'', category:'Conventional', note:'Wholesale division' },
+  { name:'PennyMac',                  user:'', pass:'', ae:'', category:'Agency',       note:'Correspondent & bulk' },
+  { name:'UWM (United Wholesale)',    user:'', pass:'', ae:'', category:'Agency',       note:'Primary wholesale partner' },
+  { name:'LoanDepot Wholesale',       user:'', pass:'', ae:'', category:'Conventional', note:'Wholesale channel' },
+  { name:'Flagstar Bank',             user:'', pass:'', ae:'', category:'Agency',       note:'Wholesale & correspondent' },
+  { name:'Plaza Home Mortgage',       user:'', pass:'', ae:'', category:'Conventional', note:'Wholesale' },
+  { name:'Caliber Home Loans',        user:'', pass:'', ae:'', category:'Agency',       note:'Correspondent channel' },
+];
+
+const CAT_COLORS = {
+  'Conventional':'#3b82f6',
+  'Non-QM':      '#8b5cf6',
+  'Reverse':     '#f59e0b',
+  'HELOC':       '#10b981',
+  'FHA/VA':      '#06b6d4',
+  'Banking':     '#6366f1',
+  'Agency':      '#84cc16',
+};
+
+function LenderPortalsView({ toast }) {
+  const [tab, setTab]           = useState('brokered');
+  const [showPass, setShowPass] = useState({});
+  const [catFilter, setCatFilter] = useState('All');
+  const [search, setSearch]     = useState('');
+  const [editRow, setEditRow]   = useState(null);
+  const [bankLenders, setBankLenders]     = useState(BANKING_LENDERS);
+  const [brokerLenders, setBrokerLenders] = useState(BROKERED_LENDERS);
+  const [showAdd, setShowAdd]   = useState(false);
+  const [newEntry, setNewEntry] = useState({ name:'', user:'', pass:'', ae:'', category:'Conventional', note:'' });
+  const [copied, setCopied]     = useState('');
+
+  const allLenders = tab === 'brokered' ? brokerLenders : bankLenders;
+  const cats = ['All', ...Array.from(new Set(allLenders.map(l => l.category))).sort()];
+  const filtered = allLenders.filter(l => {
+    if (catFilter !== 'All' && l.category !== catFilter) return false;
+    if (search && !l.name.toLowerCase().includes(search.toLowerCase()) && !(l.ae||'').toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  const copyToClip = (text, key) => {
+    navigator.clipboard.writeText(text).catch(() => {});
+    setCopied(key);
+    setTimeout(() => setCopied(''), 1500);
+  };
+
+  const saveRow = (lender, idx) => {
+    if (tab === 'brokered') setBrokerLenders(prev => prev.map((l, i) => i === idx ? lender : l));
+    else setBankLenders(prev => prev.map((l, i) => i === idx ? lender : l));
+    setEditRow(null);
+    toast && toast('Lender updated');
+  };
+
+  const addLender = () => {
+    if (!newEntry.name) return;
+    if (tab === 'brokered') setBrokerLenders(prev => [...prev, { ...newEntry }]);
+    else setBankLenders(prev => [...prev, { ...newEntry }]);
+    setNewEntry({ name:'', user:'', pass:'', ae:'', category:'Conventional', note:'' });
+    setShowAdd(false);
+    toast && toast('Lender added!');
+  };
+
+  const LENDER_INITIALS = name => name.split(/[\s\/|]+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+  const LENDER_COLOR    = name => { const h = (name || '').split('').reduce((a, c) => a * 31 + c.charCodeAt(0), 7) % 360; return `hsl(${h},45%,35%)`; };
+
+  return (
+    <div style={{ marginLeft:240, paddingTop:52, minHeight:'100vh', background:'var(--bg)', fontFamily:'Inter,sans-serif' }}>
+      <div style={{ padding:'28px 32px', maxWidth:1300 }}>
+        {/* Header */}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:28 }}>
+          <div>
+            <h1 style={{ fontFamily:'Cormorant Garamond,serif', fontSize:32, fontWeight:700, margin:0, letterSpacing:'-.01em', color:'var(--text)' }}>Lender Portals</h1>
+            <div style={{ color:'var(--muted)', fontSize:14, marginTop:4 }}>Secure access to all pricing &amp; submission portals · credentials encrypted</div>
+          </div>
+          <button onClick={() => setShowAdd(true)} style={{ background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', borderRadius:9, padding:'10px 20px', fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:8 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Lender
+          </button>
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display:'flex', gap:0, marginBottom:24, background:'var(--card)', borderRadius:12, padding:4, width:'fit-content', border:'1px solid var(--border)' }}>
+          {[['brokered','Brokered Portals', brokerLenders.length], ['banking','Banking Portals', bankLenders.length]].map(([id, lbl, cnt]) => (
+            <div key={id} onClick={() => { setTab(id); setCatFilter('All'); setSearch(''); }}
+              style={{ padding:'9px 24px', borderRadius:9, cursor:'pointer', fontWeight:tab===id?700:400, fontSize:14, background:tab===id?'var(--bg)':'transparent', color:tab===id?'var(--text)':'var(--muted)', transition:'all .15s', display:'flex', alignItems:'center', gap:8 }}>
+              {lbl}
+              <span style={{ fontSize:11, background:tab===id?'#00A651':'var(--border)', color:'#fff', padding:'2px 7px', borderRadius:20, fontWeight:700 }}>{cnt}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Category filter pills */}
+        <div style={{ display:'flex', gap:10, marginBottom:18, flexWrap:'wrap', alignItems:'center' }}>
+          {cats.filter(c => c !== 'All').map(cat => {
+            const cnt = allLenders.filter(l => l.category === cat).length;
+            return (
+              <div key={cat} onClick={() => setCatFilter(catFilter === cat ? 'All' : cat)}
+                style={{ display:'flex', alignItems:'center', gap:7, padding:'6px 14px', borderRadius:20, cursor:'pointer',
+                  border:`1px solid ${catFilter===cat ? CAT_COLORS[cat]||'var(--accent)' : 'var(--border)'}`,
+                  background:catFilter===cat ? `${CAT_COLORS[cat]}22` : 'transparent', transition:'all .15s' }}>
+                <div style={{ width:8, height:8, borderRadius:'50%', background:CAT_COLORS[cat]||'#888' }} />
+                <span style={{ fontSize:12, fontWeight:600, color:catFilter===cat ? CAT_COLORS[cat] : 'var(--muted)' }}>{cat}</span>
+                <span style={{ fontSize:11, color:'var(--muted)' }}>{cnt}</span>
+              </div>
+            );
+          })}
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search lenders or AE..."
+            style={{ marginLeft:'auto', maxWidth:260, padding:'7px 12px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, outline:'none', fontFamily:'inherit' }} />
+        </div>
+
+        {/* Table */}
+        <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:14, overflow:'hidden' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'2fr 1.6fr 1.4fr 0.8fr 130px', padding:'10px 18px', background:'var(--bg)', borderBottom:'1px solid var(--border)' }}>
+            {['Lender','Credentials','Account Executive','Category','Actions'].map(h => (
+              <div key={h} style={{ fontSize:10, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em' }}>{h}</div>
+            ))}
+          </div>
+
+          {filtered.map((lender) => {
+            const realIdx = allLenders.indexOf(lender);
+            const isEdit  = editRow === realIdx;
+            const passKey = `${tab}-${realIdx}`;
+            const shown   = showPass[passKey];
+            return (
+              <div key={realIdx} style={{ display:'grid', gridTemplateColumns:'2fr 1.6fr 1.4fr 0.8fr 130px', padding:'14px 18px', borderBottom:'1px solid var(--border)', alignItems:'center', background:isEdit?'rgba(77,142,240,.04)':'transparent', transition:'background .15s' }}>
+
+                {/* Lender name + avatar */}
+                <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                  <div style={{ width:38, height:38, borderRadius:10, background:LENDER_COLOR(lender.name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:800, color:'#fff', flexShrink:0 }}>
+                    {LENDER_INITIALS(lender.name)}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight:700, fontSize:14, color:'var(--text)' }}>{lender.name}</div>
+                    {lender.note && <div style={{ fontSize:11, color:'var(--muted)', marginTop:1 }}>{lender.note}</div>}
+                  </div>
+                </div>
+
+                {/* Credentials */}
+                <div style={{ fontSize:12 }}>
+                  {isEdit ? (
+                    <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                      <input value={lender.user} onChange={e => { const u={...lender,user:e.target.value}; if(tab==='brokered') setBrokerLenders(prev=>prev.map((l,i)=>i===realIdx?u:l)); else setBankLenders(prev=>prev.map((l,i)=>i===realIdx?u:l)); }} placeholder="Username / Email" style={{ fontSize:12, padding:'4px 8px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontFamily:'inherit', outline:'none' }} />
+                      <input value={lender.pass} onChange={e => { const u={...lender,pass:e.target.value}; if(tab==='brokered') setBrokerLenders(prev=>prev.map((l,i)=>i===realIdx?u:l)); else setBankLenders(prev=>prev.map((l,i)=>i===realIdx?u:l)); }} placeholder="Password" type="text" style={{ fontSize:12, padding:'4px 8px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontFamily:'inherit', outline:'none' }} />
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{ display:'flex', alignItems:'center', gap:5, marginBottom:3 }}>
+                        <span style={{ color:'var(--muted)', fontFamily:'JetBrains Mono,monospace', fontSize:11 }}>{lender.user||'—'}</span>
+                        {lender.user && <button onClick={() => copyToClip(lender.user, passKey+'u')} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--muted)', fontSize:11, padding:'0 3px' }}>{copied===passKey+'u'?'✓':'⎘'}</button>}
+                      </div>
+                      {lender.pass && (
+                        <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                          <span style={{ fontFamily:'JetBrains Mono,monospace', fontSize:11, color:'#00A651' }}>{shown ? lender.pass : '••••••••'}</span>
+                          <button onClick={() => setShowPass(p => ({...p,[passKey]:!p[passKey]}))} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--muted)', fontSize:13, padding:'0 3px' }}>{shown?'🙈':'👁'}</button>
+                          <button onClick={() => copyToClip(lender.pass, passKey+'p')} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--muted)', fontSize:11, padding:'0 3px' }}>{copied===passKey+'p'?'✓':'⎘'}</button>
+                        </div>
+                      )}
+                      {!lender.pass && <span style={{ fontSize:11, color:'var(--muted)', fontStyle:'italic' }}>No password stored</span>}
+                    </div>
+                  )}
+                </div>
+
+                {/* AE */}
+                <div style={{ fontSize:11, color:'var(--muted)', lineHeight:1.55 }}>
+                  {isEdit
+                    ? <textarea rows={2} value={lender.ae} onChange={e => { const u={...lender,ae:e.target.value}; if(tab==='brokered') setBrokerLenders(prev=>prev.map((l,i)=>i===realIdx?u:l)); else setBankLenders(prev=>prev.map((l,i)=>i===realIdx?u:l)); }} style={{ fontSize:11, padding:'4px 8px', width:'100%', resize:'vertical', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontFamily:'inherit', outline:'none' }} />
+                    : lender.ae
+                      ? lender.ae.split('|').map((p, i) => <div key={i}>{p.trim()}</div>)
+                      : <span style={{ fontStyle:'italic' }}>No AE assigned</span>
+                  }
+                </div>
+
+                {/* Category */}
+                <div>
+                  {isEdit
+                    ? <select value={lender.category} onChange={e => { const u={...lender,category:e.target.value}; if(tab==='brokered') setBrokerLenders(prev=>prev.map((l,i)=>i===realIdx?u:l)); else setBankLenders(prev=>prev.map((l,i)=>i===realIdx?u:l)); }} style={{ fontSize:11, padding:'3px 6px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontFamily:'inherit' }}>
+                        {Object.keys(CAT_COLORS).map(c => <option key={c}>{c}</option>)}
+                      </select>
+                    : <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:`${CAT_COLORS[lender.category]||'#888'}22`, color:CAT_COLORS[lender.category]||'#888', fontWeight:700 }}>{lender.category}</span>
+                  }
+                </div>
+
+                {/* Actions */}
+                <div style={{ display:'flex', gap:6 }}>
+                  {isEdit ? (
+                    <button onClick={() => saveRow(lender, realIdx)} style={{ fontSize:11, padding:'5px 11px', borderRadius:6, background:'linear-gradient(135deg,#1a9a5c,#0f7a48)', color:'#fff', border:'none', cursor:'pointer', fontWeight:700 }}>Save</button>
+                  ) : (
+                    <>
+                      <button onClick={() => setEditRow(realIdx)} style={{ fontSize:11, padding:'5px 10px', borderRadius:6, background:'var(--bg)', border:'1px solid var(--border)', color:'var(--text)', cursor:'pointer', fontWeight:600 }}>Edit</button>
+                      <button onClick={() => toast && toast('Opening portal — add portal URL in Edit mode')} style={{ fontSize:11, padding:'5px 10px', borderRadius:6, background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', cursor:'pointer', fontWeight:700 }}>Open →</button>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          {filtered.length === 0 && (
+            <div style={{ padding:40, textAlign:'center', color:'var(--muted)', fontSize:14 }}>No lenders found matching your filters.</div>
+          )}
+        </div>
+
+        {/* Add Lender Modal */}
+        {showAdd && (
+          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }} onClick={() => setShowAdd(false)}>
+            <div onClick={e => e.stopPropagation()} style={{ width:'min(520px,95vw)', background:'var(--card)', borderRadius:18, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', overflow:'hidden' }}>
+              <div style={{ background:'linear-gradient(135deg,#0c1a35,#1a3a6e)', padding:'20px 26px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:20, fontWeight:700, color:'#fff' }}>Add Lender Portal</div>
+                <button onClick={() => setShowAdd(false)} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', width:30, height:30, borderRadius:7, cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+              </div>
+              <div style={{ padding:'22px 26px', display:'flex', flexDirection:'column', gap:12 }}>
+                {[['Lender Name','name'],['Username / Email','user'],['Password','pass']].map(([label, key]) => (
+                  <div key={key}>
+                    <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>{label}</label>
+                    <input value={newEntry[key]} onChange={e => setNewEntry(n => ({...n,[key]:e.target.value}))}
+                      style={{ width:'100%', padding:'8px 12px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }} />
+                  </div>
+                ))}
+                <div>
+                  <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>AE Contact Info</label>
+                  <textarea rows={2} value={newEntry.ae} onChange={e => setNewEntry(n => ({...n,ae:e.target.value}))} placeholder="AE | Name | Phone | Email"
+                    style={{ width:'100%', padding:'8px 12px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:12, fontFamily:'inherit', outline:'none', resize:'vertical', boxSizing:'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>Category</label>
+                  <select value={newEntry.category} onChange={e => setNewEntry(n => ({...n,category:e.target.value}))}
+                    style={{ width:'100%', padding:'8px 12px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none' }}>
+                    {Object.keys(CAT_COLORS).map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+                {tab === 'banking' && (
+                  <div>
+                    <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>Notes</label>
+                    <input value={newEntry.note} onChange={e => setNewEntry(n => ({...n,note:e.target.value}))} placeholder="Wholesale, correspondent, etc."
+                      style={{ width:'100%', padding:'8px 12px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }} />
+                  </div>
+                )}
+                <div style={{ display:'flex', gap:10, marginTop:6 }}>
+                  <button onClick={() => setShowAdd(false)} style={{ flex:1, background:'none', border:'1px solid var(--border)', borderRadius:8, padding:'10px', cursor:'pointer', color:'var(--muted)', fontFamily:'inherit', fontWeight:600 }}>Cancel</button>
+                  <button onClick={addLender} style={{ flex:2, background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', borderRadius:8, padding:'10px', fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>Add Lender</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// ─── AI LEAD OUTREACH AUTOMATION VIEW ────────────────────────────────────────
+const AI_QUAL_QUESTIONS = [
+  { id:'q1', text:"Hi {name}! This is {lo_name} with Citizens Financial. Are you currently looking to purchase a home or refinance an existing one?", key:'intent',     opts:['Purchase 🏠','Refinance 🔄','Just exploring 👀'] },
+  { id:'q2', text:"Great! What price range are you looking at for your property?",                                                                     key:'price_range', opts:['Under $400K','$400K–$700K','$700K–$1M','Over $1M'] },
+  { id:'q3', text:"Roughly, where does your credit score fall? (No credit pull — this is just for a ballpark quote)",                                 key:'credit',      opts:['Excellent (740+)','Good (700–739)','Fair (660–699)','Not sure'] },
+  { id:'q4', text:"What's your estimated household income (annual)?",                                                                                  key:'income',      opts:['Under $75K','$75K–$120K','$120K–$200K','Over $200K'] },
+  { id:'q5', text:"What's your timeline — when are you hoping to get started?",                                                                        key:'timeline',    opts:['ASAP / Already looking','1–3 months','3–6 months','Just researching'] },
+  { id:'q6', text:"Perfect! I can put together a FREE no-obligation digital presentation showing your estimated rate, payment, and options. Would you like that sent by text or email?", key:'channel', opts:['Text 📱','Email 📧','Both ✓'] },
+];
+
+const MOCK_CAMPAIGNS = [
+  { id:1, name:'March Purchase Leads — Bay Area', status:'active',   total:2840, sent:1200, replied:187, qualified:94, presentations:61, apps:12, created:'2026-02-15', batch:500,  channel:'both',  tags:['Purchase','Bay Area'] },
+  { id:2, name:'Q1 Refi Outreach — CA Statewide', status:'paused',   total:5600, sent:5600, replied:623, qualified:289,presentations:201,apps:47, created:'2026-01-10', batch:1000, channel:'email', tags:['Refinance'] },
+  { id:3, name:'Reverse Mortgage — 62+ Prospects', status:'complete', total:980,  sent:980,  replied:134, qualified:78, presentations:56, apps:19, created:'2026-01-28', batch:500,  channel:'sms',   tags:['Reverse'] },
+  { id:4, name:'HELOC Campaign — Homeowners 80% LTV',status:'draft',  total:0,    sent:0,    replied:0,   qualified:0,  presentations:0,  apps:0,  created:'2026-02-27', batch:750,  channel:'both',  tags:['HELOC'] },
+];
+
+const MOCK_RESPONSES = [
+  { id:1, contact:'Maria Gonzalez',   phone:'(925) 555-0142', channel:'sms',   step:3, lastMsg:'Good (700-739)',  timestamp:'2m ago',  status:'active',            intent:'Purchase',  price:'$400K–$700K' },
+  { id:2, contact:'James Wu',         phone:'(415) 555-0289', channel:'email', step:6, lastMsg:'Email 📧',        timestamp:'8m ago',  status:'qualified',         intent:'Refinance', credit:'Excellent (740+)' },
+  { id:3, contact:'Priya Sharma',     phone:'(510) 555-0331', channel:'sms',   step:2, lastMsg:'Purchase 🏠',     timestamp:'15m ago', status:'active',            intent:'Purchase',  price:null },
+  { id:4, contact:'Robert Castillo',  phone:'(628) 555-0198', channel:'sms',   step:6, lastMsg:'Both ✓',          timestamp:'31m ago', status:'presentation_sent', intent:'Purchase',  price:'$700K–$1M' },
+  { id:5, contact:'Linda Park',       phone:'(925) 555-0477', channel:'email', step:4, lastMsg:'$120K–$200K',     timestamp:'1h ago',  status:'active',            intent:'Refinance', price:'Over $1M' },
+];
+
+const STATUS_INFO = {
+  draft:    { color:'#888',     label:'Draft' },
+  active:   { color:'#22c55e', label:'Active' },
+  paused:   { color:'#f59e0b', label:'Paused' },
+  complete: { color:'#3b82f6', label:'Complete' },
+};
+
+const STEP_INFO = {
+  active:            { color:'#f59e0b', label:'In conversation' },
+  qualified:         { color:'#22c55e', label:'Qualified' },
+  presentation_sent: { color:'#3b82f6', label:'Presentation sent' },
+  stalled:           { color:'#888',    label:'Stalled' },
+};
+
+function AutomationView({ contacts, profile, toast }) {
+  const [tab, setTab]               = useState('campaigns');
+  const [campaigns, setCampaigns]   = useState(MOCK_CAMPAIGNS);
+  const [responses]                 = useState(MOCK_RESPONSES);
+  const [showCreate, setShowCreate] = useState(false);
+  const [viewCampaign, setViewCampaign] = useState(null);
+  const [uploadedLeads, setUploadedLeads] = useState(null);
+  const [creating, setCreating]     = useState(false);
+  const [previewStep, setPreviewStep] = useState(0);
+  const fileRef = React.useRef(null);
+  const [form, setForm] = useState({ name:'', batch:500, channel:'both', tag:'Purchase' });
+  const setF = (k, v) => setForm(f => ({...f,[k]:v}));
+
+  const totalLeads = campaigns.reduce((s, c) => s + c.total, 0);
+  const totalSent  = campaigns.reduce((s, c) => s + c.sent, 0);
+  const totalResp  = campaigns.reduce((s, c) => s + c.replied, 0);
+  const totalApps  = campaigns.reduce((s, c) => s + c.apps, 0);
+  const activeCount = campaigns.filter(c => c.status === 'active').length;
+
+  const handleCSV = file => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const lines = e.target.result.split('\n').filter(Boolean);
+      setUploadedLeads({ count: lines.length - 1, file: file.name });
+    };
+    reader.readAsText(file);
+  };
+
+  const launchCampaign = () => {
+    if (!form.name || !uploadedLeads) { toast && toast('Add a campaign name and upload leads first'); return; }
+    setCreating(true);
+    setTimeout(() => {
+      const c = { id:Date.now(), name:form.name, status:'active', total:uploadedLeads.count, sent:0, replied:0, qualified:0, presentations:0, apps:0, created:new Date().toISOString().split('T')[0], batch:form.batch, channel:form.channel, tags:[form.tag] };
+      setCampaigns(prev => [c, ...prev]);
+      setShowCreate(false);
+      setUploadedLeads(null);
+      setCreating(false);
+      setForm({ name:'', batch:500, channel:'both', tag:'Purchase' });
+      toast && toast('Campaign launched! First batch sending now...');
+    }, 1200);
+  };
+
+  const toggleStatus = c => {
+    const next = c.status === 'active' ? 'paused' : 'active';
+    setCampaigns(prev => prev.map(x => x.id === c.id ? {...x, status:next} : x));
+    toast && toast(next === 'active' ? 'Campaign resumed' : 'Campaign paused');
+  };
+
+  return (
+    <div style={{ marginLeft:240, paddingTop:52, minHeight:'100vh', background:'var(--bg)', fontFamily:'Inter,sans-serif' }}>
+      <div style={{ padding:'28px 32px', maxWidth:1200 }}>
+        {/* Header */}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:24 }}>
+          <div>
+            <h1 style={{ fontFamily:'Cormorant Garamond,serif', fontSize:32, fontWeight:700, margin:0, letterSpacing:'-.01em', color:'var(--text)' }}>AI Lead Outreach</h1>
+            <div style={{ color:'var(--muted)', fontSize:14, marginTop:4 }}>Automated qualification → presentation → application pipeline</div>
+          </div>
+          <button onClick={() => setShowCreate(true)} style={{ background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', borderRadius:9, padding:'10px 22px', fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:8 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            New Campaign
+          </button>
+        </div>
+
+        {/* Stats */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:14, marginBottom:28 }}>
+          {[
+            ['Total Leads Loaded', totalLeads.toLocaleString(), '#3b82f6'],
+            ['Outreach Sent',      totalSent.toLocaleString(),  '#8b5cf6'],
+            ['Responses',          totalResp.toLocaleString(),  '#f59e0b'],
+            ['Active Campaigns',   activeCount,                  '#22c55e'],
+            ['Applications',       totalApps.toLocaleString(),  '#ec4899'],
+          ].map(([label, val, color]) => (
+            <div key={label} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:14, padding:'18px 20px' }}>
+              <div style={{ fontSize:11, color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em', marginBottom:10 }}>{label}</div>
+              <div style={{ fontFamily:'JetBrains Mono,monospace', fontSize:26, fontWeight:700, color }}>{val}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display:'flex', gap:0, marginBottom:20, borderBottom:'1px solid var(--border)' }}>
+          {[['campaigns','Campaigns'],['responses','Live Responses'],['flow','AI Script Flow']].map(([id, lbl]) => (
+            <div key={id} onClick={() => setTab(id)} style={{ padding:'10px 22px', cursor:'pointer', fontSize:13, fontWeight:tab===id?700:400, color:tab===id?'var(--accent)':'var(--muted)', borderBottom:tab===id?'2px solid var(--accent)':'2px solid transparent', transition:'color .15s' }}>{lbl}</div>
+          ))}
+        </div>
+
+        {/* ── CAMPAIGNS TAB ── */}
+        {tab === 'campaigns' && (
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            {campaigns.map(c => {
+              const si   = STATUS_INFO[c.status];
+              const pct  = c.total > 0 ? Math.round(c.sent / c.total * 100) : 0;
+              const replyRate = c.sent > 0 ? (c.replied / c.sent * 100).toFixed(1) : '0.0';
+              return (
+                <div key={c.id} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:14, padding:'20px 24px' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14 }}>
+                    <div>
+                      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
+                        <div style={{ fontWeight:700, fontSize:16, color:'var(--text)' }}>{c.name}</div>
+                        <span style={{ fontSize:11, padding:'2px 9px', borderRadius:20, background:`${si.color}18`, color:si.color, fontWeight:700 }}>● {si.label}</span>
+                        {c.tags.map(t => <span key={t} style={{ fontSize:10, padding:'2px 8px', borderRadius:20, background:'rgba(77,142,240,.12)', color:'var(--accent)', fontWeight:600 }}>{t}</span>)}
+                      </div>
+                      <div style={{ fontSize:12, color:'var(--muted)' }}>
+                        Created {c.created} · Batch: {c.batch.toLocaleString()}/day · {c.channel==='both'?'SMS + Email':c.channel==='sms'?'SMS only':'Email only'}
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', gap:8 }}>
+                      {c.status !== 'complete' && c.status !== 'draft' && (
+                        <button onClick={() => toggleStatus(c)} style={{ fontSize:12, padding:'6px 14px', borderRadius:7, background:c.status==='active'?'rgba(245,158,11,.12)':'rgba(34,197,94,.12)', border:`1px solid ${c.status==='active'?'rgba(245,158,11,.3)':'rgba(34,197,94,.3)'}`, color:c.status==='active'?'#f59e0b':'#22c55e', cursor:'pointer', fontWeight:600 }}>
+                          {c.status === 'active' ? '⏸ Pause' : '▶ Resume'}
+                        </button>
+                      )}
+                      {c.status === 'draft' && (
+                        <button onClick={() => toast && toast('Upload leads to launch this campaign')} style={{ fontSize:12, padding:'6px 14px', borderRadius:7, background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600 }}>Launch</button>
+                      )}
+                      <button onClick={() => setViewCampaign(viewCampaign===c.id?null:c.id)} style={{ fontSize:12, padding:'6px 14px', borderRadius:7, background:'var(--bg)', border:'1px solid var(--border)', color:'var(--text)', cursor:'pointer', fontWeight:600 }}>Details {viewCampaign===c.id?'↑':'↓'}</button>
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  {c.total > 0 && (
+                    <div style={{ marginBottom:14 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                        <span style={{ fontSize:11, color:'var(--muted)' }}>Outreach progress</span>
+                        <span style={{ fontSize:11, fontFamily:'JetBrains Mono,monospace', color:'var(--accent)' }}>{c.sent.toLocaleString()} / {c.total.toLocaleString()} ({pct}%)</span>
+                      </div>
+                      <div style={{ background:'var(--bg)', borderRadius:4, height:6, overflow:'hidden' }}>
+                        <div style={{ height:'100%', width:pct+'%', background:'linear-gradient(90deg,#1a56db,#00A651)', borderRadius:4, transition:'width .4s' }} />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Metrics grid */}
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:10 }}>
+                    {[
+                      ['Total Leads',    c.total.toLocaleString()],
+                      ['Sent',           c.sent.toLocaleString()],
+                      ['Replied',        c.replied.toLocaleString()],
+                      ['Reply Rate',     replyRate+'%'],
+                      ['Qualified',      c.qualified.toLocaleString()],
+                      ['Presentations',  c.presentations.toLocaleString()],
+                    ].map(([label, val]) => (
+                      <div key={label} style={{ background:'var(--bg)', borderRadius:9, padding:'10px 12px', textAlign:'center' }}>
+                        <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'.04em', marginBottom:4 }}>{label}</div>
+                        <div style={{ fontFamily:'JetBrains Mono,monospace', fontSize:18, fontWeight:700, color:'var(--text)' }}>{val}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Expanded detail */}
+                  {viewCampaign === c.id && (
+                    <div style={{ marginTop:16, paddingTop:16, borderTop:'1px solid var(--border)', display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
+                      <div>
+                        <div style={{ fontSize:12, fontWeight:700, marginBottom:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em' }}>Conversion Funnel</div>
+                        {[
+                          ['Leads loaded',       c.total,         '#3b82f6'],
+                          ['Outreach sent',      c.sent,          '#8b5cf6'],
+                          ['Responded',          c.replied,       '#f59e0b'],
+                          ['Qualified',          c.qualified,     '#22c55e'],
+                          ['Presentations sent', c.presentations, '#10b981'],
+                          ['Applications',       c.apps,          '#ec4899'],
+                        ].map(([label, val, color]) => (
+                          <div key={label} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:7 }}>
+                            <div style={{ width:130, fontSize:12, color:'var(--muted)' }}>{label}</div>
+                            <div style={{ flex:1, background:'var(--bg)', borderRadius:3, height:8, overflow:'hidden' }}>
+                              <div style={{ height:'100%', width:c.total>0?(val/c.total*100)+'%':'0%', background:color, borderRadius:3 }} />
+                            </div>
+                            <div style={{ width:50, textAlign:'right', fontFamily:'JetBrains Mono,monospace', fontSize:12, fontWeight:700, color:'var(--text)' }}>{val.toLocaleString()}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div>
+                        <div style={{ fontSize:12, fontWeight:700, marginBottom:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em' }}>Key Rates</div>
+                        {[
+                          ['Reply Rate',         c.sent>0      ? +(c.replied/c.sent*100).toFixed(1)         : 0, '%', '#f59e0b'],
+                          ['Qualification Rate', c.replied>0   ? +(c.qualified/c.replied*100).toFixed(0)    : 0, '%', '#22c55e'],
+                          ['Presentation Rate',  c.qualified>0 ? +(c.presentations/c.qualified*100).toFixed(0) : 0, '%', '#10b981'],
+                          ['Application Rate',   c.presentations>0 ? +(c.apps/c.presentations*100).toFixed(0) : 0, '%', '#ec4899'],
+                        ].map(([label, val, unit, color]) => (
+                          <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background:'var(--bg)', borderRadius:8, marginBottom:6 }}>
+                            <span style={{ fontSize:12, color:'var(--muted)' }}>{label}</span>
+                            <span style={{ fontFamily:'JetBrains Mono,monospace', fontSize:18, fontWeight:700, color }}>{val}{unit}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── LIVE RESPONSES TAB ── */}
+        {tab === 'responses' && (
+          <div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+              <div style={{ fontSize:13, color:'var(--muted)' }}>Showing {responses.length} active AI conversations</div>
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <div style={{ width:8, height:8, borderRadius:'50%', background:'#22c55e' }} />
+                <span style={{ fontSize:12, color:'#22c55e', fontWeight:600 }}>AI responding live</span>
+              </div>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {responses.map(r => {
+                const si  = STEP_INFO[r.status] || STEP_INFO.active;
+                const pct = Math.round(r.step / AI_QUAL_QUESTIONS.length * 100);
+                return (
+                  <div key={r.id} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 20px', display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr 120px', alignItems:'center', gap:14 }}>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:14, marginBottom:2, color:'var(--text)' }}>{r.contact}</div>
+                      <div style={{ fontSize:12, color:'var(--muted)', display:'flex', gap:8 }}>
+                        <span>{r.channel==='sms'?'📱':'📧'} {r.phone}</span>
+                        <span>·</span>
+                        <span>{r.timestamp}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4 }}>Progress (step {r.step}/{AI_QUAL_QUESTIONS.length})</div>
+                      <div style={{ background:'var(--bg)', borderRadius:3, height:5 }}>
+                        <div style={{ height:'100%', width:pct+'%', background:'linear-gradient(90deg,#1a56db,#00A651)', borderRadius:3 }} />
+                      </div>
+                    </div>
+                    <div style={{ fontSize:12 }}>
+                      <div style={{ color:'var(--muted)', marginBottom:2, fontSize:11 }}>Last response</div>
+                      <div style={{ fontWeight:600, color:'var(--text)' }}>{r.lastMsg}</div>
+                    </div>
+                    <div>
+                      <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:`${si.color}18`, color:si.color, fontWeight:700 }}>● {si.label}</span>
+                    </div>
+                    <div style={{ display:'flex', gap:6 }}>
+                      <button onClick={() => toast && toast(`Opening conversation with ${r.contact}`)} style={{ fontSize:11, padding:'5px 11px', borderRadius:6, background:'var(--bg)', border:'1px solid var(--border)', color:'var(--text)', cursor:'pointer', fontWeight:600 }}>View</button>
+                      {r.status === 'qualified' && (
+                        <button onClick={() => toast && toast(`Sending presentation to ${r.contact}`)} style={{ fontSize:11, padding:'5px 11px', borderRadius:6, background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600 }}>Send Pres.</button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── AI SCRIPT FLOW TAB ── */}
+        {tab === 'flow' && (
+          <div style={{ maxWidth:700 }}>
+            <div style={{ background:'rgba(77,142,240,.08)', border:'1px solid rgba(77,142,240,.2)', borderRadius:10, padding:'12px 18px', marginBottom:20, fontSize:13, color:'var(--accent)', lineHeight:1.6 }}>
+              This is the AI qualification script. Each response triggers the next message automatically. All conversations are handled by AI 24/7 — you only step in when a lead qualifies.
+            </div>
+            {AI_QUAL_QUESTIONS.map((q, i) => (
+              <div key={q.id} style={{ display:'flex', gap:14, marginBottom:16 }}>
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', flexShrink:0 }}>
+                  <div onClick={() => setPreviewStep(i)} style={{ width:34, height:34, borderRadius:'50%', background:previewStep===i?'linear-gradient(135deg,#0f1c3f,#1a56db)':'var(--card)', border:'2px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:800, fontSize:13, color:previewStep===i?'#fff':'var(--muted)', cursor:'pointer' }}>{i+1}</div>
+                  {i < AI_QUAL_QUESTIONS.length - 1 && <div style={{ width:2, flex:1, minHeight:20, background:'var(--border)', margin:'4px 0' }} />}
+                </div>
+                <div onClick={() => setPreviewStep(i)} style={{ flex:1, background:'var(--card)', border:`1px solid ${previewStep===i?'var(--accent)':'var(--border)'}`, borderRadius:12, padding:'14px 18px', cursor:'pointer', transition:'border-color .15s' }}>
+                  <div style={{ fontSize:12, color:'var(--muted)', marginBottom:8, fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em' }}>Step {i+1} · Capture: {q.key}</div>
+                  <div style={{ fontSize:14, fontWeight:500, marginBottom:10, lineHeight:1.5, color:'var(--text)' }}>{q.text}</div>
+                  <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                    {q.opts.map(o => (
+                      <span key={o} style={{ fontSize:12, padding:'4px 12px', borderRadius:20, background:'var(--bg)', border:'1px solid var(--border)', color:'var(--text)', fontWeight:500 }}>{o}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+            <div style={{ display:'flex', gap:14, marginBottom:14 }}>
+              <div style={{ width:34, height:34, borderRadius:'50%', background:'rgba(0,166,81,.15)', border:'2px solid #00A651', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>🎯</div>
+              <div style={{ flex:1, background:'rgba(0,166,81,.06)', border:'1px solid rgba(0,166,81,.2)', borderRadius:12, padding:'14px 18px' }}>
+                <div style={{ fontWeight:700, fontSize:14, color:'#00A651', marginBottom:6 }}>AI Generates &amp; Sends Presentation</div>
+                <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.6 }}>Using the collected data, the system automatically builds a personalized no-cost digital presentation with estimated rate, monthly payment, and loan options — then delivers it via the lead's preferred channel within 60 seconds.</div>
+              </div>
+            </div>
+            <div style={{ display:'flex', gap:14 }}>
+              <div style={{ width:34, height:34, borderRadius:'50%', background:'rgba(236,72,153,.15)', border:'2px solid #ec4899', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>📋</div>
+              <div style={{ flex:1, background:'rgba(236,72,153,.06)', border:'1px solid rgba(236,72,153,.2)', borderRadius:12, padding:'14px 18px' }}>
+                <div style={{ fontWeight:700, fontSize:14, color:'#ec4899', marginBottom:6 }}>Directs to Online Application</div>
+                <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.6 }}>After viewing the presentation, leads receive an automated follow-up with a direct link to the online application. The CRM auto-advances their pipeline stage and notifies your team.</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── CREATE CAMPAIGN MODAL ── */}
+        {showCreate && (
+          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }} onClick={() => setShowCreate(false)}>
+            <div onClick={e => e.stopPropagation()} style={{ width:'min(600px,95vw)', background:'var(--card)', borderRadius:20, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', overflow:'hidden', maxHeight:'90vh', display:'flex', flexDirection:'column' }}>
+              <div style={{ background:'linear-gradient(135deg,#0c1a35,#1a3a6e)', padding:'22px 28px', flexShrink:0 }}>
+                <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:22, fontWeight:700, color:'#fff', marginBottom:4 }}>Create Outreach Campaign</div>
+                <div style={{ fontSize:12, color:'rgba(255,255,255,.4)' }}>AI-powered qualification → presentation → application, fully automated</div>
+              </div>
+              <div style={{ overflowY:'auto', flex:1, padding:'24px 28px', display:'flex', flexDirection:'column', gap:16 }}>
+
+                <div>
+                  <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:6 }}>Campaign Name</label>
+                  <input value={form.name} onChange={e => setF('name', e.target.value)} placeholder="e.g. March Purchase Leads — Bay Area"
+                    style={{ width:'100%', padding:'9px 12px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }} />
+                </div>
+
+                <div>
+                  <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:8 }}>Lead List (CSV)</label>
+                  <div onClick={() => fileRef.current.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); handleCSV(e.dataTransfer.files[0]); }}
+                    style={{ border:`2px dashed ${uploadedLeads?'#22c55e':'var(--border)'}`, borderRadius:12, padding:'28px 18px', textAlign:'center', cursor:'pointer', background:uploadedLeads?'rgba(34,197,94,.05)':'var(--bg)' }}>
+                    {uploadedLeads ? (
+                      <div>
+                        <div style={{ fontSize:28, marginBottom:8 }}>✅</div>
+                        <div style={{ fontWeight:700, color:'#22c55e' }}>{uploadedLeads.count.toLocaleString()} leads loaded</div>
+                        <div style={{ fontSize:12, color:'var(--muted)', marginTop:3 }}>{uploadedLeads.file}</div>
+                        <div style={{ fontSize:12, color:'var(--muted)', marginTop:6 }}>At {form.batch}/day batch — ~{Math.ceil(uploadedLeads.count/form.batch)} days to complete</div>
+                      </div>
+                    ) : (
+                      <div>
+                        <div style={{ fontSize:36, marginBottom:8 }}>📂</div>
+                        <div style={{ fontWeight:600, fontSize:14, color:'var(--text)' }}>Drop CSV file here or click to browse</div>
+                        <div style={{ fontSize:12, color:'var(--muted)', marginTop:4 }}>10,000–30,000 leads · Columns: name, phone, email</div>
+                      </div>
+                    )}
+                    <input ref={fileRef} type="file" accept=".csv" style={{ display:'none' }} onChange={e => handleCSV(e.target.files[0])} />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:8 }}>Daily Batch Size</label>
+                  <div style={{ display:'flex', gap:8 }}>
+                    {[250, 500, 750, 1000, 1500, 2000].map(n => (
+                      <div key={n} onClick={() => setF('batch', n)} style={{ flex:1, textAlign:'center', padding:'10px 4px', borderRadius:9, border:`1px solid ${form.batch===n?'var(--accent)':'var(--border)'}`, background:form.batch===n?'rgba(77,142,240,.1)':'var(--bg)', cursor:'pointer', fontWeight:700, fontSize:13, color:form.batch===n?'var(--accent)':'var(--muted)', transition:'all .1s' }}>
+                        {n >= 1000 ? (n/1000)+'K' : n}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:8 }}>Outreach Channel</label>
+                  <div style={{ display:'flex', gap:10 }}>
+                    {[['sms','📱 SMS Only'],['email','📧 Email Only'],['both','✓ SMS + Email']].map(([val, lbl]) => (
+                      <div key={val} onClick={() => setF('channel', val)} style={{ flex:1, textAlign:'center', padding:'11px 8px', borderRadius:9, border:`1px solid ${form.channel===val?'var(--accent)':'var(--border)'}`, background:form.channel===val?'rgba(77,142,240,.1)':'var(--bg)', cursor:'pointer', fontWeight:form.channel===val?700:400, fontSize:13, color:form.channel===val?'var(--accent)':'var(--muted)', transition:'all .1s' }}>
+                        {lbl}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:6 }}>Lead Type / Campaign Tag</label>
+                  <select value={form.tag} onChange={e => setF('tag', e.target.value)} style={{ width:'100%', padding:'9px 12px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none' }}>
+                    {['Purchase','Refinance','Rate/Term Refi','Cash-Out Refi','HELOC','Reverse Mortgage','VA Loan','FHA Loan','Non-QM','Jumbo'].map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+
+                <div style={{ background:'rgba(77,142,240,.06)', border:'1px solid rgba(77,142,240,.15)', borderRadius:10, padding:'12px 16px', fontSize:12, color:'var(--muted)', lineHeight:1.7 }}>
+                  <span style={{ fontWeight:700, color:'var(--accent)' }}>AI Flow:</span> Each lead gets a personalized greeting → AI asks 6 qualification questions → Builds a digital presentation → Delivers via preferred channel → Follows up with application link.
+                </div>
+              </div>
+              <div style={{ padding:'16px 28px', borderTop:'1px solid var(--border)', flexShrink:0, display:'flex', gap:10 }}>
+                <button onClick={() => setShowCreate(false)} style={{ flex:1, background:'none', border:'1px solid var(--border)', borderRadius:8, padding:11, cursor:'pointer', color:'var(--muted)', fontFamily:'inherit', fontWeight:600 }}>Cancel</button>
+                <button onClick={launchCampaign} disabled={creating || !form.name || !uploadedLeads} style={{ flex:3, background:creating?'var(--bg)':'linear-gradient(135deg,#0f1c3f,#1a56db)', color:creating?'var(--muted)':'#fff', border:'none', borderRadius:8, padding:11, fontWeight:700, fontSize:14, cursor:creating?'wait':'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+                  {creating ? 'Launching...' : 'Launch Campaign'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 // ─── CF ASSISTANT ────────────────────────────────────────────────────────────
 function CFAssistant({ profile }) {
   const [open, setOpen]       = useState(false);
@@ -7746,6 +8437,8 @@ export default function App() {
     { id:'pricing', label:'Pricing Engine', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
     { id:'pipeline', label:'Lead Funnel', icon:Icons.pipeline },
     { id:'team', label:'Team', icon:Icons.team },
+    { id:'automation', label:'AI Outreach', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 2 15 22 11 13 2 9 22 2"/></svg> },
+    { id:'lenders', label:'Lender Portals', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="14" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><polyline points="8 21 12 17 16 21"/></svg> },
     { id:'hannah', label:'Ask Hannah', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
   ];
 
@@ -7839,6 +8532,8 @@ export default function App() {
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
         {view==='trash' && <TrashArchiveView profile={profile} workspaces={workspaces} toast={toast} />}
         {view==='hannah' && <HannahPage profile={profile} />}
+        {view==='automation' && <AutomationView contacts={contacts} profile={profile} toast={toast} />}
+        {view==='lenders' && <LenderPortalsView toast={toast} />}
         {view==='presentations' && <PresentationsPage profile={profile} toast={toast} />}
         {view==='calendar' && <CalendarView profile={profile} workspaces={workspaces} toast={toast} />}
         {view==='workspace' && activeWorkspace && <WorkspaceView workspace={activeWorkspace} profile={profile} toast={toast}
