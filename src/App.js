@@ -6755,7 +6755,7 @@ CRM FEATURES YOU CAN HELP WITH:
 - Mass Send: Send personalized presentations to multiple contacts at once with name personalization
 - Client Viewer: Clients receive interactive presentations where they can explore rate/amount/term scenarios
 
-Be concise, warm, and helpful. If asked about rates, remind the user rates change daily and to check current pricing. Keep responses under 150 words.`;
+Be concise and use bullet points. Keep responses under 80 words. Never use long paragraphs.`;
 
       const conversationText = newMessages.map(m => `${m.role === 'user' ? 'User' : 'Hannah'}: ${m.content}`).join('\n');
       const prompt = `${HANNAH_SYSTEM}\n\nConversation so far:\n${conversationText}\n\nRespond as Hannah:`;
@@ -6836,8 +6836,19 @@ Be concise, warm, and helpful. If asked about rates, remind the user rates chang
                     <div style={{ width:26, height:26, borderRadius:'50%', overflow:'hidden', flexShrink:0, border:'1px solid rgba(26,154,92,.3)' }}>
                       <img src={HANNAH_PHOTO} alt="Hannah" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                     </div>
-                    <div style={{ maxWidth:'80%', padding:'10px 14px', borderRadius:'14px 14px 14px 4px', background:'var(--surface2)', color:'var(--text)', fontSize:13, lineHeight:1.6, border:'1px solid var(--border)' }}>
-                      {m.content}
+                    <div style={{ maxWidth:'80%', padding:'10px 14px', borderRadius:'14px 14px 14px 4px', background:'var(--surface2)', color:'var(--text)', fontSize:13, lineHeight:1.7, border:'1px solid var(--border)' }}>
+                      {m.content.split('\n').map((line, li) => {
+                        if (line.startsWith('- ') || line.startsWith('• ')) {
+                          return <div key={li} style={{ display:'flex', gap:6, marginBottom:3 }}><span style={{ color:'#1a9a5c', fontWeight:700, flexShrink:0 }}>•</span><span>{line.replace(/^[-•]\s*/,'').replace(/\*\*([^*]+)\*\*/g, (_,t)=>t)}</span></div>;
+                        }
+                        if (line.startsWith('**') && line.endsWith('**')) {
+                          return <div key={li} style={{ fontWeight:700, color:'var(--text)', marginTop:li>0?8:0, marginBottom:2 }}>{line.replace(/\*\*/g,'')}</div>;
+                        }
+                        if (!line.trim()) return <div key={li} style={{ height:4 }} />;
+                        // Inline bold
+                        const parts = line.split(/\*\*([^*]+)\*\*/);
+                        return <div key={li} style={{ marginBottom:2 }}>{parts.map((p,pi)=> pi%2===1 ? <strong key={pi}>{p}</strong> : p)}</div>;
+                      })}
                     </div>
                   </div>
                 )}
