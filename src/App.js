@@ -3566,7 +3566,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
             )}
             {files.map(f=>(
               <div key={f.name} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', background:'var(--surface2)', borderRadius:8, marginBottom:8, border:'1px solid var(--border)' }}>
-                <span style={{ fontSize:20 }}>{getFileIcon(f.name)}</span>
+                <span style={{ display:"flex" }} dangerouslySetInnerHTML={{__html:getFileIcon(f.name)}} />
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:13, fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.name.replace(/^[0-9]+_/,'')}</div>
                   <div style={{ fontSize:11, color:'var(--muted)' }}>{formatFileSize(f.metadata?.size)}</div>
@@ -3818,7 +3818,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
             {files.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No files attached yet</div>}
             {files.map(f=>(
               <div key={f.name} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 12px', background:'var(--surface2)', borderRadius:8, marginBottom:8, border:'1px solid var(--border)' }}>
-                <span style={{ fontSize:20 }}>{getFileIcon(f.name)}</span>
+                <span style={{ display:"flex" }} dangerouslySetInnerHTML={{__html:getFileIcon(f.name)}} />
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:13, fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f.name.replace(/^[0-9]+_/,'')}</div>
                   <div style={{ fontSize:11, color:'var(--muted)' }}>{formatFileSize(f.metadata?.size)}</div>
@@ -6732,7 +6732,7 @@ function PricingEnginePanel({ onClose, onApplyRate }) {
       {/* Tabs */}
       <div style={{ display:'flex', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
         {[['grid','<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Rate Grid'],['inputs','⚙️ Parameters'],['manual','✏️ Manual'],['notes','<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> Notes']].map(([id,lbl])=>(
-          <div key={id} onClick={()=>setTab(id)} style={{ flex:1, padding:'10px 4px', textAlign:'center', fontSize:11, fontWeight:tab===id?700:400, color:tab===id?'var(--accent)':'var(--muted)', borderBottom:tab===id?'2px solid var(--accent)':'2px solid transparent', cursor:'pointer', transition:'color .15s' }}>{lbl}</div>
+          <div key={id} onClick={()=>setTab(id)} style={{ flex:1, padding:'10px 4px', textAlign:'center', fontSize:11, fontWeight:tab===id?700:400, color:tab===id?'var(--accent)':'var(--muted)', borderBottom:tab===id?'2px solid var(--accent)':'2px solid transparent', cursor:'pointer', transition:'color .15s' }}><span dangerouslySetInnerHTML={{__html:lbl}} /></div>
         ))}
       </div>
       {/* Body */}
