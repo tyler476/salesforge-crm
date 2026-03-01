@@ -325,12 +325,12 @@ function AuthScreen({ onAuth }) {
 // ─── CONTACT FORM ─────────────────────────────────────────────────────────────
 function ContactForm({ contact, onSave, onClose, companyId }) {
   const CONTACT_GROUPS = ['CDCR','CHCF','CMF','FHA/VA Nor-Cal','FHA/VA So-Cal','SQ'];
-  const blank = { full_name:'', email:'', phone:'', company:'', title:'', deal_value:'', stage:'New Lead', source:'Website', industry:'Technology', tags:'', notes:'', contact_group:'' };
+  const blank = { full_name:'', email:'', phone:'', company:'', title:'', address:'', occupation:'', stage:'New Lead', tags:'', notes:'', contact_group:'' };
   const [form, setForm] = useState(contact ? {...contact, tags:(contact.tags||[]).join(',')} : blank);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
   const save = async () => {
-    const payload = { ...form, deal_value: parseFloat(form.deal_value)||0, tags: form.tags ? form.tags.split(',').map(t=>t.trim()).filter(Boolean) : [], company_id: companyId };
+    const payload = { ...form, tags: form.tags ? form.tags.split(',').map(t=>t.trim()).filter(Boolean) : [], company_id: companyId };
     if (contact?.id) { await supabase.from('contacts').update(payload).eq('id', contact.id); }
     else { await supabase.from('contacts').insert([payload]); }
     onSave();
@@ -344,14 +344,13 @@ function ContactForm({ contact, onSave, onClose, companyId }) {
           <button onClick={onClose} style={{ background:'none', color:'var(--muted)', fontSize:20 }}>✕</button>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-          {[['full_name','Full Name','text'],['email','Email','email'],['phone','Phone','text'],['company','Company','text'],['title','Title','text'],['deal_value','Deal Value ($)','number']].map(([k,l,t])=>(
-            <div className="form-group" key={k}><label>{l}</label><input type={t} value={form[k]} onChange={e=>set(k,e.target.value)} /></div>
+          {[['full_name','Full Name','text'],['email','Email','email'],['phone','Phone','text'],['company','Company','text'],['occupation','Occupation','text'],['address','Address','text']].map(([k,l,t])=>(
+            <div className="form-group" key={k}><label>{l}</label><input type={t} value={form[k]||''} onChange={e=>set(k,e.target.value)} /></div>
           ))}
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
           <div className="form-group"><label>Stage</label><select value={form.stage} onChange={e=>set('stage',e.target.value)}>{STAGES.map(s=><option key={s}>{s}</option>)}</select></div>
-          <div className="form-group"><label>Source</label><select value={form.source} onChange={e=>set('source',e.target.value)}>{SOURCES.map(s=><option key={s}>{s}</option>)}</select></div>
-          <div className="form-group"><label>Industry</label><select value={form.industry} onChange={e=>set('industry',e.target.value)}>{INDUSTRIES.map(s=><option key={s}>{s}</option>)}</select></div>
+          <div className="form-group"><label>Contact Group</label><select value={form.contact_group||''} onChange={e=>set('contact_group',e.target.value)}><option value="">— No group —</option>{['CDCR','CHCF','CMF','FHA/VA Nor-Cal','FHA/VA So-Cal','SQ'].map(g=><option key={g} value={g}>{g}</option>)}</select></div>
         </div>
         <div className="form-group"><label>Tags (comma separated)</label><input value={form.tags} onChange={e=>set('tags',e.target.value)} placeholder="hot lead, Q1, enterprise" /></div>
         <div className="form-group"><label>Notes</label><textarea rows={3} value={form.notes} onChange={e=>set('notes',e.target.value)} /></div>
@@ -475,7 +474,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
         </div>
         
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20 }}>
-          {[['📧','Email',contact.email],['📞','Phone',contact.phone],['💰','Deal Value',contact.deal_value?fmt(contact.deal_value):'—'],['🏭','Industry',contact.industry],['📌','Source',contact.source]].map(([icon,label,val])=>val&&(
+          {[['📧','Email',contact.email],['📞','Phone',contact.phone],['🏠','Address',contact.address],['💼','Occupation',contact.occupation]].map(([icon,label,val])=>val&&(
             <div key={label} style={{ background:'var(--surface2)', borderRadius:8, padding:10 }}>
               <div style={{ fontSize:11, color:'var(--muted)', marginBottom:2 }}>{icon} {label}</div>
               <div style={{ fontSize:13, fontWeight:500 }}>{val}</div>
@@ -484,6 +483,12 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
         </div>
 
         <div style={{ marginBottom:20 }}>
+          {contact.contact_group && (
+            <div style={{ marginBottom:16 }}>
+              <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em', marginBottom:8 }}>Group</div>
+              <span style={{ background:'rgba(26,154,92,.12)', color:'#1a9a5c', fontSize:13, fontWeight:700, padding:'5px 12px', borderRadius:20, border:'1px solid rgba(26,154,92,.25)' }}>{contact.contact_group}</span>
+            </div>
+          )}
           <div style={{ fontSize:12, color:'var(--muted)', marginBottom:8, fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em' }}>Stage</div>
           <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
             {STAGES.map(s=>(
@@ -1742,7 +1747,7 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
         <table className="table">
           <thead><tr>
             <th style={{ width:40 }}><input type="checkbox" checked={selected.length===filtered.length&&filtered.length>0} onChange={toggleAll} /></th>
-            <th>Name</th><th>Company</th><th>Stage</th><th>Deal Value</th><th>Source</th>
+            <th>Name</th><th>Company</th><th>Group</th><th>Stage</th>
           </tr></thead>
           <tbody>
             {filtered.map(c=>(
@@ -1758,9 +1763,8 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
                   </div>
                 </td>
                 <td style={{ color:'var(--muted)' }}>{c.company||'—'}</td>
+                <td>{c.contact_group ? <span style={{ background:'rgba(26,154,92,.12)', color:'#1a9a5c', fontSize:11, fontWeight:700, padding:'3px 8px', borderRadius:10 }}>{c.contact_group}</span> : <span style={{ color:'var(--muted)' }}>—</span>}</td>
                 <td><span className={`badge badge-${STAGE_COLORS[c.stage]||'blue'}`}>{c.stage}</span></td>
-                <td style={{ fontFamily:'JetBrains Mono,monospace', fontSize:13 }}>{c.deal_value?fmt(c.deal_value):'—'}</td>
-                <td style={{ color:'var(--muted)', fontSize:13 }}>{c.source||'—'}</td>
               </tr>
             ))}
           </tbody>
