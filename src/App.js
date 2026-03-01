@@ -1040,6 +1040,28 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
   const [loading, setLoading]           = useState(true);
   const [showNewWs, setShowNewWs]       = useState(false);
   const [dismissedAlerts, setDismissedAlerts] = useState([]);
+  const [wsCounts, setWsCounts] = useState({});
+
+  // Load workspace item counts
+  React.useEffect(()=>{
+    if(!workspaces.length || !profile?.company_name) return;
+    const wsIds = workspaces.map(w=>w.id);
+    supabase.from('workspace_groups').select('id,workspace_id').in('workspace_id',wsIds)
+      .then(({data:grps})=>{
+        if(!grps?.length) return;
+        const gMap={};
+        grps.forEach(g=>{gMap[g.id]=g.workspace_id;});
+        supabase.from('workspace_items').select('id,group_id')
+          .eq('company_id',profile.company_name).eq('archived',false)
+          .in('group_id',grps.map(g=>g.id))
+          .then(({data:its})=>{
+            const c={};
+            wsIds.forEach(id=>{c[id]=0;});
+            (its||[]).forEach(i=>{if(gMap[i.group_id]) c[gMap[i.group_id]]=(c[gMap[i.group_id]]||0)+1;});
+            setWsCounts(c);
+          });
+      });
+  },[workspaces,profile?.company_name]);
 
   // Load everything in parallel
   React.useEffect(()=>{
@@ -1242,7 +1264,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
                       {/* Name */}
                       <div style={{ fontWeight:700, fontSize:14, marginBottom:6 }}>{w.name}</div>
                       {/* Item count */}
-                      <div style={{ color:'var(--muted)', fontSize:12, marginBottom:10 }}>{stats.total} item{stats.total!==1?'s':''}</div>
+                      <div style={{ color:'var(--muted)', fontSize:12, marginBottom:10 }}>{wsCounts[w.id]??stats.total} item{(wsCounts[w.id]??stats.total)!==1?'s':''}</div>
                       {/* Status distribution bar */}
                       {stats.total>0 && (
                         <div style={{ display:'flex', height:4, borderRadius:2, overflow:'hidden', gap:1, marginBottom:10 }}>
@@ -2100,6 +2122,107 @@ function StatusManager({ workspaceId, companyId, statuses, onUpdate, onClose }) 
   );
 }
 
+// ─── SUB ITEM ROW ─────────────────────────────────────────────────────────────
+function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, setItemDetailPanel, setSubItems }) {
+  const [showStatus, setShowStatus] = useState(false);
+  const [showAssign, setShowAssign] = useState(false);
+  const statusRef = React.useRef();
+  const assignRef = React.useRef();
+
+  useEffect(()=>{
+    const h=e=>{
+      if(statusRef.current&&!statusRef.current.contains(e.target)) setShowStatus(false);
+      if(assignRef.current&&!assignRef.current.contains(e.target)) setShowAssign(false);
+    };
+    document.addEventListener('mousedown',h);
+    return()=>document.removeEventListener('mousedown',h);
+  },[]);
+
+  const owners = sub.assigned_officers||[];
+  const updCount = (updateCounts||{})[sub.id]||0;
+
+  return (
+    <tr style={{background:'rgba(0,0,0,.05)',borderBottom:'1px solid var(--border)'}}>
+      {/* Col1: indicator */}
+      <td style={{padding:'4px 10px',paddingLeft:36,textAlign:'center'}}>
+        <div style={{width:8,height:8,borderRadius:'50%',background:'var(--border)',margin:'0 auto'}}/>
+      </td>
+      {/* Col2: name + comment */}
+      <td style={{padding:'4px 10px',paddingLeft:24}}>
+        <div style={{display:'flex',alignItems:'center',gap:6}}>
+          <span style={{fontSize:12,color:'var(--muted)'}}>↳</span>
+          <span style={{fontSize:13,flex:1}}>{sub.name}</span>
+          <button onClick={e=>{e.stopPropagation();setItemDetailPanel(sub);}}
+            style={{background:'none',border:'none',color:updCount>0?'var(--accent)':'var(--muted)',cursor:'pointer',padding:'2px 4px',display:'flex',alignItems:'center',gap:2}}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill={updCount>0?'currentColor':'none'} stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            {updCount>0&&<span style={{fontSize:10,fontWeight:700,background:'var(--accent)',color:'#fff',borderRadius:10,padding:'0 4px',minWidth:14,textAlign:'center',lineHeight:'14px'}}>{updCount}</span>}
+          </button>
+        </div>
+      </td>
+      {/* Col3: owner — same position as main row */}
+      <td style={{padding:'4px 10px',position:'relative'}} onClick={e=>e.stopPropagation()}>
+        <div ref={assignRef} style={{position:'relative'}}>
+          <div onClick={()=>setShowAssign(s=>!s)} style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer',minWidth:60}}>
+            {owners.length===0
+              ?<span style={{fontSize:11,color:'var(--muted)',padding:'2px 8px',borderRadius:12,border:'1px dashed var(--border)',whiteSpace:'nowrap'}}>+ Owner</span>
+              :owners.slice(0,2).map((o,oi)=>(
+                <div key={oi} style={{width:24,height:24,borderRadius:'50%',background:avatarColor(o),display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:700,color:'#fff',border:'2px solid var(--surface)',marginLeft:oi?-6:0}} title={o}>
+                  {o.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}
+                </div>
+              ))
+            }
+          </div>
+          {showAssign&&(
+            <div style={{position:'absolute',top:'100%',left:0,zIndex:9999,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:8,boxShadow:'0 8px 24px rgba(0,0,0,.4)',minWidth:180,marginTop:4}}>
+              {teamMembers.map(m=>(
+                <div key={m.id}
+                  onClick={async()=>{const cur=sub.assigned_officers||[];const next=cur.includes(m.full_name)?cur.filter(x=>x!==m.full_name):[...cur,m.full_name];await supabase.from('workspace_items').update({assigned_officers:next}).eq('id',sub.id);setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(x=>x.id===sub.id?{...x,assigned_officers:next}:x)}));}}
+                  style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderRadius:4,cursor:'pointer',background:owners.includes(m.full_name)?'rgba(77,142,240,.15)':'transparent'}}
+                  onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.07)'}
+                  onMouseOut={e=>e.currentTarget.style.background=owners.includes(m.full_name)?'rgba(77,142,240,.15)':'transparent'}>
+                  <div style={{width:24,height:24,borderRadius:'50%',background:avatarColor(m.full_name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'#fff'}}>{m.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}</div>
+                  <span style={{fontSize:12}}>{m.full_name}</span>
+                  {owners.includes(m.full_name)&&<span style={{marginLeft:'auto',color:'var(--accent)'}}>✓</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </td>
+      {/* Col4: status — same position as main row */}
+      <td style={{padding:'4px 10px',position:'relative'}} onClick={e=>e.stopPropagation()}>
+        <div ref={statusRef} style={{position:'relative'}}>
+          <div onClick={()=>setShowStatus(s=>!s)}
+            style={{display:'inline-flex',alignItems:'center',background:sub.status_color||'rgba(77,142,240,.2)',color:'#fff',padding:'3px 10px',borderRadius:4,fontSize:11,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap',minWidth:80,justifyContent:'center'}}>
+            {sub.status||'Set status'}
+          </div>
+          {showStatus&&(
+            <div style={{position:'absolute',top:'100%',left:0,zIndex:9999,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:10,boxShadow:'0 8px 32px rgba(0,0,0,.4)',width:300,maxHeight:320,overflowY:'auto',marginTop:4}}>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
+                {statuses.map(s=>(
+                  <div key={s.id}
+                    onClick={async()=>{await supabase.from('workspace_items').update({status:s.label,status_color:s.color}).eq('id',sub.id);setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(x=>x.id===sub.id?{...x,status:s.label,status_color:s.color}:x)}));setShowStatus(false);}}
+                    style={{background:s.color,color:'#fff',padding:'6px 8px',borderRadius:5,cursor:'pointer',fontSize:11,fontWeight:600,textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',border:sub.status===s.label?'2px solid #fff':'2px solid transparent'}}
+                    title={s.label}>{s.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </td>
+      {/* Remaining cols: empty spacer */}
+      <td colSpan={99} style={{padding:'4px 10px'}}></td>
+      {/* Delete */}
+      <td style={{padding:'4px 10px',width:32}}>
+        <button onClick={async e=>{e.stopPropagation();await supabase.from('workspace_items').delete().eq('id',sub.id);setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).filter(s=>s.id!==sub.id)}));}}
+          style={{background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize:14,opacity:0.6}}>×</button>
+      </td>
+    </tr>
+  );
+}
+
+
 function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorkspaces, onSwitchWorkspace, onAddWorkspace }) {
   const [inputModal, setInputModal] = useState(null);
   const [showStatusManager, setShowStatusManager] = useState(false);
@@ -2117,6 +2240,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   const [collapsed, setCollapsed] = useState({});
   const [activeItem, setActiveItem] = useState(null);
   const [itemDetailPanel, setItemDetailPanel] = useState(null);
+  const [updateCounts, setUpdateCounts] = useState({});
   const [search, setSearch] = useState(null);
   const [filterOfficer, setFilterOfficer] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -2176,9 +2300,23 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
     setStatuses(data||[]);
   };
 
+  const loadUpdateCounts = async () => {
+    const {data:grps} = await supabase.from('workspace_groups').select('id').eq('workspace_id',workspace.id);
+    if(!grps?.length) return;
+    const {data:its} = await supabase.from('workspace_items').select('id').in('group_id',grps.map(g=>g.id));
+    if(!its?.length) return;
+    const {data:upds} = await supabase.from('workspace_updates').select('item_id').in('item_id',its.map(i=>i.id));
+    if(upds) {
+      const c={};
+      upds.forEach(u=>{c[u.item_id]=(c[u.item_id]||0)+1;});
+      setUpdateCounts(c);
+    }
+  };
+
   useEffect(() => {
     loadGroups();
     loadStatuses();
+    loadUpdateCounts();
     supabase.from('profiles').select('*').eq('company_name', profile.company_name).then(({data})=>setTeamMembers(data||[]));
   }, [workspace.id]);
 
@@ -2673,33 +2811,14 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                           PRIORITY_COLORS={PRIORITY_COLORS}
                           hiddenCols={hiddenCols}
                           isTrinidadWs={isTrinidadWs}
+                          updateCount={updateCounts[item.id]||0}
                           onDragStart={e=>handleDragStart(e,group.id,item.id)}
                           onDragOver={e=>{ e.preventDefault(); setDragOverGroup(group.id); setDragOverIdx(idx); }}
                           onDrop={e=>handleDrop(e,group.id,idx)}
                         />
                         {/* Sub-items */}
                         {expandedItems[item.id] && (subItems[item.id]||[]).map(sub=>(
-                           <tr key={sub.id} style={{ background:'rgba(0,0,0,.05)', borderBottom:'1px solid var(--border)' }}>
-                             <td style={{ padding:'4px 10px', paddingLeft:36, textAlign:'center' }}>
-                               <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--border)', margin:'0 auto' }} />
-                             </td>
-                             <td style={{ padding:'4px 10px', paddingLeft:24 }}>
-                               <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                                 <span style={{ fontSize:12, color:'var(--muted)' }}>↳</span>
-                                 <span style={{ fontSize:13, flex:1 }}>{sub.name}</span>
-                                 <button onClick={e=>{ e.stopPropagation(); setItemDetailPanel(sub); }}
-                                   style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:'2px 4px' }}>
-                                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                                 </button>
-                               </div>
-                             </td>
-                             <td colSpan={COLUMNS.length-1} style={{ padding:'4px 10px' }}>
-                               <div style={{ display:'inline-flex', alignItems:'center', background:sub.status_color||'rgba(77,142,240,.2)', color:'#fff', padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:600 }}>{sub.status||''}</div>
-                             </td>
-                             <td style={{ padding:'4px 10px' }}>
-                               <button onClick={async(e)=>{ e.stopPropagation(); await supabase.from('workspace_items').delete().eq('id',sub.id); setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).filter(s=>s.id!==sub.id)})); }} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:14, opacity:0.6 }}>×</button>
-                             </td>
-                           </tr>
+                           <SubItemRow key={sub.id} sub={sub} item={item} statuses={statuses} teamMembers={teamMembers} updateCounts={updateCounts} setItemDetailPanel={setItemDetailPanel} setSubItems={setSubItems} />
                         ))}
                         {expandedItems[item.id] && (
                           <tr style={{ background:'rgba(0,0,0,.05)' }}>
@@ -2989,7 +3108,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
 }
 
 // ─── WORKSPACE ITEM ROW ───────────────────────────────────────────────────────
-function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdate, onDelete, onOpenUpdates, onAddSubItem, onToggleExpand, isExpanded, subItemCount, selected, onSelect, PRIORITY_COLORS, hiddenCols=[], onDragStart, onDragOver, onDrop, isTrinidadWs=false }) {
+function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdate, onDelete, onOpenUpdates, onAddSubItem, onToggleExpand, isExpanded, updateCount=0, subItemCount, selected, onSelect, PRIORITY_COLORS, hiddenCols=[], onDragStart, onDragOver, onDrop, isTrinidadWs=false }) {
   const [editing, setEditing] = useState(null);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showAssignPicker, setShowAssignPicker] = useState(false);
@@ -3043,9 +3162,11 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
       <td style={{ padding:'4px 10px', minWidth:200 }}>
         <div style={{ display:'flex', alignItems:'center', gap:6 }}>
           <div style={{ flex:1 }}><EditableCell field="name" style={{ fontWeight:500 }} /></div>
-          {hovered && <button onClick={e=>{ e.stopPropagation(); onOpenUpdates(); }} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:'2px 4px' }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            </button>}
+          {(hovered||updateCount>0)&&<button onClick={e=>{e.stopPropagation();onOpenUpdates();}}
+            style={{background:'none',border:'none',color:updateCount>0?'var(--accent)':'var(--muted)',cursor:'pointer',padding:'2px 4px',display:'flex',alignItems:'center',gap:2}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill={updateCount>0?'currentColor':'none'} stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            {updateCount>0&&<span style={{fontSize:10,fontWeight:700,background:'var(--accent)',color:'#fff',borderRadius:10,padding:'0 4px',minWidth:14,textAlign:'center',lineHeight:'14px'}}>{updateCount}</span>}
+          </button>}
           {hovered && subItemCount===0 && <button onClick={onAddSubItem} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:3, fontSize:10, flexShrink:0, opacity:.7 }} title="Add sub-item">⊕</button>}
         </div>
       </td>
