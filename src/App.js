@@ -59,6 +59,7 @@ const css = `
   .ws-toolbar { display:flex; align-items:center; gap:8px; padding:10px 28px; border-bottom:1px solid var(--border); background:var(--surface2); flex-wrap:wrap; }
   .ws-toolbar-btn { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:6px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; font-family:'Inter',system-ui,sans-serif; transition:all .15s; }
   .ws-toolbar-btn:hover { background:rgba(255,255,255,.07); color:var(--text); }
+  .bar-btn:hover { background:rgba(255,255,255,.1) !important; }
   .nav-item { display:flex; align-items:center; gap:12px; padding:10px 20px; cursor:pointer; font-size:14px; color:var(--sidebar-text); transition:all .15s; border-left:3px solid transparent; font-weight:500; }
   .nav-item:hover { background:rgba(255,255,255,.07); color:#fff; }
   .nav-item.active { background:rgba(26,86,219,.25); color:#fff; border-left-color:var(--sidebar-active); }
@@ -2125,7 +2126,19 @@ function StatusManager({ workspaceId, companyId, statuses, onUpdate, onClose }) 
 }
 
 // ─── SUB ITEM ROW ─────────────────────────────────────────────────────────────
-function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, setItemDetailPanel, setSubItems }) {
+function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidadWs=false, setItemDetailPanel, setSubItems }) {
+  const [editingField, setEditingField] = React.useState(null);
+  const [editVal, setEditVal] = React.useState('');
+  const saveField = async (field) => {
+    await supabase.from('workspace_items').update({[field]:editVal}).eq('id',sub.id);
+    setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(x=>x.id===sub.id?{...x,[field]:editVal}:x)}));
+    setEditingField(null);
+  };
+  const EditField = ({field,type='text',fmt}) => editingField===field
+    ? <input autoFocus type={type} value={editVal} onChange={e=>setEditVal(e.target.value)}
+        onBlur={()=>saveField(field)} onKeyDown={e=>{if(e.key==='Enter')saveField(field);if(e.key==='Escape')setEditingField(null);}}
+        style={{background:'transparent',border:'none',borderBottom:'1px solid var(--accent)',color:'var(--text)',fontSize:12,width:'100%',outline:'none',padding:'1px 0'}}/>
+    : <span onDoubleClick={()=>{setEditingField(field);setEditVal(sub[field]||'');}} style={{cursor:'text',fontSize:12,display:'block',minWidth:40}}>{fmt?fmt(sub[field]):sub[field]||'—'}</span>;
   const [showStatus, setShowStatus] = useState(false);
   const [showAssign, setShowAssign] = useState(false);
   const statusRef = React.useRef();
@@ -2153,7 +2166,10 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, setItemDet
       <td style={{padding:'4px 10px',paddingLeft:24}}>
         <div style={{display:'flex',alignItems:'center',gap:6}}>
           <span style={{fontSize:12,color:'var(--muted)'}}>↳</span>
-          <span style={{fontSize:13,flex:1}}>{sub.name}</span>
+          <div style={{flex:1}}>{editingField==='name'
+            ?<input autoFocus value={editVal} onChange={e=>setEditVal(e.target.value)} onBlur={()=>saveField('name')} onKeyDown={e=>{if(e.key==='Enter')saveField('name');if(e.key==='Escape')setEditingField(null);}} style={{background:'transparent',border:'none',borderBottom:'1px solid var(--accent)',color:'var(--text)',fontSize:13,width:'100%',outline:'none',fontWeight:500}}/>
+            :<span onDoubleClick={()=>{setEditingField('name');setEditVal(sub.name||'');}} style={{fontSize:13,cursor:'text'}}>{sub.name}</span>
+          }</div>
           <button onClick={e=>{e.stopPropagation();setItemDetailPanel(sub);}}
             style={{background:'none',border:'none',color:updCount>0?'var(--accent)':'var(--muted)',cursor:'pointer',padding:'2px 4px',display:'flex',alignItems:'center',gap:2}}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill={updCount>0?'currentColor':'none'} stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -2213,8 +2229,23 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, setItemDet
           )}
         </div>
       </td>
-      {/* Remaining cols: empty spacer */}
-      <td colSpan={99} style={{padding:'4px 10px'}}></td>
+      {/* Trinidad extra cols or regular spacer */}
+      {isTrinidadWs ? (<>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="deal_value" fmt={v=>v?'$'+Number(v).toLocaleString():''}/></td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="date" type="date" fmt={v=>v?v.split('T')[0]:''}/></td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="loan_amount" fmt={v=>v?'$'+Number(v).toLocaleString():''}/></td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="mortgage_rate" fmt={v=>v?v+'%':''}/></td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="lender"/></td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="phone"/></td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="alt_phone"/></td>
+      </>) : (<>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="priority" fmt={v=>v||''}/></td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="date" type="date" fmt={v=>v?v.split('T')[0]:''}/></td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="lender"/></td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="loan_officer"/></td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="processor"/></td>
+        <td colSpan={99} style={{padding:'4px 8px'}}></td>
+      </>)}
       {/* Delete */}
       <td style={{padding:'4px 10px',width:32}}>
         <button onClick={async e=>{e.stopPropagation();await supabase.from('workspace_items').delete().eq('id',sub.id);setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).filter(s=>s.id!==sub.id)}));}}
@@ -2820,7 +2851,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                         />
                         {/* Sub-items */}
                         {expandedItems[item.id] && (subItems[item.id]||[]).map(sub=>(
-                           <SubItemRow key={sub.id} sub={sub} item={item} statuses={statuses} teamMembers={teamMembers} updateCounts={updateCounts} setItemDetailPanel={setItemDetailPanel} setSubItems={setSubItems} />
+                           <SubItemRow key={sub.id} sub={sub} item={item} statuses={statuses} teamMembers={teamMembers} updateCounts={updateCounts} isTrinidadWs={isTrinidadWs} setItemDetailPanel={setItemDetailPanel} setSubItems={setSubItems} />
                         ))}
                         {expandedItems[item.id] && (
                           <tr style={{ background:'rgba(0,0,0,.05)' }}>
@@ -3037,9 +3068,8 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
           {Object.entries(selected).map(([gId, gSet])=> gSet.size>0 ? (
             <React.Fragment key={gId}>
               <div style={{ position:'relative' }}>
-                <button onClick={()=>setBatchStatusOpen(o=>!o)} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
-                  onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
-                  onMouseOut={e=>e.currentTarget.style.background=''}>
+                <button onClick={()=>setBatchStatusOpen(o=>!o)} className="bar-btn" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
+                  >
                   <span style={{ fontSize:18 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span>Status
                 </button>
                 {batchStatusOpen && (
@@ -3057,19 +3087,16 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                   </div>
                 )}
               </div>
-              <button onClick={()=>duplicateItems(gId,[...gSet])} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
-                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
-                onMouseOut={e=>e.currentTarget.style.background=''}>
+              <button onClick={()=>duplicateItems(gId,[...gSet])} className="bar-btn" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
+                >
                 <span style={{ fontSize:18 }}>⧉</span>Duplicate
               </button>
-              <button onClick={()=>archiveItems(gId,[...gSet])} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
-                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
-                onMouseOut={e=>e.currentTarget.style.background=''}>
+              <button onClick={()=>archiveItems(gId,[...gSet])} className="bar-btn" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
+                >
                 <span style={{ fontSize:18 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>Archive
               </button>
-              <button onClick={()=>deleteSelectedItems(gId,[...gSet])} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--danger)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
-                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
-                onMouseOut={e=>e.currentTarget.style.background=''}>
+              <button onClick={()=>deleteSelectedItems(gId,[...gSet])} className="bar-btn" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--danger)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
+                >
                 <span style={{ display:"flex" }}>{Icons.trash}</span>Trash
               </button>
               <select onChange={e=>{ if(e.target.value) moveItemsToGroup(gId,[...gSet],e.target.value); e.target.value=''; }}
@@ -3687,7 +3714,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
             </div>
             {updates.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No updates yet — be the first to post!</div>}
             {/* Group updates: top-level first, replies nested under their parent */}
-            {updates.filter(u=>!u.body.startsWith('↩ ')).map(u=>(
+            {updates.filter(u=>!u.body.startsWith('↩ ')).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(u=>(
               <div key={u.id} style={{ marginBottom:20 }}>
                 {/* Top-level update */}
                 <div style={{ display:'flex', gap:10 }}>
@@ -3716,7 +3743,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                       </button>
                     </div>
                     {/* Replies — indented under this update */}
-                    {updates.filter(r=>r.body.startsWith('↩ ')).slice(0,50).map((r,ri)=>(
+                    {updates.filter(r=>r.body.startsWith('↩ ')&&(r.parent_update_id?r.parent_update_id===u.id:true)).map((r,ri)=>(
                       <div key={r.id} style={{ display:'flex', gap:8, marginBottom:10, paddingLeft:8, borderLeft:'2px solid var(--border)' }}>
                         <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(r.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', flexShrink:0 }}>{(r.author_name||'?').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}</div>
                         <div style={{ flex:1, background:'rgba(255,255,255,.04)', borderRadius:8, padding:'8px 12px', border:'1px solid var(--border)' }}>
@@ -3731,7 +3758,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                     {replyTo===u.id && (
                       <div style={{ display:'flex', gap:8, paddingLeft:8 }}>
                         <input placeholder='Write a reply...' style={{ flex:1, padding:'7px 12px', borderRadius:8, border:'1px solid var(--border)', background:'var(--surface2)', color:'var(--text)', fontSize:13 }}
-                          onKeyDown={async e=>{ if(e.key==='Enter'&&e.target.value.trim()){ const body=e.target.value.trim(); e.target.value=''; setReplyTo(null); const {data}=await supabase.from('workspace_updates').insert([{item_id:item.id,author_name:profile.full_name,author_id:profile.id,body:'↩ '+body,likes_count:0}]).select().single(); if(data) setUpdates(prev=>[...prev,data]); } }} />
+                          onKeyDown={async e=>{ if(e.key==='Enter'&&e.target.value.trim()){ const body=e.target.value.trim(); e.target.value=''; setReplyTo(null); const {data}=await supabase.from('workspace_updates').insert([{item_id:item.id,author_name:profile.full_name,author_id:profile.id,body:'↩ '+body,likes_count:0,parent_update_id:replyTo}]).select().single(); if(data) setUpdates(prev=>[...prev,data]); } }} />
                       </div>
                     )}
                   </div>
