@@ -2132,12 +2132,6 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   const [batchStatusOpen, setBatchStatusOpen] = useState(false);
   const [showNewItemDrop, setShowNewItemDrop] = useState(false);
 
-  useEffect(() => {
-    loadGroups();
-    loadStatuses();
-    loadUpdateCounts();
-    supabase.from('profiles').select('*').eq('company_name', profile.company_name).then(({data})=>setTeamMembers(data||[]));
-  }, [workspace.id]);
 
   useEffect(() => {
     if(!showWsSwitcher) return;
@@ -2198,6 +2192,13 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
     const {data} = await supabase.from('workspace_statuses').select('*').eq('workspace_id', workspace.id).order('position');
     setStatuses(data||[]);
   };
+
+  useEffect(() => {
+    loadGroups();
+    loadStatuses();
+    loadUpdateCounts();
+    supabase.from('profiles').select('*').eq('company_name', profile.company_name).then(({data})=>setTeamMembers(data||[]));
+  }, [workspace.id]);
 
   const addGroup = () => {
     setInputModal({ title:'Add Group', placeholder:'e.g. New Apps/Pre-Qual', defaultValue:'', onConfirm: async(name) => {
