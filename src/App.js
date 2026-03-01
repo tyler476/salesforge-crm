@@ -7431,6 +7431,9 @@ Respond with well-structured answers using bullet points and headers. Be concise
                     </div>
                     <div style={{ maxWidth:'80%', padding:'10px 14px', borderRadius:'14px 14px 14px 4px', background:'var(--surface2)', color:'var(--text)', fontSize:13, lineHeight:1.7, border:'1px solid var(--border)' }}>
                       {m.content.split('\n').map((line, li) => {
+                        if (line.startsWith('### ')) return <div key={li} style={{ fontWeight:700, fontSize:13, color:'var(--text)', marginTop:li>0?8:0, marginBottom:2 }}>{line.replace('### ','').replace(/\*\*/g,'')}</div>;
+                        if (line.startsWith('## '))  return <div key={li} style={{ fontWeight:700, fontSize:14, color:'var(--text)', marginTop:li>0?10:0, marginBottom:2 }}>{line.replace('## ','').replace(/\*\*/g,'')}</div>;
+                        if (line.startsWith('# '))   return <div key={li} style={{ fontWeight:700, fontSize:15, color:'var(--text)', marginTop:li>0?10:0, marginBottom:4 }}>{line.replace('# ','').replace(/\*\*/g,'')}</div>;
                         if (line.startsWith('- ') || line.startsWith('• ')) {
                           return <div key={li} style={{ display:'flex', gap:6, marginBottom:3 }}><span style={{ color:'#1a9a5c', fontWeight:700, flexShrink:0 }}>•</span><span>{line.replace(/^[-•]\s*/,'').replace(/\*\*([^*]+)\*\*/g, (_,t)=>t)}</span></div>;
                         }
