@@ -292,7 +292,7 @@ function AuthScreen({ onAuth }) {
             <div>
               {resetSent ? (
                 <div style={{ textAlign:'center', padding:'10px 0' }}>
-                  <div style={{ fontSize:20, marginBottom:8 }}>📧</div>
+                  <div style={{ fontSize:20, marginBottom:8 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div>
                   <div style={{ fontWeight:600, marginBottom:4 }}>Check your email</div>
                   <div style={{ fontSize:13, color:'var(--muted)' }}>We sent a password reset link to {resetEmail}</div>
                   <button onClick={()=>{ setShowReset(false); setResetSent(false); }} style={{ marginTop:16, background:'none', color:'var(--accent)', border:'none', cursor:'pointer', fontSize:13 }}>Back to Sign In</button>
@@ -471,15 +471,15 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
             {React.cloneElement(Icons.file,{width:13,height:13,stroke:'#fff'})} Build Presentation
           </button>
           <button className="btn-sm" onClick={()=>onImportMISMO&&onImportMISMO()} style={{ background:'rgba(26,154,92,.15)', border:'1px solid rgba(26,154,92,.3)', color:'#1a9a5c', display:'flex', alignItems:'center', gap:5 }}>
-            ⬇️ Import MISMO
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>️ Import MISMO
           </button>
           <button className="btn-sm" onClick={()=>onExportMISMO&&onExportMISMO(contact)} style={{ background:'rgba(240,180,41,.12)', border:'1px solid rgba(240,180,41,.3)', color:'#c8960a', display:'flex', alignItems:'center', gap:5 }}>
-            ⬆️ Export MISMO
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>️ Export MISMO
           </button>
         </div>
         
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20 }}>
-          {[['📧','Email',contact.email],['📞','Phone',contact.phone||'—'],['🏠','Address',contact.address||'—'],['💼','Occupation',contact.occupation||'—']].map(([icon,label,val])=>(
+          {[['<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>','Email',contact.email],['<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91A16 16 0 0 0 14.09 15.91l1.27-.87a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>','Phone',contact.phone||'—'],['<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>','Address',contact.address||'—'],['<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>','Occupation',contact.occupation||'—']].map(([icon,label,val])=>(
             <div key={label} style={{ background:'var(--surface2)', borderRadius:8, padding:10 }}>
               <div style={{ fontSize:11, color:'var(--muted)', marginBottom:2 }}>{icon} {label}</div>
               <div style={{ fontSize:13, fontWeight:500 }}>{val}</div>
@@ -511,14 +511,14 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
         <div style={{ marginBottom:16 }}>
           <div style={{ display:'flex', gap:8, marginBottom:8 }}>
             {['note','call','email'].map(t=>(
-              <button key={t} onClick={()=>setNoteType(t)} style={{ padding:'5px 12px', borderRadius:6, fontSize:12, border:'1px solid', borderColor:noteType===t?'var(--accent)':'var(--border)', background:noteType===t?'rgba(59,130,246,.2)':'transparent', color:noteType===t?'var(--accent)':'var(--muted)', cursor:'pointer' }}>{t==='note'?'📝 Note':t==='call'?'📞 Call':'📧 Email'}</button>
+              <button key={t} onClick={()=>setNoteType(t)} style={{ padding:'5px 12px', borderRadius:6, fontSize:12, border:'1px solid', borderColor:noteType===t?'var(--accent)':'var(--border)', background:noteType===t?'rgba(59,130,246,.2)':'transparent', color:noteType===t?'var(--accent)':'var(--muted)', cursor:'pointer' }}>{t==='note'?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Note':t==='call'?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91A16 16 0 0 0 14.09 15.91l1.27-.87a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> Call':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Email'}</button>
             ))}
           </div>
           {noteType==='email' ? (
             <div>
               <input value={emailSubject} onChange={e=>setEmailSubject(e.target.value)} placeholder="Subject..." style={{ marginBottom:8 }} />
               <textarea rows={4} value={emailBody} onChange={e=>setEmailBody(e.target.value)} placeholder="Write your email..." style={{ marginBottom:8 }} />
-              <button className="btn-primary btn-sm" onClick={sendEmail} disabled={sendingEmail}>{sendingEmail?'Sending...':'📧 Send Email'}</button>
+              <button className="btn-primary btn-sm" onClick={sendEmail} disabled={sendingEmail}>{sendingEmail?'Sending...':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Send Email'}</button>
             </div>
           ) : (
             <div>
@@ -532,7 +532,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
           <div style={{ fontSize:12, color:'var(--muted)', marginBottom:10, fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em' }}>Activity</div>
           {activities.map((a,i)=>(
             <div key={i} style={{ display:'flex', gap:10, marginBottom:12 }}>
-              <div style={{ fontSize:16, marginTop:2 }}>{a.type==='call'?'📞':a.type==='email'?'📧':a.type==='stage'?'🔄':'📝'}</div>
+              <div style={{ fontSize:16, marginTop:2 }}>{a.type==='call'?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91A16 16 0 0 0 14.09 15.91l1.27-.87a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>':a.type==='email'?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>':a.type==='stage'?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'}</div>
               <div style={{ flex:1 }}>
                 {a.type==='email' ? (
                   <div style={{ background:'var(--surface2)', borderRadius:8, padding:10 }}>
@@ -649,7 +649,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
       { q:'How do I assign someone to an item?', a:'Click the Owner column (the circle avatar area) on any row. Select team members from the dropdown or type an email address.' },
     ]},
     { id:'updates', title:'Updates & Comments', icon:Icons.messageSquare, content: [
-      { q:'How do I post an update on an item?', a:'Click the comment icon (💬) on any row to open the Updates Panel. Type your message and click "Post Update" or press Ctrl+Enter.' },
+      { q:'How do I post an update on an item?', a:'Click the comment icon (<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>) on any row to open the Updates Panel. Type your message and click "Post Update" or press Ctrl+Enter.' },
       { q:'Can I delete my own updates?', a:'Yes — hover over your update and click the × button to remove it.' },
       { q:'What is the Activity tab?', a:'The Activity tab shows a timeline of all updates posted on an item, so you can track conversation history.' },
     ]},
@@ -707,7 +707,14 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                     style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 20px', cursor:'pointer', borderBottom:'1px solid var(--border)' }}
                     onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
                     onMouseOut={e=>e.currentTarget.style.background=''}>
-                    <span style={{ fontSize:20, flexShrink:0 }}>{r.icon}</span>
+                    <span style={{ flexShrink:0, display:'flex', alignItems:'center', color:'var(--accent)' }}>{
+                      r.icon==='ws' ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg> :
+                      r.icon==='contacts' ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> :
+                      r.icon==='pipeline' ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> :
+                      r.icon==='team' ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> :
+                      r.icon==='calendar' ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> :
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    }</span>
                     <div>
                       <div style={{ fontSize:14, fontWeight:500 }}>{r.title}</div>
                       <div style={{ fontSize:12, color:'var(--muted)' }}>{r.subtitle}</div>
@@ -892,7 +899,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
               <button onClick={()=>setHelpPage(null)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18, padding:0 }}>←</button>
               <span style={{ fontWeight:700, fontSize:15, display:"flex", alignItems:"center", gap:6 }}>{React.cloneElement(helpPage.icon,{width:16,height:16})} {helpPage.title}</span>
             </div>
-          ) : <span style={{ fontWeight:700, fontSize:15 }}>📚 Help Center</span>}
+          ) : <span style={{ fontWeight:700, fontSize:15 }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> Help Center</span>}
           <button onClick={()=>setHelpOpen(false)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:18 }}>✕</button>
         </div>
         <div style={{ overflowY:'auto', flex:1, padding:16 }}>
@@ -1200,7 +1207,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
                         </div>
                         {stats.overdue>0 && (
                           <span style={{ background:'rgba(224,82,82,.15)', color:'#e05252', fontSize:10, fontWeight:800, padding:'2px 7px', borderRadius:10 }}>
-                            ⚠️ {stats.overdue} overdue
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>️ {stats.overdue} overdue
                           </span>
                         )}
                       </div>
@@ -1375,7 +1382,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
                       <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(member.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, flexShrink:0 }}>{initials(member.full_name||'?')}</div>
                       <span style={{ fontSize:13, fontWeight:600, flex:1 }}>{member.full_name}</span>
                       <span style={{ fontSize:11, fontFamily:'JetBrains Mono,monospace', color:'var(--muted)' }}>{total}</span>
-                      {overdue>0 && <span style={{ background:'rgba(224,82,82,.15)', color:'#e05252', fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:8 }}>⚠️ {overdue}</span>}
+                      {overdue>0 && <span style={{ background:'rgba(224,82,82,.15)', color:'#e05252', fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:8 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>️ {overdue}</span>}
                     </div>
                     <div style={{ height:5, background:'var(--surface2)', borderRadius:3, overflow:'hidden' }}>
                       <div style={{ height:'100%', width:`${Math.round((total/maxWorkload)*100)}%`, background: overdue>0?'linear-gradient(90deg,#4d8ef0,#e05252)':'var(--accent)', borderRadius:3, transition:'width .5s ease' }} />
@@ -1454,13 +1461,13 @@ function MassEmailModal({ contacts, onClose, onSent }) {
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal">
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-          <h2 style={{ fontFamily:'Syne,sans-serif', fontWeight:700 }}>📧 Mass Email</h2>
+          <h2 style={{ fontFamily:'Syne,sans-serif', fontWeight:700 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Mass Email</h2>
           <button onClick={onClose} style={{ background:'none', color:'var(--muted)', fontSize:20 }}>✕</button>
         </div>
         <div style={{ background:'rgba(59,130,246,.1)', border:'1px solid rgba(59,130,246,.3)', borderRadius:8, padding:12, marginBottom:16, fontSize:13, color:'#60a5fa' }}>
           Sending to <strong>{contacts.filter(c=>c.email).length}</strong> contacts with email addresses ({contacts.length - contacts.filter(c=>c.email).length} skipped — no email)
         </div>
-        <div style={{ background:"rgba(16,185,129,.1)", border:"1px solid rgba(16,185,129,.3)", borderRadius:8, padding:"8px 12px", marginBottom:12, fontSize:12, color:"#34d399" }}>💡 Tip: Use <strong>{"{{name}}"}</strong> anywhere to insert each contact's first name</div>
+        <div style={{ background:"rgba(16,185,129,.1)", border:"1px solid rgba(16,185,129,.3)", borderRadius:8, padding:"8px 12px", marginBottom:12, fontSize:12, color:"#34d399" }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="9" y1="18" x2="15" y2="18"/><line x1="10" y1="22" x2="14" y2="22"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg> Tip: Use <strong>{"{{name}}"}</strong> anywhere to insert each contact's first name</div>
         <div className="form-group"><label>Subject</label><input value={subject} onChange={e=>setSubject(e.target.value)} placeholder="Email subject..." /></div>
         <div className="form-group"><label>Message</label><textarea rows={6} value={body} onChange={e=>setBody(e.target.value)} placeholder="Write your email..." /></div>
         {sending && (
@@ -1473,7 +1480,7 @@ function MassEmailModal({ contacts, onClose, onSent }) {
         )}
         <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn-primary" onClick={send} disabled={sending}>{sending ? 'Sending...' : '📧 Send to All'}</button>
+          <button className="btn-primary" onClick={send} disabled={sending}>{sending ? 'Sending...' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Send to All'}</button>
         </div>
       </div>
     </div>
@@ -1664,7 +1671,7 @@ function GroupImportModal({ onClose, groups, profile, toast, onImported }) {
             style={{ border:'2px dashed var(--border)', borderRadius:10, padding:'24px', textAlign:'center', cursor:'pointer', background:'var(--surface2)', transition:'all .15s' }}
             onMouseOver={e=>e.currentTarget.style.borderColor='var(--accent)'}
             onMouseOut={e=>e.currentTarget.style.borderColor='var(--border)'}>
-            <div style={{ fontSize:28, marginBottom:8 }}>📂</div>
+            <div style={{ marginBottom:8, display:"flex", justifyContent:"center" }}><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
             <div style={{ fontWeight:600, fontSize:14, marginBottom:4 }}>Click to upload or drag & drop</div>
             <div style={{ fontSize:12, color:'var(--muted)' }}>CSV with columns: Name, Email, Phone, Company</div>
           </div>
@@ -2366,7 +2373,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
 
       {/* Tab bar */}
       <div style={{ padding:'8px 28px 0', display:'flex', gap:0, borderBottom:'1px solid var(--border)', alignItems:'center' }}>
-        {[{id:'table',label:'Main table',icon:'⊞'},{id:'kanban',label:'Kanban',icon:'▦'},{id:'chart',label:'Chart',icon:'📊'}].map(v=>(
+        {[{id:'table',label:'Main table',icon:'⊞'},{id:'kanban',label:'Kanban',icon:'▦'},{id:'chart',label:'Chart',icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>'}].map(v=>(
           <div key={v.id} onClick={()=>setViewMode(v.id)}
             style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px', fontSize:13, fontWeight:viewMode===v.id?600:400, color:viewMode===v.id?'var(--accent)':'var(--muted)', borderBottom:viewMode===v.id?'2px solid var(--accent)':'2px solid transparent', cursor:'pointer', marginBottom:-1, whiteSpace:'nowrap', transition:'color .15s' }}>
             <span style={{ fontSize:14 }}>{v.icon}</span>{v.label}
@@ -2385,7 +2392,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
               {[
                 {id:'table', icon:'⊞', label:'Main Table', desc:'Spreadsheet-style rows'},
                 {id:'kanban', icon:'▦', label:'Kanban Board', desc:'Cards by status column'},
-                {id:'chart', icon:'📊', label:'Chart / Stats', desc:'Visual charts & metrics'},
+                {id:'chart', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>', label:'Chart / Stats', desc:'Visual charts & metrics'},
               ].map(v=>(
                 <div key={v.id} onClick={()=>{ setViewMode(v.id); setShowAddView(false); }}
                   style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', cursor:'pointer', background:viewMode===v.id?'rgba(77,142,240,.12)':'' }}
@@ -2707,9 +2714,9 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                             onClick={()=>setItemDetailPanel(item)}>
                             {grp && <div style={{ fontSize:10, color:grp.color, fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em', marginBottom:5 }}>{grp.name}</div>}
                             <div style={{ fontWeight:600, fontSize:13, marginBottom:8, lineHeight:1.4 }}>{item.name}</div>
-                            {item.lender && <div style={{ fontSize:11, color:'var(--muted)', marginBottom:3, display:'flex', alignItems:'center', gap:4 }}>🏦 {item.lender}</div>}
-                            {item.loan_officer && <div style={{ fontSize:11, color:'var(--muted)', marginBottom:3, display:'flex', alignItems:'center', gap:4 }}>👤 {item.loan_officer}</div>}
-                            {item.date && <div style={{ fontSize:11, color:'var(--muted)', marginBottom:3, display:'flex', alignItems:'center', gap:4 }}>📅 {new Date(item.date).toLocaleDateString()}</div>}
+                            {item.lender && <div style={{ fontSize:11, color:'var(--muted)', marginBottom:3, display:'flex', alignItems:'center', gap:4 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg> {item.lender}</div>}
+                            {item.loan_officer && <div style={{ fontSize:11, color:'var(--muted)', marginBottom:3, display:'flex', alignItems:'center', gap:4 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> {item.loan_officer}</div>}
+                            {item.date && <div style={{ fontSize:11, color:'var(--muted)', marginBottom:3, display:'flex', alignItems:'center', gap:4 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> {new Date(item.date).toLocaleDateString()}</div>}
                             {item.priority && <div style={{ display:'inline-block', fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:3, marginTop:6, background:PRIORITY_COLORS[item.priority]+'22', color:PRIORITY_COLORS[item.priority] }}>{item.priority}</div>}
                             {(item.assigned_officers||[]).length>0 && (
                               <div style={{ display:'flex', gap:3, marginTop:8, paddingTop:8, borderTop:'1px solid var(--border)' }}>
@@ -2755,10 +2762,10 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
             {/* Summary cards */}
             <div style={{ display:'flex', gap:16, marginBottom:32, flexWrap:'wrap' }}>
               {[
-                {label:'Total Items', value:total, icon:'📋', color:'#4d8ef0'},
-                {label:'Completed', value:allWsItems.filter(i=>['Funded','Closed','Clear To Close','Converted'].some(s=>i.status?.includes(s))).length, icon:'✅', color:'#2ecc8a'},
-                {label:'In Progress', value:allWsItems.filter(i=>i.status&&!['No Status',''].includes(i.status)).length, icon:'⏳', color:'#f0b429'},
-                {label:'High Priority', value:(priorityCounts.High||0)+(priorityCounts.Critical||0), icon:'🔴', color:'#e05252'},
+                {label:'Total Items', value:total, icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>', color:'#4d8ef0'},
+                {label:'Completed', value:allWsItems.filter(i=>['Funded','Closed','Clear To Close','Converted'].some(s=>i.status?.includes(s))).length, icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>', color:'#2ecc8a'},
+                {label:'In Progress', value:allWsItems.filter(i=>i.status&&!['No Status',''].includes(i.status)).length, icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>', color:'#f0b429'},
+                {label:'High Priority', value:(priorityCounts.High||0)+(priorityCounts.Critical||0), icon:'<svg width="10" height="10" viewBox="0 0 24 24" fill="#e05252" stroke="none"><circle cx="12" cy="12" r="10"/></svg>', color:'#e05252'},
               ].map(card=>(
                 <div key={card.label} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:'18px 22px', borderTop:`3px solid ${card.color}`, minWidth:150, flex:1 }}>
                   <div style={{ fontSize:24, marginBottom:6 }}>{card.icon}</div>
@@ -2867,7 +2874,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                 <button onClick={()=>setBatchStatusOpen(o=>!o)} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
                   onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
                   onMouseOut={e=>e.currentTarget.style.background=''}>
-                  <span style={{ fontSize:18 }}>🏷️</span>Status
+                  <span style={{ fontSize:18 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>️</span>Status
                 </button>
                 {batchStatusOpen && (
                   <div onClick={e=>e.stopPropagation()} style={{ position:'absolute', bottom:'100%', left:0, marginBottom:8, width:200, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:6, boxShadow:'0 8px 24px rgba(0,0,0,.4)', zIndex:9999, maxHeight:260, overflowY:'auto' }}>
@@ -2892,7 +2899,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
               <button onClick={()=>archiveItems(gId,[...gSet])} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
                 onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
                 onMouseOut={e=>e.currentTarget.style.background=''}>
-                <span style={{ fontSize:18 }}>🗄️</span>Archive
+                <span style={{ fontSize:18 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>️</span>Archive
               </button>
               <button onClick={()=>deleteSelectedItems(gId,[...gSet])} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--danger)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
                 onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
@@ -3042,7 +3049,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
         </div>
         {showStatusPicker && (
           <div ref={statusPickerRef} style={{ position:'fixed', top:pickerPos.top, left:pickerPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:240, maxHeight:400, overflowY:'auto', boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
-            {statuses.length===0 && <div style={{ padding:'8px', color:'var(--muted)', fontSize:12 }}>No statuses yet — click 🎨 Statuses to add some</div>}
+            {statuses.length===0 && <div style={{ padding:'8px', color:'var(--muted)', fontSize:12 }}>No statuses yet — click <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg> Statuses to add some</div>}
             {statuses.map(s=>(
               <div key={s.id} onClick={()=>{ onUpdate('status',s.label); onUpdate('status_color',s.color); setShowStatusPicker(false); }}
                 style={{ display:'flex', alignItems:'center', gap:8, padding:'8px 10px', borderRadius:4, cursor:'pointer' }}
@@ -3072,7 +3079,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
         <div style={{ display:'flex', alignItems:'center', gap:6 }}>
           <EditableCell field="date" type="date" />
           {(() => { const ds = dueDateStatus(item.date); if(!ds||ds.label==='On track') return null;
-            return <span title={ds.label} style={{ fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:3, background:ds.bg, color:ds.color, whiteSpace:'nowrap', flexShrink:0 }}>{ds.label==='Overdue'?'⚠️':''} {ds.days}d {ds.label==='Overdue'?'late':'left'}</span>;
+            return <span title={ds.label} style={{ fontSize:10, fontWeight:700, padding:'1px 6px', borderRadius:3, background:ds.bg, color:ds.color, whiteSpace:'nowrap', flexShrink:0 }}>{ds.label==='Overdue'?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>️':''} {ds.days}d {ds.label==='Overdue'?'late':'left'}</span>;
           })()}
         </div>
       </td>
@@ -3196,7 +3203,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
     }]).select().single();
     if(data) setDriveAttachments(d=>[data,...d]);
     setAttachingDrive(false);
-    toast('📎 Google Drive file attached!');
+    toast('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> Google Drive file attached!');
   };
 
   const removeDriveAttachment = async (id) => {
@@ -3293,7 +3300,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
 
   const getFileUrl = (fileName) => { const { data } = supabase.storage.from('workspace-files').getPublicUrl(`items/${item.id}/${fileName}`); return data?.publicUrl; };
   const formatFileSize = (bytes) => { if(!bytes) return ''; if(bytes<1024) return bytes+'B'; if(bytes<1048576) return (bytes/1024).toFixed(1)+'KB'; return (bytes/1048576).toFixed(1)+'MB'; };
-  const getFileIcon = (name) => { const ext=name.split('.').pop().toLowerCase(); if(['jpg','jpeg','png','gif','webp'].includes(ext)) return '🖼️'; if(ext==='pdf') return '📄'; if(['doc','docx'].includes(ext)) return '📝'; if(['xls','xlsx','csv'].includes(ext)) return '📊'; return '📎'; };
+  const getFileIcon = (name) => { const ext=name.split('.').pop().toLowerCase(); if(['jpg','jpeg','png','gif','webp'].includes(ext)) return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>️'; if(ext==='pdf') return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'; if(['doc','docx'].includes(ext)) return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>'; if(['xls','xlsx','csv'].includes(ext)) return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>'; return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>'; };
 
   const ds = dueDateStatus(item.date);
   const PRIORITY_COLORS = { High:'#e05252', Medium:'#f0b429', Low:'#2ecc8a', Critical:'#9b59b6' };
@@ -3352,7 +3359,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
           </select>
           {ds && ds.label!=='On track' && (
             <span style={{ background:ds.bg, color:ds.color, border:`1px solid ${ds.color}44`, padding:'4px 10px', borderRadius:5, fontSize:12, fontWeight:700 }}>
-              {ds.label==='Overdue'?'⚠️ ':''}{ds.days}d {ds.label==='Overdue'?'overdue':'left'}
+              {ds.label==='Overdue'?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>️ ':''}{ds.days}d {ds.label==='Overdue'?'overdue':'left'}
             </span>
           )}
         </div>
@@ -3360,7 +3367,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
 
       {/* ── TABS ── */}
       <div style={{ display:'flex', borderBottom:'1px solid var(--border)', background:'var(--surface2)', flexShrink:0 }}>
-        {[{id:'details',icon:'📋',label:'Details'},{id:'updates',icon:'💬',label:'Updates'},{id:'files',icon:'📁',label:'Files'}].map(t=>(
+        {[{id:'details',icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>',label:'Details'},{id:'updates',icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',label:'Updates'},{id:'files',icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>',label:'Files'}].map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id)} style={{ flex:1, padding:'10px', background:'none', border:'none', borderBottom:tab===t.id?'2px solid var(--accent)':'2px solid transparent', color:tab===t.id?'var(--accent)':'var(--muted)', fontWeight:tab===t.id?700:400, cursor:'pointer', fontSize:13, fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
             <span>{t.icon}</span>{t.label}
             {t.id==='updates' && updates.length>0 && <span style={{ background:'var(--accent)', color:'#fff', borderRadius:10, padding:'0 6px', fontSize:11, fontWeight:700 }}>{updates.length}</span>}
@@ -3533,12 +3540,12 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                 </div>
                 {driveAttachments.map(da=>(
                   <div key={da.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', background:'rgba(66,133,244,.07)', borderRadius:8, marginBottom:6, border:'1px solid rgba(66,133,244,.2)' }}>
-                    {da.icon_url ? <img src={da.icon_url} width="18" height="18" alt="" style={{ flexShrink:0 }} /> : <span style={{ fontSize:18 }}>📄</span>}
+                    {da.icon_url ? <img src={da.icon_url} width="18" height="18" alt="" style={{ flexShrink:0 }} /> : <span style={{ fontSize:18 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>}
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ fontSize:13, fontWeight:500, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{da.file_name}</div>
                       <div style={{ fontSize:11, color:'var(--muted)' }}>Added by {da.creator_name} · Google Drive</div>
                     </div>
-                    <a href={da.file_url} target="_blank" rel="noreferrer" style={{ color:'#7baff5', fontSize:12, fontWeight:600, textDecoration:'none', flexShrink:0 }}>Open ↗</a>
+                    <a href={da.file_url} target="_blank" rel="noreferrer" style={{ color:'#7baff5', fontSize:12, fontWeight:600, textDecoration:'none', flexShrink:0 }}>Open <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></a>
                     {(da.created_by===profile.id||profile.role==='admin') && (
                       <button onClick={()=>removeDriveAttachment(da.id)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:16, padding:'0 2px', lineHeight:1 }} title="Remove">×</button>
                     )}
@@ -3705,11 +3712,11 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
 
   const getFileIcon = (name) => {
     const ext = name.split('.').pop().toLowerCase();
-    if(['jpg','jpeg','png','gif','webp'].includes(ext)) return '🖼️';
-    if(['pdf'].includes(ext)) return '📄';
-    if(['doc','docx'].includes(ext)) return '📝';
-    if(['xls','xlsx','csv'].includes(ext)) return '📊';
-    return '📎';
+    if(['jpg','jpeg','png','gif','webp'].includes(ext)) return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>️';
+    if(['pdf'].includes(ext)) return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+    if(['doc','docx'].includes(ext)) return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>';
+    if(['xls','xlsx','csv'].includes(ext)) return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>';
+    return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>';
   };
 
   return (
@@ -3724,7 +3731,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
         <div style={{ display:'flex', gap:6 }}>
           {['updates','files','activity'].map(t=>(
             <button key={t} onClick={()=>setTab(t)} style={{ padding:'5px 14px', borderRadius:20, fontSize:12, border:'1px solid', borderColor:tab===t?'var(--accent)':'var(--border)', background:tab===t?'rgba(77,142,240,.2)':'transparent', color:tab===t?'var(--accent)':'var(--muted)', cursor:'pointer', fontWeight:600 }}>
-              {t==='updates'?'💬 Updates':t==='files'?'📁 Files':'📋 Activity'}
+              {t==='updates'?<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Updates':t==='files'?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> Files':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> Activity'}
             </button>
           ))}
         </div>
@@ -3803,7 +3810,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
           <div>
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} style={{ display:'none' }} />
             <button className="btn-primary btn-sm" onClick={()=>fileInputRef.current?.click()} disabled={uploadingFile} style={{ marginBottom:16, width:'100%', padding:12 }}>
-              {uploadingFile ? 'Uploading...' : '⬆️ Upload File'}
+              {uploadingFile ? 'Uploading...' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>️ Upload File'}
             </button>
             {files.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No files attached yet</div>}
             {files.map(f=>(
@@ -3817,7 +3824,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
               </div>
             ))}
             <div style={{ marginTop:16, padding:12, background:'rgba(77,142,240,.08)', borderRadius:8, fontSize:12, color:'var(--muted)', border:'1px solid rgba(77,142,240,.2)' }}>
-              💡 To enable file uploads, create a <strong>workspace-files</strong> storage bucket in Supabase with public access.
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="9" y1="18" x2="15" y2="18"/><line x1="10" y1="22" x2="14" y2="22"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg> To enable file uploads, create a <strong>workspace-files</strong> storage bucket in Supabase with public access.
             </div>
           </div>
         )}
@@ -3917,7 +3924,7 @@ function TrashArchiveView({ profile, workspaces, toast }) {
   return (
     <div style={{ padding:32 }}>
       <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700, marginBottom:6 }}>
-        {tab==='archive' ? '🗄️ Archive' : '🗑️ Trash'}
+        {tab==='archive' ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>️ Archive' : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>️ Trash'}
       </div>
       <div style={{ color:'var(--muted)', fontSize:13, marginBottom:24 }}>
         {tab==='archive' ? 'Archived items are hidden from workspaces but preserved here. Unarchive to restore.' : 'Trashed items are permanently deleted after 30 days.'}
@@ -3927,7 +3934,7 @@ function TrashArchiveView({ profile, workspaces, toast }) {
       <div style={{ display:'flex', gap:0, borderBottom:'1px solid var(--border)', marginBottom:24 }}>
         {['archive','trash'].map(t=>(
           <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 20px', background:'none', border:'none', borderBottom: tab===t?'2px solid var(--accent)':'2px solid transparent', color:tab===t?'var(--accent)':'var(--muted)', fontWeight:tab===t?700:400, cursor:'pointer', fontSize:14, fontFamily:'inherit', marginBottom:-1 }}>
-            {t==='archive'?'📦 Archive':'🗑️ Trash'}
+            {t==='archive'?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> Archive':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>️ Trash'}
           </button>
         ))}
         {tab==='trash' && trashedItems.length>0 && (
@@ -3940,7 +3947,7 @@ function TrashArchiveView({ profile, workspaces, toast }) {
       {loading && <div style={{ color:'var(--muted)', textAlign:'center', padding:40 }}>Loading...</div>}
       {!loading && items.length===0 && (
         <div style={{ textAlign:'center', padding:'60px 0', color:'var(--muted)' }}>
-          <div style={{ fontSize:48, marginBottom:12 }}>{tab==='archive'?'📦':'🗑️'}</div>
+          <div style={{ marginBottom:12, display:'flex', justifyContent:'center' }}>{tab==='archive'?<svg width="48" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>️'}</div>
           <div style={{ fontSize:16, fontWeight:600, marginBottom:6 }}>{tab==='archive'?'Archive is empty':'Trash is empty'}</div>
           <div style={{ fontSize:13 }}>{tab==='archive'?'Archived items from workspaces will appear here.':'Deleted items will appear here for 30 days.'}</div>
         </div>
@@ -4248,7 +4255,7 @@ function CalendarView({ profile, workspaces, toast }) {
     a.href = URL.createObjectURL(blob);
     a.download = `citizens-calendar-${year}-${String(month+1).padStart(2,'0')}.ics`;
     a.click();
-    toast('📅 Calendar exported!');
+    toast('<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Calendar exported!');
   };
 
   useEffect(() => { loadEvents(); loadWsItems(); loadTeam(); }, [year, month, profile.company_id]);
@@ -4305,11 +4312,11 @@ function CalendarView({ profile, workspaces, toast }) {
     if(editEvent) {
       await supabase.from('calendar_events').update(payload).eq('id', editEvent.id);
       const pushed = await pushToGoogleCalendar(payload);
-      toast(pushed ? '✅ Event updated + synced to Google Calendar' : 'Event updated');
+      toast(pushed ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Event updated + synced to Google Calendar' : 'Event updated');
     } else {
       await supabase.from('calendar_events').insert([payload]);
       const pushed = await pushToGoogleCalendar(payload);
-      toast(pushed ? '✅ Event created + added to Google Calendar!' : 'Event created ✅');
+      toast(pushed ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Event created + added to Google Calendar!' : 'Event created <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>');
     }
     setShowModal(false); setEditEvent(null); setForm(blankForm);
     loadEvents();
@@ -4478,7 +4485,7 @@ function CalendarView({ profile, workspaces, toast }) {
                     style={{ background:'rgba(224,82,82,.18)', color:'#e05252', borderLeft:'2px solid #e05252' }}
                     title={`Due: ${wi.name}`}
                     onClick={e=>e.stopPropagation()}>
-                    ⚠ {wi.name}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {wi.name}
                   </span>
                 ))}
 
@@ -4509,7 +4516,7 @@ function CalendarView({ profile, workspaces, toast }) {
         <div style={{ background:'var(--surface)', borderRadius:10, border:'1px solid var(--border)' }}>
           {agendaEvents.length===0 && (
             <div style={{ padding:48, textAlign:'center', color:'var(--muted)' }}>
-              <div style={{ fontSize:32, marginBottom:10 }}>📅</div>
+              <div style={{ marginBottom:10, display:"flex", justifyContent:"center" }}><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
               No events this month. Click + New Event to get started.
             </div>
           )}
@@ -4536,7 +4543,7 @@ function CalendarView({ profile, workspaces, toast }) {
                   </div>
                   <div style={{ textAlign:'right', flexShrink:0 }}>
                     {ev.start_time && <div style={{ fontSize:13, fontWeight:600, color }}>{ev.start_time.slice(0,5)}{ev.end_time ? ` – ${ev.end_time.slice(0,5)}` : ''}</div>}
-                    <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{ev.is_shared ? '👥 Shared' : '🔒 Private'}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{ev.is_shared ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Shared' : '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Private'}</div>
                   </div>
                   {adminView && (profile.role==='admin'||profile.role==='manager') && (
                     <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
@@ -5495,7 +5502,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent, pr
         <div style={{ flex:1, overflowY:'auto', padding:'20px 28px' }}>
           {templates.length===0 ? (
             <div style={{ textAlign:'center', padding:'44px 0', color:'var(--muted)' }}>
-              <div style={{ fontSize:36, marginBottom:12 }}>📂</div>
+              <div style={{ fontSize:36, marginBottom:12 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
               <div style={{ fontWeight:700, fontSize:15, marginBottom:6 }}>No templates yet</div>
               <div style={{ fontSize:13 }}>Go to Presentations → Upload Template to add slide decks or PDFs.</div>
             </div>
@@ -5505,7 +5512,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent, pr
               onMouseOver={e=>{ e.currentTarget.style.borderColor='#1a9a5c'; e.currentTarget.style.background='rgba(26,154,92,.04)'; }}
               onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background='var(--surface2)'; }}>
               <div style={{ width:44, height:44, borderRadius:10, background:t.template_type==='pdf'?'rgba(224,82,82,.12)':'rgba(26,154,92,.1)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:22 }}>
-                {t.template_type==='pdf'?'📄':'🖼️'}
+                {t.template_type==='pdf'?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>️'}
               </div>
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontWeight:700, fontSize:14, marginBottom:3, display:'flex', alignItems:'center', gap:8 }}>
@@ -5536,8 +5543,8 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent, pr
             <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700, color:'#fff' }}>Loan Details</div>
             {contact && <div style={{ color:'rgba(255,255,255,.4)', fontSize:13, marginTop:2 }}>Presentation for {contact.full_name}</div>}
             <div style={{ display:'flex', gap:6, marginTop:6, flexWrap:'wrap' }}>
-              {pricingRate && <span style={{ fontSize:11, padding:'2px 8px', borderRadius:4, background:'rgba(26,154,92,.25)', color:'#4ade80', fontWeight:700 }}>💰 Rate from Pricing Engine: {pricingRate.rate}%</span>}
-              {importedLoanData?.loan_amount && <span style={{ fontSize:11, padding:'2px 8px', borderRadius:4, background:'rgba(77,142,240,.2)', color:'#60a5fa', fontWeight:700 }}>📄 MISMO data loaded</span>}
+              {pricingRate && <span style={{ fontSize:11, padding:'2px 8px', borderRadius:4, background:'rgba(26,154,92,.25)', color:'#4ade80', fontWeight:700 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Rate from Pricing Engine: {pricingRate.rate}%</span>}
+              {importedLoanData?.loan_amount && <span style={{ fontSize:11, padding:'2px 8px', borderRadius:4, background:'rgba(77,142,240,.2)', color:'#60a5fa', fontWeight:700 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> MISMO data loaded</span>}
             </div>
           </div>
           <button onClick={onClose} style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.7)', width:34, height:34, borderRadius:8, cursor:'pointer', fontSize:20, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
@@ -5703,7 +5710,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent, pr
               <div style={{ flex:1, display:'flex', flexDirection:'column' }}>
                 <div style={{ padding:'10px 20px', display:'flex', alignItems:'center', borderBottom:'1px solid rgba(255,255,255,.06)', flexShrink:0 }}>
                   <span style={{ fontSize:11, color:'rgba(255,255,255,.3)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em' }}>PDF Preview</span>
-                  <a href={selectedTemplate?.pdf_url} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:'rgba(255,255,255,.4)', border:'1px solid rgba(255,255,255,.1)', padding:'3px 10px', borderRadius:5, textDecoration:'none' }}>Open full ↗</a>
+                  <a href={selectedTemplate?.pdf_url} target="_blank" rel="noreferrer" style={{ marginLeft:'auto', fontSize:11, color:'rgba(255,255,255,.4)', border:'1px solid rgba(255,255,255,.1)', padding:'3px 10px', borderRadius:5, textDecoration:'none' }}>Open full <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="7" y1="17" x2="17" y2="7"/><polyline points="7 7 17 7 17 17"/></svg></a>
                 </div>
                 <iframe src={(selectedTemplate?.pdf_url||'')+'#toolbar=0&navpanes=0'} style={{ flex:1, border:'none', background:'#fff' }} title="PDF" />
               </div>
@@ -5990,7 +5997,7 @@ function MassPresentationModal({ contacts, profile, onClose, toast, onSent }) {
                 : templates.map(t=>(
                     <div key={t.id} onClick={()=>setSelectedTemplate(t)}
                       style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:10, border:`1px solid ${selectedTemplate?.id===t.id?'#1a9a5c':'var(--border)'}`, marginBottom:8, cursor:'pointer', background:selectedTemplate?.id===t.id?'rgba(26,154,92,.06)':'var(--surface2)', transition:'all .15s' }}>
-                      <div style={{ fontSize:22 }}>{t.template_type==='pdf'?'📄':'🖼️'}</div>
+                      <div style={{ fontSize:22 }}>{t.template_type==='pdf'?'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>':'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>️'}</div>
                       <div style={{ flex:1 }}>
                         <div style={{ fontWeight:700, fontSize:13 }}>{t.name}</div>
                         <div style={{ fontSize:11, color:'var(--muted)' }}>{t.template_type==='pdf'?'PDF document':`${(t.slides||[]).length} slides`}</div>
@@ -6565,7 +6572,7 @@ function MISMOImportModal({ onClose, onImport, toast }) {
                 onDrop={e=>{e.preventDefault();setDragging(false);processFile(e.dataTransfer.files[0]);}}
                 onClick={()=>fileRef.current.click()}
                 style={{ border:`2px dashed ${dragging?'#1a9a5c':'var(--border)'}`, borderRadius:14, padding:'44px 24px', textAlign:'center', cursor:'pointer', background:dragging?'rgba(26,154,92,.05)':'var(--surface2)', transition:'all .2s', marginBottom:16 }}>
-                <div style={{ fontSize:44, marginBottom:12 }}>📂</div>
+                <div style={{ marginBottom:12, display:"flex", justifyContent:"center" }}><svg width="44" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
                 <div style={{ fontWeight:700, fontSize:16, marginBottom:6 }}>Drop your MISMO file here</div>
                 <div style={{ fontSize:13, color:'var(--muted)', marginBottom:16 }}>or click to browse · .xml and .mismo supported</div>
                 <div style={{ display:'flex', gap:8, justifyContent:'center', flexWrap:'wrap' }}>
@@ -6585,7 +6592,7 @@ function MISMOImportModal({ onClose, onImport, toast }) {
           ) : (
             <div>
               <div style={{ background:'rgba(26,154,92,.08)', border:'1px solid rgba(26,154,92,.2)', borderRadius:10, padding:'12px 16px', marginBottom:20, display:'flex', alignItems:'center', gap:10 }}>
-                <span style={{ fontSize:20 }}>✅</span>
+                <span style={{ fontSize:20 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
                 <div>
                   <div style={{ fontWeight:700, fontSize:14, color:'#1a9a5c' }}>Parsed successfully</div>
                   <div style={{ fontSize:12, color:'var(--muted)' }}>Review below then click Import to add this borrower to your CRM</div>
@@ -6593,7 +6600,7 @@ function MISMOImportModal({ onClose, onImport, toast }) {
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
                 <div>
-                  <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10, paddingBottom:6, borderBottom:'1px solid var(--border)' }}>👤 Borrower</div>
+                  <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10, paddingBottom:6, borderBottom:'1px solid var(--border)' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Borrower</div>
                   {Object.entries(parsed.contact).filter(([,v])=>v).map(([k,v])=>(
                     <div key={k} style={{ display:'flex', justifyContent:'space-between', marginBottom:7, gap:8 }}>
                       <span style={{ fontSize:12, color:'var(--muted)', textTransform:'capitalize' }}>{k.replace(/_/g,' ')}</span>
@@ -6603,7 +6610,7 @@ function MISMOImportModal({ onClose, onImport, toast }) {
                   {!Object.values(parsed.contact).some(Boolean) && <div style={{ fontSize:12, color:'var(--muted)', fontStyle:'italic' }}>No borrower data in file</div>}
                 </div>
                 <div>
-                  <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10, paddingBottom:6, borderBottom:'1px solid var(--border)' }}>🏦 Loan Details</div>
+                  <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10, paddingBottom:6, borderBottom:'1px solid var(--border)' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="22" x2="21" y2="22"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 2 20 7 4 7"/></svg> Loan Details</div>
                   {Object.entries(FIELD_LABELS).filter(([k])=>parsed.loan[k]).map(([k,label])=>(
                     <div key={k} style={{ display:'flex', justifyContent:'space-between', marginBottom:7, gap:8 }}>
                       <span style={{ fontSize:12, color:'var(--muted)' }}>{label}</span>
@@ -6626,7 +6633,7 @@ function MISMOImportModal({ onClose, onImport, toast }) {
           {parsed && (
             <button onClick={()=>{ onImport(parsed.contact, parsed.loan); onClose(); toast('Loan data imported!'); }}
               style={{ background:'linear-gradient(135deg,#1a9a5c,#0f7a48)', color:'#fff', border:'none', borderRadius:8, padding:'9px 24px', fontWeight:700, fontSize:14, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:8 }}>
-              ⬇️ Import to CRM
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>️ Import to CRM
             </button>
           )}
         </div>
@@ -6721,7 +6728,7 @@ function PricingEnginePanel({ onClose, onApplyRate }) {
       </div>
       {/* Tabs */}
       <div style={{ display:'flex', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
-        {[['grid','📊 Rate Grid'],['inputs','⚙️ Parameters'],['manual','✏️ Manual'],['notes','📋 Notes']].map(([id,lbl])=>(
+        {[['grid','<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> Rate Grid'],['inputs','⚙️ Parameters'],['manual','✏️ Manual'],['notes','<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> Notes']].map(([id,lbl])=>(
           <div key={id} onClick={()=>setTab(id)} style={{ flex:1, padding:'10px 4px', textAlign:'center', fontSize:11, fontWeight:tab===id?700:400, color:tab===id?'var(--accent)':'var(--muted)', borderBottom:tab===id?'2px solid var(--accent)':'2px solid transparent', cursor:'pointer', transition:'color .15s' }}>{lbl}</div>
         ))}
       </div>
@@ -6785,7 +6792,7 @@ function PricingEnginePanel({ onClose, onApplyRate }) {
             ].map(([label,input])=>(
               <div className="form-group" key={label} style={{ margin:0 }}><label style={{ fontSize:12 }}>{label}</label>{input}</div>
             ))}
-            <button onClick={runPricing} style={{ background:'linear-gradient(135deg,#1a9a5c,#0f7a48)', color:'#fff', border:'none', borderRadius:8, padding:11, fontWeight:700, fontSize:14, cursor:'pointer', fontFamily:'inherit', marginTop:4 }}>🔄 Run Pricing</button>
+            <button onClick={runPricing} style={{ background:'linear-gradient(135deg,#1a9a5c,#0f7a48)', color:'#fff', border:'none', borderRadius:8, padding:11, fontWeight:700, fontSize:14, cursor:'pointer', fontFamily:'inherit', marginTop:4 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Run Pricing</button>
           </div>
         )}
 
@@ -6843,10 +6850,10 @@ function PricingEnginePanel({ onClose, onApplyRate }) {
           </div>
         )}
         <div style={{ display:'flex', gap:8 }}>
-          <button onClick={runPricing} style={{ flex:1, background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', borderRadius:8, padding:9, cursor:'pointer', fontSize:12, fontWeight:600, fontFamily:'inherit' }}>🔄 Re-price</button>
+          <button onClick={runPricing} style={{ flex:1, background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', borderRadius:8, padding:9, cursor:'pointer', fontSize:12, fontWeight:600, fontFamily:'inherit' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Re-price</button>
           <button onClick={applySelected} disabled={!selectedRow&&!manualRate}
             style={{ flex:2, background:'linear-gradient(135deg,#1a9a5c,#0f7a48)', color:'#fff', border:'none', borderRadius:8, padding:'9px 14px', fontWeight:700, fontSize:13, cursor:(!selectedRow&&!manualRate)?'not-allowed':'pointer', fontFamily:'inherit', opacity:(!selectedRow&&!manualRate)?.45:1 }}>
-            ✅ Apply Rate to Presentation
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Apply Rate to Presentation
           </button>
         </div>
       </div>
@@ -7701,12 +7708,12 @@ export default function App() {
         onGetResults={(q)=>{
           const r = [];
           const ql = q.toLowerCase();
-          contacts.filter(c=>(c.full_name||'').toLowerCase().includes(ql)||(c.email||'').toLowerCase().includes(ql)).slice(0,5).forEach(c=>r.push({icon:'👤',title:c.full_name,subtitle:c.email||c.company||'',type:'Contact',action:()=>setSelectedContact(c)}));
-          workspaces.filter(w=>(w.name||'').toLowerCase().includes(ql)).forEach(w=>r.push({icon:'📋',title:w.name,subtitle:'Workspace',type:'Workspace',action:()=>setView('workspace',w)}));
-          if('contacts'.includes(ql)) r.push({icon:'👥',title:'Contacts',subtitle:'View all contacts',type:'Page',action:()=>setView('contacts',null)});
-          if('pipeline'.includes(ql)||'funnel'.includes(ql)) r.push({icon:'〽️',title:'Lead Funnel',subtitle:'View pipeline',type:'Page',action:()=>setView('pipeline',null)});
-          if('team'.includes(ql)) r.push({icon:'🏢',title:'Team',subtitle:'Manage team members',type:'Page',action:()=>setView('team',null)});
-          if('calendar'.includes(ql)||'events'.includes(ql)) r.push({icon:'📅',title:'Calendar',subtitle:'Team calendar & events',type:'Page',action:()=>setView('calendar',null)});
+          contacts.filter(c=>(c.full_name||'').toLowerCase().includes(ql)||(c.email||'').toLowerCase().includes(ql)).slice(0,5).forEach(c=>r.push({icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',title:c.full_name,subtitle:c.email||c.company||'',type:'Contact',action:()=>setSelectedContact(c)}));
+          workspaces.filter(w=>(w.name||'').toLowerCase().includes(ql)).forEach(w=>r.push({icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>',title:w.name,subtitle:'Workspace',type:'Workspace',action:()=>setView('workspace',w)}));
+          if('contacts'.includes(ql)) r.push({icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',title:'Contacts',subtitle:'View all contacts',type:'Page',action:()=>setView('contacts',null)});
+          if('pipeline'.includes(ql)||'funnel'.includes(ql)) r.push({icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>️',title:'Lead Funnel',subtitle:'View pipeline',type:'Page',action:()=>setView('pipeline',null)});
+          if('team'.includes(ql)) r.push({icon:'team',title:'Team',subtitle:'Manage team members',type:'Page',action:()=>setView('team',null)});
+          if('calendar'.includes(ql)||'events'.includes(ql)) r.push({icon:'calendar',title:'Calendar',subtitle:'Team calendar & events',type:'Page',action:()=>setView('calendar',null)});
           return r;
         }}
       />
