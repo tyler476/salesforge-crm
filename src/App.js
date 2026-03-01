@@ -1095,15 +1095,9 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
   const wsStats = React.useMemo(()=>{
     const map = {};
     workspaces.forEach(w=>{ map[w.id]={total:0,overdue:0,done:0,statuses:{}}; });
-    allItems.forEach(i=>{
-      const wsId = grpWsMap[i.group_id] || i.workspace_id;
-      if(!map[wsId]) return;
-      map[wsId].total++;
-      if(dueDateStatus(i.date)?.label==='Overdue') map[wsId].overdue++;
-      if(i.status) map[wsId].statuses[i.status]=(map[wsId].statuses[i.status]||0)+1;
-    });
+    // allItems doesn't carry workspace_id directly; counts loaded separately via wsCounts
     return map;
-  },[allItems,workspaces,grpWsMap]);
+  },[workspaces]);
 
   // Team workload
   const workload = React.useMemo(()=>{
@@ -1220,7 +1214,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
               <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:12 }}>
                 {workspaces.map((w,i)=>{
                   const color  = WS_COLORS[i%WS_COLORS.length];
-                  const stats  = wsStats[w.id]||{total:0,overdue:0,statuses:{}};
+                  const stats  = wsStats[w.id]||{total:0,overdue:0,statuses:{}}; const itemCount = wsCounts[w.id] ?? stats.total;
                   const statusEntries = Object.entries(stats.statuses).sort((a,b)=>b[1]-a[1]).slice(0,4);
                   const lastActivity = activityFeed.find(a=>a.workspace_id===w.id||allItems.some(it=>it.workspaces?.id===w.id&&it.id===a.item_id));
                   return (
@@ -1242,7 +1236,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
                       {/* Name */}
                       <div style={{ fontWeight:700, fontSize:14, marginBottom:6 }}>{w.name}</div>
                       {/* Item count */}
-                      <div style={{ color:'var(--muted)', fontSize:12, marginBottom:10 }}>{stats.total} item{stats.total!==1?'s':''}</div>
+                      <div style={{ color:'var(--muted)', fontSize:12, marginBottom:10 }}>{itemCount} item{itemCount!==1?'s':''}</div>
                       {/* Status distribution bar */}
                       {stats.total>0 && (
                         <div style={{ display:'flex', height:4, borderRadius:2, overflow:'hidden', gap:1, marginBottom:10 }}>
@@ -2118,7 +2112,6 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   const [activeItem, setActiveItem] = useState(null);
   const [itemDetailPanel, setItemDetailPanel] = useState(null);
   const [updateCounts, setUpdateCounts] = useState({}); // { itemId: count }
-  const [grpWsMap, setGrpWsMap] = useState({}); // { groupId: workspaceId }
   const [search, setSearch] = useState(null);
   const [filterOfficer, setFilterOfficer] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -7815,16 +7808,6 @@ export default function App() {
   const loadWorkspaces = useCallback(async (company) => {
     const { data } = await supabase.from('workspaces').select('*').eq('company_id', company).order('created_at', { ascending:true });
     setWorkspaces(data||[]);
-    // Build group→workspace map for dashboard counts
-    if(data && data.length > 0) {
-      const wsIds = data.map(w=>w.id);
-      const { data: grps } = await supabase.from('workspace_groups').select('id, workspace_id').in('workspace_id', wsIds);
-      if(grps) {
-        const map = {};
-        grps.forEach(g=>{ map[g.id] = g.workspace_id; });
-        setGrpWsMap(map);
-      }
-    }
   }, []);
 
   const refresh = () => { if(profile) { loadContacts(profile.company_name); loadWorkspaces(profile.company_name); } };
