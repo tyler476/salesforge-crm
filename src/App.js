@@ -373,9 +373,13 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
   const [emailSubject, setEmailSubject] = useState('');
   const [emailBody, setEmailBody] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
+  const [localGroup, setLocalGroup] = useState(contact?.contact_group || '');
+  const [localStage, setLocalStage] = useState(contact?.stage || 'New Lead');
 
   useEffect(() => {
     if (!contact) return;
+    setLocalGroup(contact.contact_group || '');
+    setLocalStage(contact.stage || 'New Lead');
     supabase.from('activities').select('*').eq('contact_id', contact.id).order('created_at', { ascending:false }).then(({ data }) => setActivities(data||[]));
   }, [contact]);
 
@@ -438,14 +442,14 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
   };
 
   const changeGroup = async (group) => {
-    await supabase.from('contacts').update({ contact_group: group }).eq('id', contact.id);
-    contact.contact_group = group;
+    setLocalGroup(group);
+    supabase.from('contacts').update({ contact_group: group }).eq('id', contact.id);
   };
 
   const changeStage = async (stage) => {
-    await supabase.from('contacts').update({ stage }).eq('id', contact.id);
-    contact.stage = stage;
-    await supabase.from('activities').insert([{ contact_id:contact.id, company_id:companyId, type:'stage', body:`Stage changed to ${stage}` }]);
+    setLocalStage(stage);
+    supabase.from('contacts').update({ stage }).eq('id', contact.id);
+    supabase.from('activities').insert([{ contact_id:contact.id, company_id:companyId, type:'stage', body:`Stage changed to ${stage}` }]);
     setActivities(a=>[{type:'stage', body:`Stage changed to ${stage}`, created_at:new Date().toISOString()}, ...a]);
   };
 
@@ -492,7 +496,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
           <div style={{ fontSize:12, color:'var(--muted)', marginBottom:8, fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em' }}>Group</div>
           <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
             {['CDCR','CHCF','CMF','FHA/VA Nor-Cal','FHA/VA So-Cal','SQ'].map(g=>(
-              <button key={g} onClick={()=>changeGroup(g)} style={{ padding:'5px 12px', borderRadius:20, fontSize:12, border:'1px solid', borderColor:contact.contact_group===g?'#1a9a5c':'var(--border)', background:contact.contact_group===g?'rgba(26,154,92,.2)':'transparent', color:contact.contact_group===g?'#1a9a5c':'var(--muted)', cursor:'pointer' }}>{g}</button>
+              <button key={g} onClick={()=>changeGroup(g)} style={{ padding:'5px 12px', borderRadius:20, fontSize:12, border:'1px solid', borderColor:localGroup===g?'#1a9a5c':'var(--border)', background:localGroup===g?'rgba(26,154,92,.2)':'transparent', color:localGroup===g?'#1a9a5c':'var(--muted)', cursor:'pointer' }}>{g}</button>
             ))}
           </div>
         </div>
@@ -501,7 +505,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
           <div style={{ fontSize:12, color:'var(--muted)', marginBottom:8, fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em' }}>Stage</div>
           <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
             {STAGES.map(s=>(
-              <button key={s} onClick={()=>changeStage(s)} style={{ padding:'5px 12px', borderRadius:20, fontSize:12, border:'1px solid', borderColor:contact.stage===s?'var(--accent)':'var(--border)', background:contact.stage===s?'rgba(59,130,246,.2)':'transparent', color:contact.stage===s?'var(--accent)':'var(--muted)', cursor:'pointer' }}>{s}</button>
+              <button key={s} onClick={()=>changeStage(s)} style={{ padding:'5px 12px', borderRadius:20, fontSize:12, border:'1px solid', borderColor:localStage===s?'var(--accent)':'var(--border)', background:localStage===s?'rgba(59,130,246,.2)':'transparent', color:localStage===s?'var(--accent)':'var(--muted)', cursor:'pointer' }}>{s}</button>
             ))}
           </div>
         </div>
@@ -2376,10 +2380,10 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
 
       {/* Tab bar */}
       <div style={{ padding:'8px 28px 0', display:'flex', gap:0, borderBottom:'1px solid var(--border)', alignItems:'center' }}>
-        {[{id:'table',label:'Main table',icon:'⊞'},{id:'kanban',label:'Kanban',icon:'▦'},{id:'chart',label:'Chart',icon:'chart'}].map(v=>(
+        {[{id:'table',label:'Main table',icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>'},{id:'kanban',label:'Kanban',icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>'},{id:'chart',label:'Chart',icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>'}].map(v=>(
           <div key={v.id} onClick={()=>setViewMode(v.id)}
             style={{ display:'flex', alignItems:'center', gap:6, padding:'8px 16px', fontSize:13, fontWeight:viewMode===v.id?600:400, color:viewMode===v.id?'var(--accent)':'var(--muted)', borderBottom:viewMode===v.id?'2px solid var(--accent)':'2px solid transparent', cursor:'pointer', marginBottom:-1, whiteSpace:'nowrap', transition:'color .15s' }}>
-            <span style={{ fontSize:14 }}>{v.icon}</span>{v.label}
+            <span style={{ display:'flex' }} dangerouslySetInnerHTML={{__html:v.icon}} />{v.label}
           </div>
         ))}
         <div style={{ width:1, height:20, background:'var(--border)', margin:'0 8px' }} />
@@ -2393,15 +2397,15 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
             <div style={{ position:'absolute', top:'100%', left:0, marginTop:4, width:220, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 12px 32px rgba(0,0,0,.4)', zIndex:9999, overflow:'hidden' }}>
               <div style={{ padding:'8px 12px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', borderBottom:'1px solid var(--border)', background:'var(--surface2)' }}>Choose View Type</div>
               {[
-                {id:'table', icon:'⊞', label:'Main Table', desc:'Spreadsheet-style rows'},
-                {id:'kanban', icon:'▦', label:'Kanban Board', desc:'Cards by status column'},
-                {id:'chart', icon:'chart', label:'Chart / Stats', desc:'Visual charts & metrics'},
+                {id:'table', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>', label:'Main Table', desc:'Spreadsheet-style rows'},
+                {id:'kanban', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="15" rx="1"/></svg>', label:'Kanban Board', desc:'Cards by status column'},
+                {id:'chart', icon:'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>', label:'Chart / Stats', desc:'Visual charts & metrics'},
               ].map(v=>(
                 <div key={v.id} onClick={()=>{ setViewMode(v.id); setShowAddView(false); }}
                   style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', cursor:'pointer', background:viewMode===v.id?'rgba(77,142,240,.12)':'' }}
                   onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.06)'}
                   onMouseOut={e=>e.currentTarget.style.background=viewMode===v.id?'rgba(77,142,240,.12)':''}>
-                  <span style={{ fontSize:20, width:24, textAlign:'center' }}>{v.icon}</span>
+                  <span style={{ display:'flex', width:24, justifyContent:'center' }} dangerouslySetInnerHTML={{__html:v.icon}} />
                   <div>
                     <div style={{ fontSize:13, fontWeight:600 }}>{v.label}</div>
                     <div style={{ fontSize:11, color:'var(--muted)' }}>{v.desc}</div>
@@ -3520,13 +3524,13 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
             <div style={{ display:'flex', gap:10, marginBottom:16 }}>
               <input type="file" ref={fileInputRef} onChange={handleFileUpload} style={{ display:'none' }} />
               <button onClick={()=>fileInputRef.current?.click()} disabled={uploadingFile}
-                style={{ flex:1, padding:'10px 0', background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit', transition:'all .15s' }}
+                style={{ flex:1, padding:'10px 16px', background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit', transition:'all .15s', display:'flex', alignItems:'center', justifyContent:'center' }}
                 onMouseOver={e=>e.currentTarget.style.borderColor='var(--accent)'}
                 onMouseOut={e=>e.currentTarget.style.borderColor='var(--border)'}>
                 {uploadingFile ? 'Uploading...' : <span style={{display:"flex",alignItems:"center",gap:6}}>{Icons.upload} Upload from Computer</span>}
               </button>
               <button onClick={()=>pickFile(attachDriveFile)} disabled={attachingDrive}
-                style={{ flex:1, padding:'10px 0', background:'rgba(66,133,244,.1)', border:'1px solid rgba(66,133,244,.35)', color:'#7baff5', borderRadius:8, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'all .15s' }}
+                style={{ flex:1, padding:'10px 16px', background:'rgba(66,133,244,.1)', border:'1px solid rgba(66,133,244,.35)', color:'#7baff5', borderRadius:8, fontWeight:600, fontSize:13, display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8, transition:'all .15s' }}
                 onMouseOver={e=>e.currentTarget.style.background='rgba(66,133,244,.22)'}
                 onMouseOut={e=>e.currentTarget.style.background='rgba(66,133,244,.1)'}>
                 <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#4285F4" d="M45.5 24.5c0-1.4-.1-2.8-.4-4.1H24v7.8h12.1c-.5 2.7-2.1 5-4.5 6.5v5.4h7.3c4.3-3.9 6.6-9.7 6.6-15.6z"/><path fill="#34A853" d="M24 46c6.1 0 11.2-2 14.9-5.4l-7.3-5.4c-2 1.4-4.6 2.2-7.6 2.2-5.9 0-10.8-3.9-12.6-9.2H3.8v5.6C7.5 41.8 15.2 46 24 46z"/><path fill="#FBBC05" d="M11.4 28.2c-.5-1.4-.7-2.8-.7-4.2s.3-2.9.7-4.2v-5.6H3.8C2.3 17.1 1.5 20.4 1.5 24s.8 6.9 2.3 9.8l7.6-5.6z"/><path fill="#EA4335" d="M24 10.8c3.3 0 6.2 1.1 8.5 3.3l6.4-6.4C35.1 4.1 29.9 2 24 2 15.2 2 7.5 6.2 3.8 12.8l7.6 5.6c1.8-5.3 6.7-7.6 12.6-7.6z"/></svg>
@@ -7613,6 +7617,8 @@ export default function App() {
   const loadContacts = useCallback(async (company) => {
     const { data } = await supabase.from('contacts').select('*').eq('company_id', company).order('created_at', { ascending:false });
     setContacts(data||[]);
+    // Keep selectedContact in sync so drawer reflects latest data after edit
+    setSelectedContact(prev => prev ? (data||[]).find(c => c.id === prev.id) || prev : null);
   }, []);
 
   const loadWorkspaces = useCallback(async (company) => {
