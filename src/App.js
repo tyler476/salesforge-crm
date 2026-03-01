@@ -891,7 +891,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
               {/* Ask Hannah */}
               <div style={{ marginBottom:20 }}>
                 <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>Ask Hannah AI</div>
-                <div onClick={()=>{ setHelpOpen(false); setView('hannah', null); }}
+                <div onClick={()=>{ setHelpOpen(false); onNavigate('hannah'); }}
                   style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 16px', borderRadius:12, cursor:'pointer', border:'1px solid rgba(26,154,92,.3)', background:'rgba(26,154,92,.06)', transition:'all .15s' }}
                   onMouseOver={e=>{ e.currentTarget.style.background='rgba(26,154,92,.12)'; e.currentTarget.style.borderColor='#1a9a5c'; }}
                   onMouseOut={e=>{ e.currentTarget.style.background='rgba(26,154,92,.06)'; e.currentTarget.style.borderColor='rgba(26,154,92,.3)'; }}>
