@@ -3168,6 +3168,8 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   const [editingField, setEditingField] = useState(null);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showAssignPicker, setShowAssignPicker] = useState(false);
+  const [replyTo, setReplyTo] = useState(null);
+  const [likedUpdates, setLikedUpdates] = useState(new Set());
   const textareaRef = React.useRef();
   const fileInputRef = React.useRef();
   const panelRef = React.useRef();
@@ -3298,6 +3300,14 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   const deleteUpdate = async (id) => {
     await supabase.from('workspace_updates').delete().eq('id', id);
     setUpdates(u=>u.filter(x=>x.id!==id));
+  };
+
+
+  const likeUpdate = async (id) => {
+    if (likedUpdates.has(id)) return;
+    setLikedUpdates(s => new Set([...s, id]));
+    setUpdates(u => u.map(x => x.id === id ? { ...x, likes_count: (x.likes_count||0)+1 } : x));
+    await supabase.from('workspace_updates').update({ likes_count: supabase.raw('COALESCE(likes_count,0)+1') }).eq('id', id);
   };
 
   const handleTextChange = (e) => {
@@ -3545,22 +3555,41 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
             </div>
             {updates.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No updates yet — be the first to post!</div>}
             {updates.map(u=>(
-              <div key={u.id} style={{ display:'flex', gap:10, marginBottom:20 }}>
-                <div style={{ flexShrink:0, display:'flex', flexDirection:'column', alignItems:'center', gap:0 }}>
+              <div key={u.id} style={{ display:'flex', gap:10, marginBottom:16 }}>
+                <div style={{ flexShrink:0 }}>
                   <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(u.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff' }}>{(u.author_name||'?').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}</div>
                 </div>
-                <div style={{ flex:1, background:'var(--surface2)', borderRadius:10, padding:'10px 14px', border:'1px solid var(--border)' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-                    <span style={{ fontWeight:700, fontSize:13 }}>{u.author_name}</span>
-                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <span style={{ fontSize:11, color:'var(--muted)' }}>{new Date(u.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
-                      {(u.author_id===profile.id||profile.role==='admin') && <button onClick={()=>deleteUpdate(u.id)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:14, padding:0, lineHeight:1 }}>×</button>}
+                <div style={{ flex:1 }}>
+                  <div style={{ background:'var(--surface2)', borderRadius:10, padding:'10px 14px', border:'1px solid var(--border)', marginBottom:4 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                      <span style={{ fontWeight:700, fontSize:13 }}>{u.author_name}</span>
+                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <span style={{ fontSize:11, color:'var(--muted)' }}>{new Date(u.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+                        {(u.author_id===profile.id||profile.role==='admin') && <button onClick={()=>deleteUpdate(u.id)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:14, padding:0, lineHeight:1 }}>×</button>}
+                      </div>
                     </div>
+                    <div style={{ fontSize:13, lineHeight:1.65, whiteSpace:'pre-wrap', color:'var(--text)' }}>{renderBody(u.body)}</div>
                   </div>
-                  <div style={{ fontSize:13, lineHeight:1.65, whiteSpace:'pre-wrap', color:'var(--text)' }}>{renderBody(u.body)}</div>
+                  <div style={{ display:'flex', alignItems:'center', gap:16, paddingLeft:4 }}>
+                    <button onClick={()=>likeUpdate(u.id)} style={{ background:'none', border:'none', color: likedUpdates.has(u.id)?'var(--accent)':'var(--muted)', cursor:'pointer', display:'flex', alignItems:'center', gap:4, fontSize:12, padding:'2px 0' }}>
+                      <svg width='13' height='13' viewBox='0 0 24 24' fill={likedUpdates.has(u.id)?'currentColor':'none'} stroke='currentColor' strokeWidth='2'><path d='M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3H14z'/><path d='M7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3'/></svg>
+                      Like {(u.likes_count||0)>0 && <span style={{ fontWeight:600 }}>{u.likes_count}</span>}
+                    </button>
+                    <button onClick={()=>setReplyTo(replyTo===u.id?null:u.id)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', display:'flex', alignItems:'center', gap:4, fontSize:12, padding:'2px 0' }}>
+                      <svg width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='2'><polyline points='9 17 4 12 9 7'/><path d='M20 18v-2a4 4 0 0 0-4-4H4'/></svg>
+                      Reply
+                    </button>
+                  </div>
+                  {replyTo===u.id && (
+                    <div style={{ marginTop:8, display:'flex', gap:8 }}>
+                      <input placeholder='Write a reply...' style={{ flex:1, padding:'7px 12px', borderRadius:8, border:'1px solid var(--border)', background:'var(--surface2)', color:'var(--text)', fontSize:13 }}
+                        onKeyDown={async e=>{ if(e.key==='Enter'&&e.target.value.trim()){ const body=e.target.value.trim(); e.target.value=''; setReplyTo(null); const {data}=await supabase.from('workspace_updates').insert([{item_id:item.id,author_name:profile.full_name,author_id:profile.id,body:'↩ '+body,likes_count:0}]).select().single(); if(data) setUpdates(u=>[...u,data]); } }} />
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
+
           </div>
         )}
 
