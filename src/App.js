@@ -2175,7 +2175,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   };
 
   const loadStatuses = async () => {
-    const {data} = await supabase.from('workspace_statuses').select('*').or(`workspace_id.eq.${workspace.id},workspace_id.is.null`).order('position');
+    const {data} = await supabase.from('workspace_statuses').select('*').eq('workspace_id', workspace.id).order('position');
     setStatuses(data||[]);
   };
 
