@@ -3021,7 +3021,6 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
     <tr draggable style={{ borderBottom:'1px solid var(--border)', background: selected?'rgba(77,142,240,.08)': (item.status_color ? item.status_color+'0d' : ''), cursor:'pointer', transition:'background .1s' }}
       onMouseOver={e=>{ e.currentTarget.style.background=selected?'rgba(77,142,240,.12)':'rgba(255,255,255,.04)'; setHovered(true); }}
       onMouseOut={e=>{ e.currentTarget.style.background=selected?'rgba(77,142,240,.08)':(item.status_color?item.status_color+'0d':''); setHovered(false); }}
-      onClick={onOpenUpdates}
       onDragStart={onDragStart} onDragOver={onDragOver} onDrop={onDrop} onDragLeave={()=>{}}>
       <td style={{ padding:'6px 10px', textAlign:'center' }}>
         <div style={{ display:'flex', alignItems:'center', gap:4, justifyContent:'center' }}>
@@ -3362,7 +3361,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   );
 
   return (
-    <div ref={panelRef} style={{ position:'fixed', top:52, right:0, width:560, height:'calc(100vh - 52px)', background:'var(--surface)', borderLeft:'1px solid var(--border)', zIndex:300, display:'flex', flexDirection:'column', boxShadow:'-8px 0 32px rgba(0,0,0,.3)' }}>
+    <div ref={panelRef} style={{ position:'fixed', top:52, right:0, width:'min(780px, 100vw)', height:'calc(100vh - 52px)', background:'var(--surface)', borderLeft:'1px solid var(--border)', zIndex:300, display:'flex', flexDirection:'column', boxShadow:'-8px 0 32px rgba(0,0,0,.3)' }}>
 
       {/* ── HEADER ── */}
       <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--border)', background:'var(--surface2)' }}>
@@ -3540,20 +3539,15 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
             </div>
             {updates.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No updates yet — be the first to post!</div>}
             {updates.map(u=>(
-              <div key={u.id} style={{ display:'flex', gap:10, marginBottom:16 }}>
-                <div style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(u.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(u.author_name||'?')}</div>
-                <div style={{ flex:1 }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:5 }}>
-                    <span style={{ fontWeight:700, fontSize:13 }}>{u.author_name}</span>
-                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <span style={{ fontSize:11, color:'var(--muted)' }}>{new Date(u.created_at).toLocaleString()}</span>
-                      {u.author_id===profile.id && <button onClick={()=>deleteUpdate(u.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:13, padding:0 }}>×</button>}
-                    </div>
-                  </div>
-                  <div style={{ background:'var(--surface2)', borderRadius:8, padding:'10px 14px', fontSize:13, lineHeight:1.7, whiteSpace:'pre-wrap', border:'1px solid var(--border)' }}>{renderBody(u.body)}</div>
+              <div key={u.id} style={{ marginBottom:12, borderBottom:'1px solid var(--border)', paddingBottom:12 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                  <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(u.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', flexShrink:0 }}>{(u.author_name||'?').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}</div>
+                  <span style={{ fontWeight:700, fontSize:13 }}>{u.author_name}</span>
+                  <span style={{ fontSize:11, color:'var(--muted)', marginLeft:'auto' }}>{new Date(u.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+                  {u.author_id===profile.id && <button onClick={()=>deleteUpdate(u.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:13, padding:'0 2px', opacity:0.6 }}>×</button>}
                 </div>
+                <div style={{ paddingLeft:36, fontSize:13, lineHeight:1.6, whiteSpace:'pre-wrap', color:'var(--text)' }}>{renderBody(u.body)}</div>
               </div>
-            ))}
           </div>
         )}
 
