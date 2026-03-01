@@ -6736,18 +6736,40 @@ Be concise, helpful, and specific. If asked about rates, remind the user rates c
     setInput('');
     setLoading(true);
     try {
-      const res = await fetch('https://tiwsuwbalvnrqsmudjfy.supabase.co/functions/v1/hannah', {
+      const HANNAH_SYSTEM = `You are Hannah, a helpful AI assistant embedded in SalesForge CRM, used by loan officers at Citizens Financial Home Services.
+
+CITIZENS FINANCIAL LOAN PROGRAMS:
+- Conventional Purchase & Refinance: Fixed 10/15/20/25/30yr terms, competitive rates, up to 97% LTV for first-time buyers
+- FHA Loans: 3.5% down, flexible credit requirements (580+ FICO), great for first-time buyers
+- VA Loans: 0% down for eligible veterans/active military, no PMI, competitive rates
+- USDA Loans: 0% down for rural/suburban eligible areas, income limits apply
+- Jumbo Loans: Loan amounts above conforming limits ($766,550 in most counties), requires stronger credit
+- Reverse Mortgage: For homeowners 62+, converts equity to cash, no monthly payment required
+
+CRM FEATURES YOU CAN HELP WITH:
+- Contacts & Workspaces: Organize contacts into deal pipelines with custom stages
+- Presentations: Build personalized CF-branded mortgage presentations with animated charts and live scenario sliders
+- Calendar: Schedule calls, meetings, follow-ups linked to contacts
+- Files: Upload and share documents with contacts
+- Templates: Save reusable slide decks or PDFs for quick sending
+- Mass Send: Send personalized presentations to multiple contacts at once with name personalization
+- Client Viewer: Clients receive interactive presentations where they can explore rate/amount/term scenarios
+
+Be concise, warm, and helpful. If asked about rates, remind the user rates change daily and to check current pricing. Keep responses under 150 words.`;
+
+      const conversationText = newMessages.map(m => `${m.role === 'user' ? 'User' : 'Hannah'}: ${m.content}`).join('\n');
+      const prompt = `${HANNAH_SYSTEM}\n\nConversation so far:\n${conversationText}\n\nRespond as Hannah:`;
+
+      const res = await fetch('https://tiwsuwbalvnrqsmudjfy.supabase.co/functions/v1/generate-presentation', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + process.env.REACT_APP_SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({
-          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-        }),
+        body: JSON.stringify({ prompt }),
       });
       const data = await res.json();
-      const reply = data.reply || 'Sorry, I had trouble responding. Please try again.';
+      const reply = data.content?.[0]?.text || 'Sorry, I had trouble responding. Please try again.';
       setMessages(m => [...m, { role:'assistant', content:reply }]);
     } catch(e) {
       setMessages(m => [...m, { role:'assistant', content:'Connection error. Please check your network and try again.' }]);
