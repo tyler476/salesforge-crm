@@ -324,7 +324,8 @@ function AuthScreen({ onAuth }) {
 
 // ─── CONTACT FORM ─────────────────────────────────────────────────────────────
 function ContactForm({ contact, onSave, onClose, companyId }) {
-  const blank = { full_name:'', email:'', phone:'', company:'', title:'', deal_value:'', stage:'New Lead', source:'Website', industry:'Technology', tags:'', notes:'' };
+  const CONTACT_GROUPS = ['CDCR','CHCF','CMF','FHA/VA Nor-Cal','FHA/VA So-Cal','SQ'];
+  const blank = { full_name:'', email:'', phone:'', company:'', title:'', deal_value:'', stage:'New Lead', source:'Website', industry:'Technology', tags:'', notes:'', contact_group:'' };
   const [form, setForm] = useState(contact ? {...contact, tags:(contact.tags||[]).join(',')} : blank);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
@@ -1567,6 +1568,125 @@ function GroupSendModal({ contacts, profile, toast, onClose, onSent }) {
   );
 }
 
+// ─── GROUP IMPORT MODAL ───────────────────────────────────────────────────────
+function GroupImportModal({ onClose, groups, profile, toast, onImported }) {
+  const [selectedGroup, setSelectedGroup] = useState('');
+  const [csvText, setCsvText] = useState('');
+  const [preview, setPreview] = useState([]);
+  const [importing, setImporting] = useState(false);
+  const fileRef = React.useRef(null);
+
+  const parseCSV = (text) => {
+    const lines = text.trim().split('\n');
+    if (lines.length < 2) return [];
+    const headers = lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/"/g,''));
+    return lines.slice(1).map(line => {
+      const vals = line.match(/("([^"]*)"|[^,]*)/g).map(v=>v.replace(/"/g,'').trim());
+      const obj = {};
+      headers.forEach((h,i) => obj[h] = vals[i]||'');
+      return {
+        full_name: obj['full name'] || obj['fullname'] || obj['name'] || (obj['first name']||'') + ' ' + (obj['last name']||''),
+        email: obj['email'] || obj['email address'] || '',
+        phone: obj['phone'] || obj['phone number'] || obj['mobile'] || '',
+        company: obj['company'] || obj['employer'] || '',
+        contact_group: selectedGroup,
+        stage: 'New Lead',
+        company_id: profile.company_name,
+      };
+    }).filter(c => c.full_name.trim());
+  };
+
+  const handleFile = (file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const text = e.target.result;
+      setCsvText(text);
+      setPreview(parseCSV(text));
+    };
+    reader.readAsText(file);
+  };
+
+  React.useEffect(() => {
+    if (csvText && selectedGroup) setPreview(parseCSV(csvText));
+  }, [selectedGroup]);
+
+  const importContacts = async () => {
+    if (!selectedGroup) { toast('Please select a group'); return; }
+    if (preview.length === 0) { toast('No contacts to import'); return; }
+    setImporting(true);
+    const batch = preview.map(c => ({ ...c, contact_group: selectedGroup }));
+    const { error } = await supabase.from('contacts').insert(batch);
+    if (error) { toast('Import failed: ' + error.message); setImporting(false); return; }
+    onImported();
+  };
+
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal" style={{ maxWidth:560 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <div>
+            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Import Contact Group</div>
+            <div style={{ fontSize:13, color:'var(--muted)', marginTop:2 }}>Upload a CSV file and assign contacts to a group</div>
+          </div>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
+        </div>
+
+        {/* Group selector */}
+        <div className="form-group">
+          <label>Assign to Group</label>
+          <select value={selectedGroup} onChange={e=>setSelectedGroup(e.target.value)}>
+            <option value="">— Select a group —</option>
+            {groups.map(g=><option key={g} value={g}>{g}</option>)}
+          </select>
+        </div>
+
+        {/* CSV upload */}
+        <div className="form-group">
+          <label>Upload CSV File</label>
+          <div
+            onClick={()=>fileRef.current?.click()}
+            onDragOver={e=>e.preventDefault()}
+            onDrop={e=>{ e.preventDefault(); handleFile(e.dataTransfer.files[0]); }}
+            style={{ border:'2px dashed var(--border)', borderRadius:10, padding:'24px', textAlign:'center', cursor:'pointer', background:'var(--surface2)', transition:'all .15s' }}
+            onMouseOver={e=>e.currentTarget.style.borderColor='var(--accent)'}
+            onMouseOut={e=>e.currentTarget.style.borderColor='var(--border)'}>
+            <div style={{ fontSize:28, marginBottom:8 }}>📂</div>
+            <div style={{ fontWeight:600, fontSize:14, marginBottom:4 }}>Click to upload or drag & drop</div>
+            <div style={{ fontSize:12, color:'var(--muted)' }}>CSV with columns: Name, Email, Phone, Company</div>
+          </div>
+          <input ref={fileRef} type="file" accept=".csv" style={{ display:'none' }} onChange={e=>handleFile(e.target.files[0])} />
+        </div>
+
+        {/* Preview */}
+        {preview.length > 0 && (
+          <div style={{ background:'var(--surface2)', borderRadius:10, padding:12, marginBottom:16, maxHeight:180, overflowY:'auto', border:'1px solid var(--border)' }}>
+            <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em', marginBottom:8 }}>
+              Preview — {preview.length} contacts found
+            </div>
+            {preview.slice(0,8).map((c,i)=>(
+              <div key={i} style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:4 }}>
+                <span style={{ fontWeight:600 }}>{c.full_name}</span>
+                <span style={{ color:'var(--muted)' }}>{c.email||'no email'}</span>
+              </div>
+            ))}
+            {preview.length > 8 && <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>+{preview.length-8} more…</div>}
+          </div>
+        )}
+
+        <div style={{ display:'flex', gap:10 }}>
+          <button className="btn-secondary" onClick={onClose} style={{ flex:1 }}>Cancel</button>
+          <button className="btn-primary" onClick={importContacts}
+            disabled={importing||!selectedGroup||preview.length===0}
+            style={{ flex:2, opacity:importing||!selectedGroup||preview.length===0?.5:1 }}>
+            {importing ? 'Importing…' : `Import ${preview.length} Contacts to ${selectedGroup||'Group'}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState('All');
@@ -1574,12 +1694,17 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
   const [showMassEmail, setShowMassEmail] = useState(false);
   const [showMassPresentation, setShowMassPresentation] = useState(false);
   const [showGroupSend, setShowGroupSend] = useState(false);
+  const [groupFilter, setGroupFilter] = useState('All Groups');
+  const [showGroupImport, setShowGroupImport] = useState(false);
+
+  const CONTACT_GROUPS = ['All Groups','CDCR','CHCF','CMF','FHA/VA Nor-Cal','FHA/VA So-Cal','SQ'];
 
   const filtered = contacts.filter(c => {
     const q = (search||'').toLowerCase();
     const match = !q || c.full_name?.toLowerCase().includes(q) || c.company?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q);
     const stageMatch = stageFilter==='All' || c.stage===stageFilter;
-    return match && stageMatch;
+    const groupMatch = groupFilter==='All Groups' || c.contact_group===groupFilter;
+    return match && stageMatch && groupMatch;
   });
 
   const toggleSelect = (id, e) => { e.stopPropagation(); setSelected(s => s.includes(id) ? s.filter(x=>x!==id) : [...s, id]); };
@@ -1596,14 +1721,18 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
           <button className="btn-secondary" onClick={()=>setShowGroupSend(true)} style={{ display:'flex', alignItems:'center', gap:6 }}>
             {React.cloneElement(Icons.users,{width:14,height:14})} Send by Group
           </button>
-          <button className="btn-secondary" onClick={()=>window.dispatchEvent(new CustomEvent('openMISMOImport'))} style={{ display:'flex', alignItems:'center', gap:6 }}>
-            ⬇️ Import MISMO
+          <button className="btn-secondary" onClick={()=>setShowGroupImport(true)} style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Import Contact Group
           </button>
           <button className="btn-primary" onClick={onAdd}>+ Add Contact</button>
         </div>
       </div>
       <div style={{ display:'flex', gap:12, marginBottom:20 }}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search contacts..." style={{ maxWidth:300 }} />
+        <select value={groupFilter} onChange={e=>{ setGroupFilter(e.target.value); setStageFilter('All'); }} style={{ width:'auto' }}>
+          {CONTACT_GROUPS.map(g=><option key={g}>{g}</option>)}
+        </select>
         <select value={stageFilter} onChange={e=>setStageFilter(e.target.value)} style={{ width:'auto' }}>
           <option value="All">All Stages</option>
           {STAGES.map(s=><option key={s}>{s}</option>)}
@@ -1638,6 +1767,13 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
         </table>
         {filtered.length===0 && <div style={{ padding:40, textAlign:'center', color:'var(--muted)' }}>No contacts found</div>}
       </div>
+      {showGroupImport && <GroupImportModal
+        onClose={()=>setShowGroupImport(false)}
+        groups={CONTACT_GROUPS.filter(g=>g!=='All Groups')}
+        profile={profile}
+        toast={toast}
+        onImported={()=>{ setShowGroupImport(false); toast('Contacts imported!'); }}
+      />}
       {showMassEmail && <MassEmailModal contacts={selectedContacts} onClose={()=>setShowMassEmail(false)} onSent={(n)=>{ setShowMassEmail(false); setSelected([]); toast('Sent to ' + n + ' contacts!'); }} />}
       {showMassPresentation && <MassPresentationModal contacts={selectedContacts} profile={profile} onClose={()=>setShowMassPresentation(false)} toast={toast} onSent={(n)=>{ setShowMassPresentation(false); setSelected([]); toast('Presentations sent to '+n+' contacts!'); }} />}
       {showGroupSend && <GroupSendModal contacts={contacts} profile={profile} toast={toast} onClose={()=>setShowGroupSend(false)} onSent={(n)=>{ setShowGroupSend(false); toast('Presentations sent to '+n+' contacts!'); }} />}
