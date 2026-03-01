@@ -497,7 +497,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
         </div>
 
         <div style={{ marginBottom:20 }}>
-          <div style={{ fontSize:12, color:'var(--muted)', marginBottom:8, fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em' }}>Stage</div>, textTransform:'uppercase', letterSpacing:'.05em' }}>Stage</div>
+          <div style={{ fontSize:12, color:'var(--muted)', marginBottom:8, fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em' }}>Stage</div>
           <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
             {STAGES.map(s=>(
               <button key={s} onClick={()=>changeStage(s)} style={{ padding:'5px 12px', borderRadius:20, fontSize:12, border:'1px solid', borderColor:contact.stage===s?'var(--accent)':'var(--border)', background:contact.stage===s?'rgba(59,130,246,.2)':'transparent', color:contact.stage===s?'var(--accent)':'var(--muted)', cursor:'pointer' }}>{s}</button>
