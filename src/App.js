@@ -2342,9 +2342,16 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   };
 
   const PRIORITY_COLORS = { High:'#e05252', Medium:'#f0b429', Low:'#2ecc8a', Critical:'#9b59b6' };
-  const COLUMNS = ['name','assigned_officers','status','priority','date','lender','loan_officer','processor','lock_expiration','processor_contact','escrow_email'];
-  const COL_LABELS = { name:'Item', status:'Status', priority:'Priority', date:'Date', lender:'Lender', loan_officer:'Loan Officer', processor:'Processor', lock_expiration:'Lock Exp.', processor_contact:'Processor Contact', escrow_email:'Escrow Email', assigned_officers:'Owner' };
-  const COL_WIDTHS = { name:200, assigned_officers:100, status:180, priority:100, date:110, lender:120, loan_officer:130, processor:130, lock_expiration:110, processor_contact:150, escrow_email:160 };
+  const isTrinidadWs = workspace?.name === 'Trinadad Leads';
+  const COLUMNS = isTrinidadWs
+    ? ['name','deal_value','date','loan_amount','mortgage_rate','lender','phone','alt_phone']
+    : ['name','assigned_officers','status','priority','date','lender','loan_officer','processor','lock_expiration','processor_contact','escrow_email'];
+  const COL_LABELS = isTrinidadWs
+    ? { name:'Name', deal_value:'Est. Value', date:'Valuation Date', loan_amount:'Original Loan', mortgage_rate:'Mortgage Rate', lender:'Loan Type', phone:'Phone', alt_phone:'Alt Phone' }
+    : { name:'Item', status:'Status', priority:'Priority', date:'Date', lender:'Lender', loan_officer:'Loan Officer', processor:'Processor', lock_expiration:'Lock Exp.', processor_contact:'Processor Contact', escrow_email:'Escrow Email', assigned_officers:'Owner' };
+  const COL_WIDTHS = isTrinidadWs
+    ? { name:220, deal_value:130, date:120, loan_amount:140, mortgage_rate:130, lender:130, phone:130, alt_phone:130 }
+    : { name:200, assigned_officers:100, status:180, priority:100, date:110, lender:120, loan_officer:130, processor:130, lock_expiration:110, processor_contact:150, escrow_email:160 };
 
   const allItems = Object.values(items).flat();
   const officers = [...new Set(allItems.flatMap(i=>i.assigned_officers||[]))];
@@ -3071,6 +3078,15 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
           </div>
         )}
       </td>
+      {isTrinidadWs ? (<>
+        <td style={{ padding:'4px 10px' }}>{item.deal_value ? '$'+Number(item.deal_value).toLocaleString() : '—'}</td>
+        <td style={{ padding:'4px 10px' }}>{item.date || '—'}</td>
+        <td style={{ padding:'4px 10px' }}>{item.loan_amount ? '$'+Number(item.loan_amount).toLocaleString() : '—'}</td>
+        <td style={{ padding:'4px 10px' }}>{item.mortgage_rate ? item.mortgage_rate+'%' : '—'}</td>
+        <td style={{ padding:'4px 10px' }}>{item.lender || '—'}</td>
+        <td style={{ padding:'4px 10px' }}>{item.phone || '—'}</td>
+        <td style={{ padding:'4px 10px' }}>{item.alt_phone || '—'}</td>
+      </>) : (<>
       {!hiddenCols.includes('status') && <td style={{ padding:'4px 10px', position:'relative' }} onClick={e=>e.stopPropagation()}>
         <div onClick={e=>e.stopPropagation()} onMouseDown={e=>{ e.stopPropagation(); const r=e.currentTarget.getBoundingClientRect(); const spaceBelow=window.innerHeight-r.bottom; const dropH=Math.min(320, statuses.length*40+60); const top=spaceBelow<dropH ? r.top-dropH-4 : r.bottom+4; setPickerPos({top,left:r.left}); setShowStatusPicker(s=>!s); setShowAssignPicker(false); }} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
           {item.status||'No Status'}
@@ -3117,6 +3133,12 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
       {!hiddenCols.includes('lock_expiration') && <td style={{ padding:'4px 10px' }}><EditableCell field="lock_expiration" type="date" /></td>}
       {!hiddenCols.includes('processor_contact') && <td style={{ padding:'4px 10px' }}><EditableCell field="processor_contact" /></td>}
       {!hiddenCols.includes('escrow_email') && <td style={{ padding:'4px 10px' }}><EditableCell field="escrow_email" /></td>}
+      {!hiddenCols.includes('deal_value') && <td style={{ padding:'4px 10px' }}>{item.deal_value ? '$'+Number(item.deal_value).toLocaleString() : '—'}</td>}
+      {!hiddenCols.includes('loan_amount') && <td style={{ padding:'4px 10px' }}>{item.loan_amount ? '$'+Number(item.loan_amount).toLocaleString() : '—'}</td>}
+      {!hiddenCols.includes('mortgage_rate') && <td style={{ padding:'4px 10px' }}>{item.mortgage_rate ? item.mortgage_rate+'%' : '—'}</td>}
+      {!hiddenCols.includes('phone') && <td style={{ padding:'4px 10px' }}><EditableCell field="phone" /></td>}
+      {!hiddenCols.includes('alt_phone') && <td style={{ padding:'4px 10px' }}><EditableCell field="alt_phone" /></td>}
+      </>)}
       <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}>
         <button onClick={onDelete} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:14, padding:4 }}>×</button>
       </td>
