@@ -1045,10 +1045,15 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
   React.useEffect(()=>{
     if(!profile?.company_name) return;
     Promise.all([
-      supabase.from('workspace_items').select('*, workspace_groups(workspace_id)').eq('company_id', profile.company_name).eq('archived', false).neq('trashed', true),
+      supabase.from('workspace_items').select('id, group_id, status, date, assigned_officers').eq('company_id', profile.company_name).eq('archived', false).neq('trashed', true),
       supabase.from('workspace_updates').select('*').eq('company_id', profile.company_name).order('created_at',{ascending:false}).limit(30),
       supabase.from('profiles').select('*').eq('company_name', profile.company_name),
-    ]).then(([items, updates, members])=>{
+      supabase.from('workspace_groups').select('id, workspace_id').eq('company_id', profile.company_name),
+    ]).then(([items, updates, members, grps])=>{
+      // Build group→workspace map for stats
+      const grpWsMapData = {};
+      (grps.data||[]).forEach(g=>{ grpWsMapData[g.id]=g.workspace_id; });
+      setGrpWsMap(grpWsMapData);
       const data = items.data||[];
       setAllItems(data);
       const mine = data.filter(i=>(i.assigned_officers||[]).some(o=>o===profile.full_name||o===profile.email||o?.toLowerCase()===profile.full_name?.toLowerCase()));
@@ -1096,14 +1101,14 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
     const map = {};
     workspaces.forEach(w=>{ map[w.id]={total:0,overdue:0,done:0,statuses:{}}; });
     allItems.forEach(i=>{
-      const wsId = i.workspace_groups?.workspace_id || i.workspace_id;
+      const wsId = grpWsMap[i.group_id] || i.workspace_id;
       if(!map[wsId]) return;
       map[wsId].total++;
       if(dueDateStatus(i.date)?.label==='Overdue') map[wsId].overdue++;
       if(i.status) map[wsId].statuses[i.status]=(map[wsId].statuses[i.status]||0)+1;
     });
     return map;
-  },[allItems,workspaces]);
+  },[allItems,workspaces,grpWsMap]);
 
   // Team workload
   const workload = React.useMemo(()=>{
@@ -2118,6 +2123,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   const [activeItem, setActiveItem] = useState(null);
   const [itemDetailPanel, setItemDetailPanel] = useState(null);
   const [updateCounts, setUpdateCounts] = useState({}); // { itemId: count }
+  const [grpWsMap, setGrpWsMap] = useState({}); // { groupId: workspaceId }
   const [search, setSearch] = useState(null);
   const [filterOfficer, setFilterOfficer] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -3021,26 +3027,6 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, setItemDet
         </div>
       </td>
       <td style={{ padding:'4px 6px' }} onClick={e=>e.stopPropagation()}>
-        <div ref={statusRef} style={{ position:'relative' }}>
-          <div onClick={()=>setShowSubStatus(s=>!s)} style={{ display:'inline-flex', alignItems:'center', background:sub.status_color||'rgba(77,142,240,.2)', color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', minWidth:80, justifyContent:'center' }}>
-            {sub.status||'Set status'}
-          </div>
-          {showSubStatus && (
-            <div style={{ position:'absolute', top:'100%', left:0, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:10, boxShadow:'0 8px 32px rgba(0,0,0,.4)', width:300, maxHeight:320, overflowY:'auto', marginTop:4 }}>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:5 }}>
-                {statuses.map(s=>(
-                  <div key={s.id}
-                    onClick={async()=>{ await supabase.from('workspace_items').update({status:s.label,status_color:s.color}).eq('id',sub.id); setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(x=>x.id===sub.id?{...x,status:s.label,status_color:s.color}:x)})); setShowSubStatus(false); }}
-                    style={{ background:s.color, color:'#fff', padding:'6px 8px', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600, textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', border:sub.status===s.label?'2px solid #fff':'2px solid transparent' }}
-                    title={s.label}>{s.label}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </td>
-      <td style={{ padding:'4px 6px' }} onClick={e=>e.stopPropagation()}>
         <div ref={assignRef} style={{ position:'relative' }}>
           <div onClick={()=>setShowSubAssign(s=>!s)} style={{ display:'flex', alignItems:'center', gap:4, cursor:'pointer', minWidth:60 }}>
             {subOwners.length===0
@@ -3063,6 +3049,26 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, setItemDet
                   {subOwners.includes(m.full_name) && <span style={{ marginLeft:'auto', color:'var(--accent)', fontSize:14 }}>✓</span>}
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      </td>
+      <td style={{ padding:'4px 6px' }} onClick={e=>e.stopPropagation()}>
+        <div ref={statusRef} style={{ position:'relative' }}>
+          <div onClick={()=>setShowSubStatus(s=>!s)} style={{ display:'inline-flex', alignItems:'center', background:sub.status_color||'rgba(77,142,240,.2)', color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:11, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap', minWidth:80, justifyContent:'center' }}>
+            {sub.status||'Set status'}
+          </div>
+          {showSubStatus && (
+            <div style={{ position:'absolute', top:'100%', left:0, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:10, boxShadow:'0 8px 32px rgba(0,0,0,.4)', width:300, maxHeight:320, overflowY:'auto', marginTop:4 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:5 }}>
+                {statuses.map(s=>(
+                  <div key={s.id}
+                    onClick={async()=>{ await supabase.from('workspace_items').update({status:s.label,status_color:s.color}).eq('id',sub.id); setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(x=>x.id===sub.id?{...x,status:s.label,status_color:s.color}:x)})); setShowSubStatus(false); }}
+                    style={{ background:s.color, color:'#fff', padding:'6px 8px', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:600, textAlign:'center', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', border:sub.status===s.label?'2px solid #fff':'2px solid transparent' }}
+                    title={s.label}>{s.label}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
