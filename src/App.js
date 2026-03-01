@@ -4565,7 +4565,7 @@ function buildSlides({ borrowerName, loanType, loanAmount, rate, term, loName, l
     {
       type:'cf-cover',
       borrowerName,
-      loanPurpose: loanType.toLowerCase(),
+      loanPurpose: loanType,
       date: new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}),
       highlights:[
         { badge:'Lowest Monthly Payment', loanAmount:fmt(P), product, value: mp>0 ? fmt(mp)+'/mo' : '—' },
@@ -7199,6 +7199,7 @@ export default function App() {
     { id:'pipeline', label:'Lead Funnel', icon:Icons.pipeline },
     { id:'presentations', label:'Presentations', icon:Icons.file },
     { id:'pricing', label:'Pricing Engine', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
+    { id:'hannah', label:'Ask Hannah', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
     { id:'team', label:'Team', icon:Icons.team },
     { id:'calendar', label:'Calendar', icon:Icons.calendar },
     ...(profile.role==='admin' ? [{ id:'branding', label:'Branding', icon:Icons.branding }] : []),
