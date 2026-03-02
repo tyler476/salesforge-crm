@@ -2127,10 +2127,8 @@ function StatusManager({ workspaceId, companyId, statuses, onUpdate, onClose }) 
 
 // ─── SUB ITEM ROW ─────────────────────────────────────────────────────────────
 function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidadWs=false, setItemDetailPanel, setSubItems }) {
-  const [editingField, setEditingField] = React.useState(null);
-  const [editVal,      setEditVal]      = React.useState('');
-  const [showStatus,   setShowStatus]   = React.useState(false);
-  const [showAssign,   setShowAssign]   = React.useState(false);
+  const [showStatus, setShowStatus] = React.useState(false);
+  const [showAssign, setShowAssign] = React.useState(false);
   const statusRef = React.useRef();
   const assignRef = React.useRef();
 
@@ -2143,63 +2141,53 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidad
     return () => document.removeEventListener('mousedown', h);
   },[]);
 
-  const startEdit = (field) => { setEditingField(field); setEditVal(sub[field]||''); };
-  const saveField = async (field, val) => {
-    const v = val !== undefined ? val : editVal;
-    await supabase.from('workspace_items').update({[field]: v}).eq('id', sub.id);
-    setSubItems(p=>({...p, [item.id]: (p[item.id]||[]).map(x=>x.id===sub.id ? {...x,[field]:v} : x)}));
-    setEditingField(null);
+  const save = async (field, val) => {
+    await supabase.from('workspace_items').update({[field]: val}).eq('id', sub.id);
+    setSubItems(p=>({...p, [item.id]: (p[item.id]||[]).map(x=>x.id===sub.id ? {...x,[field]:val} : x)}));
   };
 
-  // Inline editable cell — click to edit, Enter/blur to save
-  const Cell = ({field, display, type='text'}) => (
-    <td onClick={e=>{e.stopPropagation(); startEdit(field);}} style={{padding:'4px 8px', cursor:'text'}}>
-      {editingField===field
-        ? <input autoFocus type={type} value={editVal}
-            onChange={e=>setEditVal(e.target.value)}
-            onBlur={()=>saveField(field)}
-            onKeyDown={e=>{ if(e.key==='Enter') saveField(field); if(e.key==='Escape') setEditingField(null); }}
-            style={{width:'100%',background:'transparent',border:'none',borderBottom:'1px solid var(--accent)',color:'var(--text)',fontSize:12,outline:'none',padding:'1px 0'}}/>
-        : <span style={{fontSize:12,display:'block',minWidth:30,color:'var(--text)'}}>{display||'—'}</span>
-      }
-    </td>
+  const inp = (field, val, type='text') => (
+    <input
+      type={type}
+      defaultValue={val||''}
+      onBlur={e=>{ if(e.target.value !== (val||'')) save(field, e.target.value); }}
+      onKeyDown={e=>{ if(e.key==='Enter') { e.target.blur(); } }}
+      onClick={e=>e.stopPropagation()}
+      style={{width:'100%', background:'transparent', border:'none', borderBottom:'1px solid transparent',
+        color:'var(--text)', fontSize:12, outline:'none', padding:'1px 2px', cursor:'text',
+        fontFamily:'inherit'}}
+      onFocus={e=>{ e.target.style.borderBottomColor='var(--accent)'; }}
+      onBlurCapture={e=>{ e.target.style.borderBottomColor='transparent'; }}
+    />
   );
 
   const owners   = sub.assigned_officers||[];
   const updCount = (updateCounts||{})[sub.id]||0;
 
   return (
-    <tr style={{background:'rgba(0,0,0,.05)',borderBottom:'1px solid var(--border)'}}>
+    <tr style={{background:'rgba(0,0,0,.05)', borderBottom:'1px solid var(--border)'}}>
 
-      {/* col1: dot indicator */}
-      <td style={{padding:'4px 10px',paddingLeft:36,textAlign:'center'}}>
+      {/* dot */}
+      <td style={{padding:'4px 10px', paddingLeft:36, textAlign:'center'}}>
         <div style={{width:8,height:8,borderRadius:'50%',background:'var(--border)',margin:'0 auto'}}/>
       </td>
 
-      {/* col2: name */}
-      <td style={{padding:'4px 10px',paddingLeft:24,cursor:'text'}} onClick={e=>{e.stopPropagation();startEdit('name');}}>
-        <div style={{display:'flex',alignItems:'center',gap:6}}>
-          <span style={{fontSize:12,color:'var(--muted)'}}>↳</span>
-          <div style={{flex:1}}>
-            {editingField==='name'
-              ? <input autoFocus value={editVal} onChange={e=>setEditVal(e.target.value)}
-                  onBlur={()=>saveField('name')}
-                  onKeyDown={e=>{if(e.key==='Enter')saveField('name');if(e.key==='Escape')setEditingField(null);}}
-                  style={{background:'transparent',border:'none',borderBottom:'1px solid var(--accent)',color:'var(--text)',fontSize:13,width:'100%',outline:'none',fontWeight:500}}/>
-              : <span style={{fontSize:13}}>{sub.name}</span>
-            }
-          </div>
-          <button onClick={e=>{e.stopPropagation();setItemDetailPanel(sub);}}
-            style={{background:'none',border:'none',color:updCount>0?'var(--accent)':'var(--muted)',cursor:'pointer',padding:'2px 4px',display:'flex',alignItems:'center',gap:2}}>
+      {/* name */}
+      <td style={{padding:'4px 10px', paddingLeft:24}} onClick={e=>e.stopPropagation()}>
+        <div style={{display:'flex', alignItems:'center', gap:6}}>
+          <span style={{fontSize:12, color:'var(--muted)'}}>↳</span>
+          <div style={{flex:1}}>{inp('name', sub.name)}</div>
+          <button onClick={e=>{e.stopPropagation(); setItemDetailPanel(sub);}}
+            style={{background:'none',border:'none',color:updCount>0?'var(--accent)':'var(--muted)',cursor:'pointer',padding:'2px 4px',display:'flex',alignItems:'center',gap:2,flexShrink:0}}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill={updCount>0?'currentColor':'none'} stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             {updCount>0&&<span style={{fontSize:10,fontWeight:700,background:'var(--accent)',color:'#fff',borderRadius:10,padding:'0 4px',minWidth:14,textAlign:'center',lineHeight:'14px'}}>{updCount}</span>}
           </button>
         </div>
       </td>
 
-      {/* col3: owner — only for non-Trinidad (matches main row) */}
+      {/* owner — non-Trinidad only */}
       {!isTrinidadWs && (
-        <td style={{padding:'4px 10px',position:'relative'}} onClick={e=>e.stopPropagation()}>
+        <td style={{padding:'4px 10px', position:'relative'}} onClick={e=>e.stopPropagation()}>
           <div ref={assignRef} style={{position:'relative'}}>
             <div onClick={()=>setShowAssign(s=>!s)} style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer',minWidth:60}}>
               {owners.length===0
@@ -2230,18 +2218,18 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidad
         </td>
       )}
 
-      {/* data columns — match main row exactly */}
+      {/* data cols */}
       {isTrinidadWs ? (<>
-        {Cell({field:'deal_value', display:sub.deal_value    ? '$'+Number(sub.deal_value).toLocaleString()    : ''})}
-        {Cell({field:'date', display:sub.date          ? sub.date.split('T')[0]                         : '', type:'date'})}
-        {Cell({field:'loan_amount', display:sub.loan_amount   ? '$'+Number(sub.loan_amount).toLocaleString()   : ''})}
-        {Cell({field:'mortgage_rate', display:sub.mortgage_rate ? sub.mortgage_rate+'%'                          : ''})}
-        {Cell({field:'lender', display:sub.lender||''})}
-        {Cell({field:'phone', display:sub.phone||''})}
-        {Cell({field:'alt_phone', display:sub.alt_phone||''})}
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('deal_value', sub.deal_value)}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('date', sub.date?sub.date.split('T')[0]:'', 'date')}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('loan_amount', sub.loan_amount)}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('mortgage_rate', sub.mortgage_rate)}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('lender', sub.lender)}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('phone', sub.phone)}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('alt_phone', sub.alt_phone)}</td>
       </>) : (<>
-        {/* status — only for non-Trinidad */}
-        <td style={{padding:'4px 10px',position:'relative'}} onClick={e=>e.stopPropagation()}>
+        {/* status */}
+        <td style={{padding:'4px 10px', position:'relative'}} onClick={e=>e.stopPropagation()}>
           <div ref={statusRef} style={{position:'relative'}}>
             <div onClick={()=>setShowStatus(s=>!s)}
               style={{display:'inline-flex',alignItems:'center',background:sub.status_color||'rgba(77,142,240,.2)',color:'#fff',padding:'3px 10px',borderRadius:4,fontSize:11,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap',minWidth:80,justifyContent:'center'}}>
@@ -2262,16 +2250,16 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidad
             )}
           </div>
         </td>
-        {Cell({field:'priority', display:sub.priority||''})}
-        {Cell({field:'date', display:sub.date ? sub.date.split('T')[0] : '', type:'date'})}
-        {Cell({field:'lender', display:sub.lender||''})}
-        {Cell({field:'loan_officer', display:sub.loan_officer||''})}
-        {Cell({field:'processor', display:sub.processor||''})}
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('priority', sub.priority)}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('date', sub.date?sub.date.split('T')[0]:'', 'date')}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('lender', sub.lender)}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('loan_officer', sub.loan_officer)}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('processor', sub.processor)}</td>
         <td colSpan={99}></td>
       </>)}
 
       {/* delete */}
-      <td style={{padding:'4px 10px',width:32}}>
+      <td style={{padding:'4px 10px', width:32}}>
         <button onClick={async e=>{e.stopPropagation();await supabase.from('workspace_items').delete().eq('id',sub.id);setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).filter(s=>s.id!==sub.id)}));}}
           style={{background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize:14,opacity:0.6}}>×</button>
       </td>
