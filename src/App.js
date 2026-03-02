@@ -3341,6 +3341,12 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   const [showAssignPicker, setShowAssignPicker] = useState(false);
   const [showLinkPopup, setShowLinkPopup] = React.useState(false);
   const [replyTo, setReplyTo] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [showReplyLink, setShowReplyLink] = useState(false);
+  const [editingUpdateId, setEditingUpdateId] = useState(null);
+  const [editText, setEditText] = useState('');
+  const replyRef = React.useRef();
+  const replyFileRef = React.useRef();
   const [likedUpdates, setLikedUpdates] = useState(new Set());
   const textareaRef = React.useRef();
   const fileInputRef = React.useRef();
@@ -3523,6 +3529,31 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   };
 
   const filteredMembers = teamMembers.filter(m=> m.id !== profile.id && (mentionSearch==='' || m.full_name.toLowerCase().includes(mentionSearch)));
+
+  const saveEditUpdate = async (id) => {
+    if(!editText.trim()) return;
+    await supabase.from('workspace_updates').update({ body: editText.trim() }).eq('id', id);
+    setUpdates(prev => prev.map(u => u.id === id ? {...u, body: editText.trim()} : u));
+    setEditingUpdateId(null);
+    setEditText('');
+  };
+
+  const submitReply = async (parentId) => {
+    if(!replyText.trim()) return;
+    const body = replyText.trim();
+    setReplyText('');
+    setReplyTo(null);
+    setShowReplyLink(false);
+    const {data} = await supabase.from('workspace_updates').insert([{
+      item_id: item.id,
+      author_name: profile.full_name,
+      author_id: profile.id,
+      body: '↩ ' + body,
+      likes_count: 0,
+      parent_update_id: parentId
+    }]).select().single();
+    if(data) setUpdates(prev => [...prev, data]);
+  };
 
   const renderBody = (body) => {
     if(!body) return null;
@@ -3789,10 +3820,27 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                         <span style={{ fontWeight:700, fontSize:13 }}>{u.author_name}</span>
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                           <span style={{ fontSize:11, color:'var(--muted)' }}>{new Date(u.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
-                          {(u.author_id===profile.id||profile.role==='admin') && <button onClick={()=>deleteUpdate(u.id)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:14, padding:0, lineHeight:1 }}>×</button>}
+                          {u.author_id===profile.id && (
+                              editingUpdateId===u.id
+                                ? <button onClick={()=>{ setEditingUpdateId(null); setEditText(''); }} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',fontSize:11,padding:'2px 6px'}}>Cancel</button>
+                                : <button title="Edit" onClick={()=>{ setEditingUpdateId(u.id); setEditText(u.body); }} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',display:'flex',alignItems:'center',padding:'2px 4px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                  </button>
+                            )}
+                            {(u.author_id===profile.id||profile.role==='admin') && <button onClick={()=>deleteUpdate(u.id)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:14, padding:0, lineHeight:1 }}>×</button>}
                         </div>
                       </div>
-                      <div style={{ fontSize:13, lineHeight:1.65, whiteSpace:'pre-wrap', color:'var(--text)' }}>{renderBody(u.body)}</div>
+                      {editingUpdateId===u.id
+                       ? <div>
+                           <textarea autoFocus value={editText} onChange={e=>setEditText(e.target.value)}
+                             onKeyDown={e=>{ if(e.key==='Enter'&&e.ctrlKey) saveEditUpdate(u.id); if(e.key==='Escape'){setEditingUpdateId(null);setEditText('');} }}
+                             style={{width:'100%',background:'var(--surface)',border:'1px solid var(--accent)',borderRadius:6,padding:'8px',color:'var(--text)',fontSize:13,resize:'vertical',outline:'none',fontFamily:'inherit',lineHeight:1.65,minHeight:60,boxSizing:'border-box'}}/>
+                           <div style={{display:'flex',gap:6,justifyContent:'flex-end',marginTop:6}}>
+                             <button onClick={()=>{setEditingUpdateId(null);setEditText('');}} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'4px 12px',color:'var(--muted)',cursor:'pointer',fontSize:12}}>Cancel</button>
+                             <button onClick={()=>saveEditUpdate(u.id)} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'4px 12px',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>Save</button>
+                           </div>
+                         </div>
+                       : <div style={{ fontSize:13, lineHeight:1.65, whiteSpace:'pre-wrap', color:'var(--text)' }}>{renderBody(u.body)}</div>}
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:16, paddingLeft:4, marginBottom:8 }}>
                       <button onClick={()=>likeUpdate(u.id)} style={{ background:'none', border:'none', color: likedUpdates.has(u.id)?'var(--accent)':'var(--muted)', cursor:'pointer', display:'flex', alignItems:'center', gap:4, fontSize:12, padding:'2px 0' }}>
@@ -3807,20 +3855,88 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                     {/* Replies — indented under this update */}
                     {updates.filter(r=>r.body.startsWith('↩ ')&&(r.parent_update_id?r.parent_update_id===u.id:true)).map((r,ri)=>(
                       <div key={r.id} style={{ display:'flex', gap:8, marginBottom:10, paddingLeft:8, borderLeft:'2px solid var(--border)' }}>
-                        <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(r.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', flexShrink:0 }}>{(r.author_name||'?').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}</div>
+                        <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(r.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', flexShrink:0 }}>
+                          {(r.author_name||'?').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}
+                        </div>
                         <div style={{ flex:1, background:'rgba(255,255,255,.04)', borderRadius:8, padding:'8px 12px', border:'1px solid var(--border)' }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
                             <span style={{ fontWeight:700, fontSize:12 }}>{r.author_name}</span>
-                            <span style={{ fontSize:11, color:'var(--muted)' }}>{new Date(r.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
+                            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                              <span style={{ fontSize:11, color:'var(--muted)' }}>{new Date(r.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
+                              {r.author_id===profile.id && (
+                                editingUpdateId===r.id
+                                  ? <button onClick={()=>{setEditingUpdateId(null);setEditText('');}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',fontSize:11,padding:'2px 6px'}}>Cancel</button>
+                                  : <button title="Edit" onClick={()=>{ setEditingUpdateId(r.id); setEditText(r.body); }} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',display:'flex',alignItems:'center',padding:'2px 4px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                    </button>
+                              )}
+                              {(r.author_id===profile.id||profile.role==='admin') && (
+                                <button onClick={()=>deleteUpdate(r.id)} style={{background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize:14,lineHeight:1,padding:'2px 4px',opacity:0.7}} title="Delete">×</button>
+                              )}
+                            </div>
                           </div>
-                          <div style={{ fontSize:12, lineHeight:1.6, whiteSpace:'pre-wrap', color:'var(--text)' }}>{renderBody(r.body.replace(/^↩ /,''))}</div>
+                          {editingUpdateId===r.id
+                            ? <div>
+                                <textarea autoFocus value={editText} onChange={e=>setEditText(e.target.value)}
+                                  onKeyDown={e=>{ if(e.key==='Enter'&&e.ctrlKey) saveEditUpdate(r.id); if(e.key==='Escape'){setEditingUpdateId(null);setEditText('');} }}
+                                  style={{width:'100%',background:'var(--surface)',border:'1px solid var(--accent)',borderRadius:6,padding:'6px',color:'var(--text)',fontSize:12,resize:'vertical',outline:'none',fontFamily:'inherit',lineHeight:1.6,minHeight:50,boxSizing:'border-box'}}/>
+                                <div style={{display:'flex',gap:6,justifyContent:'flex-end',marginTop:4}}>
+                                  <button onClick={()=>{setEditingUpdateId(null);setEditText('');}} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'3px 10px',color:'var(--muted)',cursor:'pointer',fontSize:11}}>Cancel</button>
+                                  <button onClick={()=>saveEditUpdate(r.id)} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'3px 10px',color:'#fff',cursor:'pointer',fontSize:11,fontWeight:600}}>Save</button>
+                                </div>
+                              </div>
+                            : <div style={{ fontSize:12, lineHeight:1.6, whiteSpace:'pre-wrap', color:'var(--text)' }}>{renderBody(r.body.replace(/^↩ /,''))}</div>
+                          }
                         </div>
                       </div>
                     ))}
                     {replyTo===u.id && (
-                      <div style={{ display:'flex', gap:8, paddingLeft:8 }}>
-                        <input placeholder='Write a reply...' style={{ flex:1, padding:'7px 12px', borderRadius:8, border:'1px solid var(--border)', background:'var(--surface2)', color:'var(--text)', fontSize:13 }}
-                          onKeyDown={async e=>{ if(e.key==='Enter'&&e.target.value.trim()){ const body=e.target.value.trim(); e.target.value=''; setReplyTo(null); const {data}=await supabase.from('workspace_updates').insert([{item_id:item.id,author_name:profile.full_name,author_id:profile.id,body:'↩ '+body,likes_count:0,parent_update_id:replyTo}]).select().single(); if(data) setUpdates(prev=>[...prev,data]); } }} />
+                      <div style={{marginTop:10,paddingLeft:8}}>
+                        <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
+                          <div style={{width:28,height:28,borderRadius:'50%',background:avatarColor(profile.full_name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'#fff',flexShrink:0,marginTop:2}}>
+                            {profile.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}
+                          </div>
+                          <div style={{flex:1,border:'1px solid var(--accent)',borderRadius:10,padding:'10px 12px',background:'var(--surface2)'}}>
+                            <textarea ref={replyRef} rows={2} value={replyText} onChange={e=>setReplyText(e.target.value)}
+                              placeholder="Write a reply... type @ to mention"
+                              onKeyDown={e=>{ if(e.key==='Enter'&&e.ctrlKey) submitReply(u.id); }}
+                              style={{width:'100%',background:'transparent',border:'none',outline:'none',fontSize:13,color:'var(--text)',resize:'none',fontFamily:'inherit',lineHeight:1.5}}/>
+                            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:6}}>
+                              <div style={{display:'flex',alignItems:'center',gap:2,position:'relative'}}>
+                                <button title="Mention" onClick={()=>{replyRef.current?.focus();setReplyText(v=>v+'@');}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
+                                </button>
+                                <button title="Attach file" onClick={()=>replyFileRef.current?.click()} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                                </button>
+                                <input ref={replyFileRef} type="file" style={{display:'none'}} onChange={async e=>{ const f=e.target.files[0]; if(!f) return; const path=`items/${item.id}/${Date.now()}_${f.name}`; const {error}=await supabase.storage.from('workspace-files').upload(path,f); if(!error){ const url=supabase.storage.from('workspace-files').getPublicUrl(path).data.publicUrl; setReplyText(v=>v+(v?' ':'')+url); }}}/>
+                                <button style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,fontSize:11,fontWeight:700,letterSpacing:'-0.5px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>GIF</button>
+                                <button title="Emoji" style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                                </button>
+                                <button title="Insert link" onClick={()=>setShowReplyLink(s=>!s)} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                                </button>
+                                <div style={{width:8,height:8,borderRadius:'50%',background:'var(--accent)',marginLeft:2}}/>
+                                {showReplyLink && (
+                                  <div style={{position:'absolute',bottom:'100%',left:0,marginBottom:8,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:14,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:300}}>
+                                    <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Insert Link</div>
+                                    <input id="rlink-disp" placeholder="Display text (e.g. Register Here)" autoFocus style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:8,boxSizing:'border-box',outline:'none'}}/>
+                                    <input id="rlink-url" placeholder="https://..." style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:10,boxSizing:'border-box',outline:'none'}}/>
+                                    <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+                                      <button onClick={()=>setShowReplyLink(false)} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'5px 12px',color:'var(--muted)',cursor:'pointer',fontSize:12}}>Cancel</button>
+                                      <button onClick={()=>{const d=document.getElementById('rlink-disp').value.trim();const u2=document.getElementById('rlink-url').value.trim();if(!u2)return;setReplyText(v=>v+(d?`[${d}](${u2})`:u2));setShowReplyLink(false);}} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'5px 12px',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>Insert</button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                              <div style={{display:'flex',alignItems:'center',gap:6}}>
+                                <button onClick={()=>{ setReplyTo(null); setReplyText(''); setShowReplyLink(false); }} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'5px 14px',color:'var(--muted)',cursor:'pointer',fontSize:12}}>Cancel</button>
+                                <button onClick={()=>submitReply(u.id)} disabled={!replyText.trim()} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'5px 14px',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600,opacity:replyText.trim()?1:0.5}}>Reply</button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     )}
                   </div>
