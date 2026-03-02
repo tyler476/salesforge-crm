@@ -2165,7 +2165,7 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidad
   const updCount = (updateCounts||{})[sub.id]||0;
 
   return (
-    <tr style={{background:'rgba(77,142,240,.08)', borderBottom:'2px solid var(--accent)'}}>
+    <tr style={{background:'rgba(0,0,0,.05)', borderBottom:'1px solid var(--border)'}}>
 
       {/* dot */}
       <td style={{padding:'4px 10px', paddingLeft:36, textAlign:'center'}}>
@@ -3252,13 +3252,13 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
         )}
       </td>}
       {isTrinidadWs ? (<>
-        <td style={{ padding:'4px 10px' }}>{item.deal_value ? '$'+Number(item.deal_value).toLocaleString() : '—'}</td>
-        <td style={{ padding:'4px 10px' }}>{item.date ? item.date.split('T')[0] : '—'}</td>
-        <td style={{ padding:'4px 10px' }}>{item.loan_amount ? '$'+Number(item.loan_amount).toLocaleString() : '—'}</td>
-        <td style={{ padding:'4px 10px' }}>{item.mortgage_rate ? item.mortgage_rate+'%' : '—'}</td>
-        <td style={{ padding:'4px 10px' }}>{item.lender || '—'}</td>
-        <td style={{ padding:'4px 10px' }}>{item.phone || '—'}</td>
-        <td style={{ padding:'4px 10px' }}>{item.alt_phone || '—'}</td>
+        <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}><EditableCell field="deal_value" /></td>
+        <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}><EditableCell field="date" type="date" /></td>
+        <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}><EditableCell field="loan_amount" /></td>
+        <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}><EditableCell field="mortgage_rate" /></td>
+        <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}><EditableCell field="lender" /></td>
+        <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}><EditableCell field="phone" /></td>
+        <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}><EditableCell field="alt_phone" /></td>
       </>) : (<>
       {!hiddenCols.includes('status') && <td style={{ padding:'4px 10px', position:'relative' }} onClick={e=>e.stopPropagation()}>
         <div onClick={e=>e.stopPropagation()} onMouseDown={e=>{ e.stopPropagation(); const r=e.currentTarget.getBoundingClientRect(); const spaceBelow=window.innerHeight-r.bottom; const dropH=Math.min(320, statuses.length*40+60); const top=spaceBelow<dropH ? r.top-dropH-4 : r.bottom+4; setPickerPos({top,left:r.left}); setShowStatusPicker(s=>!s); setShowAssignPicker(false); }} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
