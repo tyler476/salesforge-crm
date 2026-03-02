@@ -2232,13 +2232,13 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidad
 
       {/* data columns — match main row exactly */}
       {isTrinidadWs ? (<>
-        <Cell field="deal_value"    display={sub.deal_value    ? '$'+Number(sub.deal_value).toLocaleString()    : ''} />
-        <Cell field="date"          display={sub.date          ? sub.date.split('T')[0]                         : ''} type="date" />
-        <Cell field="loan_amount"   display={sub.loan_amount   ? '$'+Number(sub.loan_amount).toLocaleString()   : ''} />
-        <Cell field="mortgage_rate" display={sub.mortgage_rate ? sub.mortgage_rate+'%'                          : ''} />
-        <Cell field="lender"        display={sub.lender||''} />
-        <Cell field="phone"         display={sub.phone||''} />
-        <Cell field="alt_phone"     display={sub.alt_phone||''} />
+        {Cell({field:'deal_value', display:sub.deal_value    ? '$'+Number(sub.deal_value).toLocaleString()    : ''})}
+        {Cell({field:'date', display:sub.date          ? sub.date.split('T')[0]                         : '', type:'date'})}
+        {Cell({field:'loan_amount', display:sub.loan_amount   ? '$'+Number(sub.loan_amount).toLocaleString()   : ''})}
+        {Cell({field:'mortgage_rate', display:sub.mortgage_rate ? sub.mortgage_rate+'%'                          : ''})}
+        {Cell({field:'lender', display:sub.lender||''})}
+        {Cell({field:'phone', display:sub.phone||''})}
+        {Cell({field:'alt_phone', display:sub.alt_phone||''})}
       </>) : (<>
         {/* status — only for non-Trinidad */}
         <td style={{padding:'4px 10px',position:'relative'}} onClick={e=>e.stopPropagation()}>
@@ -2262,11 +2262,11 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidad
             )}
           </div>
         </td>
-        <Cell field="priority"     display={sub.priority||''} />
-        <Cell field="date"         display={sub.date ? sub.date.split('T')[0] : ''} type="date" />
-        <Cell field="lender"       display={sub.lender||''} />
-        <Cell field="loan_officer" display={sub.loan_officer||''} />
-        <Cell field="processor"    display={sub.processor||''} />
+        {Cell({field:'priority', display:sub.priority||''})}
+        {Cell({field:'date', display:sub.date ? sub.date.split('T')[0] : '', type:'date'})}
+        {Cell({field:'lender', display:sub.lender||''})}
+        {Cell({field:'loan_officer', display:sub.loan_officer||''})}
+        {Cell({field:'processor', display:sub.processor||''})}
         <td colSpan={99}></td>
       </>)}
 
