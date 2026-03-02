@@ -2133,13 +2133,16 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidad
   const assignRef = React.useRef();
 
   React.useEffect(()=>{
+    if(!showStatus && !showAssign) return;
     const h = e => {
-      if(statusRef.current && !statusRef.current.contains(e.target)) setShowStatus(false);
-      if(assignRef.current && !assignRef.current.contains(e.target)) setShowAssign(false);
+      if(showStatus && statusRef.current && !statusRef.current.contains(e.target)) setShowStatus(false);
+      if(showAssign && assignRef.current && !assignRef.current.contains(e.target)) setShowAssign(false);
     };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  },[]);
+    const closeAll = () => { setShowStatus(false); setShowAssign(false); };
+    const t = setTimeout(()=>document.addEventListener('mousedown', h), 50);
+    document.addEventListener('closeAllPopups', closeAll);
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', h); document.removeEventListener('closeAllPopups', closeAll); };
+  },[showStatus, showAssign]);
 
   const save = async (field, val) => {
     await supabase.from('workspace_items').update({[field]: val}).eq('id', sub.id);
@@ -2203,7 +2206,7 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidad
               <div style={{position:'absolute',top:'100%',left:0,zIndex:9999,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:8,boxShadow:'0 8px 24px rgba(0,0,0,.4)',minWidth:180,marginTop:4}}>
                 {teamMembers.map(m=>(
                   <div key={m.id}
-                    onClick={async()=>{const cur=sub.assigned_officers||[];const next=cur.includes(m.full_name)?cur.filter(x=>x!==m.full_name):[...cur,m.full_name];await supabase.from('workspace_items').update({assigned_officers:next}).eq('id',sub.id);setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(x=>x.id===sub.id?{...x,assigned_officers:next}:x)}));}}
+                    onClick={async()=>{const cur=sub.assigned_officers||[];const next=cur.includes(m.full_name)?cur.filter(x=>x!==m.full_name):[...cur,m.full_name];await supabase.from('workspace_items').update({assigned_officers:next}).eq('id',sub.id);setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(x=>x.id===sub.id?{...x,assigned_officers:next}:x)})); setShowAssign(false);}}
                     style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderRadius:4,cursor:'pointer',background:owners.includes(m.full_name)?'rgba(77,142,240,.15)':'transparent'}}
                     onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.07)'}
                     onMouseOut={e=>e.currentTarget.style.background=owners.includes(m.full_name)?'rgba(77,142,240,.15)':'transparent'}>
@@ -3168,8 +3171,10 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
       setShowStatusPicker(false);
       setShowAssignPicker(false);
     };
+    const closeAll = () => { setShowStatusPicker(false); setShowAssignPicker(false); };
     const t = setTimeout(()=>document.addEventListener('mousedown', close), 100);
-    return ()=>{ clearTimeout(t); document.removeEventListener('mousedown', close); };
+    document.addEventListener('closeAllPopups', closeAll);
+    return ()=>{ clearTimeout(t); document.removeEventListener('mousedown', close); document.removeEventListener('closeAllPopups', closeAll); };
   },[showStatusPicker, showAssignPicker]);
 
   const statusObj = statuses.find(s=>s.label===item.status);
@@ -3225,6 +3230,9 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
           {(item.assigned_officers||[]).length>0 && hovered && <span style={{ fontSize:11, color:'var(--muted)', marginLeft:4 }}>+</span>}
         </div>
         {showAssignPicker && (
+          <PopupBackdrop onClose={()=>setShowAssignPicker(false)} zIndex={9988}/>
+        )}
+        {showAssignPicker && (
           <div ref={assignPickerRef} style={{ position:'fixed', top:assignPos.top, left:assignPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:240, boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
             <div style={{ fontSize:11, color:'var(--muted)', marginBottom:6, fontWeight:600 }}>ASSIGN OFFICERS</div>
             {teamMembers.map(m=>{
@@ -3264,6 +3272,9 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
         <div onClick={e=>e.stopPropagation()} onMouseDown={e=>{ e.stopPropagation(); const r=e.currentTarget.getBoundingClientRect(); const spaceBelow=window.innerHeight-r.bottom; const dropH=Math.min(320, statuses.length*40+60); const top=spaceBelow<dropH ? r.top-dropH-4 : r.bottom+4; setPickerPos({top,left:r.left}); setShowStatusPicker(s=>!s); setShowAssignPicker(false); }} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
           {item.status||'No Status'}
         </div>
+        {showStatusPicker && (
+          <PopupBackdrop onClose={()=>setShowStatusPicker(false)} zIndex={9988}/>
+        )}
         {showStatusPicker && (
           <div ref={statusPickerRef} style={{ position:'fixed', top:pickerPos.top, left:pickerPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:12, boxShadow:'0 8px 32px rgba(0,0,0,.4)', width:340, maxHeight:400, overflowY:'auto' }}>
             <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.08em', fontWeight:600, marginBottom:10 }}>Set Status</div>
@@ -3321,6 +3332,38 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
 
 // ─── UPDATES PANEL ────────────────────────────────────────────────────────────
 // ─── ITEM DETAIL PANEL ───────────────────────────────────────────────────────
+// ── Global click-outside hook ─────────────────────────────────────────────
+function useClickOutside(refs, onClose, enabled = true) {
+  React.useEffect(() => {
+    if (!enabled) return;
+    const handler = (e) => {
+      const refsArr = Array.isArray(refs) ? refs : [refs];
+      if (refsArr.every(r => !r?.current?.contains(e.target))) {
+        onClose();
+      }
+    };
+    // Small delay so the click that opens the popup doesn't immediately close it
+    const t = setTimeout(() => document.addEventListener('mousedown', handler), 50);
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', handler); };
+  }, [enabled]);
+}
+
+// ── Popup overlay — transparent full-screen backdrop that closes on click ──
+function PopupBackdrop({ onClose, zIndex = 9990 }) {
+  React.useEffect(() => {
+    const handler = () => onClose();
+    document.addEventListener('closeAllPopups', handler);
+    return () => document.removeEventListener('closeAllPopups', handler);
+  }, []);
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, zIndex }}
+      onMouseDown={(e) => { e.stopPropagation(); onClose(); }}
+    />
+  );
+}
+
+
 // ── Emoji Picker ─────────────────────────────────────────────────────────
 const EMOJI_DATA = {
   'Smileys': ['😀','😂','🤣','😅','😊','🥰','😍','😘','😎','🤩','🥳','😤','😭','😱','😰','🤔','🙄','😏','😒','💀','👻','🤡'],
@@ -3766,6 +3809,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
           <div onClick={()=>setShowStatusPicker(s=>!s)} style={{ position:'relative', display:'inline-flex', alignItems:'center', gap:6, background:statusColor, color:'#fff', padding:'4px 12px', borderRadius:5, fontSize:12, fontWeight:700, cursor:'pointer' }}>
             {item.status||'Set Status'}
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="6 9 12 15 18 9"/></svg>
+            {showStatusPicker && <PopupBackdrop onClose={()=>setShowStatusPicker(false)} zIndex={9988}/>}
             {showStatusPicker && (
               <div onClick={e=>e.stopPropagation()} style={{ position:'absolute', top:'calc(100% + 6px)', left:0, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:6, width:220, maxHeight:300, overflowY:'auto', boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
                 {statuses.map(s=>(
@@ -3824,11 +3868,14 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                 </div>
               </div>
               {showAssignPicker && (
+                <PopupBackdrop onClose={()=>setShowAssignPicker(false)} zIndex={9988}/>
+              )}
+              {showAssignPicker && (
                 <div style={{ marginTop:8, background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:8, padding:8, maxHeight:200, overflowY:'auto' }}>
                   {teamMembers.map(m=>{
                     const assigned = (item.assigned_officers||[]).includes(m.full_name);
                     return (
-                      <div key={m.id} onClick={()=>{ const curr=item.assigned_officers||[]; updateField('assigned_officers', assigned?curr.filter(x=>x!==m.full_name):[...curr,m.full_name]); }}
+                      <div key={m.id} onClick={()=>{ const curr=item.assigned_officers||[]; updateField('assigned_officers', assigned?curr.filter(x=>x!==m.full_name):[...curr,m.full_name]); setShowAssignPicker(false); }}
                         style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:4, cursor:'pointer', background:assigned?'rgba(77,142,240,.15)':'' }}
                         onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
                         onMouseOut={e=>e.currentTarget.style.background=assigned?'rgba(77,142,240,.15)':''}>
@@ -3920,6 +3967,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                       <div style={{width:8,height:8,borderRadius:'50%',background:'var(--accent)',marginLeft:2}}/>
                       {showEmojiPicker && <EmojiPicker anchorPos={emojiBtnPos} onSelect={e=>setNewUpdate(v=>v+e)} onClose={()=>setShowEmojiPicker(false)}/>}
                       {showGifPicker && <GifPicker anchorRef={gifBtnRef} onSelect={url=>setNewUpdate(v=>v+(v?' ':'')+url)} onClose={()=>setShowGifPicker(false)}/>}
+                      {showLinkPopup && <PopupBackdrop onClose={()=>setShowLinkPopup(false)} zIndex={9988}/>}
                       {showLinkPopup && (
                         <div style={{position:'absolute',bottom:'100%',left:0,marginBottom:8,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:14,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:300}}>
                           <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Insert Link</div>
@@ -4397,6 +4445,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
                       <div style={{width:8,height:8,borderRadius:'50%',background:'var(--accent)',marginLeft:2}}/>
                       {showEmojiPicker2 && <EmojiPicker anchorPos={emojiBtnPos2} onSelect={e=>setNewUpdate(v=>v+e)} onClose={()=>setShowEmojiPicker2(false)}/>}
                       {showGifPicker2 && <GifPicker anchorRef={gifBtnRef2} onSelect={url=>setNewUpdate(v=>v+(v?' ':'')+url)} onClose={()=>setShowGifPicker2(false)}/>}
+                      {showLinkPopup && <PopupBackdrop onClose={()=>setShowLinkPopup(false)} zIndex={9988}/>}
                       {showLinkPopup && (
                         <div style={{position:'absolute',bottom:'100%',left:0,marginBottom:8,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:14,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:300}}>
                           <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Insert Link</div>
@@ -8875,6 +8924,8 @@ export default function App() {
     window.history.pushState(state, '', `#${newView}${workspace?'-'+workspace.id:''}`);
     setViewRaw(newView);
     if(workspace !== undefined) setActiveWorkspace(workspace);
+    // Close all open popups when navigating
+    document.dispatchEvent(new CustomEvent('closeAllPopups'));
   }, []);
 
   useEffect(() => {
