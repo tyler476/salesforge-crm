@@ -649,15 +649,32 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
   }, []);
   const stop = e => e.stopPropagation();
 
+  const [inviteResult, setInviteResult] = useState(null); // 'success' | 'error' | null
+
   const sendInvite = async () => {
     if (!inviteEmail.trim()) return;
     setInviteSending(true);
+    setInviteResult(null);
     try {
-      await supabase.auth.admin?.inviteUserByEmail(inviteEmail);
-    } catch(e) {}
+      // Generate invite link with role encoded — teammate signs up and joins the company workspace
+      const inviteLink = `${window.location.origin}?invite=${encodeURIComponent(profile.company_name)}&role=${inviteRole}`;
+      // Log the invite so admins can track pending invitations
+      await supabase.from('notifications').insert([{
+        recipient_id: profile.id,
+        actor_name: profile.full_name,
+        message: `sent an invite to ${inviteEmail} (${inviteRole})`,
+        type: 'assignment',
+        is_read: false,
+      }]);
+      // Copy link to clipboard and show success
+      await navigator.clipboard.writeText(inviteLink);
+      setInviteResult('success');
+      setInviteEmail('');
+      setTimeout(() => { setInviteResult(null); setInviteOpen(false); }, 2000);
+    } catch(e) {
+      setInviteResult('error');
+    }
     setInviteSending(false);
-    setInviteEmail('');
-    setInviteOpen(false);
   };
 
   const HELP_ARTICLES = [
@@ -884,12 +901,25 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
             <option value="admin">Admin</option>
           </select>
         </div>
+        {inviteResult==='success' && (
+          <div style={{ marginBottom:12, padding:'8px 12px', background:'rgba(46,204,138,.12)', border:'1px solid rgba(46,204,138,.3)', borderRadius:6, fontSize:12, color:'#2ecc8a', display:'flex', alignItems:'center', gap:8 }}>
+            {Icons.checkCircle} Invite link copied to clipboard! Send it to {inviteEmail||'your teammate'}.
+          </div>
+        )}
+        {inviteResult==='error' && (
+          <div style={{ marginBottom:12, padding:'8px 12px', background:'rgba(224,82,82,.12)', border:'1px solid rgba(224,82,82,.3)', borderRadius:6, fontSize:12, color:'#e05252', display:'flex', alignItems:'center', gap:8 }}>
+            {Icons.alert} Couldn't copy link automatically. Please copy it from the Team page.
+          </div>
+        )}
         <div style={{ display:'flex', gap:10 }}>
-          <button className="btn-primary" style={{ flex:1 }} onClick={sendInvite} disabled={inviteSending||!inviteEmail.trim()}>{inviteSending?'Sending...':'Send Invite'}</button>
-          <button className="btn-secondary" onClick={()=>setInviteOpen(false)}>Cancel</button>
+          <button className="btn-primary" style={{ flex:1 }} onClick={sendInvite} disabled={inviteSending||!inviteEmail.trim()||inviteResult==='success'}>
+            {inviteSending ? 'Copying...' : inviteResult==='success' ? '✓ Link Copied!' : 'Copy Invite Link'}
+          </button>
+          <button className="btn-secondary" onClick={()=>{ setInviteOpen(false); setInviteResult(null); }}>Cancel</button>
         </div>
         <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid var(--border)', fontSize:12, color:'var(--muted)' }}>
-          Or go to <span onClick={()=>{ onNavigate('team'); setInviteOpen(false); }} style={{ color:'var(--accent)', cursor:'pointer' }}>Team page</span> to manage all members
+          The invite link lets your teammate sign up and automatically join your workspace.
+          Or go to <span onClick={()=>{ onNavigate('team'); setInviteOpen(false); }} style={{ color:'var(--accent)', cursor:'pointer' }}>Team page</span> to manage all members.
         </div>
       </div>
     )}
@@ -1908,12 +1938,6 @@ function PipelineView({ contacts, onSelect }) {
 function TeamView({ profile, toast }) {
   const [members, setMembers] = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
-
-  React.useEffect(()=>{
-    const esc = e => { if(e.key==='Escape') { setSearchOpen(false); setSearchVal(''); onSearch(''); setNotifOpen(false); setProfileOpen(false); setHelpOpen(false); setAppsOpen(false); setInviteOpen(false); }};
-    document.addEventListener('keydown', esc);
-    return ()=>document.removeEventListener('keydown', esc);
-  },[]);
   const [inviteLink, setInviteLink] = useState('');
 
   useEffect(() => {
@@ -8909,7 +8933,7 @@ export default function App() {
   const [editContact, setEditContact] = useState(null);
   const [selectedContact, setSelectedContact] = useState(null);
   const [toastMsg, setToastMsg] = useState('');
-  const [brand, setBrand] = useState({ company_name:'SalesForge', logo_url:'', brand_color:'#3b82f6' });
+  const [brand, setBrand] = useState({ company_name:'Citizens Financial', logo_url:'https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png', brand_color:'#1a56db' });
   const [workspaces, setWorkspaces] = useState([]);
   const [workspacesOpen, setWorkspacesOpen] = useState(true);
   const [activeWorkspace, setActiveWorkspace] = useState(null);
@@ -9008,7 +9032,7 @@ export default function App() {
     const { data } = await supabase.from('profiles').select('*').eq('id', uid).single();
     if (data) {
       setProfile(data);
-      setBrand({ company_name: data.company_name||'SalesForge', logo_url: data.logo_url||'', brand_color: data.brand_color||'#3b82f6' });
+      setBrand({ company_name: data.company_name||'Citizens Financial', logo_url: data.logo_url||'https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png', brand_color: data.brand_color||'#1a56db' });
       loadContacts(data.company_name);
       loadWorkspaces(data.company_name);
     }
@@ -9229,7 +9253,7 @@ export default function App() {
       {/* Pricing Engine Panel */}
       {pricingOpen && (
         <div
-          style={{ position:'fixed', inset:0, zIndex:899, background:'rgba(0,0,0,0.3)' }}
+          style={{ position:'fixed', inset:0, zIndex:499, background:'rgba(0,0,0,0.3)' }}
           onMouseDown={(e) => { if(e.target===e.currentTarget) setPricingOpen(false); }}
         />
       )}
