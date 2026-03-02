@@ -3339,6 +3339,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   const [editingField, setEditingField] = useState(null);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showAssignPicker, setShowAssignPicker] = useState(false);
+  const [showLinkPopup, setShowLinkPopup] = React.useState(false);
   const [replyTo, setReplyTo] = useState(null);
   const [likedUpdates, setLikedUpdates] = useState(new Set());
   const textareaRef = React.useRef();
@@ -3526,8 +3527,14 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   const renderBody = (body) => {
     if(!body) return null;
     // Split on URLs and @mentions
-    const parts = body.split(/(https?:\/\/[^\s]+|@[a-zA-Z][a-zA-Z0-9 ]*)/g);
+    const parts = body.split(/(\[[^\]]+\]\(https?:\/\/[^\)]+\)|https?:\/\/[^\s]+|@[a-zA-Z][a-zA-Z0-9 ]*)/g);
     return parts.map((part, i) => {
+      if(/^\[.+\]\(https?:\/\/.+\)$/.test(part)) {
+        // [text](url) format
+        const match = part.match(/^\[(.+)\]\((https?:\/\/.+)\)$/);
+        if(match) return <a key={i} href={match[2]} target="_blank" rel="noopener noreferrer"
+          style={{color:'var(--accent)',textDecoration:'underline'}}>{match[1]}</a>;
+      }
       if(/^https?:\/\//.test(part)) {
         // Clean trailing punctuation from URL
         const clean = part.replace(/[.,;!?)'"]+$/, '');
@@ -3726,6 +3733,25 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                   }}
                   style={{ flex:1, resize:'vertical', background:'transparent', border:'none', outline:'none', fontSize:13, color:'var(--text)', lineHeight:1.6 }} />
               </div>
+              <div style={{display:'flex',alignItems:'center',gap:4,marginTop:6,position:'relative'}}>
+                  <button title="Mention someone" onClick={()=>{const ta=textareaRef.current;ta.focus();setNewUpdate(v=>v+'@');}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
+                  </button>
+                  <button title="Insert link" onClick={()=>setShowLinkPopup(s=>!s)} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  </button>
+                  {showLinkPopup && (
+                    <div style={{position:'absolute',top:'100%',left:0,marginTop:6,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:14,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:300}}>
+                      <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Insert Link</div>
+                      <input id="link-disp-1" placeholder="Display text (e.g. Register Here)" autoFocus style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:8,boxSizing:'border-box',outline:'none'}}/>
+                      <input id="link-url-1" placeholder="https://..." style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:10,boxSizing:'border-box',outline:'none'}}/>
+                      <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+                        <button onClick={()=>setShowLinkPopup(false)} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'5px 12px',color:'var(--muted)',cursor:'pointer',fontSize:12}}>Cancel</button>
+                        <button onClick={()=>{const d=document.getElementById('link-disp-1').value.trim();const u=document.getElementById('link-url-1').value.trim();if(!u)return;setNewUpdate(v=>v+(d?`[${d}](${u})`:u));setShowLinkPopup(false);}} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'5px 12px',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>Insert</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                 <span style={{ fontSize:11, color:'var(--muted)' }}>Type <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>@</kbd> to mention · <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>Ctrl+Enter</kbd> to post</span>
                 <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Post Update'}</button>
@@ -3941,8 +3967,14 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
   const renderBody = (body) => {
     if(!body) return null;
     // Split on URLs and @mentions
-    const parts = body.split(/(https?:\/\/[^\s]+|@[a-zA-Z][a-zA-Z0-9 ]*)/g);
+    const parts = body.split(/(\[[^\]]+\]\(https?:\/\/[^\)]+\)|https?:\/\/[^\s]+|@[a-zA-Z][a-zA-Z0-9 ]*)/g);
     return parts.map((part, i) => {
+      if(/^\[.+\]\(https?:\/\/.+\)$/.test(part)) {
+        // [text](url) format
+        const match = part.match(/^\[(.+)\]\((https?:\/\/.+)\)$/);
+        if(match) return <a key={i} href={match[2]} target="_blank" rel="noopener noreferrer"
+          style={{color:'var(--accent)',textDecoration:'underline'}}>{match[1]}</a>;
+      }
       if(/^https?:\/\//.test(part)) {
         // Clean trailing punctuation from URL
         const clean = part.replace(/[.,;!?)'"]+$/, '');
@@ -4074,6 +4106,25 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
                   }}
                   style={{ flex:1, resize:'vertical', background:'transparent', border:'none', outline:'none', fontSize:13, color:'var(--text)', lineHeight:1.6 }} />
               </div>
+              <div style={{display:'flex',alignItems:'center',gap:4,marginTop:6,position:'relative'}}>
+                  <button title="Mention someone" onClick={()=>{const ta=textareaRef.current;ta.focus();setNewUpdate(v=>v+'@');}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
+                  </button>
+                  <button title="Insert link" onClick={()=>setShowLinkPopup(s=>!s)} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                  </button>
+                  {showLinkPopup && (
+                    <div style={{position:'absolute',top:'100%',left:0,marginTop:6,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:14,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:300}}>
+                      <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Insert Link</div>
+                      <input id="link-disp-1" placeholder="Display text (e.g. Register Here)" autoFocus style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:8,boxSizing:'border-box',outline:'none'}}/>
+                      <input id="link-url-1" placeholder="https://..." style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:10,boxSizing:'border-box',outline:'none'}}/>
+                      <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+                        <button onClick={()=>setShowLinkPopup(false)} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'5px 12px',color:'var(--muted)',cursor:'pointer',fontSize:12}}>Cancel</button>
+                        <button onClick={()=>{const d=document.getElementById('link-disp-1').value.trim();const u=document.getElementById('link-url-1').value.trim();if(!u)return;setNewUpdate(v=>v+(d?`[${d}](${u})`:u));setShowLinkPopup(false);}} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'5px 12px',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>Insert</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                 <span style={{ fontSize:11, color:'var(--muted)' }}>Type <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>@</kbd> to mention · <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>Ctrl+Enter</kbd> to post</span>
                 <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Post Update'}</button>
