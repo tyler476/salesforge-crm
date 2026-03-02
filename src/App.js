@@ -2165,7 +2165,7 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidad
   const updCount = (updateCounts||{})[sub.id]||0;
 
   return (
-    <tr style={{background:'rgba(0,0,0,.05)', borderBottom:'1px solid var(--border)'}}>
+    <tr style={{background:'rgba(77,142,240,.08)', borderBottom:'2px solid var(--accent)'}}>
 
       {/* dot */}
       <td style={{padding:'4px 10px', paddingLeft:36, textAlign:'center'}}>
