@@ -3329,10 +3329,10 @@ const EMOJI_DATA = {
   'Work': ['📌','📎','🔗','📧','📱','💻','📊','📈','📉','💰','💸','🏆','🥇','🎯','✍️','📝'],
 };
 
-function EmojiPicker({ onSelect, onClose }) {
+function EmojiPicker({ onSelect, onClose, anchorPos }) {
   const [tab, setTab] = React.useState('Smileys');
   return (
-    <div style={{position:'absolute',bottom:'calc(100% + 8px)',left:0,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,boxShadow:'0 8px 32px rgba(0,0,0,.5)',zIndex:9999,width:280,overflow:'hidden'}}
+    <div style={{position:'fixed',bottom:anchorPos?.openUp!==false?`calc(100vh - ${anchorPos?.top||200}px)`:'auto',top:anchorPos?.openUp===false?`${anchorPos?.top||200}px`:'auto',left:`${Math.min(anchorPos?.left||100, window.innerWidth-300)}px`,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.6)',zIndex:99999,width:280,overflow:'hidden'}}
       onMouseDown={e=>e.stopPropagation()}>
       <div style={{display:'flex',borderBottom:'1px solid var(--border)',padding:'4px 6px',gap:4}}>
         {Object.keys(EMOJI_DATA).map(cat=>(
@@ -3355,44 +3355,88 @@ function EmojiPicker({ onSelect, onClose }) {
 }
 
 // ── GIF Picker ────────────────────────────────────────────────────────────
-const GIPHY_KEY = 'dc6zaTOxFJmzC';
-function GifPicker({ onSelect, onClose }) {
+function GifPicker({ onSelect, onClose, anchorRef }) {
   const [query, setQuery] = React.useState('');
   const [gifs, setGifs] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
-  React.useEffect(() => { fetchGifs('trending'); }, []);
+  const [pos, setPos] = React.useState({top:0,left:0,openUp:true});
+  const popupRef = React.useRef();
+
+  React.useEffect(() => {
+    // Calculate position relative to anchor
+    if(anchorRef?.current) {
+      const rect = anchorRef.current.getBoundingClientRect();
+      const spaceAbove = rect.top;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openUp = spaceAbove > spaceBelow || spaceBelow < 320;
+      setPos({
+        top: openUp ? rect.top - 8 : rect.bottom + 8,
+        left: Math.min(rect.left, window.innerWidth - 340),
+        openUp
+      });
+    }
+    fetchGifs('');
+    // Click outside to close
+    const handler = (e) => { if(popupRef.current && !popupRef.current.contains(e.target)) onClose(); };
+    setTimeout(() => document.addEventListener('mousedown', handler), 0);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   const fetchGifs = async (q) => {
     setLoading(true);
+    setGifs([]);
     try {
-      const endpoint = q === 'trending'
-        ? `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=18&rating=g`
-        : `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=18&rating=g`;
-      const res = await fetch(endpoint);
+      // Tenor v2 - free, no auth needed for basic use
+      const base = 'https://tenor.googleapis.com/v2';
+      const key = 'AIzaSyAyimkuYQYF_FXVALexPzfikAGQgPNf4kA';
+      const url = q.trim()
+        ? `${base}/search?q=${encodeURIComponent(q)}&key=${key}&limit=18&media_filter=gif`
+        : `${base}/featured?key=${key}&limit=18&media_filter=gif`;
+      const res = await fetch(url);
       const json = await res.json();
-      setGifs(json.data || []);
+      setGifs(json.results || []);
     } catch(e) { setGifs([]); }
     setLoading(false);
   };
+
+  const style = pos.openUp
+    ? {position:'fixed',bottom:`calc(100vh - ${pos.top}px)`,left:pos.left}
+    : {position:'fixed',top:pos.top,left:pos.left};
+
   return (
-    <div style={{position:'absolute',bottom:'calc(100% + 8px)',left:0,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,boxShadow:'0 8px 32px rgba(0,0,0,.5)',zIndex:9999,width:320,overflow:'hidden'}}
+    <div ref={popupRef} style={{...style,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.6)',zIndex:99999,width:330,overflow:'hidden'}}
       onMouseDown={e=>e.stopPropagation()}>
-      <div style={{padding:'10px 10px 6px',borderBottom:'1px solid var(--border)'}}>
-        <input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==='Enter') fetchGifs(query||'trending');}}
+      <div style={{padding:'10px 10px 8px',borderBottom:'1px solid var(--border)',display:'flex',gap:8,alignItems:'center'}}>
+        <input autoFocus value={query} onChange={e=>setQuery(e.target.value)}
+          onKeyDown={e=>{ if(e.key==='Enter') fetchGifs(query); if(e.key==='Escape') onClose(); }}
           placeholder="Search GIFs..."
-          style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,padding:'7px 10px',color:'var(--text)',fontSize:13,outline:'none',boxSizing:'border-box'}}/>
+          style={{flex:1,background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,padding:'7px 10px',color:'var(--text)',fontSize:13,outline:'none'}}/>
+        <button onClick={()=>fetchGifs(query)} style={{background:'var(--accent)',border:'none',borderRadius:8,padding:'7px 12px',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600,flexShrink:0}}>Go</button>
       </div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:4,padding:8,maxHeight:240,overflowY:'auto'}}>
-        {loading && <div style={{gridColumn:'span 3',textAlign:'center',color:'var(--muted)',padding:20,fontSize:13}}>Loading...</div>}
-        {!loading && gifs.length===0 && <div style={{gridColumn:'span 3',textAlign:'center',color:'var(--muted)',padding:20,fontSize:13}}>No results</div>}
-        {gifs.map(g=>(
-          <img key={g.id} src={g.images.fixed_width_small.url} alt={g.title}
-            onClick={()=>{onSelect(g.images.original.url);onClose();}}
-            style={{width:'100%',height:80,objectFit:'cover',borderRadius:6,cursor:'pointer',border:'2px solid transparent'}}
-            onMouseOver={e=>e.currentTarget.style.borderColor='var(--accent)'}
-            onMouseOut={e=>e.currentTarget.style.borderColor='transparent'}/>
-        ))}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:3,padding:8,height:240,overflowY:'auto'}}>
+        {loading && <div style={{gridColumn:'span 3',display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--muted)',fontSize:13,gap:8}}>
+          <div style={{width:18,height:18,border:'2px solid var(--accent)',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
+          Loading...
+        </div>}
+        {!loading && gifs.length===0 && (
+          <div style={{gridColumn:'span 3',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--muted)',gap:8}}>
+            <div style={{fontSize:28}}>🔍</div>
+            <div style={{fontSize:13}}>Search for a GIF above</div>
+          </div>
+        )}
+        {gifs.map((g,i)=>{
+          const media = g.media_formats?.gif || g.media_formats?.tinygif || Object.values(g.media_formats||{})[0];
+          if(!media) return null;
+          return (
+            <img key={g.id||i} src={media.url} alt={g.content_description||'gif'}
+              onClick={()=>{ onSelect(media.url); onClose(); }}
+              style={{width:'100%',height:80,objectFit:'cover',borderRadius:6,cursor:'pointer',border:'2px solid transparent',display:'block'}}
+              onMouseOver={e=>e.currentTarget.style.borderColor='var(--accent)'}
+              onMouseOut={e=>e.currentTarget.style.borderColor='transparent'}/>
+          );
+        })}
       </div>
-      <div style={{padding:'4px 8px 6px',fontSize:10,color:'var(--muted)',textAlign:'right'}}>Powered by GIPHY</div>
+      <div style={{padding:'4px 10px 6px',fontSize:10,color:'var(--muted)',textAlign:'right'}}>Powered by Tenor</div>
     </div>
   );
 }
@@ -3422,6 +3466,14 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   const [showReplyEmoji, setShowReplyEmoji] = React.useState(false);
   const [showReplyGif, setShowReplyGif] = React.useState(false);
   const mainFileRef = React.useRef();
+  const gifBtnRef = React.useRef();
+  const emojiBtnRef = React.useRef();
+  const replyGifBtnRef = React.useRef();
+  const replyEmojiBtnRef = React.useRef();
+  const [gifBtnPos, setGifBtnPos] = React.useState(null);
+  const [emojiBtnPos, setEmojiBtnPos] = React.useState(null);
+  const [replyGifBtnPos, setReplyGifBtnPos] = React.useState(null);
+  const [replyEmojiBtnPos, setReplyEmojiBtnPos] = React.useState(null);
   const [replyTo, setReplyTo] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [showReplyLink, setShowReplyLink] = useState(false);
@@ -3866,8 +3918,8 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                       </button>
                       <div style={{width:8,height:8,borderRadius:'50%',background:'var(--accent)',marginLeft:2}}/>
-                      {showEmojiPicker && <EmojiPicker onSelect={e=>setNewUpdate(v=>v+e)} onClose={()=>setShowEmojiPicker(false)}/>}
-                      {showGifPicker && <GifPicker onSelect={url=>setNewUpdate(v=>v+(v?' ':'')+url)} onClose={()=>setShowGifPicker(false)}/>}
+                      {showEmojiPicker && <EmojiPicker anchorPos={emojiBtnPos} onSelect={e=>setNewUpdate(v=>v+e)} onClose={()=>setShowEmojiPicker(false)}/>}
+                      {showGifPicker && <GifPicker anchorRef={gifBtnRef} onSelect={url=>setNewUpdate(v=>v+(v?' ':'')+url)} onClose={()=>setShowGifPicker(false)}/>}
                       {showLinkPopup && (
                         <div style={{position:'absolute',bottom:'100%',left:0,marginBottom:8,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:14,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:300}}>
                           <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Insert Link</div>
@@ -4006,12 +4058,12 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                                 </button>
                                 <input ref={replyFileRef} type="file" style={{display:'none'}} onChange={async e=>{ const f=e.target.files[0]; if(!f) return; const path=`items/${item.id}/${Date.now()}_${f.name}`; const {error}=await supabase.storage.from('workspace-files').upload(path,f); if(!error){ const url=supabase.storage.from('workspace-files').getPublicUrl(path).data.publicUrl; setReplyText(v=>v+(v?' ':'')+url); }}}/>
-                                <button onClick={()=>{setShowReplyGif(s=>!s);setShowReplyEmoji(false);}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,fontSize:11,fontWeight:700,letterSpacing:'-0.5px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>GIF</button>
-                                <button title="Emoji" onClick={()=>{setShowReplyEmoji(s=>!s);setShowReplyGif(false);}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                                <button ref={replyGifBtnRef} onClick={()=>{ ()=>{ if(replyGifBtnRef.current){ const r=replyGifBtnRef.current.getBoundingClientRect(); const openUp=r.top>window.innerHeight-r.bottom||window.innerHeight-r.bottom<320; setReplyGifBtnPos({top:openUp?r.top:r.bottom,left:r.left,openUp}); } } setShowReplyGif(s=>!s);setShowReplyEmoji(false); }} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,fontSize:11,fontWeight:700,letterSpacing:'-0.5px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>GIF</button>
+                                <button ref={replyEmojiBtnRef} title="Emoji" onClick={()=>{ ()=>{ if(replyEmojiBtnRef.current){ const r=replyEmojiBtnRef.current.getBoundingClientRect(); const openUp=r.top>window.innerHeight-r.bottom||window.innerHeight-r.bottom<320; setReplyEmojiBtnPos({top:openUp?r.top:r.bottom,left:r.left,openUp}); } } setShowReplyEmoji(s=>!s);setShowReplyGif(false); }} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
                                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
                                 </button>
-                                {showReplyEmoji && <EmojiPicker onSelect={e=>setReplyText(v=>v+e)} onClose={()=>setShowReplyEmoji(false)}/>}
-                                {showReplyGif && <GifPicker onSelect={url=>setReplyText(v=>v+(v?' ':'')+url)} onClose={()=>setShowReplyGif(false)}/>}
+                                {showReplyEmoji && <EmojiPicker anchorPos={replyEmojiBtnPos} onSelect={e=>setReplyText(v=>v+e)} onClose={()=>setShowReplyEmoji(false)}/>}
+                                {showReplyGif && <GifPicker anchorRef={replyGifBtnRef} onSelect={url=>setReplyText(v=>v+(v?' ':'')+url)} onClose={()=>setShowReplyGif(false)}/>}
                                 <button title="Insert link" onClick={()=>setShowReplyLink(s=>!s)} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
                                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                                 </button>
@@ -4130,6 +4182,10 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
   const textareaRef = React.useRef();
   const fileInputRef = React.useRef();
   const mainFileRef2 = React.useRef();
+  const gifBtnRef2 = React.useRef();
+  const emojiBtnRef2 = React.useRef();
+  const [gifBtnPos2, setGifBtnPos2] = React.useState(null);
+  const [emojiBtnPos2, setEmojiBtnPos2] = React.useState(null);
   const [showEmojiPicker2, setShowEmojiPicker2] = React.useState(false);
   const [showGifPicker2, setShowGifPicker2] = React.useState(false);
 
@@ -4339,8 +4395,8 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                       </button>
                       <div style={{width:8,height:8,borderRadius:'50%',background:'var(--accent)',marginLeft:2}}/>
-                      {showEmojiPicker2 && <EmojiPicker onSelect={e=>setNewUpdate(v=>v+e)} onClose={()=>setShowEmojiPicker2(false)}/>}
-                      {showGifPicker2 && <GifPicker onSelect={url=>setNewUpdate(v=>v+(v?' ':'')+url)} onClose={()=>setShowGifPicker2(false)}/>}
+                      {showEmojiPicker2 && <EmojiPicker anchorPos={emojiBtnPos2} onSelect={e=>setNewUpdate(v=>v+e)} onClose={()=>setShowEmojiPicker2(false)}/>}
+                      {showGifPicker2 && <GifPicker anchorRef={gifBtnRef2} onSelect={url=>setNewUpdate(v=>v+(v?' ':'')+url)} onClose={()=>setShowGifPicker2(false)}/>}
                       {showLinkPopup && (
                         <div style={{position:'absolute',bottom:'100%',left:0,marginBottom:8,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:14,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:300}}>
                           <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Insert Link</div>
