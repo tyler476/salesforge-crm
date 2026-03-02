@@ -3753,58 +3753,69 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
         {/* UPDATES TAB */}
         {tab==='updates' && (
           <div>
-            <div style={{ background:'var(--surface2)', borderRadius:10, padding:14, marginBottom:20, border:'1px solid var(--border)', position:'relative' }}>
-              <div style={{ display:'flex', gap:10, marginBottom:8 }}>
-                <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(profile.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(profile.full_name)}</div>
-                <textarea ref={textareaRef} rows={3} value={newUpdate} onChange={handleTextChange}
-                  placeholder="Write an update... paste a link, type @ to mention"
-                  onKeyDown={e=>{
-                    if(mentionOpen){ if(e.key==='Escape'){setMentionOpen(false);return;} if(e.key==='Enter'&&filteredMembers.length>0){e.preventDefault();insertMention(filteredMembers[0]);return;} }
-                    if(e.key==='Enter'&&e.ctrlKey) postUpdate();
-                  }}
-                  style={{ flex:1, resize:'vertical', background:'transparent', border:'none', outline:'none', fontSize:13, color:'var(--text)', lineHeight:1.6 }} />
-              </div>
-              <div style={{display:'flex',alignItems:'center',gap:4,marginTop:6,position:'relative'}}>
-                  <button title="Mention someone" onClick={()=>{const ta=textareaRef.current;ta.focus();setNewUpdate(v=>v+'@');}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
-                  </button>
-                  <button title="Insert link" onClick={()=>setShowLinkPopup(s=>!s)} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                  </button>
-                  {showLinkPopup && (
-                    <div style={{position:'absolute',top:'100%',left:0,marginTop:6,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:14,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:300}}>
-                      <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Insert Link</div>
-                      <input id="link-disp-1" placeholder="Display text (e.g. Register Here)" autoFocus style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:8,boxSizing:'border-box',outline:'none'}}/>
-                      <input id="link-url-1" placeholder="https://..." style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:10,boxSizing:'border-box',outline:'none'}}/>
-                      <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-                        <button onClick={()=>setShowLinkPopup(false)} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'5px 12px',color:'var(--muted)',cursor:'pointer',fontSize:12}}>Cancel</button>
-                        <button onClick={()=>{const d=document.getElementById('link-disp-1').value.trim();const u=document.getElementById('link-url-1').value.trim();if(!u)return;setNewUpdate(v=>v+(d?`[${d}](${u})`:u));setShowLinkPopup(false);}} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'5px 12px',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>Insert</button>
-                      </div>
-                    </div>
-                  )}
+<div style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:20 }}>
+                <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(profile.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', flexShrink:0, marginTop:2 }}>
+                  {profile.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}
                 </div>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:11, color:'var(--muted)' }}>Type <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>@</kbd> to mention · <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>Ctrl+Enter</kbd> to post</span>
-                <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Post Update'}</button>
-              </div>
-              {mentionOpen && filteredMembers.length>0 && (
-                <div style={{ position:'fixed', top:mentionPos.top, left:mentionPos.left, transform:'translateY(-100%)', zIndex:9999, background:'var(--surface)', border:'1px solid var(--accent)', borderRadius:8, width:240, boxShadow:'0 8px 32px rgba(0,0,0,.5)', overflow:'hidden' }}>
-                  <div style={{ padding:'6px 10px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--border)', background:'var(--surface2)' }}>Team Members</div>
-                  {filteredMembers.slice(0,6).map(m=>(
-                    <div key={m.id} onMouseDown={e=>{ e.preventDefault(); insertMention(m); }}
-                      style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', cursor:'pointer' }}
-                      onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.15)'}
-                      onMouseOut={e=>e.currentTarget.style.background=''}>
-                      <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, flexShrink:0 }}>{initials(m.full_name)}</div>
-                      <div>
-                        <div style={{ fontSize:13, fontWeight:600 }}>{m.full_name}</div>
-                        <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
-                      </div>
+                <div style={{ flex:1, border:'1px solid var(--border)', borderRadius:10, padding:'10px 12px', background:'var(--surface2)', transition:'border-color .15s' }}
+                  onFocusCapture={e=>e.currentTarget.style.borderColor='var(--accent)'}
+                  onBlurCapture={e=>e.currentTarget.style.borderColor='var(--border)'}>
+                  <textarea ref={textareaRef} rows={3} value={newUpdate} onChange={handleTextChange}
+                    placeholder="Write an update... paste a link, type @ to mention"
+                    onKeyDown={e=>{
+                      if(mentionOpen){ if(e.key==='Escape'){setMentionOpen(false);return;} if(e.key==='Enter'&&filteredMembers.length>0){e.preventDefault();insertMention(filteredMembers[0]);return;} }
+                      if(e.key==='Enter'&&e.ctrlKey) postUpdate();
+                    }}
+                    style={{ width:'100%', resize:'vertical', background:'transparent', border:'none', outline:'none', fontSize:13, color:'var(--text)', fontFamily:'inherit', lineHeight:1.6, minHeight:60, boxSizing:'border-box' }}/>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:2, position:'relative' }}>
+                      <button title="Mention" onClick={()=>{textareaRef.current?.focus();setNewUpdate(v=>v+'@');}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
+                      </button>
+                      <button title="Attach file" style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                      </button>
+                      <button style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,fontSize:11,fontWeight:700,letterSpacing:'-0.5px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>GIF</button>
+                      <button title="Emoji" style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                      </button>
+                      <button title="Insert link" onClick={()=>setShowLinkPopup(s=>!s)} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                      </button>
+                      <div style={{width:8,height:8,borderRadius:'50%',background:'var(--accent)',marginLeft:2}}/>
+                      {showLinkPopup && (
+                        <div style={{position:'absolute',bottom:'100%',left:0,marginBottom:8,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:14,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:300}}>
+                          <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Insert Link</div>
+                          <input id="link-disp-1" placeholder="Display text (e.g. Register Here)" autoFocus style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:8,boxSizing:'border-box',outline:'none'}}/>
+                          <input id="link-url-1" placeholder="https://..." style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:10,boxSizing:'border-box',outline:'none'}}/>
+                          <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+                            <button onClick={()=>setShowLinkPopup(false)} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'5px 12px',color:'var(--muted)',cursor:'pointer',fontSize:12}}>Cancel</button>
+                            <button onClick={()=>{const d=document.getElementById('link-disp-1').value.trim();const u=document.getElementById('link-url-1').value.trim();if(!u)return;setNewUpdate(v=>v+(d?`[${d}](${u})`:u));setShowLinkPopup(false);}} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'5px 12px',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>Insert</button>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  ))}
+                    <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Update'}</button>
+                  </div>
                 </div>
-              )}
-            </div>
+                {mentionOpen && filteredMembers.length>0 && (
+                  <div style={{ position:'fixed', top:mentionPos.top, left:mentionPos.left, transform:'translateY(-100%)', zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 8px 32px rgba(0,0,0,.4)', minWidth:220, overflow:'hidden' }}>
+                    <div style={{ padding:'6px 10px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em' }}>Team Members</div>
+                    {filteredMembers.slice(0,6).map(m=>(
+                      <div key={m.id} onMouseDown={e=>{ e.preventDefault(); insertMention(m); }}
+                        style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', cursor:'pointer' }}
+                        onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.15)'}
+                        onMouseOut={e=>e.currentTarget.style.background=''}>
+                        <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff' }}>{m.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}</div>
+                        <div>
+                          <div style={{ fontSize:13, fontWeight:600 }}>{m.full_name}</div>
+                          <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             {updates.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No updates yet — be the first to post!</div>}
             {/* Group updates: top-level first, replies nested under their parent */}
             {updates.filter(u=>!u.body.startsWith('↩ ')).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(u=>(
@@ -4207,83 +4218,69 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
         {tab==='updates' && (
           <div>
             {/* Post box */}
-            <div style={{ background:'var(--surface2)', borderRadius:10, padding:14, marginBottom:20, border:'1px solid var(--border)', position:'relative' }}>
-              <div style={{ display:'flex', gap:10, marginBottom:8 }}>
-                <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(profile.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(profile.full_name)}</div>
-                <textarea ref={textareaRef} rows={3} value={newUpdate} onChange={handleTextChange}
-                  placeholder="Write an update... paste a link, type @ to mention"
-                  onKeyDown={e=>{
-                    if(mentionOpen) {
-                      if(e.key==='Escape') { setMentionOpen(false); return; }
-                      if(e.key==='ArrowDown'||e.key==='ArrowUp') { e.preventDefault(); return; }
-                      if(e.key==='Enter' && filteredMembers.length>0) { e.preventDefault(); insertMention(filteredMembers[0]); return; }
-                    }
-                    if(e.key==='Enter'&&e.ctrlKey) postUpdate();
-                  }}
-                  style={{ flex:1, resize:'vertical', background:'transparent', border:'none', outline:'none', fontSize:13, color:'var(--text)', lineHeight:1.6 }} />
-              </div>
-              <div style={{display:'flex',alignItems:'center',gap:4,marginTop:6,position:'relative'}}>
-                  <button title="Mention someone" onClick={()=>{const ta=textareaRef.current;ta.focus();setNewUpdate(v=>v+'@');}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
-                  </button>
-                  <button title="Insert link" onClick={()=>setShowLinkPopup(s=>!s)} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                  </button>
-                  {showLinkPopup && (
-                    <div style={{position:'absolute',top:'100%',left:0,marginTop:6,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:14,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:300}}>
-                      <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Insert Link</div>
-                      <input id="link-disp-1" placeholder="Display text (e.g. Register Here)" autoFocus style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:8,boxSizing:'border-box',outline:'none'}}/>
-                      <input id="link-url-1" placeholder="https://..." style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:10,boxSizing:'border-box',outline:'none'}}/>
-                      <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-                        <button onClick={()=>setShowLinkPopup(false)} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'5px 12px',color:'var(--muted)',cursor:'pointer',fontSize:12}}>Cancel</button>
-                        <button onClick={()=>{const d=document.getElementById('link-disp-1').value.trim();const u=document.getElementById('link-url-1').value.trim();if(!u)return;setNewUpdate(v=>v+(d?`[${d}](${u})`:u));setShowLinkPopup(false);}} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'5px 12px',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>Insert</button>
-                      </div>
-                    </div>
-                  )}
+<div style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:20 }}>
+                <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(profile.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', flexShrink:0, marginTop:2 }}>
+                  {profile.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}
                 </div>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:11, color:'var(--muted)' }}>Type <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>@</kbd> to mention · <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>Ctrl+Enter</kbd> to post</span>
-                <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Post Update'}</button>
-              </div>
-
-              {/* @ Mention dropdown */}
-              {mentionOpen && filteredMembers.length>0 && (
-                <div style={{ position:'fixed', bottom: window.innerHeight - mentionPos.top + 8, left: mentionPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, width:240, boxShadow:'0 8px 24px rgba(0,0,0,.4)', overflow:'hidden' }}>
-                  <div style={{ padding:'6px 10px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em', borderBottom:'1px solid var(--border)', background:'var(--surface2)' }}>
-                    Team Members
+                <div style={{ flex:1, border:'1px solid var(--border)', borderRadius:10, padding:'10px 12px', background:'var(--surface2)', transition:'border-color .15s' }}
+                  onFocusCapture={e=>e.currentTarget.style.borderColor='var(--accent)'}
+                  onBlurCapture={e=>e.currentTarget.style.borderColor='var(--border)'}>
+                  <textarea ref={textareaRef} rows={3} value={newUpdate} onChange={handleTextChange}
+                    placeholder="Write an update... paste a link, type @ to mention"
+                    onKeyDown={e=>{
+                      if(mentionOpen){ if(e.key==='Escape'){setMentionOpen(false);return;} if(e.key==='Enter'&&filteredMembers.length>0){e.preventDefault();insertMention(filteredMembers[0]);return;} }
+                      if(e.key==='Enter'&&e.ctrlKey) postUpdate();
+                    }}
+                    style={{ width:'100%', resize:'vertical', background:'transparent', border:'none', outline:'none', fontSize:13, color:'var(--text)', fontFamily:'inherit', lineHeight:1.6, minHeight:60, boxSizing:'border-box' }}/>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:2, position:'relative' }}>
+                      <button title="Mention" onClick={()=>{textareaRef.current?.focus();setNewUpdate(v=>v+'@');}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
+                      </button>
+                      <button title="Attach file" style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                      </button>
+                      <button style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,fontSize:11,fontWeight:700,letterSpacing:'-0.5px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>GIF</button>
+                      <button title="Emoji" style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+                      </button>
+                      <button title="Insert link" onClick={()=>setShowLinkPopup(s=>!s)} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                      </button>
+                      <div style={{width:8,height:8,borderRadius:'50%',background:'var(--accent)',marginLeft:2}}/>
+                      {showLinkPopup && (
+                        <div style={{position:'absolute',bottom:'100%',left:0,marginBottom:8,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:14,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:300}}>
+                          <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Insert Link</div>
+                          <input id="link-disp-1" placeholder="Display text (e.g. Register Here)" autoFocus style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:8,boxSizing:'border-box',outline:'none'}}/>
+                          <input id="link-url-1" placeholder="https://..." style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:10,boxSizing:'border-box',outline:'none'}}/>
+                          <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
+                            <button onClick={()=>setShowLinkPopup(false)} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'5px 12px',color:'var(--muted)',cursor:'pointer',fontSize:12}}>Cancel</button>
+                            <button onClick={()=>{const d=document.getElementById('link-disp-1').value.trim();const u=document.getElementById('link-url-1').value.trim();if(!u)return;setNewUpdate(v=>v+(d?`[${d}](${u})`:u));setShowLinkPopup(false);}} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'5px 12px',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>Insert</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Update'}</button>
                   </div>
-                  {filteredMembers.slice(0,6).map(m=>(
-                    <div key={m.id} onMouseDown={e=>{ e.preventDefault(); insertMention(m); }}
-                      style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', cursor:'pointer' }}
-                      onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.15)'}
-                      onMouseOut={e=>e.currentTarget.style.background=''}>
-                      <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, flexShrink:0 }}>{initials(m.full_name)}</div>
-                      <div>
-                        <div style={{ fontSize:13, fontWeight:600 }}>{m.full_name}</div>
-                        <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
+                </div>
+                {mentionOpen && filteredMembers.length>0 && (
+                  <div style={{ position:'fixed', top:mentionPos.top, left:mentionPos.left, transform:'translateY(-100%)', zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 8px 32px rgba(0,0,0,.4)', minWidth:220, overflow:'hidden' }}>
+                    <div style={{ padding:'6px 10px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em' }}>Team Members</div>
+                    {filteredMembers.slice(0,6).map(m=>(
+                      <div key={m.id} onMouseDown={e=>{ e.preventDefault(); insertMention(m); }}
+                        style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', cursor:'pointer' }}
+                        onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.15)'}
+                        onMouseOut={e=>e.currentTarget.style.background=''}>
+                        <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff' }}>{m.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}</div>
+                        <div>
+                          <div style={{ fontSize:13, fontWeight:600 }}>{m.full_name}</div>
+                          <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {updates.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No updates yet — be the first to post!</div>}
-            {updates.map(u=>(
-              <div key={u.id} style={{ display:'flex', gap:10, marginBottom:16 }}>
-                <div style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(u.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(u.author_name||'?')}</div>
-                <div style={{ flex:1 }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:5 }}>
-                    <span style={{ fontWeight:700, fontSize:13 }}>{u.author_name}</span>
-                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <span style={{ fontSize:11, color:'var(--muted)' }}>{new Date(u.created_at).toLocaleString()}</span>
-                      {u.author_id===profile.id && <button onClick={()=>deleteUpdate(u.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:13, padding:0 }}>×</button>}
-                    </div>
+                    ))}
                   </div>
-                  <div style={{ background:'var(--surface2)', borderRadius:8, padding:'10px 14px', fontSize:13, lineHeight:1.7, whiteSpace:'pre-wrap', border:'1px solid var(--border)' }}>{renderBody(u.body)}</div>
-                </div>
+                )}
               </div>
-            ))}
           </div>
         )}
 
