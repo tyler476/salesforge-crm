@@ -2288,6 +2288,13 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   const [collapsed, setCollapsed] = useState({});
   const [activeItem, setActiveItem] = useState(null);
   const [itemDetailPanel, setItemDetailPanel] = useState(null);
+
+  // Close detail panel on sidebar navigation
+  React.useEffect(() => {
+    const handler = () => setItemDetailPanel(null);
+    document.addEventListener('closeAllPopups', handler);
+    return () => document.removeEventListener('closeAllPopups', handler);
+  }, []);
   const [updateCounts, setUpdateCounts] = useState({});
   const [search, setSearch] = useState(null);
   const [filterOfficer, setFilterOfficer] = useState('');
@@ -3127,6 +3134,10 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
 
       {/* Item Detail Panel */}
       {itemDetailPanel && (
+        <div
+          style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.3)' }}
+          onMouseDown={(e) => { if(e.target===e.currentTarget) setItemDetailPanel(null); }}
+        >
         <ItemDetailPanel
           item={itemDetailPanel}
           group={groups.find(g=>g.id===itemDetailPanel.group_id)}
@@ -3142,6 +3153,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
             setItemDetailPanel(prev=>({...prev,[field]:val}));
           }}
         />
+        </div>
       )}
       {/* Input Modal */}
       {inputModal && <InputModal title={inputModal.title} placeholder={inputModal.placeholder} defaultValue={inputModal.defaultValue||''} onConfirm={inputModal.onConfirm} onClose={()=>setInputModal(null)} />}
