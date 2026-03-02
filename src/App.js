@@ -3401,7 +3401,15 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   };
 
   const loadUpdates = async () => {
-    const { data } = await supabase.from('workspace_updates').select('*').eq('item_id', item.id).order('created_at', { ascending: false });
+    let allUpdates = [], from = 0, batchSize = 1000;
+    while(true) {
+      const { data: batch } = await supabase.from('workspace_updates').select('*').eq('item_id', item.id).order('created_at', { ascending: false }).range(from, from + batchSize - 1);
+      if(!batch || batch.length === 0) break;
+      allUpdates = [...allUpdates, ...batch];
+      if(batch.length < batchSize) break;
+      from += batchSize;
+    }
+    const data = allUpdates;
     setUpdates(data||[]);
   };
 
@@ -3516,8 +3524,24 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   const filteredMembers = teamMembers.filter(m=> m.id !== profile.id && (mentionSearch==='' || m.full_name.toLowerCase().includes(mentionSearch)));
 
   const renderBody = (body) => {
-    const parts = body.split(/(@[a-zA-Z][a-zA-Z0-9 ]*)/g);
-    return parts.map((part,i)=>{ if(part.startsWith('@')) return <span key={i} style={{ color:'var(--accent)', fontWeight:600 }}>{part}</span>; return part; });
+    if(!body) return null;
+    // Split on URLs and @mentions
+    const parts = body.split(/(https?:\/\/[^\s]+|@[a-zA-Z][a-zA-Z0-9 ]*)/g);
+    return parts.map((part, i) => {
+      if(/^https?:\/\//.test(part)) {
+        // Clean trailing punctuation from URL
+        const clean = part.replace(/[.,;!?)'"]+$/, '');
+        const trail = part.slice(clean.length);
+        let display = clean;
+        try { display = new URL(clean).hostname + (new URL(clean).pathname !== '/' ? '...' : ''); } catch(e) {}
+        return <React.Fragment key={i}><a href={clean} target="_blank" rel="noopener noreferrer"
+          style={{color:'var(--accent)',textDecoration:'underline',wordBreak:'break-all'}}>{clean}</a>{trail}</React.Fragment>;
+      }
+      if(part.startsWith('@')) {
+        return <span key={i} style={{color:'var(--accent)',fontWeight:600,background:'rgba(77,142,240,.15)',borderRadius:4,padding:'1px 4px'}}>{part}</span>;
+      }
+      return <React.Fragment key={i}>{part}</React.Fragment>;
+    });
   };
 
   const handleFileUpload = async (e) => {
@@ -3695,7 +3719,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
               <div style={{ display:'flex', gap:10, marginBottom:8 }}>
                 <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(profile.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(profile.full_name)}</div>
                 <textarea ref={textareaRef} rows={3} value={newUpdate} onChange={handleTextChange}
-                  placeholder="Write an update... type @ to mention a teammate"
+                  placeholder="Write an update... paste a link, type @ to mention"
                   onKeyDown={e=>{
                     if(mentionOpen){ if(e.key==='Escape'){setMentionOpen(false);return;} if(e.key==='Enter'&&filteredMembers.length>0){e.preventDefault();insertMention(filteredMembers[0]);return;} }
                     if(e.key==='Enter'&&e.ctrlKey) postUpdate();
@@ -3915,17 +3939,36 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
 
   // Render update body with highlighted @mentions
   const renderBody = (body) => {
-    const parts = body.split(/(@[a-zA-Z][a-zA-Z0-9 ]*)/g);
-    return parts.map((part,i)=>{
-      if(part.startsWith('@') && teamMembers.some(m=>'@'+m.full_name===part.trim()||body.includes(part))) {
-        return <span key={i} style={{ color:'var(--accent)', fontWeight:600 }}>{part}</span>;
+    if(!body) return null;
+    // Split on URLs and @mentions
+    const parts = body.split(/(https?:\/\/[^\s]+|@[a-zA-Z][a-zA-Z0-9 ]*)/g);
+    return parts.map((part, i) => {
+      if(/^https?:\/\//.test(part)) {
+        // Clean trailing punctuation from URL
+        const clean = part.replace(/[.,;!?)'"]+$/, '');
+        const trail = part.slice(clean.length);
+        let display = clean;
+        try { display = new URL(clean).hostname + (new URL(clean).pathname !== '/' ? '...' : ''); } catch(e) {}
+        return <React.Fragment key={i}><a href={clean} target="_blank" rel="noopener noreferrer"
+          style={{color:'var(--accent)',textDecoration:'underline',wordBreak:'break-all'}}>{clean}</a>{trail}</React.Fragment>;
       }
-      return part;
+      if(part.startsWith('@')) {
+        return <span key={i} style={{color:'var(--accent)',fontWeight:600,background:'rgba(77,142,240,.15)',borderRadius:4,padding:'1px 4px'}}>{part}</span>;
+      }
+      return <React.Fragment key={i}>{part}</React.Fragment>;
     });
   };
 
   const loadUpdates = async () => {
-    const {data} = await supabase.from('workspace_updates').select('*').eq('item_id', item.id).order('created_at', {ascending:false});
+    let allUpdates2 = [], from2 = 0, batchSize2 = 1000;
+    while(true) {
+      const { data: batch2 } = await supabase.from('workspace_updates').select('*').eq('item_id', item.id).order('created_at', {ascending:false}).range(from2, from2 + batchSize2 - 1);
+      if(!batch2 || batch2.length === 0) break;
+      allUpdates2 = [...allUpdates2, ...batch2];
+      if(batch2.length < batchSize2) break;
+      from2 += batchSize2;
+    }
+    const data = allUpdates2;
     setUpdates(data||[]);
   };
 
@@ -4020,7 +4063,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
               <div style={{ display:'flex', gap:10, marginBottom:8 }}>
                 <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(profile.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(profile.full_name)}</div>
                 <textarea ref={textareaRef} rows={3} value={newUpdate} onChange={handleTextChange}
-                  placeholder="Write an update... type @ to mention a teammate"
+                  placeholder="Write an update... paste a link, type @ to mention"
                   onKeyDown={e=>{
                     if(mentionOpen) {
                       if(e.key==='Escape') { setMentionOpen(false); return; }
