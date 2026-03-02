@@ -2144,34 +2144,39 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidad
   },[]);
 
   const startEdit = (field) => { setEditingField(field); setEditVal(sub[field]||''); };
-  const saveField = async (field) => {
-    await supabase.from('workspace_items').update({[field]: editVal}).eq('id', sub.id);
-    setSubItems(p=>({...p, [item.id]: (p[item.id]||[]).map(x=>x.id===sub.id ? {...x,[field]:editVal} : x)}));
+  const saveField = async (field, val) => {
+    const v = val !== undefined ? val : editVal;
+    await supabase.from('workspace_items').update({[field]: v}).eq('id', sub.id);
+    setSubItems(p=>({...p, [item.id]: (p[item.id]||[]).map(x=>x.id===sub.id ? {...x,[field]:v} : x)}));
     setEditingField(null);
   };
-  const cellProps = (field) => ({
-    onClick: e => { e.stopPropagation(); startEdit(field); },
-    style: { padding:'4px 8px', cursor:'text' }
-  });
-  const renderCell = (field, display, type='text') => editingField===field
-    ? <input autoFocus type={type} value={editVal}
-        onChange={e=>setEditVal(e.target.value)}
-        onBlur={()=>saveField(field)}
-        onKeyDown={e=>{ if(e.key==='Enter') saveField(field); if(e.key==='Escape') setEditingField(null); }}
-        style={{width:'100%',background:'transparent',border:'none',borderBottom:'1px solid var(--accent)',color:'var(--text)',fontSize:12,outline:'none',padding:'1px 0'}}/>
-    : <span style={{fontSize:12,display:'block',minWidth:30}}>{display||'—'}</span>;
+
+  // Inline editable cell — click to edit, Enter/blur to save
+  const Cell = ({field, display, type='text'}) => (
+    <td onClick={e=>{e.stopPropagation(); startEdit(field);}} style={{padding:'4px 8px', cursor:'text'}}>
+      {editingField===field
+        ? <input autoFocus type={type} value={editVal}
+            onChange={e=>setEditVal(e.target.value)}
+            onBlur={()=>saveField(field)}
+            onKeyDown={e=>{ if(e.key==='Enter') saveField(field); if(e.key==='Escape') setEditingField(null); }}
+            style={{width:'100%',background:'transparent',border:'none',borderBottom:'1px solid var(--accent)',color:'var(--text)',fontSize:12,outline:'none',padding:'1px 0'}}/>
+        : <span style={{fontSize:12,display:'block',minWidth:30,color:'var(--text)'}}>{display||'—'}</span>
+      }
+    </td>
+  );
 
   const owners   = sub.assigned_officers||[];
   const updCount = (updateCounts||{})[sub.id]||0;
 
   return (
     <tr style={{background:'rgba(0,0,0,.05)',borderBottom:'1px solid var(--border)'}}>
-      {/* checkbox col */}
+
+      {/* col1: dot indicator */}
       <td style={{padding:'4px 10px',paddingLeft:36,textAlign:'center'}}>
         <div style={{width:8,height:8,borderRadius:'50%',background:'var(--border)',margin:'0 auto'}}/>
       </td>
 
-      {/* name */}
+      {/* col2: name */}
       <td style={{padding:'4px 10px',paddingLeft:24,cursor:'text'}} onClick={e=>{e.stopPropagation();startEdit('name');}}>
         <div style={{display:'flex',alignItems:'center',gap:6}}>
           <span style={{fontSize:12,color:'var(--muted)'}}>↳</span>
@@ -2192,75 +2197,76 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidad
         </div>
       </td>
 
-      {/* owner */}
-      <td style={{padding:'4px 10px',position:'relative'}} onClick={e=>e.stopPropagation()}>
-        <div ref={assignRef} style={{position:'relative'}}>
-          <div onClick={()=>setShowAssign(s=>!s)} style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer',minWidth:60}}>
-            {owners.length===0
-              ? <span style={{fontSize:11,color:'var(--muted)',padding:'2px 8px',borderRadius:12,border:'1px dashed var(--border)',whiteSpace:'nowrap'}}>+ Owner</span>
-              : owners.slice(0,2).map((o,oi)=>(
-                  <div key={oi} style={{width:24,height:24,borderRadius:'50%',background:avatarColor(o),display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:700,color:'#fff',border:'2px solid var(--surface)',marginLeft:oi?-6:0}} title={o}>
-                    {o.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}
-                  </div>
-                ))
-            }
-          </div>
-          {showAssign&&(
-            <div style={{position:'absolute',top:'100%',left:0,zIndex:9999,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:8,boxShadow:'0 8px 24px rgba(0,0,0,.4)',minWidth:180,marginTop:4}}>
-              {teamMembers.map(m=>(
-                <div key={m.id}
-                  onClick={async()=>{const cur=sub.assigned_officers||[];const next=cur.includes(m.full_name)?cur.filter(x=>x!==m.full_name):[...cur,m.full_name];await supabase.from('workspace_items').update({assigned_officers:next}).eq('id',sub.id);setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(x=>x.id===sub.id?{...x,assigned_officers:next}:x)}));}}
-                  style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderRadius:4,cursor:'pointer',background:owners.includes(m.full_name)?'rgba(77,142,240,.15)':'transparent'}}
-                  onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.07)'}
-                  onMouseOut={e=>e.currentTarget.style.background=owners.includes(m.full_name)?'rgba(77,142,240,.15)':'transparent'}>
-                  <div style={{width:24,height:24,borderRadius:'50%',background:avatarColor(m.full_name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'#fff'}}>{m.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}</div>
-                  <span style={{fontSize:12}}>{m.full_name}</span>
-                  {owners.includes(m.full_name)&&<span style={{marginLeft:'auto',color:'var(--accent)'}}>✓</span>}
-                </div>
-              ))}
+      {/* col3: owner — only for non-Trinidad (matches main row) */}
+      {!isTrinidadWs && (
+        <td style={{padding:'4px 10px',position:'relative'}} onClick={e=>e.stopPropagation()}>
+          <div ref={assignRef} style={{position:'relative'}}>
+            <div onClick={()=>setShowAssign(s=>!s)} style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer',minWidth:60}}>
+              {owners.length===0
+                ? <span style={{fontSize:11,color:'var(--muted)',padding:'2px 8px',borderRadius:12,border:'1px dashed var(--border)',whiteSpace:'nowrap'}}>+ Owner</span>
+                : owners.slice(0,2).map((o,oi)=>(
+                    <div key={oi} style={{width:24,height:24,borderRadius:'50%',background:avatarColor(o),display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:700,color:'#fff',border:'2px solid var(--surface)',marginLeft:oi?-6:0}} title={o}>
+                      {o.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}
+                    </div>
+                  ))
+              }
             </div>
-          )}
-        </div>
-      </td>
-
-      {/* status */}
-      <td style={{padding:'4px 10px',position:'relative'}} onClick={e=>e.stopPropagation()}>
-        <div ref={statusRef} style={{position:'relative'}}>
-          <div onClick={()=>setShowStatus(s=>!s)}
-            style={{display:'inline-flex',alignItems:'center',background:sub.status_color||'rgba(77,142,240,.2)',color:'#fff',padding:'3px 10px',borderRadius:4,fontSize:11,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap',minWidth:80,justifyContent:'center'}}>
-            {sub.status||'Set status'}
-          </div>
-          {showStatus&&(
-            <div style={{position:'absolute',top:'100%',left:0,zIndex:9999,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:10,boxShadow:'0 8px 32px rgba(0,0,0,.4)',width:300,maxHeight:320,overflowY:'auto',marginTop:4}}>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
-                {statuses.map(s=>(
-                  <div key={s.id}
-                    onClick={async()=>{await supabase.from('workspace_items').update({status:s.label,status_color:s.color}).eq('id',sub.id);setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(x=>x.id===sub.id?{...x,status:s.label,status_color:s.color}:x)}));setShowStatus(false);}}
-                    style={{background:s.color,color:'#fff',padding:'6px 8px',borderRadius:5,cursor:'pointer',fontSize:11,fontWeight:600,textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',border:sub.status===s.label?'2px solid #fff':'2px solid transparent'}}
-                    title={s.label}>{s.label}
+            {showAssign&&(
+              <div style={{position:'absolute',top:'100%',left:0,zIndex:9999,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:8,boxShadow:'0 8px 24px rgba(0,0,0,.4)',minWidth:180,marginTop:4}}>
+                {teamMembers.map(m=>(
+                  <div key={m.id}
+                    onClick={async()=>{const cur=sub.assigned_officers||[];const next=cur.includes(m.full_name)?cur.filter(x=>x!==m.full_name):[...cur,m.full_name];await supabase.from('workspace_items').update({assigned_officers:next}).eq('id',sub.id);setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(x=>x.id===sub.id?{...x,assigned_officers:next}:x)}));}}
+                    style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderRadius:4,cursor:'pointer',background:owners.includes(m.full_name)?'rgba(77,142,240,.15)':'transparent'}}
+                    onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.07)'}
+                    onMouseOut={e=>e.currentTarget.style.background=owners.includes(m.full_name)?'rgba(77,142,240,.15)':'transparent'}>
+                    <div style={{width:24,height:24,borderRadius:'50%',background:avatarColor(m.full_name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'#fff'}}>{m.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}</div>
+                    <span style={{fontSize:12}}>{m.full_name}</span>
+                    {owners.includes(m.full_name)&&<span style={{marginLeft:'auto',color:'var(--accent)'}}>✓</span>}
                   </div>
                 ))}
               </div>
-            </div>
-          )}
-        </div>
-      </td>
+            )}
+          </div>
+        </td>
+      )}
 
-      {/* data columns */}
+      {/* data columns — match main row exactly */}
       {isTrinidadWs ? (<>
-        <td {...cellProps('deal_value')}>{renderCell('deal_value', sub.deal_value?'$'+Number(sub.deal_value).toLocaleString():'')}</td>
-        <td {...cellProps('date')}>{renderCell('date', sub.date?sub.date.split('T')[0]:'', 'date')}</td>
-        <td {...cellProps('loan_amount')}>{renderCell('loan_amount', sub.loan_amount?'$'+Number(sub.loan_amount).toLocaleString():'')}</td>
-        <td {...cellProps('mortgage_rate')}>{renderCell('mortgage_rate', sub.mortgage_rate?sub.mortgage_rate+'%':'')}</td>
-        <td {...cellProps('lender')}>{renderCell('lender', sub.lender)}</td>
-        <td {...cellProps('phone')}>{renderCell('phone', sub.phone)}</td>
-        <td {...cellProps('alt_phone')}>{renderCell('alt_phone', sub.alt_phone)}</td>
+        <Cell field="deal_value"    display={sub.deal_value    ? '$'+Number(sub.deal_value).toLocaleString()    : ''} />
+        <Cell field="date"          display={sub.date          ? sub.date.split('T')[0]                         : ''} type="date" />
+        <Cell field="loan_amount"   display={sub.loan_amount   ? '$'+Number(sub.loan_amount).toLocaleString()   : ''} />
+        <Cell field="mortgage_rate" display={sub.mortgage_rate ? sub.mortgage_rate+'%'                          : ''} />
+        <Cell field="lender"        display={sub.lender||''} />
+        <Cell field="phone"         display={sub.phone||''} />
+        <Cell field="alt_phone"     display={sub.alt_phone||''} />
       </>) : (<>
-        <td {...cellProps('priority')}>{renderCell('priority', sub.priority)}</td>
-        <td {...cellProps('date')}>{renderCell('date', sub.date?sub.date.split('T')[0]:'', 'date')}</td>
-        <td {...cellProps('lender')}>{renderCell('lender', sub.lender)}</td>
-        <td {...cellProps('loan_officer')}>{renderCell('loan_officer', sub.loan_officer)}</td>
-        <td {...cellProps('processor')}>{renderCell('processor', sub.processor)}</td>
+        {/* status — only for non-Trinidad */}
+        <td style={{padding:'4px 10px',position:'relative'}} onClick={e=>e.stopPropagation()}>
+          <div ref={statusRef} style={{position:'relative'}}>
+            <div onClick={()=>setShowStatus(s=>!s)}
+              style={{display:'inline-flex',alignItems:'center',background:sub.status_color||'rgba(77,142,240,.2)',color:'#fff',padding:'3px 10px',borderRadius:4,fontSize:11,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap',minWidth:80,justifyContent:'center'}}>
+              {sub.status||'Set status'}
+            </div>
+            {showStatus&&(
+              <div style={{position:'absolute',top:'100%',left:0,zIndex:9999,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:10,boxShadow:'0 8px 32px rgba(0,0,0,.4)',width:300,maxHeight:320,overflowY:'auto',marginTop:4}}>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
+                  {statuses.map(s=>(
+                    <div key={s.id}
+                      onClick={async()=>{await supabase.from('workspace_items').update({status:s.label,status_color:s.color}).eq('id',sub.id);setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(x=>x.id===sub.id?{...x,status:s.label,status_color:s.color}:x)}));setShowStatus(false);}}
+                      style={{background:s.color,color:'#fff',padding:'6px 8px',borderRadius:5,cursor:'pointer',fontSize:11,fontWeight:600,textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',border:sub.status===s.label?'2px solid #fff':'2px solid transparent'}}
+                      title={s.label}>{s.label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </td>
+        <Cell field="priority"     display={sub.priority||''} />
+        <Cell field="date"         display={sub.date ? sub.date.split('T')[0] : ''} type="date" />
+        <Cell field="lender"       display={sub.lender||''} />
+        <Cell field="loan_officer" display={sub.loan_officer||''} />
+        <Cell field="processor"    display={sub.processor||''} />
         <td colSpan={99}></td>
       </>)}
 
