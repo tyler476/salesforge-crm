@@ -2138,7 +2138,7 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidad
     ? <input autoFocus type={type} value={editVal} onChange={e=>setEditVal(e.target.value)}
         onBlur={()=>saveField(field)} onKeyDown={e=>{if(e.key==='Enter')saveField(field);if(e.key==='Escape')setEditingField(null);}}
         style={{background:'transparent',border:'none',borderBottom:'1px solid var(--accent)',color:'var(--text)',fontSize:12,width:'100%',outline:'none',padding:'1px 0'}}/>
-    : <span onDoubleClick={()=>{setEditingField(field);setEditVal(sub[field]||'');}} style={{cursor:'text',fontSize:12,display:'block',minWidth:40}}>{fmt?fmt(sub[field]):sub[field]||'—'}</span>;
+    : <span onClick={()=>{setEditingField(field);setEditVal(sub[field]||'');}} style={{cursor:'text',fontSize:12,display:'block',minWidth:40}}>{fmt?fmt(sub[field]):sub[field]||'—'}</span>;
   const [showStatus, setShowStatus] = useState(false);
   const [showAssign, setShowAssign] = useState(false);
   const statusRef = React.useRef();
@@ -2168,7 +2168,7 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidad
           <span style={{fontSize:12,color:'var(--muted)'}}>↳</span>
           <div style={{flex:1}}>{editingField==='name'
             ?<input autoFocus value={editVal} onChange={e=>setEditVal(e.target.value)} onBlur={()=>saveField('name')} onKeyDown={e=>{if(e.key==='Enter')saveField('name');if(e.key==='Escape')setEditingField(null);}} style={{background:'transparent',border:'none',borderBottom:'1px solid var(--accent)',color:'var(--text)',fontSize:13,width:'100%',outline:'none',fontWeight:500}}/>
-            :<span onDoubleClick={()=>{setEditingField('name');setEditVal(sub.name||'');}} style={{fontSize:13,cursor:'text'}}>{sub.name}</span>
+            :<span onClick={()=>{setEditingField('name');setEditVal(sub.name||'');}} style={{fontSize:13,cursor:'text'}}>{sub.name}</span>
           }</div>
           <button onClick={e=>{e.stopPropagation();setItemDetailPanel(sub);}}
             style={{background:'none',border:'none',color:updCount>0?'var(--accent)':'var(--muted)',cursor:'pointer',padding:'2px 4px',display:'flex',alignItems:'center',gap:2}}>
@@ -2231,19 +2231,19 @@ function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidad
       </td>
       {/* Trinidad extra cols or regular spacer */}
       {isTrinidadWs ? (<>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="deal_value" fmt={v=>v?'$'+Number(v).toLocaleString():''}/></td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="date" type="date" fmt={v=>v?v.split('T')[0]:''}/></td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="loan_amount" fmt={v=>v?'$'+Number(v).toLocaleString():''}/></td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="mortgage_rate" fmt={v=>v?v+'%':''}/></td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="lender"/></td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="phone"/></td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="alt_phone"/></td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{EditField({field:'deal_value', fmt:v=>v?'$'+Number(v).toLocaleString():''})}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{EditField({field:'date', type:'date', fmt:v=>v?v.split('T')[0]:''})}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{EditField({field:'loan_amount', fmt:v=>v?'$'+Number(v).toLocaleString():''})}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{EditField({field:'mortgage_rate', fmt:v=>v?v+'%':''})}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{EditField({field:'lender'})}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{EditField({field:'phone'})}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{EditField({field:'alt_phone'})}</td>
       </>) : (<>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="priority" fmt={v=>v||''}/></td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="date" type="date" fmt={v=>v?v.split('T')[0]:''}/></td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="lender"/></td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="loan_officer"/></td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}><EditField field="processor"/></td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{EditField({field:'priority', fmt:v=>v||''})}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{EditField({field:'date', type:'date', fmt:v=>v?v.split('T')[0]:''})}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{EditField({field:'lender'})}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{EditField({field:'loan_officer'})}</td>
+        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{EditField({field:'processor'})}</td>
         <td colSpan={99} style={{padding:'4px 8px'}}></td>
       </>)}
       {/* Delete */}
