@@ -9153,7 +9153,7 @@ export default function App() {
       {/* Contact Drawer */}
       {selectedContact && (
         <div
-          style={{ position:'fixed', inset:0, zIndex:899, background:'rgba(0,0,0,0.3)' }}
+          style={{ position:'fixed', inset:0, zIndex:199, background:'rgba(0,0,0,0.3)' }}
           onMouseDown={(e) => { if(e.target===e.currentTarget) setSelectedContact(null); }}
         />
       )}
