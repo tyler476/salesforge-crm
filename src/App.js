@@ -8930,6 +8930,31 @@ export default function App() {
     return ()=>window.removeEventListener('openMISMOImport', h);
   }, []);
 
+  // Close all slide-out panels on navigation
+  useEffect(()=>{
+    const handler = () => {
+      setSelectedContact(null);
+      setPresContact(null);
+      setPricingOpen(false);
+    };
+    document.addEventListener('closeAllPopups', handler);
+    return () => document.removeEventListener('closeAllPopups', handler);
+  }, []);
+
+  // Global Escape key closes any open panel/drawer
+  useEffect(()=>{
+    const handler = (e) => {
+      if(e.key === 'Escape') {
+        if(selectedContact) { setSelectedContact(null); return; }
+        if(pricingOpen) { setPricingOpen(false); return; }
+        if(presContact) { setPresContact(null); return; }
+        if(showForm) { setShowForm(false); setEditContact(null); return; }
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [selectedContact, pricingOpen, presContact, showForm]);
+
   // Browser history navigation
   const setView = useCallback((newView, workspace=null) => {
     const state = { view: newView, workspaceId: workspace?.id||null, workspaceName: workspace?.name||null };
@@ -9126,6 +9151,12 @@ export default function App() {
       </div>
 
       {/* Contact Drawer */}
+      {selectedContact && (
+        <div
+          style={{ position:'fixed', inset:0, zIndex:899, background:'rgba(0,0,0,0.3)' }}
+          onMouseDown={(e) => { if(e.target===e.currentTarget) setSelectedContact(null); }}
+        />
+      )}
       <ContactDrawer
         contact={selectedContact}
         onClose={()=>setSelectedContact(null)}
@@ -9196,6 +9227,12 @@ export default function App() {
       />}
 
       {/* Pricing Engine Panel */}
+      {pricingOpen && (
+        <div
+          style={{ position:'fixed', inset:0, zIndex:899, background:'rgba(0,0,0,0.3)' }}
+          onMouseDown={(e) => { if(e.target===e.currentTarget) setPricingOpen(false); }}
+        />
+      )}
       {pricingOpen && <PricingEnginePanel
         onClose={()=>setPricingOpen(false)}
         onApplyRate={rateData=>{ setPricingRate(rateData); toast('Rate applied — open Build Presentation to use it'); }}
