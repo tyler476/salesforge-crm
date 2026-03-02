@@ -3321,6 +3321,83 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
 
 // ─── UPDATES PANEL ────────────────────────────────────────────────────────────
 // ─── ITEM DETAIL PANEL ───────────────────────────────────────────────────────
+// ── Emoji Picker ─────────────────────────────────────────────────────────
+const EMOJI_DATA = {
+  'Smileys': ['😀','😂','🤣','😅','😊','🥰','😍','😘','😎','🤩','🥳','😤','😭','😱','😰','🤔','🙄','😏','😒','💀','👻','🤡'],
+  'Gestures': ['👍','👎','👏','🙌','🤝','✌️','🤞','🙏','💪','🫶','🤜','🤛','✊','👊','🫡'],
+  'Hearts': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','❤️‍🔥','💯','✅','⭐','🌟','🔥','💡','🎉','🎊'],
+  'Work': ['📌','📎','🔗','📧','📱','💻','📊','📈','📉','💰','💸','🏆','🥇','🎯','✍️','📝'],
+};
+
+function EmojiPicker({ onSelect, onClose }) {
+  const [tab, setTab] = React.useState('Smileys');
+  return (
+    <div style={{position:'absolute',bottom:'calc(100% + 8px)',left:0,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,boxShadow:'0 8px 32px rgba(0,0,0,.5)',zIndex:9999,width:280,overflow:'hidden'}}
+      onMouseDown={e=>e.stopPropagation()}>
+      <div style={{display:'flex',borderBottom:'1px solid var(--border)',padding:'4px 6px',gap:4}}>
+        {Object.keys(EMOJI_DATA).map(cat=>(
+          <button key={cat} onClick={()=>setTab(cat)} style={{background:tab===cat?'rgba(77,142,240,.2)':'none',border:'none',color:tab===cat?'var(--accent)':'var(--muted)',cursor:'pointer',padding:'4px 8px',borderRadius:6,fontSize:11,fontWeight:600}}>
+            {cat}
+          </button>
+        ))}
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(8,1fr)',gap:2,padding:10,maxHeight:180,overflowY:'auto'}}>
+        {EMOJI_DATA[tab].map(e=>(
+          <button key={e} onClick={()=>{onSelect(e);onClose();}} style={{background:'none',border:'none',cursor:'pointer',fontSize:20,padding:4,borderRadius:6,lineHeight:1}}
+            onMouseOver={ev=>ev.currentTarget.style.background='rgba(255,255,255,.1)'}
+            onMouseOut={ev=>ev.currentTarget.style.background='none'}>
+            {e}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── GIF Picker ────────────────────────────────────────────────────────────
+const GIPHY_KEY = 'dc6zaTOxFJmzC';
+function GifPicker({ onSelect, onClose }) {
+  const [query, setQuery] = React.useState('');
+  const [gifs, setGifs] = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+  React.useEffect(() => { fetchGifs('trending'); }, []);
+  const fetchGifs = async (q) => {
+    setLoading(true);
+    try {
+      const endpoint = q === 'trending'
+        ? `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_KEY}&limit=18&rating=g`
+        : `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=18&rating=g`;
+      const res = await fetch(endpoint);
+      const json = await res.json();
+      setGifs(json.data || []);
+    } catch(e) { setGifs([]); }
+    setLoading(false);
+  };
+  return (
+    <div style={{position:'absolute',bottom:'calc(100% + 8px)',left:0,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,boxShadow:'0 8px 32px rgba(0,0,0,.5)',zIndex:9999,width:320,overflow:'hidden'}}
+      onMouseDown={e=>e.stopPropagation()}>
+      <div style={{padding:'10px 10px 6px',borderBottom:'1px solid var(--border)'}}>
+        <input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==='Enter') fetchGifs(query||'trending');}}
+          placeholder="Search GIFs..."
+          style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,padding:'7px 10px',color:'var(--text)',fontSize:13,outline:'none',boxSizing:'border-box'}}/>
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:4,padding:8,maxHeight:240,overflowY:'auto'}}>
+        {loading && <div style={{gridColumn:'span 3',textAlign:'center',color:'var(--muted)',padding:20,fontSize:13}}>Loading...</div>}
+        {!loading && gifs.length===0 && <div style={{gridColumn:'span 3',textAlign:'center',color:'var(--muted)',padding:20,fontSize:13}}>No results</div>}
+        {gifs.map(g=>(
+          <img key={g.id} src={g.images.fixed_width_small.url} alt={g.title}
+            onClick={()=>{onSelect(g.images.original.url);onClose();}}
+            style={{width:'100%',height:80,objectFit:'cover',borderRadius:6,cursor:'pointer',border:'2px solid transparent'}}
+            onMouseOver={e=>e.currentTarget.style.borderColor='var(--accent)'}
+            onMouseOut={e=>e.currentTarget.style.borderColor='transparent'}/>
+        ))}
+      </div>
+      <div style={{padding:'4px 8px 6px',fontSize:10,color:'var(--muted)',textAlign:'right'}}>Powered by GIPHY</div>
+    </div>
+  );
+}
+
+
 function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, profile, onClose, onUpdate, toast, allGroups }) {
   const [item, setItem] = useState(initialItem);
   const [tab, setTab] = useState('updates');
@@ -3340,6 +3417,11 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showAssignPicker, setShowAssignPicker] = useState(false);
   const [showLinkPopup, setShowLinkPopup] = React.useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = React.useState(false);
+  const [showGifPicker, setShowGifPicker] = React.useState(false);
+  const [showReplyEmoji, setShowReplyEmoji] = React.useState(false);
+  const [showReplyGif, setShowReplyGif] = React.useState(false);
+  const mainFileRef = React.useRef();
   const [replyTo, setReplyTo] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [showReplyLink, setShowReplyLink] = useState(false);
@@ -3772,17 +3854,20 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                       <button title="Mention" onClick={()=>{textareaRef.current?.focus();setNewUpdate(v=>v+'@');}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
                       </button>
-                      <button title="Attach file" style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                      <input ref={mainFileRef} type="file" style={{display:'none'}} onChange={async e=>{ const f=e.target.files[0]; if(!f) return; const path=`items/${item.id}/${Date.now()}_${f.name}`; const {error}=await supabase.storage.from('workspace-files').upload(path,f); if(!error){ const url=supabase.storage.from('workspace-files').getPublicUrl(path).data.publicUrl; setNewUpdate(v=>v+(v?' ':'')+url); } e.target.value=''; }}/>
+                      <button title="Attach file" onClick={()=>mainFileRef.current?.click()} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                       </button>
-                      <button style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,fontSize:11,fontWeight:700,letterSpacing:'-0.5px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>GIF</button>
-                      <button title="Emoji" style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                      <button onClick={()=>{setShowGifPicker(s=>!s);setShowEmojiPicker(false);}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,fontSize:11,fontWeight:700,letterSpacing:'-0.5px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>GIF</button>
+                      <button title="Emoji" onClick={()=>{setShowEmojiPicker(s=>!s);setShowGifPicker(false);}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
                       </button>
                       <button title="Insert link" onClick={()=>setShowLinkPopup(s=>!s)} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                       </button>
                       <div style={{width:8,height:8,borderRadius:'50%',background:'var(--accent)',marginLeft:2}}/>
+                      {showEmojiPicker && <EmojiPicker onSelect={e=>setNewUpdate(v=>v+e)} onClose={()=>setShowEmojiPicker(false)}/>}
+                      {showGifPicker && <GifPicker onSelect={url=>setNewUpdate(v=>v+(v?' ':'')+url)} onClose={()=>setShowGifPicker(false)}/>}
                       {showLinkPopup && (
                         <div style={{position:'absolute',bottom:'100%',left:0,marginBottom:8,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:14,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:300}}>
                           <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Insert Link</div>
@@ -3921,10 +4006,12 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                                 </button>
                                 <input ref={replyFileRef} type="file" style={{display:'none'}} onChange={async e=>{ const f=e.target.files[0]; if(!f) return; const path=`items/${item.id}/${Date.now()}_${f.name}`; const {error}=await supabase.storage.from('workspace-files').upload(path,f); if(!error){ const url=supabase.storage.from('workspace-files').getPublicUrl(path).data.publicUrl; setReplyText(v=>v+(v?' ':'')+url); }}}/>
-                                <button style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,fontSize:11,fontWeight:700,letterSpacing:'-0.5px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>GIF</button>
-                                <button title="Emoji" style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                                <button onClick={()=>{setShowReplyGif(s=>!s);setShowReplyEmoji(false);}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,fontSize:11,fontWeight:700,letterSpacing:'-0.5px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>GIF</button>
+                                <button title="Emoji" onClick={()=>{setShowReplyEmoji(s=>!s);setShowReplyGif(false);}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
                                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
                                 </button>
+                                {showReplyEmoji && <EmojiPicker onSelect={e=>setReplyText(v=>v+e)} onClose={()=>setShowReplyEmoji(false)}/>}
+                                {showReplyGif && <GifPicker onSelect={url=>setReplyText(v=>v+(v?' ':'')+url)} onClose={()=>setShowReplyGif(false)}/>}
                                 <button title="Insert link" onClick={()=>setShowReplyLink(s=>!s)} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
                                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                                 </button>
@@ -4042,6 +4129,9 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
   const [mentionStart, setMentionStart] = useState(0);
   const textareaRef = React.useRef();
   const fileInputRef = React.useRef();
+  const mainFileRef2 = React.useRef();
+  const [showEmojiPicker2, setShowEmojiPicker2] = React.useState(false);
+  const [showGifPicker2, setShowGifPicker2] = React.useState(false);
 
   useEffect(() => {
     loadUpdates(); loadFiles(); buildActivityLog();
@@ -4237,17 +4327,20 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
                       <button title="Mention" onClick={()=>{textareaRef.current?.focus();setNewUpdate(v=>v+'@');}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
                       </button>
-                      <button title="Attach file" style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                      <button title="Attach file" onClick={()=>mainFileRef2.current?.click()} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
                       </button>
-                      <button style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,fontSize:11,fontWeight:700,letterSpacing:'-0.5px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>GIF</button>
-                      <button title="Emoji" style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
+                      <input ref={mainFileRef2} type="file" style={{display:'none'}} onChange={async e=>{ const f=e.target.files[0]; if(!f) return; const path=`items/${item.id}/${Date.now()}_${f.name}`; const {error}=await supabase.storage.from('workspace-files').upload(path,f); if(!error){ const url=supabase.storage.from('workspace-files').getPublicUrl(path).data.publicUrl; setNewUpdate(v=>v+(v?' ':'')+ url); } e.target.value=''; }}/>
+                      <button onClick={()=>{setShowGifPicker2(s=>!s);setShowEmojiPicker2(false);}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,fontSize:11,fontWeight:700,letterSpacing:'-0.5px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>GIF</button>
+                      <button title="Emoji" onClick={()=>{setShowEmojiPicker2(s=>!s);setShowGifPicker2(false);}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
                       </button>
                       <button title="Insert link" onClick={()=>setShowLinkPopup(s=>!s)} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                       </button>
                       <div style={{width:8,height:8,borderRadius:'50%',background:'var(--accent)',marginLeft:2}}/>
+                      {showEmojiPicker2 && <EmojiPicker onSelect={e=>setNewUpdate(v=>v+e)} onClose={()=>setShowEmojiPicker2(false)}/>}
+                      {showGifPicker2 && <GifPicker onSelect={url=>setNewUpdate(v=>v+(v?' ':'')+url)} onClose={()=>setShowGifPicker2(false)}/>}
                       {showLinkPopup && (
                         <div style={{position:'absolute',bottom:'100%',left:0,marginBottom:8,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:14,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:300}}>
                           <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Insert Link</div>
