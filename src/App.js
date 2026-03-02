@@ -2516,7 +2516,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   };
 
   const PRIORITY_COLORS = { High:'#e05252', Medium:'#f0b429', Low:'#2ecc8a', Critical:'#9b59b6' };
-  const isTrinidadWs = workspace?.name === 'Trinadad Leads';
+  const isTrinidadWs = workspace?.name === 'Trinidad Leads';
   const COLUMNS = isTrinidadWs
     ? ['name','deal_value','date','loan_amount','mortgage_rate','lender','phone','alt_phone']
     : ['name','assigned_officers','status','priority','date','lender','loan_officer','processor','lock_expiration','processor_contact','escrow_email'];
