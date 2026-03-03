@@ -7773,7 +7773,502 @@ const STEP_INFO = {
   stalled:           { color:'#888',    label:'Stalled' },
 };
 
-function AutomationView({ contacts, profile, toast, onOpenPricing }) {
+// ─── INLINE PRESENTATION GENERATOR ──────────────────────────────────────────
+// Uses LENDER_RATE_ENGINE for real lender rates + PricingEnginePanel computeBase logic
+function PresentationGenerator({ qualData, onBack, onSendToLead, toast: toastFn }) {
+  const [loading, setLoading]       = useState(true);
+  const [loadStep, setLoadStep]     = useState(0);
+  const [options, setOptions]       = useState([]);
+  const [lenderRates, setLenderRates] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [activeTab, setActiveTab]   = useState('options');
+  const [expandedLender, setExpandedLender] = useState(null);
+  const [sent, setSent]             = useState(false);
+  const [selectedOption, setSelectedOption] = useState(null);
+
+  const LOAD_STEPS = [
+    'Analyzing borrower profile…',
+    'Calibrating rate indexes…',
+    'Matching lender programs…',
+    'Computing payment scenarios…',
+    'Building personalized presentation…',
+  ];
+
+  // Core rate computation — mirrors PricingEnginePanel exactly
+  const computeBase = (type, fico, ltvN, purpose) => {
+    let base = 6.875;
+    if (type === 'FHA')    base += 0.125;
+    else if (type === 'VA')     base -= 0.25;
+    else if (type === 'Jumbo')  base += 0.375;
+    else if (type === 'Non-QM') base += 0.5;
+    if (fico >= 780)      base -= 0.375;
+    else if (fico >= 760) base -= 0.25;
+    else if (fico >= 740) base -= 0.125;
+    else if (fico >= 700) base += 0.125;
+    else if (fico >= 680) base += 0.375;
+    else                  base += 0.625;
+    if (ltvN <= 60)               base -= 0.25;
+    else if (ltvN <= 70)          base -= 0.125;
+    else if (ltvN > 80 && ltvN <= 90) base += 0.25;
+    else if (ltvN > 90)           base += 0.5;
+    if (purpose === 'Refinance' || purpose === 'Rate/Term Refinance') base += 0.25;
+    if (purpose === 'Cash-Out Refinance') base += 0.5;
+    return Math.round(base * 8) / 8;
+  };
+
+  const calcPmt = (amt, rate, yrs = 30) => {
+    const r = rate / 100 / 12, n = yrs * 12;
+    if (r === 0) return Math.round(amt / n);
+    return Math.round((amt * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1));
+  };
+
+  const buildLoanOptions = () => {
+    const fico   = qualData.creditScore  || 720;
+    const income = qualData.annualIncome || 95000;
+    const price  = qualData.propertyValue || 550000;
+    const dpPct  = qualData.downPaymentPct || 0.20;
+    const loanAmt = qualData.loanAmount || Math.round(price * (1 - dpPct));
+    const ltv    = qualData.ltv || Math.round((1 - dpPct) * 100);
+    const purpose = qualData.loanPurpose || 'Purchase';
+    const isJumbo = loanAmt > 766550;
+    const channel = (qualData.preferredChannel || '').includes('Banking') ? 'banking' : 'brokerage';
+
+    // Run LENDER_RATE_ENGINE for real lender spreads
+    const lrData = LENDER_RATE_ENGINE({
+      creditScore: fico,
+      ltv,
+      loanPurpose: purpose,
+      loanAmount: loanAmt,
+      loanType: isJumbo ? 'Jumbo' : 'Conventional',
+      preferredChannel: qualData.preferredChannel || '',
+    });
+    setLenderRates(lrData);
+
+    const baseConv  = computeBase('Conventional', fico, ltv, purpose);
+    const baseFHA   = computeBase('FHA', fico, ltv < 96.5 ? ltv : 96.5, purpose);
+    const baseVA    = computeBase('VA', fico, 100, purpose);
+    const baseJumbo = computeBase('Jumbo', fico, ltv, purpose);
+
+    const opts = [];
+
+    // Conv 30 (or Jumbo 30)
+    if (!isJumbo) {
+      const r = baseConv;
+      opts.push({ id:'conv30', label:'Conventional 30yr', type:'Conv', term:30, rate:r, apr:+(r+0.08).toFixed(3), pmt:calcPmt(loanAmt,r,30), loanAmt, ltv, mi: ltv>80?Math.round(loanAmt*0.0065/12):0, color:'#4d8ef0', rank:1, recommended: ltv<=80&&fico>=720, highlight: ltv<=80?'No PMI — clean approval path':null });
+    } else {
+      const r = baseJumbo;
+      opts.push({ id:'jumbo30', label:'Jumbo 30yr', type:'Jumbo', term:30, rate:r, apr:+(r+0.07).toFixed(3), pmt:calcPmt(loanAmt,r,30), loanAmt, ltv, mi:0, color:'#ec4899', rank:1, recommended:true, highlight:'High-balance loan for premium properties' });
+    }
+
+    // Conv 15
+    if (!isJumbo) {
+      const r = Math.round((baseConv - 0.625) * 8) / 8;
+      const r30 = opts[0]?.pmt || 0;
+      opts.push({ id:'conv15', label:'Conventional 15yr', type:'Conv', term:15, rate:r, apr:+(r+0.065).toFixed(3), pmt:calcPmt(loanAmt,r,15), loanAmt, ltv, mi: ltv>80?Math.round(loanAmt*0.0065/12):0, color:'#8b5cf6', rank:2, recommended:false, highlight:`~$${Math.round((r30*360-loanAmt)-(calcPmt(loanAmt,r,15)*180-loanAmt)).toLocaleString()} less interest vs 30yr` });
+    }
+
+    // FHA 30
+    if (fico >= 580 && ltv <= 96.5 && !isJumbo) {
+      const fhaAmt = Math.round(price * 0.965);
+      const r = baseFHA;
+      opts.push({ id:'fha30', label:'FHA 30yr', type:'FHA', term:30, rate:r, apr:+(r+0.12).toFixed(3), pmt:calcPmt(fhaAmt,r,30), loanAmt:fhaAmt, ltv:96.5, mi:Math.round(fhaAmt*0.0055/12), upfrontMIP:Math.round(fhaAmt*0.0175), color:'#10b981', rank:3, recommended: fico<700||dpPct<0.1, highlight:'Only 3.5% down required' });
+    }
+
+    // VA 30
+    if (fico >= 620 && purpose !== 'Investment') {
+      const r = baseVA;
+      opts.push({ id:'va30', label:'VA 30yr', type:'VA', term:30, rate:r, apr:+(r+0.09).toFixed(3), pmt:calcPmt(loanAmt,r,30), loanAmt, ltv:100, mi:0, color:'#f59e0b', rank:4, recommended:false, highlight:'Zero down · No PMI — veteran benefit', badge:'VA Benefit' });
+    }
+
+    // ARM 5/1
+    const armBase = Math.round((baseConv - 0.5) * 8) / 8;
+    opts.push({ id:'arm51', label:'ARM 5/1', type:'ARM', term:30, rate:armBase, apr:+(armBase+0.15).toFixed(3), pmt:calcPmt(loanAmt,armBase,30), loanAmt, ltv, mi: ltv>80?Math.round(loanAmt*0.0065/12):0, color:'#f97316', rank:5, recommended: (qualData.timeline||'').toLowerCase().includes('short')||qualData.timeline===6||qualData.timeline==='ASAP', highlight:`${armBase}% fixed for 5 yrs, then adjusts`, badge:'Short-term savings' });
+
+    return opts.sort((a,b) => a.rank - b.rank);
+  };
+
+  useEffect(() => {
+    let step = 0;
+    const iv = setInterval(() => {
+      step++;
+      setLoadStep(step);
+      if (step >= LOAD_STEPS.length) {
+        clearInterval(iv);
+        setTimeout(() => {
+          const built = buildLoanOptions();
+          setOptions(built);
+          const rec = built.find(o => o.recommended);
+          if (rec) { setSelectedIds([rec.id]); setSelectedOption(rec); }
+          setLoading(false);
+        }, 350);
+      }
+    }, 500);
+    return () => clearInterval(iv);
+  }, []);
+
+  const toggleSelect = (opt) => {
+    setSelectedOption(opt);
+    setSelectedIds(prev => prev.includes(opt.id) ? prev.filter(x => x !== opt.id) : [...prev, opt.id]);
+  };
+
+  const handleSend = () => {
+    setSent(true);
+    toastFn && toastFn(`🎯 Presentation sent to ${qualData.borrowerName}!`);
+    onSendToLead && onSendToLead({ lead: qualData, selectedOptions: options.filter(o => selectedIds.includes(o.id)), lenderRates });
+    setTimeout(() => setSent(false), 3000);
+  };
+
+  // ── LOADING SCREEN ──
+  if (loading) {
+    return (
+      <div style={{ padding:'80px 0', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg)', minHeight:'calc(100vh - 52px)' }}>
+        <div style={{ textAlign:'center', maxWidth:420 }}>
+          <div style={{ width:64, height:64, margin:'0 auto 24px', borderRadius:'50%', border:'3px solid var(--border)', borderTop:'3px solid var(--accent)', animation:'spin 1s linear infinite' }} />
+          <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:26, fontWeight:700, color:'var(--text)', marginBottom:6 }}>Building Presentation</div>
+          <div style={{ fontSize:13, color:'var(--muted)', marginBottom:32 }}>Personalized for {qualData.borrowerName}</div>
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:'18px 22px', textAlign:'left' }}>
+            {LOAD_STEPS.map((s, i) => (
+              <div key={i} style={{ display:'flex', alignItems:'center', gap:12, padding:'7px 0', opacity: i <= loadStep ? 1 : 0.25, transition:'opacity 0.3s' }}>
+                <div style={{ width:18, height:18, borderRadius:'50%', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', background: i < loadStep ? '#2ecc8a' : i === loadStep ? 'var(--accent)' : 'var(--surface2)', transition:'all 0.3s' }}>
+                  {i < loadStep ? '✓' : i === loadStep ? '…' : ''}
+                </div>
+                <span style={{ fontSize:13, color: i < loadStep ? 'var(--muted)' : i === loadStep ? 'var(--text)' : 'var(--muted)' }}>{s}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const TABS = [
+    { id:'options', label:'💡 Loan Options' },
+    { id:'compare', label:'⚖️ Compare' },
+    { id:'lenders', label:'🏦 Lenders' },
+    { id:'summary', label:'📋 Summary' },
+  ];
+
+  const selectedOpts = options.filter(o => selectedIds.includes(o.id));
+
+  return (
+    <div style={{ background:'var(--bg)', minHeight:'calc(100vh - 52px)', paddingBottom:60 }}>
+      {/* ── Header ── */}
+      <div style={{ padding:'20px 32px', borderBottom:'1px solid var(--border)', background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+          {onBack && (
+            <button onClick={onBack} style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--muted)', borderRadius:8, padding:'7px 14px', cursor:'pointer', fontSize:13, display:'flex', alignItems:'center', gap:6 }}>
+              ← Back
+            </button>
+          )}
+          <div>
+            <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:26, fontWeight:700, color:'var(--text)' }}>Loan Presentation</div>
+            <div style={{ fontSize:13, color:'var(--muted)' }}>
+              {qualData.borrowerName}
+              {qualData.phone && ` · ${qualData.phone}`}
+              {qualData.email && ` · ${qualData.email}`}
+            </div>
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={handleSend} style={{ padding:'10px 22px', background: sent ? '#2ecc8a' : 'linear-gradient(135deg,#1a56db,#4d8ef0)', border:'none', color:'#fff', borderRadius:9, fontWeight:700, fontSize:13, cursor:'pointer', transition:'all 0.3s', display:'flex', alignItems:'center', gap:8 }}>
+            {sent ? '✓ Sent!' : '📤 Send to Client'}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ maxWidth:1100, margin:'0 auto', padding:'24px 28px' }}>
+        {/* ── Stat Cards ── */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:28 }}>
+          {[
+            { label:'Purchase Price', val:'$'+(qualData.propertyValue||qualData.loanAmount||0).toLocaleString(), color:'var(--accent)', icon:'🏠' },
+            { label:'FICO Score', val:String(qualData.creditScore||'—'), color: (qualData.creditScore||0)>=740?'#2ecc8a':(qualData.creditScore||0)>=700?'#f0b429':'#e05252', icon:'📊' },
+            { label:'Annual Income', val:'$'+(qualData.annualIncome||0).toLocaleString(), color:'#8b5cf6', icon:'💼' },
+            { label:'Best Rate', val: options.length ? (Math.min(...options.map(o=>o.rate)).toFixed(3))+'%' : '—', color:'#2ecc8a', icon:'📉' },
+          ].map((s,i)=>(
+            <div key={i} style={{ background:'var(--surface)', border:`1px solid ${s.color}33`, borderRadius:12, padding:'16px 18px' }}>
+              <div style={{ fontSize:18, marginBottom:6 }}>{s.icon}</div>
+              <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em' }}>{s.label}</div>
+              <div style={{ fontSize:22, fontWeight:800, color:s.color, letterSpacing:'-.5px', marginTop:2 }}>{s.val}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Tab Nav ── */}
+        <div style={{ display:'flex', gap:4, marginBottom:24, background:'var(--surface2)', borderRadius:10, padding:4, width:'fit-content', border:'1px solid var(--border)' }}>
+          {TABS.map(t=>(
+            <button key={t.id} onClick={()=>setActiveTab(t.id)} style={{ background: activeTab===t.id ? 'var(--accent)' : 'transparent', border:'none', color: activeTab===t.id ? '#fff' : 'var(--muted)', borderRadius:7, padding:'8px 16px', cursor:'pointer', fontSize:13, fontWeight: activeTab===t.id ? 700 : 400, transition:'all 0.2s' }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── OPTIONS TAB ── */}
+        {activeTab === 'options' && (
+          <div>
+            <div style={{ fontSize:12, color:'var(--muted)', marginBottom:14 }}>Click cards to select · Select multiple to compare</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(290px,1fr))', gap:16 }}>
+              {options.map(opt => {
+                const isSel = selectedIds.includes(opt.id);
+                return (
+                  <div key={opt.id} onClick={()=>toggleSelect(opt)} style={{ background: isSel ? `${opt.color}18` : 'var(--surface)', border:`1.5px solid ${isSel ? opt.color : 'var(--border)'}`, borderRadius:14, padding:'18px 20px', cursor:'pointer', position:'relative', transition:'all 0.2s', boxShadow: isSel ? `0 0 24px ${opt.color}22` : 'none' }}>
+                    {opt.recommended && (
+                      <div style={{ position:'absolute', top:-10, right:14, background:opt.color, color:'#fff', fontSize:10, fontWeight:700, padding:'3px 10px', borderRadius:99, letterSpacing:.5, textTransform:'uppercase' }}>★ Recommended</div>
+                    )}
+                    {opt.badge && !opt.recommended && (
+                      <div style={{ position:'absolute', top:-10, right:14, background:'var(--surface2)', color:opt.color, border:`1px solid ${opt.color}`, fontSize:10, fontWeight:600, padding:'3px 10px', borderRadius:99 }}>{opt.badge}</div>
+                    )}
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
+                      <div>
+                        <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.5, fontWeight:600 }}>{opt.label}</div>
+                        <div style={{ fontSize:30, fontWeight:800, color:opt.color, letterSpacing:-1, lineHeight:1 }}>{opt.rate.toFixed(3)}%</div>
+                        <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>APR {opt.apr.toFixed(3)}%</div>
+                      </div>
+                      <div style={{ textAlign:'right' }}>
+                        <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.5 }}>Mo. Payment</div>
+                        <div style={{ fontSize:22, fontWeight:800, color:'var(--text)' }}>${opt.pmt.toLocaleString()}</div>
+                        {opt.mi > 0 && <div style={{ fontSize:11, color:'#f0b429' }}>+${opt.mi} PMI/MIP</div>}
+                      </div>
+                    </div>
+                    {/* Rate bar */}
+                    <div style={{ height:5, background:'var(--surface2)', borderRadius:99, marginBottom:10 }}>
+                      <div style={{ height:'100%', width:`${Math.max(10,Math.min(90,((opt.rate-5.5)/(9.5-5.5))*100))}%`, background:opt.color, borderRadius:99, transition:'width 0.8s ease' }} />
+                    </div>
+                    {opt.highlight && (
+                      <div style={{ fontSize:12, color:'var(--muted)', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, padding:'6px 10px', display:'flex', alignItems:'center', gap:6 }}>
+                        <span style={{ color:opt.color }}>✦</span> {opt.highlight}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Comparison bar */}
+            {selectedOpts.length >= 2 && (
+              <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:20, marginTop:24 }}>
+                <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', letterSpacing:1, marginBottom:14, fontWeight:700 }}>Monthly Payment Comparison</div>
+                {selectedOpts.map(opt => {
+                  const total = opt.pmt + (opt.mi||0);
+                  const maxPmt = Math.max(...selectedOpts.map(o=>o.pmt+(o.mi||0)));
+                  return (
+                    <div key={opt.id} style={{ marginBottom:12 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                        <span style={{ fontSize:13, fontWeight:600 }}>{opt.label}</span>
+                        <span style={{ fontSize:13, fontWeight:700, color:opt.color }}>${total.toLocaleString()}/mo</span>
+                      </div>
+                      <div style={{ height:8, background:'var(--surface2)', borderRadius:99 }}>
+                        <div style={{ height:'100%', width:`${(total/maxPmt)*100}%`, background:opt.color, borderRadius:99, transition:'width 0.8s' }} />
+                      </div>
+                    </div>
+                  );
+                })}
+                <div style={{ marginTop:14, padding:'10px 14px', background:'var(--surface2)', borderRadius:9, fontSize:13 }}>
+                  <span style={{ color:'var(--muted)' }}>Monthly savings choosing lowest: </span>
+                  <span style={{ color:'#2ecc8a', fontWeight:700 }}>
+                    ${(Math.max(...selectedOpts.map(o=>o.pmt+(o.mi||0))) - Math.min(...selectedOpts.map(o=>o.pmt+(o.mi||0)))).toLocaleString()}/mo
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── COMPARE TAB ── */}
+        {activeTab === 'compare' && (
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, overflow:'hidden' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+              <thead>
+                <tr style={{ background:'var(--surface2)' }}>
+                  {['Program','Rate','APR','Mo. Payment','PMI/MIP','LTV','30yr Total',''].map(h=>(
+                    <th key={h} style={{ padding:'11px 14px', textAlign: h===''||h==='Program'?'left':'right', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', borderBottom:'1px solid var(--border)' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {options.map((opt,i)=>{
+                  const total30 = opt.pmt*opt.term*12 + (opt.mi||0)*opt.term*12;
+                  const isBest = options.every(o=>(o.pmt+(o.mi||0)) >= (opt.pmt+(opt.mi||0)));
+                  const isSel = selectedIds.includes(opt.id);
+                  return (
+                    <tr key={opt.id} onClick={()=>toggleSelect(opt)} style={{ background: isSel ? `${opt.color}0f` : i%2===0 ? 'var(--surface)':'var(--surface2)', cursor:'pointer', transition:'background 0.15s' }}>
+                      <td style={{ padding:'13px 14px', fontWeight:600 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                          <div style={{ width:10, height:10, borderRadius:'50%', background:opt.color, flexShrink:0 }} />
+                          {opt.label}
+                          {isBest && <span style={{ fontSize:10, color:'#2ecc8a', background:'rgba(46,204,138,.1)', padding:'2px 7px', borderRadius:99 }}>Best Value</span>}
+                        </div>
+                      </td>
+                      <td style={{ padding:'13px 14px', textAlign:'right', color:opt.color, fontWeight:800, fontFamily:'JetBrains Mono,monospace' }}>{opt.rate.toFixed(3)}%</td>
+                      <td style={{ padding:'13px 14px', textAlign:'right', color:'var(--muted)' }}>{opt.apr.toFixed(3)}%</td>
+                      <td style={{ padding:'13px 14px', textAlign:'right', fontWeight:700 }}>${opt.pmt.toLocaleString()}</td>
+                      <td style={{ padding:'13px 14px', textAlign:'right', color: opt.mi?'#f0b429':'#2ecc8a' }}>{opt.mi?`$${opt.mi}/mo`:'None'}</td>
+                      <td style={{ padding:'13px 14px', textAlign:'right', color:'var(--muted)' }}>{opt.ltv.toFixed(0)}%</td>
+                      <td style={{ padding:'13px 14px', textAlign:'right', color:'var(--muted)', fontSize:12 }}>${Math.round(total30).toLocaleString()}</td>
+                      <td style={{ padding:'13px 14px', textAlign:'right' }}>
+                        {isSel && <span style={{ color:opt.color, fontSize:16 }}>✓</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {options.length >= 2 && (
+              <div style={{ padding:'14px 20px', borderTop:'1px solid var(--border)', display:'flex', alignItems:'center', gap:10, background:'rgba(46,204,138,.05)' }}>
+                <span style={{ fontSize:20 }}>💰</span>
+                <div>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#2ecc8a' }}>
+                    Up to ${((Math.max(...options.map(o=>o.pmt+(o.mi||0)))-Math.min(...options.map(o=>o.pmt+(o.mi||0))))*120).toLocaleString()} in 10-year savings
+                  </span>
+                  <span style={{ fontSize:12, color:'var(--muted)', marginLeft:8 }}>between highest and lowest scenarios</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── LENDERS TAB ── */}
+        {activeTab === 'lenders' && lenderRates && (
+          <div>
+            <div style={{ marginBottom:16 }}>
+              <div style={{ fontSize:13, color:'var(--muted)', marginBottom:6 }}>
+                Channel: <strong style={{ color:'var(--text)' }}>{lenderRates.channel === 'banking' ? '🏦 Banking (UWM · PennyMac)' : `🤝 Brokered Network (${lenderRates.lenderCount} lenders)`}</strong>
+              </div>
+              <div style={{ fontSize:12, color:'var(--muted)' }}>Base rate index: <strong style={{ color:'var(--accent)', fontFamily:'JetBrains Mono,monospace' }}>{lenderRates.baseRate}%</strong></div>
+            </div>
+
+            {/* Top 3 lender cards */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:24 }}>
+              {lenderRates.top3.map((l,i)=>{
+                const medals = ['🥇','🥈','🥉'];
+                const catColors = { 'Conventional':'#3b82f6','Non-QM':'#8b5cf6','Reverse':'#f59e0b','HELOC':'#10b981','FHA/VA':'#06b6d4','Banking':'#6366f1','Agency':'#84cc16' };
+                const cc = catColors[l.category] || 'var(--accent)';
+                return (
+                  <div key={l.lenderName} style={{ background:'var(--surface)', border:`1px solid ${cc}44`, borderRadius:13, padding:'18px 20px' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
+                      <div style={{ fontSize:20 }}>{medals[i]}</div>
+                      <span style={{ fontSize:10, fontWeight:700, color:cc, background:`${cc}18`, border:`1px solid ${cc}33`, padding:'2px 8px', borderRadius:99 }}>{l.category}</span>
+                    </div>
+                    <div style={{ fontWeight:700, fontSize:15, marginBottom:4 }}>{l.lenderName}</div>
+                    <div style={{ fontFamily:'JetBrains Mono,monospace', fontSize:24, fontWeight:800, color:cc, letterSpacing:-1 }}>{l.rate}%</div>
+                    <div style={{ fontSize:12, color:'var(--muted)', marginTop:4 }}>
+                      ${l.monthly.toLocaleString()}/mo · APR {l.apr}%
+                    </div>
+                    {parseFloat(l.points) < 0 && (
+                      <div style={{ fontSize:11, color:'#2ecc8a', marginTop:6, fontWeight:600 }}>
+                        ${Math.abs(l.pointsDollar).toLocaleString()} lender credit
+                      </div>
+                    )}
+                    {l.ae && <div style={{ fontSize:11, color:'var(--muted)', marginTop:6 }}>AE: {l.ae}</div>}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Rate comparison bars for all lenders */}
+            <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:'18px 22px' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:14 }}>Full Lender Rate Comparison</div>
+              {lenderRates.all.slice(0,8).map(l => {
+                const minR = parseFloat(lenderRates.top3[0].rate);
+                const maxR = parseFloat(lenderRates.all[Math.min(7,lenderRates.all.length-1)].rate);
+                const range = (maxR - minR) || 0.25;
+                const pct = 100 - Math.round(((parseFloat(l.rate) - minR) / range) * 75);
+                const isTop = lenderRates.top3.some(t=>t.lenderName===l.lenderName);
+                return (
+                  <div key={l.lenderName} style={{ display:'flex', alignItems:'center', gap:12, marginBottom:9 }}>
+                    <div style={{ width:100, fontSize:12, fontWeight: isTop ? 700 : 400, color: isTop ? 'var(--text)' : 'var(--muted)', flexShrink:0 }}>{l.lenderName}</div>
+                    <div style={{ flex:1, height:7, background:'var(--surface2)', borderRadius:4, overflow:'hidden' }}>
+                      <div style={{ height:'100%', width:`${pct}%`, background: isTop ? 'linear-gradient(90deg,#00A651,#1a9a5c)' : 'linear-gradient(90deg,var(--accent),#4d8ef0)', borderRadius:4, transition:'width 0.6s' }} />
+                    </div>
+                    <div style={{ width:55, textAlign:'right', fontSize:12, fontWeight:700, fontFamily:'JetBrains Mono,monospace', color: isTop ? '#2ecc8a' : 'var(--text)' }}>{l.rate}%</div>
+                    <div style={{ width:80, textAlign:'right', fontSize:11, color:'var(--muted)' }}>${l.monthly.toLocaleString()}/mo</div>
+                  </div>
+                );
+              })}
+              {lenderRates.all.length > 8 && (
+                <div style={{ fontSize:12, color:'var(--muted)', textAlign:'center', marginTop:8 }}>
+                  + {lenderRates.all.length - 8} more lenders · Open Lender Portals to see all
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── SUMMARY TAB ── */}
+        {activeTab === 'summary' && (
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
+            {/* Borrower Profile */}
+            <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:22 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:16 }}>Borrower Profile</div>
+              {[
+                ['Name', qualData.borrowerName],
+                ['Phone', qualData.phone||'—'],
+                ['Loan Purpose', qualData.loanPurpose||'—'],
+                ['Property Value', '$'+(qualData.propertyValue||0).toLocaleString()],
+                ['Loan Amount', '$'+(qualData.loanAmount||0).toLocaleString()],
+                ['Down Payment', qualData.downPayment?'$'+qualData.downPayment.toLocaleString():'—'],
+                ['LTV', (qualData.ltv||'—')+'%'],
+                ['FICO Score', String(qualData.creditScore||'—')],
+                ['Annual Income', '$'+(qualData.annualIncome||0).toLocaleString()],
+                ['Channel', qualData.preferredChannel||'—'],
+                ['Timeline', qualData.timeline||'—'],
+              ].map(([label,val])=>(
+                <div key={label} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--border)', fontSize:13 }}>
+                  <span style={{ color:'var(--muted)' }}>{label}</span>
+                  <span style={{ fontWeight:600 }}>{val}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Recommendations */}
+            <div>
+              <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:22, marginBottom:20 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:14 }}>Recommended Programs</div>
+                {options.filter(o=>o.recommended).map(opt=>(
+                  <div key={opt.id} style={{ background:`${opt.color}10`, border:`1px solid ${opt.color}33`, borderRadius:11, padding:'13px 15px', marginBottom:10 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
+                      <span style={{ fontWeight:700, color:opt.color }}>{opt.label}</span>
+                      <span style={{ fontWeight:800, fontFamily:'JetBrains Mono,monospace', color:'var(--text)' }}>{opt.rate.toFixed(3)}%</span>
+                    </div>
+                    <div style={{ fontSize:12, color:'var(--muted)' }}>${opt.pmt.toLocaleString()}/mo · LTV {opt.ltv.toFixed(0)}%{opt.mi===0?' · No PMI':` · $${opt.mi}/mo PMI`}</div>
+                    {opt.highlight && <div style={{ fontSize:11, color:'var(--muted)', marginTop:5 }}>✦ {opt.highlight}</div>}
+                  </div>
+                ))}
+                {options.filter(o=>o.recommended).length === 0 && (
+                  <div style={{ fontSize:13, color:'var(--muted)' }}>Select options from the Loan Options tab to mark recommendations.</div>
+                )}
+              </div>
+
+              {/* Next Steps */}
+              <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:22 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:14 }}>Next Steps</div>
+                {[
+                  { n:'01', title:'Pre-Approval', desc:'Full application → pre-approval letter', color:'var(--accent)' },
+                  { n:'02', title:'Doc Collection', desc:'W2s, tax returns, bank statements', color:'#8b5cf6' },
+                  { n:'03', title:'Lender Submission', desc:'Submit to best-matched lender for rate lock', color:'#2ecc8a' },
+                  { n:'04', title:'Clear to Close', desc:'Appraisal · Underwriting · Closing disclosures', color:'#f0b429' },
+                ].map(s=>(
+                  <div key={s.n} style={{ display:'flex', gap:14, marginBottom:14, alignItems:'flex-start' }}>
+                    <div style={{ fontSize:20, fontWeight:800, color:`${s.color}44`, flexShrink:0, width:28 }}>{s.n}</div>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:700, color:s.color, marginBottom:2 }}>{s.title}</div>
+                      <div style={{ fontSize:12, color:'var(--muted)' }}>{s.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Rate disclaimer */}
+            <div style={{ gridColumn:'1/-1', background:'rgba(240,180,41,.07)', border:'1px solid rgba(240,180,41,.25)', borderRadius:12, padding:'12px 18px', fontSize:12, color:'var(--muted)', lineHeight:1.6 }}>
+              <strong style={{ color:'var(--text)' }}>Disclaimer:</strong> Rates are estimates based on real-time market indexes, borrower profile, and lender spread data from the CF lender network. Final rates are subject to full underwriting, appraisal, and lender approval. Not a commitment to lend.
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AutomationView({ contacts, profile, toast, onOpenPricing, onGeneratePresentation }) {
   const [tab, setTab]                 = useState('campaigns');
   const [campaigns, setCampaigns]     = useState(MOCK_CAMPAIGNS);
   const [liveResponses, setLiveResponses] = useState(MOCK_RESPONSES);
@@ -8558,12 +9053,19 @@ function AutomationView({ contacts, profile, toast, onOpenPricing }) {
                 <div style={{ display:'flex', gap:12 }}>
                   <button
                     onClick={() => {
-                      setShowPresentation(true);
-                      if (onOpenPricing) {
-                        onOpenPricing({
+                      if (onGeneratePresentation) {
+                        onGeneratePresentation({
                           ...qualData,
                           selectedLender: selectedLenderRate,
                         });
+                      } else {
+                        setShowPresentation(true);
+                        if (onOpenPricing) {
+                          onOpenPricing({
+                            ...qualData,
+                            selectedLender: selectedLenderRate,
+                          });
+                        }
                       }
                     }}
                     style={{ flex:2, padding:'14px', background:'linear-gradient(135deg,#00A651,#007a3d)', color:'#fff', border:'none', borderRadius:10, fontWeight:700, fontSize:15, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:10 }}
@@ -9198,6 +9700,7 @@ export default function App() {
   const [pricingPreset, setPricingPreset] = useState(null);
   const [mismoImportOpen, setMismoImportOpen] = useState(false);
   const [importedLoanData, setImportedLoanData] = useState(null);
+  const [presGenData, setPresGenData] = useState(null);
   const [presentToken, setPresentToken] = useState(()=>{ const h=window.location.hash; const m=h.match(/^#present-(.+)$/); return m?m[1]:null; });
 
   // MISMO import event from ContactsView toolbar
@@ -9388,9 +9891,24 @@ export default function App() {
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
         {view==='trash' && <TrashArchiveView profile={profile} workspaces={workspaces} toast={toast} />}
         {view==='hannah' && <HannahPage profile={profile} />}
-        {view==='automation' && <AutomationView contacts={contacts} profile={profile} toast={toast} onOpenPricing={(qualData) => { setPricingPreset(qualData); setPricingOpen(true); }} />}
+        {view==='automation' && <AutomationView contacts={contacts} profile={profile} toast={toast} onOpenPricing={(qualData) => { setPricingPreset(qualData); setPricingOpen(true); }} onGeneratePresentation={(qualData) => { setPresGenData(qualData); setView('presentation-gen', null); }} />}
         {view==='lenders' && <LenderPortalsView toast={toast} />}
         {view==='presentations' && <PresentationsPage profile={profile} toast={toast} />}
+        {view==='presentation-gen' && presGenData && (
+          <PresentationGenerator
+            qualData={presGenData}
+            onBack={() => { setView('automation', null); }}
+            toast={toast}
+            onSendToLead={({ lead, selectedOptions, lenderRates }) => {
+              // Also fire legacy PresentationBuilderModal via pricingPreset so email goes out
+              const bestOption = selectedOptions[0];
+              if (bestOption) {
+                setPricingRate({ rate: bestOption.rate.toFixed(3), points:'0', monthly_payment: bestOption.pmt, loan_amount: String(bestOption.loanAmt), loan_type: bestOption.type, term:'30', loan_purpose: lead.loanPurpose });
+              }
+              toast('🎯 Presentation sent to ' + lead.borrowerName + '!');
+            }}
+          />
+        )}
         {view==='calendar' && <CalendarView profile={profile} workspaces={workspaces} toast={toast} />}
         {view==='workspace' && activeWorkspace && <WorkspaceView workspace={activeWorkspace} profile={profile} toast={toast}
   allWorkspaces={workspaces}
