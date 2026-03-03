@@ -6753,24 +6753,25 @@ function MISMOImportModal({ onClose, onImport, toast }) {
 }
 
 // ─── PRICING ENGINE PANEL ─────────────────────────────────────────────────────
-function PricingEnginePanel({ onClose, onApplyRate }) {
-  const [loanAmount,   setLoanAmount]   = useState('500000');
-  const [loanType,     setLoanType]     = useState('Conventional');
-  const [loanPurpose,  setLoanPurpose]  = useState('Purchase');
-  const [creditScore,  setCreditScore]  = useState('740');
-  const [ltv,          setLtv]          = useState('80');
+function PricingEnginePanel({ onClose, onApplyRate, preset }) {
+  const [loanAmount,   setLoanAmount]   = useState(preset?.loanAmount?.toString()  || '500000');
+  const [loanType,     setLoanType]     = useState(preset?.loanType     || 'Conventional');
+  const [loanPurpose,  setLoanPurpose]  = useState(preset?.loanPurpose  || 'Purchase');
+  const [creditScore,  setCreditScore]  = useState(preset?.creditScore?.toString() || '740');
+  const [ltv,          setLtv]          = useState(preset?.ltv?.toString()         || '80');
   const [propertyType, setPropertyType] = useState('Single Family');
   const [occupancy,    setOccupancy]    = useState('Primary');
-  const [term,         setTerm]         = useState('30');
+  const [term,         setTerm]         = useState(preset?.loanTerm?.toString()    || '30');
   const [lockDays,     setLockDays]     = useState('30');
   const [pricingRows,  setPricingRows]  = useState([]);
   const [loading,      setLoading]      = useState(false);
   const [selectedRow,  setSelectedRow]  = useState(null);
-  const [manualRate,   setManualRate]   = useState('');
-  const [manualPoints, setManualPoints] = useState('0');
-  const [tab,          setTab]          = useState('grid');
-  const [notes,        setNotes]        = useState('');
+  const [manualRate,   setManualRate]   = useState(preset?.selectedLender?.rate   || '');
+  const [manualPoints, setManualPoints] = useState(preset?.selectedLender?.points || '0');
+  const [tab,          setTab]          = useState(preset ? 'grid' : 'grid');
+  const [notes,        setNotes]        = useState(preset?.selectedLender ? `Pre-populated from qualification.\nLender: ${preset.selectedLender.lenderName}\nBorrower: ${preset.borrowerName || ''}\nTimeline: ${preset.timeline || ''}` : '');
   const [lastPriced,   setLastPriced]   = useState(null);
+  const [presetBanner, setPresetBanner] = useState(!!preset);
 
   const computeBase = (type, fico, ltvN, termN, purpose) => {
     let base = 6.875;
@@ -6796,6 +6797,12 @@ function PricingEnginePanel({ onClose, onApplyRate }) {
         rows.push({ rate:rate.toFixed(3), points:pts.toFixed(3), pointsDollar:Math.round(parseFloat(loanAmount||0)*(pts/100)), monthly_payment:mp, total_interest:totalInt, apr:(rate+pts*0.08).toFixed(3) });
       }
       setPricingRows(rows); setLoading(false); setLastPriced(new Date());
+      // Auto-select row closest to preset lender rate if available
+      if (preset?.selectedLender?.rate) {
+        const targetRate = preset.selectedLender.rate;
+        const closest = rows.reduce((best, r) => Math.abs(parseFloat(r.rate) - parseFloat(targetRate)) < Math.abs(parseFloat(best.rate) - parseFloat(targetRate)) ? r : best, rows[0]);
+        if (closest) setSelectedRow(closest);
+      }
     }, 600);
   };
 
@@ -6835,6 +6842,19 @@ function PricingEnginePanel({ onClose, onApplyRate }) {
           <button onClick={onClose} style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.6)', width:30, height:30, borderRadius:7, cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
         </div>
         {lastPriced && <div style={{ fontSize:11, color:'rgba(255,255,255,.3)', marginTop:4 }}>Last priced: {lastPriced.toLocaleTimeString()}</div>}
+        {preset && presetBanner && (
+          <div style={{ marginTop:10, background:'rgba(0,166,81,.15)', border:'1px solid rgba(0,166,81,.3)', borderRadius:8, padding:'8px 12px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <div>
+              <div style={{ fontSize:11, color:'#00A651', fontWeight:700, marginBottom:2 }}>✓ Auto-populated from qualification</div>
+              <div style={{ fontSize:11, color:'rgba(255,255,255,.5)' }}>
+                {preset.borrowerName && `${preset.borrowerName} · `}
+                {preset.selectedLender && `${preset.selectedLender.lenderName} @ ${preset.selectedLender.rate}% · `}
+                FICO {preset.creditScore} · LTV {preset.ltv}%
+              </div>
+            </div>
+            <button onClick={() => setPresetBanner(false)} style={{ background:'none', border:'none', color:'rgba(255,255,255,.4)', cursor:'pointer', fontSize:14 }}>✕</button>
+          </div>
+        )}
       </div>
       {/* Tabs */}
       <div style={{ display:'flex', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
@@ -6846,6 +6866,20 @@ function PricingEnginePanel({ onClose, onApplyRate }) {
       <div style={{ flex:1, overflowY:'auto', padding:16 }}>
 
         {tab==='grid' && (<div>
+          {/* Preset borrower context if opened from qualification */}
+          {preset?.borrowerName && (
+            <div style={{ background:'rgba(0,166,81,.07)', border:'1px solid rgba(0,166,81,.2)', borderRadius:8, padding:'9px 12px', marginBottom:12, display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+              <div style={{ width:26, height:26, borderRadius:'50%', background:'linear-gradient(135deg,#00A651,#007a3d)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:11, fontWeight:700, flexShrink:0 }}>
+                {preset.borrowerName[0].toUpperCase()}
+              </div>
+              <div style={{ fontSize:12 }}>
+                <span style={{ fontWeight:700, color:'var(--text)' }}>{preset.borrowerName}</span>
+                <span style={{ color:'var(--muted)', marginLeft:8 }}>{preset.loanPurpose}</span>
+                {preset.selectedLender && <span style={{ color:'#00A651', marginLeft:8, fontWeight:600 }}>· {preset.selectedLender.lenderName} @ {preset.selectedLender.rate}%</span>}
+              </div>
+              <span style={{ marginLeft:'auto', fontSize:10, color:'var(--muted)', padding:'2px 7px', borderRadius:4, border:'1px solid var(--border)', background:'var(--bg)' }}>From Qualification</span>
+            </div>
+          )}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:14 }}>
             {[['Loan','$'+Number(loanAmount||0).toLocaleString()],['Type',loanType],['FICO',creditScore],['LTV',ltv+'%']].map(([l,v])=>(
               <div key={l} style={{ background:'var(--surface2)', borderRadius:7, padding:'8px 10px', textAlign:'center' }}>
@@ -7570,6 +7604,146 @@ const AI_QUAL_QUESTIONS = [
   { id:'q6', text:"Perfect! I can put together a FREE no-obligation digital presentation showing your estimated rate, payment, and options. Would you like that sent by text or email?", key:'channel', opts:['Text 📱','Email 📧','Both ✓'] },
 ];
 
+// ─── LENDER RATE ENGINE ───────────────────────────────────────────────────────
+// Derives per-lender rate estimates from qualification data + lender specialty.
+// channel: 'Text 📱' | 'Email 📧' | 'Both ✓'  →  banking = UWM/PennyMac only
+//          'Banking' → banking lenders; anything else → brokered network
+// ─────────────────────────────────────────────────────────────────────────────
+const LENDER_RATE_ENGINE = (qualData) => {
+  const { creditScore, ltv, loanPurpose, loanAmount, loanType } = qualData;
+  const channelPref = qualData.preferredChannel || '';
+  const useBanking  = channelPref === 'Banking (UWM/PennyMac)';
+
+  // ── BASE RATE (matches PricingEnginePanel logic exactly) ──────────────────
+  const computeBase = (fico, ltvN, purpose, type = 'Conventional') => {
+    let base = 6.875;
+    if (type === 'FHA')    base += 0.125;
+    else if (type === 'VA')    base -= 0.25;
+    else if (type === 'Jumbo') base += 0.375;
+    else if (type === 'Non-QM') base += 0.5;
+    if (fico >= 780) base -= 0.375;
+    else if (fico >= 760) base -= 0.25;
+    else if (fico >= 740) base -= 0.125;
+    else if (fico >= 720) base += 0.0;
+    else if (fico >= 700) base += 0.125;
+    else if (fico >= 680) base += 0.375;
+    else base += 0.625;
+    if (ltvN <= 60) base -= 0.25;
+    else if (ltvN <= 70) base -= 0.125;
+    else if (ltvN > 80 && ltvN <= 90) base += 0.25;
+    else if (ltvN > 90) base += 0.5;
+    if (purpose === 'Refinance' || purpose === 'Rate/Term Refinance') base += 0.25;
+    if (purpose === 'Cash-Out Refinance') base += 0.5;
+    return Math.round(base * 8) / 8; // snap to nearest .125
+  };
+
+  const base = computeBase(creditScore, ltv, loanPurpose, loanType || 'Conventional');
+
+  // ── LENDER POOL SELECTION ─────────────────────────────────────────────────
+  const brokeredPool = BROKERED_LENDERS.filter(l => {
+    // filter to relevant category for loan type
+    if (loanPurpose === 'Cash-Out Refinance' && l.category === 'Reverse') return false;
+    if (creditScore < 680 && (l.category === 'Conventional' || l.category === 'Agency')) return false;
+    return true;
+  });
+
+  const bankingPool = BANKING_LENDERS.filter(l =>
+    l.name === 'UWM' || l.name === 'PennyMac'
+  );
+
+  const pool = useBanking ? bankingPool : brokeredPool;
+
+  // ── LENDER SPREAD TABLE ────────────────────────────────────────────────────
+  // Each lender has a competitive positioning spread vs base rate
+  const LENDER_SPREADS = {
+    'JMAC':                  -0.125,
+    'First Alliance':         0.0,
+    'AMC':                    0.125,
+    'Axos Bank':             -0.125,
+    'Axos Marketing':         0.0,
+    'Newfi':                  0.125,  // Non-QM specialty
+    'Spring EQ':              0.25,   // HELOC specialty, higher conv rate
+    'EPM':                    0.0,
+    'AFR':                   -0.125,
+    'Change':                 0.125,
+    'Angel Oak':              0.25,   // Non-QM
+    'FundLoans':              0.25,   // Non-QM
+    'FAR':                    0.125,  // Reverse specialist
+    'ReverseVision':          0.25,   // Reverse specialist
+    'Champions':             -0.125,
+    'SmartFi':                0.0,
+    'Preferred Rate/APM':    -0.125,
+    'DeepHaven':              0.375,  // Non-QM
+    'FCB':                    0.0,
+    'The Loan Store':        -0.25,   // Aggressive pricing
+    'Velocity':               0.125,
+    'Sierra Pacific':        -0.125,
+    'Orion':                  0.0,
+    'Mutual Omaha':          -0.125,
+    'Kind Lending':          -0.25,   // Aggressive pricing
+    'Open Mortgage':          0.125,
+    'The Lender':             0.0,
+    'Wells Fargo Correspondent': 0.125,
+    'Chase Mortgage':         0.125,
+    'PennyMac':              -0.125,
+    'UWM':                   -0.25,   // Volume leader, aggressive
+    'LoanDepot':              0.0,
+    'Flagstar':               0.0,
+    'Plaza Home':             0.125,
+    'Caliber':                0.0,
+  };
+
+  // Lender credit amount (negative points = lender pays toward closing)
+  const LENDER_CREDITS = {
+    'UWM':            -0.5,
+    'Kind Lending':   -0.375,
+    'The Loan Store': -0.375,
+    'JMAC':           -0.25,
+    'AFR':            -0.25,
+    'Sierra Pacific': -0.25,
+    'PennyMac':       -0.125,
+    'Axos Bank':      -0.125,
+  };
+
+  const calcMonthlyPayment = (amount, rate, termYears = 30) => {
+    const r = rate / 100 / 12;
+    const n = termYears * 12;
+    if (r === 0) return Math.round(amount / n);
+    return Math.round((amount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1));
+  };
+
+  // ── BUILD LENDER RATE CARDS ───────────────────────────────────────────────
+  const results = pool.map(lender => {
+    const spread  = LENDER_SPREADS[lender.name] || 0;
+    const rate    = Math.round((base + spread) * 8) / 8;
+    const points  = LENDER_CREDITS[lender.name] || 0;
+    const monthly = calcMonthlyPayment(loanAmount, rate);
+    const apr     = Math.round((rate + points * 0.08) * 1000) / 1000;
+    return {
+      lenderName:   lender.name,
+      category:     lender.category,
+      ae:           lender.ae,
+      rate:         rate.toFixed(3),
+      points:       points.toFixed(3),
+      pointsDollar: Math.round(loanAmount * (points / 100)),
+      monthly,
+      apr:          apr.toFixed(3),
+      channel:      useBanking ? 'Banking' : 'Brokered',
+    };
+  });
+
+  // Sort by monthly payment ascending (best deal first)
+  results.sort((a, b) => a.monthly - b.monthly);
+
+  return {
+    top3:     results.slice(0, 3),
+    all:      results,
+    baseRate: base.toFixed(3),
+    channel:  useBanking ? 'banking' : 'brokerage',
+    lenderCount: pool.length,
+  };
+};
+
 const MOCK_CAMPAIGNS = [
   { id:1, name:'March Purchase Leads — Bay Area', status:'active',   total:2840, sent:1200, replied:187, qualified:94, presentations:61, apps:12, created:'2026-02-15', batch:500,  channel:'both',  tags:['Purchase','Bay Area'] },
   { id:2, name:'Q1 Refi Outreach — CA Statewide', status:'paused',   total:5600, sent:5600, replied:623, qualified:289,presentations:201,apps:47, created:'2026-01-10', batch:1000, channel:'email', tags:['Refinance'] },
@@ -7599,7 +7773,7 @@ const STEP_INFO = {
   stalled:           { color:'#888',    label:'Stalled' },
 };
 
-function AutomationView({ contacts, profile, toast }) {
+function AutomationView({ contacts, profile, toast, onOpenPricing }) {
   const [tab, setTab]                 = useState('campaigns');
   const [campaigns, setCampaigns]     = useState(MOCK_CAMPAIGNS);
   const [liveResponses, setLiveResponses] = useState(MOCK_RESPONSES);
@@ -7622,6 +7796,7 @@ function AutomationView({ contacts, profile, toast }) {
   const [qualAnimating, setQualAnimating] = useState(false);
   const [showPresentation, setShowPresentation] = useState(false);
   const [qualData, setQualData]           = useState(null);
+  const [selectedLenderRate, setSelectedLenderRate] = useState(null);
 
   // ── CONVERSATION MODAL STATE ──
   const [viewConvo, setViewConvo]         = useState(null); // response object
@@ -7735,7 +7910,15 @@ function AutomationView({ contacts, profile, toast }) {
           downPayment: newAnswers.intent === 'Purchase 🏠' ? Math.round(propVal * 0.15) : 0,
           preferredChannel: newAnswers.channel,
         };
-        setQualData(data);
+        // ── COMPUTE LENDER RATES FROM QUALIFICATION DATA ───────────────────
+        const lenderResults = LENDER_RATE_ENGINE(data);
+        const enrichedData = {
+          ...data,
+          lenderRates: lenderResults,
+          selectedLender: lenderResults.top3[0] || null,
+        };
+        setQualData(enrichedData);
+        setSelectedLenderRate(lenderResults.top3[0] || null);
         setQualMode('complete');
         // Add to live responses
         const newResp = {
@@ -7765,6 +7948,7 @@ function AutomationView({ contacts, profile, toast }) {
     setQualManual({ name:'', phone:'', email:'', channel:'sms' });
     setQualMode('pick');
     setQualData(null);
+    setSelectedLenderRate(null);
     setShowPresentation(false);
   };
 
@@ -8218,28 +8402,134 @@ function AutomationView({ contacts, profile, toast }) {
                   </div>
                 </div>
 
-                {/* ── ESTIMATED RATE HIGHLIGHT ── */}
-                <div style={{ background:'linear-gradient(135deg,rgba(26,86,219,.08),rgba(0,166,81,.06))', border:'1px solid rgba(26,86,219,.25)', borderRadius:12, padding:'16px 20px', marginBottom:16, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                  <div>
-                    <div style={{ fontSize:11, color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:4 }}>AI-Estimated Rate</div>
-                    <div style={{ fontSize:32, fontWeight:800, color:'var(--accent)', fontFamily:'JetBrains Mono,monospace', letterSpacing:'-1px' }}>{qualData.estimatedRate}%</div>
-                    <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>30-yr fixed · Based on credit & LTV · Subject to final pricing</div>
-                  </div>
-                  <div style={{ textAlign:'right' }}>
-                    <div style={{ fontSize:11, color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:4 }}>LTV</div>
-                    <div style={{ fontSize:22, fontWeight:700, color:'var(--text)', fontFamily:'JetBrains Mono,monospace' }}>{qualData.ltv}%</div>
-                    <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>
-                      {qualData.loanPurpose === 'Purchase' ? `$${qualData.downPayment?.toLocaleString()} down` : 'Refi · No down payment'}
+                {/* ── LENDER RATE COMPARISON GRID ── */}
+                {qualData.lenderRates && (
+                  <div style={{ marginBottom:16 }}>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>
+                        Top Lender Options
+                        <span style={{ fontSize:11, color:'var(--muted)', fontWeight:400, marginLeft:8 }}>
+                          {qualData.lenderRates.channel === 'banking' ? 'Banking Channel (UWM · PennyMac)' : `Brokered Network (${qualData.lenderRates.lenderCount} lenders)`}
+                        </span>
+                      </div>
+                      <span style={{ fontSize:10, color:'var(--muted)', fontWeight:600, padding:'3px 8px', borderRadius:4, border:'1px solid var(--border)', background:'var(--bg)' }}>
+                        Base rate: {qualData.lenderRates.baseRate}%
+                      </span>
+                    </div>
+
+                    {/* Rate cards row */}
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:10 }}>
+                      {qualData.lenderRates.top3.map((lender, idx) => {
+                        const isSelected = selectedLenderRate?.lenderName === lender.lenderName;
+                        const catColors = { 'Conventional':'#3b82f6','Non-QM':'#8b5cf6','Reverse':'#f59e0b','HELOC':'#10b981','FHA/VA':'#06b6d4','Banking':'#6366f1','Agency':'#84cc16' };
+                        const catColor = catColors[lender.category] || '#6b7280';
+                        return (
+                          <div
+                            key={lender.lenderName}
+                            onClick={() => setSelectedLenderRate(lender)}
+                            style={{
+                              background: isSelected ? 'linear-gradient(135deg,rgba(0,166,81,.12),rgba(0,166,81,.05))' : 'var(--card)',
+                              border: isSelected ? '2px solid #00A651' : '1px solid var(--border)',
+                              borderRadius:12,
+                              padding:'14px 16px',
+                              cursor:'pointer',
+                              transition:'all .15s',
+                              position:'relative',
+                            }}
+                          >
+                            {idx === 0 && (
+                              <div style={{ position:'absolute', top:-9, left:'50%', transform:'translateX(-50%)', background:'#00A651', color:'#fff', fontSize:9, fontWeight:800, padding:'2px 8px', borderRadius:10, letterSpacing:'.05em' }}>BEST OPTION</div>
+                            )}
+                            {/* Lender avatar + name */}
+                            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                              <div style={{ width:28, height:28, borderRadius:7, background:catColor+'22', border:`1px solid ${catColor}44`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:catColor }}>
+                                {lender.lenderName.slice(0,2).toUpperCase()}
+                              </div>
+                              <div>
+                                <div style={{ fontSize:12, fontWeight:700, color:'var(--text)', lineHeight:1.2 }}>{lender.lenderName}</div>
+                                <span style={{ fontSize:10, color:catColor, fontWeight:600 }}>{lender.category}</span>
+                              </div>
+                              {isSelected && <span style={{ marginLeft:'auto', fontSize:14, color:'#00A651' }}>✓</span>}
+                            </div>
+
+                            {/* Rate big number */}
+                            <div style={{ textAlign:'center', padding:'8px 0', borderTop:'1px solid var(--border)', borderBottom:'1px solid var(--border)', marginBottom:10 }}>
+                              <div style={{ fontSize:28, fontWeight:800, color: isSelected ? '#00A651' : 'var(--text)', fontFamily:'JetBrains Mono,monospace', letterSpacing:'-1px', lineHeight:1 }}>{lender.rate}%</div>
+                              <div style={{ fontSize:10, color:'var(--muted)', marginTop:2 }}>APR {lender.apr}%</div>
+                            </div>
+
+                            {/* Stats grid */}
+                            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+                              <div style={{ background:'var(--bg)', borderRadius:6, padding:'6px 8px', textAlign:'center' }}>
+                                <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600 }}>Mo. Payment</div>
+                                <div style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>${lender.monthly.toLocaleString()}</div>
+                              </div>
+                              <div style={{ background:'var(--bg)', borderRadius:6, padding:'6px 8px', textAlign:'center' }}>
+                                <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600 }}>Points</div>
+                                <div style={{ fontSize:13, fontWeight:700, color: parseFloat(lender.points) < 0 ? '#00A651' : parseFloat(lender.points) > 0 ? '#e05252' : 'var(--text)' }}>
+                                  {parseFloat(lender.points) === 0 ? 'Par' : parseFloat(lender.points) > 0 ? '+' + lender.points : lender.points}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Points dollar if non-zero */}
+                            {lender.pointsDollar !== 0 && (
+                              <div style={{ marginTop:6, textAlign:'center', fontSize:11, color: lender.pointsDollar < 0 ? '#00A651' : '#e05252', fontWeight:600 }}>
+                                {lender.pointsDollar < 0 ? `${(-lender.pointsDollar).toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0})} lender credit` : `+$${lender.pointsDollar.toLocaleString()} in points`}
+                              </div>
+                            )}
+
+                            {/* AE info if available */}
+                            {lender.ae && lender.ae !== '—' && (
+                              <div style={{ marginTop:8, fontSize:10, color:'var(--muted)', lineHeight:1.4, borderTop:'1px solid var(--border)', paddingTop:7 }}>
+                                <span style={{ fontWeight:600 }}>AE: </span>{lender.ae.split('|')[1]?.trim() || '—'}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Selected lender summary bar */}
+                    {selectedLenderRate && (
+                      <div style={{ background:'rgba(0,166,81,.08)', border:'1px solid rgba(0,166,81,.3)', borderRadius:10, padding:'10px 16px', display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
+                        <span style={{ fontSize:12, color:'#00A651', fontWeight:700 }}>✓ {selectedLenderRate.lenderName} Selected</span>
+                        <span style={{ fontSize:13, fontWeight:800, color:'var(--text)', fontFamily:'JetBrains Mono,monospace' }}>{selectedLenderRate.rate}%</span>
+                        <span style={{ fontSize:12, color:'var(--muted)' }}>·</span>
+                        <span style={{ fontSize:12, color:'var(--text)' }}>${selectedLenderRate.monthly.toLocaleString()}/mo</span>
+                        <span style={{ fontSize:12, color:'var(--muted)' }}>·</span>
+                        <span style={{ fontSize:12, color:'var(--text)' }}>APR {selectedLenderRate.apr}%</span>
+                        <button
+                          onClick={() => onOpenPricing && onOpenPricing({ ...qualData, selectedLender: selectedLenderRate })}
+                          style={{ marginLeft:'auto', fontSize:11, padding:'5px 12px', borderRadius:6, background:'linear-gradient(135deg,#1a56db,#0f1c3f)', color:'#fff', border:'none', cursor:'pointer', fontWeight:700, fontFamily:'inherit' }}
+                        >
+                          Open in Pricing Engine →
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Rate comparison visual bars */}
+                    <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 18px', marginTop:10 }}>
+                      <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:12 }}>Rate Comparison</div>
+                      {qualData.lenderRates.top3.map(l => {
+                        const minRate = parseFloat(qualData.lenderRates.top3[0].rate);
+                        const maxRate = parseFloat(qualData.lenderRates.top3[qualData.lenderRates.top3.length - 1].rate);
+                        const range = (maxRate - minRate) || 0.25;
+                        const pct = 100 - Math.round(((parseFloat(l.rate) - minRate) / range) * 80);
+                        const isSelected = selectedLenderRate?.lenderName === l.lenderName;
+                        return (
+                          <div key={l.lenderName} style={{ display:'flex', alignItems:'center', gap:12, marginBottom:8, cursor:'pointer' }} onClick={() => setSelectedLenderRate(l)}>
+                            <div style={{ width:90, fontSize:12, fontWeight: isSelected ? 700 : 400, color: isSelected ? '#00A651' : 'var(--text)', flexShrink:0 }}>{l.lenderName}</div>
+                            <div style={{ flex:1, height:8, background:'var(--bg)', borderRadius:4, overflow:'hidden' }}>
+                              <div style={{ height:'100%', width: pct + '%', background: isSelected ? '#00A651' : 'linear-gradient(90deg,#1a56db,#4d8ef0)', borderRadius:4, transition:'width .3s' }} />
+                            </div>
+                            <div style={{ width:52, fontSize:12, fontWeight:700, fontFamily:'JetBrains Mono,monospace', color: isSelected ? '#00A651' : 'var(--text)', textAlign:'right' }}>{l.rate}%</div>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                  <div style={{ textAlign:'right' }}>
-                    <div style={{ fontSize:11, color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'.06em', marginBottom:4 }}>Est. Mo. Payment</div>
-                    <div style={{ fontSize:22, fontWeight:700, color:'var(--text)', fontFamily:'JetBrains Mono,monospace' }}>
-                      ${Math.round((qualData.loanAmount * (parseFloat(qualData.estimatedRate) / 100 / 12)) / (1 - Math.pow(1 + parseFloat(qualData.estimatedRate) / 100 / 12, -360))).toLocaleString()}
-                    </div>
-                    <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>Principal & interest only</div>
-                  </div>
-                </div>
+                )}
 
                 {/* Data summary grid */}
                 <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'20px 24px', marginBottom:20 }}>
@@ -8267,10 +8557,19 @@ function AutomationView({ contacts, profile, toast }) {
                 {/* Action buttons */}
                 <div style={{ display:'flex', gap:12 }}>
                   <button
-                    onClick={() => setShowPresentation(true)}
+                    onClick={() => {
+                      setShowPresentation(true);
+                      if (onOpenPricing) {
+                        onOpenPricing({
+                          ...qualData,
+                          selectedLender: selectedLenderRate,
+                        });
+                      }
+                    }}
                     style={{ flex:2, padding:'14px', background:'linear-gradient(135deg,#00A651,#007a3d)', color:'#fff', border:'none', borderRadius:10, fontWeight:700, fontSize:15, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:10 }}
                   >
                     🎯 Generate & Send Presentation
+                    {selectedLenderRate && <span style={{ fontSize:12, fontWeight:500, opacity:.8 }}>via {selectedLenderRate.lenderName}</span>}
                   </button>
                   <button
                     onClick={resetQualification}
@@ -8896,6 +9195,7 @@ export default function App() {
   const [presContact, setPresContact] = useState(null);
   const [pricingOpen, setPricingOpen] = useState(false);
   const [pricingRate, setPricingRate] = useState(null);
+  const [pricingPreset, setPricingPreset] = useState(null);
   const [mismoImportOpen, setMismoImportOpen] = useState(false);
   const [importedLoanData, setImportedLoanData] = useState(null);
   const [presentToken, setPresentToken] = useState(()=>{ const h=window.location.hash; const m=h.match(/^#present-(.+)$/); return m?m[1]:null; });
@@ -9088,7 +9388,7 @@ export default function App() {
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
         {view==='trash' && <TrashArchiveView profile={profile} workspaces={workspaces} toast={toast} />}
         {view==='hannah' && <HannahPage profile={profile} />}
-        {view==='automation' && <AutomationView contacts={contacts} profile={profile} toast={toast} />}
+        {view==='automation' && <AutomationView contacts={contacts} profile={profile} toast={toast} onOpenPricing={(qualData) => { setPricingPreset(qualData); setPricingOpen(true); }} />}
         {view==='lenders' && <LenderPortalsView toast={toast} />}
         {view==='presentations' && <PresentationsPage profile={profile} toast={toast} />}
         {view==='calendar' && <CalendarView profile={profile} workspaces={workspaces} toast={toast} />}
@@ -9172,8 +9472,9 @@ export default function App() {
 
       {/* Pricing Engine Panel */}
       {pricingOpen && <PricingEnginePanel
-        onClose={()=>setPricingOpen(false)}
+        onClose={()=>{ setPricingOpen(false); setPricingPreset(null); }}
         onApplyRate={rateData=>{ setPricingRate(rateData); toast('Rate applied — open Build Presentation to use it'); }}
+        preset={pricingPreset}
       />}
 
       <CFAssistant profile={profile} />
