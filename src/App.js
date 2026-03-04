@@ -59,7 +59,6 @@ const css = `
   .ws-toolbar { display:flex; align-items:center; gap:8px; padding:10px 28px; border-bottom:1px solid var(--border); background:var(--surface2); flex-wrap:wrap; }
   .ws-toolbar-btn { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:6px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; font-family:'Inter',system-ui,sans-serif; transition:all .15s; }
   .ws-toolbar-btn:hover { background:rgba(255,255,255,.07); color:var(--text); }
-  .bar-btn:hover { background:rgba(255,255,255,.1) !important; }
   .nav-item { display:flex; align-items:center; gap:12px; padding:10px 20px; cursor:pointer; font-size:14px; color:var(--sidebar-text); transition:all .15s; border-left:3px solid transparent; font-weight:500; }
   .nav-item:hover { background:rgba(255,255,255,.07); color:#fff; }
   .nav-item.active { background:rgba(26,86,219,.25); color:#fff; border-left-color:var(--sidebar-active); }
@@ -1041,30 +1040,6 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
   const [loading, setLoading]           = useState(true);
   const [showNewWs, setShowNewWs]       = useState(false);
   const [dismissedAlerts, setDismissedAlerts] = useState([]);
-  const [wsCounts, setWsCounts] = useState({});
-
-  // Load workspace item counts
-  React.useEffect(()=>{
-    if(!workspaces.length || !profile?.company_name) return;
-    const wsIds = workspaces.map(w=>w.id);
-    supabase.from('workspace_groups').select('id,workspace_id').in('workspace_id',wsIds)
-      .then(({data:grps,error:e1})=>{
-        if(e1||!grps?.length) return;
-        const gMap={};
-        grps.forEach(g=>{gMap[g.id]=g.workspace_id;});
-        const gids = grps.map(g=>g.id);
-        // Count items per group — no archived filter to avoid NULL mismatch
-        supabase.from('workspace_items').select('id,group_id')
-          .in('group_id',gids).is('parent_id',null).neq('trashed',true)
-          .then(({data:its,error:e2})=>{
-            if(e2) return;
-            const c={};
-            wsIds.forEach(id=>{c[id]=0;});
-            (its||[]).forEach(i=>{if(gMap[i.group_id]) c[gMap[i.group_id]]=(c[gMap[i.group_id]]||0)+1;});
-            setWsCounts(c);
-          });
-      });
-  },[workspaces.length,profile?.company_name]);
 
   // Load everything in parallel
   React.useEffect(()=>{
@@ -1267,7 +1242,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
                       {/* Name */}
                       <div style={{ fontWeight:700, fontSize:14, marginBottom:6 }}>{w.name}</div>
                       {/* Item count */}
-                      <div style={{ color:'var(--muted)', fontSize:12, marginBottom:10 }}>{wsCounts[w.id]??stats.total} item{(wsCounts[w.id]??stats.total)!==1?'s':''}</div>
+                      <div style={{ color:'var(--muted)', fontSize:12, marginBottom:10 }}>{stats.total} item{stats.total!==1?'s':''}</div>
                       {/* Status distribution bar */}
                       {stats.total>0 && (
                         <div style={{ display:'flex', height:4, borderRadius:2, overflow:'hidden', gap:1, marginBottom:10 }}>
@@ -2125,152 +2100,6 @@ function StatusManager({ workspaceId, companyId, statuses, onUpdate, onClose }) 
   );
 }
 
-// ─── SUB ITEM ROW ─────────────────────────────────────────────────────────────
-function SubItemRow({ sub, item, statuses, teamMembers, updateCounts, isTrinidadWs=false, setItemDetailPanel, setSubItems }) {
-  const [showStatus, setShowStatus] = React.useState(false);
-  const [showAssign, setShowAssign] = React.useState(false);
-  const statusRef = React.useRef();
-  const assignRef = React.useRef();
-
-  React.useEffect(()=>{
-    if(!showStatus && !showAssign) return;
-    const h = e => {
-      if(showStatus && statusRef.current && !statusRef.current.contains(e.target)) setShowStatus(false);
-      if(showAssign && assignRef.current && !assignRef.current.contains(e.target)) setShowAssign(false);
-    };
-    const closeAll = () => { setShowStatus(false); setShowAssign(false); };
-    const t = setTimeout(()=>document.addEventListener('mousedown', h), 50);
-    document.addEventListener('closeAllPopups', closeAll);
-    return () => { clearTimeout(t); document.removeEventListener('mousedown', h); document.removeEventListener('closeAllPopups', closeAll); };
-  },[showStatus, showAssign]);
-
-  const save = async (field, val) => {
-    await supabase.from('workspace_items').update({[field]: val}).eq('id', sub.id);
-    setSubItems(p=>({...p, [item.id]: (p[item.id]||[]).map(x=>x.id===sub.id ? {...x,[field]:val} : x)}));
-  };
-
-  const inp = (field, val, type='text') => (
-    <input
-      type={type}
-      defaultValue={val||''}
-      onBlur={e=>{ if(e.target.value !== (val||'')) save(field, e.target.value); }}
-      onKeyDown={e=>{ if(e.key==='Enter') { e.target.blur(); } }}
-      onClick={e=>e.stopPropagation()}
-      style={{width:'100%', background:'transparent', border:'none', borderBottom:'1px solid transparent',
-        color:'var(--text)', fontSize:12, outline:'none', padding:'1px 2px', cursor:'text',
-        fontFamily:'inherit'}}
-      onFocus={e=>{ e.target.style.borderBottomColor='var(--accent)'; }}
-      onBlurCapture={e=>{ e.target.style.borderBottomColor='transparent'; }}
-    />
-  );
-
-  const owners   = sub.assigned_officers||[];
-  const updCount = (updateCounts||{})[sub.id]||0;
-
-  return (
-    <tr style={{background:'rgba(0,0,0,.05)', borderBottom:'1px solid var(--border)'}}>
-
-      {/* dot */}
-      <td style={{padding:'4px 10px', paddingLeft:36, textAlign:'center'}}>
-        <div style={{width:8,height:8,borderRadius:'50%',background:'var(--border)',margin:'0 auto'}}/>
-      </td>
-
-      {/* name */}
-      <td style={{padding:'4px 10px', paddingLeft:24}} onClick={e=>e.stopPropagation()}>
-        <div style={{display:'flex', alignItems:'center', gap:6}}>
-          <span style={{fontSize:12, color:'var(--muted)'}}>↳</span>
-          <div style={{flex:1}}>{inp('name', sub.name)}</div>
-          <button onClick={e=>{e.stopPropagation(); setItemDetailPanel(sub);}}
-            style={{background:'none',border:'none',color:updCount>0?'var(--accent)':'var(--muted)',cursor:'pointer',padding:'2px 4px',display:'flex',alignItems:'center',gap:2,flexShrink:0}}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill={updCount>0?'currentColor':'none'} stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            {updCount>0&&<span style={{fontSize:10,fontWeight:700,background:'var(--accent)',color:'#fff',borderRadius:10,padding:'0 4px',minWidth:14,textAlign:'center',lineHeight:'14px'}}>{updCount}</span>}
-          </button>
-        </div>
-      </td>
-
-      {/* owner — non-Trinidad only */}
-      {!isTrinidadWs && (
-        <td style={{padding:'4px 10px', position:'relative'}} onClick={e=>e.stopPropagation()}>
-          <div ref={assignRef} style={{position:'relative'}}>
-            <div onClick={()=>setShowAssign(s=>!s)} style={{display:'flex',alignItems:'center',gap:4,cursor:'pointer',minWidth:60}}>
-              {owners.length===0
-                ? <span style={{fontSize:11,color:'var(--muted)',padding:'2px 8px',borderRadius:12,border:'1px dashed var(--border)',whiteSpace:'nowrap'}}>+ Owner</span>
-                : owners.slice(0,2).map((o,oi)=>(
-                    <div key={oi} style={{width:24,height:24,borderRadius:'50%',background:avatarColor(o),display:'flex',alignItems:'center',justifyContent:'center',fontSize:9,fontWeight:700,color:'#fff',border:'2px solid var(--surface)',marginLeft:oi?-6:0}} title={o}>
-                      {o.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}
-                    </div>
-                  ))
-              }
-            </div>
-            {showAssign&&(
-              <div style={{position:'absolute',top:'100%',left:0,zIndex:9999,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:8,boxShadow:'0 8px 24px rgba(0,0,0,.4)',minWidth:180,marginTop:4}}>
-                {teamMembers.map(m=>(
-                  <div key={m.id}
-                    onClick={async()=>{const cur=sub.assigned_officers||[];const next=cur.includes(m.full_name)?cur.filter(x=>x!==m.full_name):[...cur,m.full_name];await supabase.from('workspace_items').update({assigned_officers:next}).eq('id',sub.id);setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(x=>x.id===sub.id?{...x,assigned_officers:next}:x)})); setShowAssign(false);}}
-                    style={{display:'flex',alignItems:'center',gap:8,padding:'6px 8px',borderRadius:4,cursor:'pointer',background:owners.includes(m.full_name)?'rgba(77,142,240,.15)':'transparent'}}
-                    onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.07)'}
-                    onMouseOut={e=>e.currentTarget.style.background=owners.includes(m.full_name)?'rgba(77,142,240,.15)':'transparent'}>
-                    <div style={{width:24,height:24,borderRadius:'50%',background:avatarColor(m.full_name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'#fff'}}>{m.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}</div>
-                    <span style={{fontSize:12}}>{m.full_name}</span>
-                    {owners.includes(m.full_name)&&<span style={{marginLeft:'auto',color:'var(--accent)'}}>✓</span>}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </td>
-      )}
-
-      {/* data cols */}
-      {isTrinidadWs ? (<>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('deal_value', sub.deal_value)}</td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('date', sub.date?sub.date.split('T')[0]:'', 'date')}</td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('loan_amount', sub.loan_amount)}</td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('mortgage_rate', sub.mortgage_rate)}</td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('lender', sub.lender)}</td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('phone', sub.phone)}</td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('alt_phone', sub.alt_phone)}</td>
-      </>) : (<>
-        {/* status */}
-        <td style={{padding:'4px 10px', position:'relative'}} onClick={e=>e.stopPropagation()}>
-          <div ref={statusRef} style={{position:'relative'}}>
-            <div onClick={()=>setShowStatus(s=>!s)}
-              style={{display:'inline-flex',alignItems:'center',background:sub.status_color||'rgba(77,142,240,.2)',color:'#fff',padding:'3px 10px',borderRadius:4,fontSize:11,fontWeight:600,cursor:'pointer',whiteSpace:'nowrap',minWidth:80,justifyContent:'center'}}>
-              {sub.status||'Set status'}
-            </div>
-            {showStatus&&(
-              <div style={{position:'absolute',top:'100%',left:0,zIndex:9999,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:10,boxShadow:'0 8px 32px rgba(0,0,0,.4)',width:300,maxHeight:320,overflowY:'auto',marginTop:4}}>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
-                  {statuses.map(s=>(
-                    <div key={s.id}
-                      onClick={async()=>{await supabase.from('workspace_items').update({status:s.label,status_color:s.color}).eq('id',sub.id);setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(x=>x.id===sub.id?{...x,status:s.label,status_color:s.color}:x)}));setShowStatus(false);}}
-                      style={{background:s.color,color:'#fff',padding:'6px 8px',borderRadius:5,cursor:'pointer',fontSize:11,fontWeight:600,textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',border:sub.status===s.label?'2px solid #fff':'2px solid transparent'}}
-                      title={s.label}>{s.label}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('priority', sub.priority)}</td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('date', sub.date?sub.date.split('T')[0]:'', 'date')}</td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('lender', sub.lender)}</td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('loan_officer', sub.loan_officer)}</td>
-        <td style={{padding:'4px 8px'}} onClick={e=>e.stopPropagation()}>{inp('processor', sub.processor)}</td>
-        <td colSpan={99}></td>
-      </>)}
-
-      {/* delete */}
-      <td style={{padding:'4px 10px', width:32}}>
-        <button onClick={async e=>{e.stopPropagation();await supabase.from('workspace_items').delete().eq('id',sub.id);setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).filter(s=>s.id!==sub.id)}));}}
-          style={{background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize:14,opacity:0.6}}>×</button>
-      </td>
-    </tr>
-  );
-}
-
-
 function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorkspaces, onSwitchWorkspace, onAddWorkspace }) {
   const [inputModal, setInputModal] = useState(null);
   const [showStatusManager, setShowStatusManager] = useState(false);
@@ -2288,14 +2117,6 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   const [collapsed, setCollapsed] = useState({});
   const [activeItem, setActiveItem] = useState(null);
   const [itemDetailPanel, setItemDetailPanel] = useState(null);
-
-  // Close detail panel on sidebar navigation
-  React.useEffect(() => {
-    const handler = () => setItemDetailPanel(null);
-    document.addEventListener('closeAllPopups', handler);
-    return () => document.removeEventListener('closeAllPopups', handler);
-  }, []);
-  const [updateCounts, setUpdateCounts] = useState({});
   const [search, setSearch] = useState(null);
   const [filterOfficer, setFilterOfficer] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
@@ -2355,23 +2176,9 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
     setStatuses(data||[]);
   };
 
-  const loadUpdateCounts = async () => {
-    const {data:grps} = await supabase.from('workspace_groups').select('id').eq('workspace_id',workspace.id);
-    if(!grps?.length) return;
-    const {data:its} = await supabase.from('workspace_items').select('id').in('group_id',grps.map(g=>g.id));
-    if(!its?.length) return;
-    const {data:upds} = await supabase.from('workspace_updates').select('item_id').in('item_id',its.map(i=>i.id));
-    if(upds) {
-      const c={};
-      upds.forEach(u=>{c[u.item_id]=(c[u.item_id]||0)+1;});
-      setUpdateCounts(c);
-    }
-  };
-
   useEffect(() => {
     loadGroups();
     loadStatuses();
-    loadUpdateCounts();
     supabase.from('profiles').select('*').eq('company_name', profile.company_name).then(({data})=>setTeamMembers(data||[]));
   }, [workspace.id]);
 
@@ -2866,14 +2673,33 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                           PRIORITY_COLORS={PRIORITY_COLORS}
                           hiddenCols={hiddenCols}
                           isTrinidadWs={isTrinidadWs}
-                          updateCount={updateCounts[item.id]||0}
                           onDragStart={e=>handleDragStart(e,group.id,item.id)}
                           onDragOver={e=>{ e.preventDefault(); setDragOverGroup(group.id); setDragOverIdx(idx); }}
                           onDrop={e=>handleDrop(e,group.id,idx)}
                         />
                         {/* Sub-items */}
                         {expandedItems[item.id] && (subItems[item.id]||[]).map(sub=>(
-                           <SubItemRow key={sub.id} sub={sub} item={item} statuses={statuses} teamMembers={teamMembers} updateCounts={updateCounts} isTrinidadWs={isTrinidadWs} setItemDetailPanel={setItemDetailPanel} setSubItems={setSubItems} />
+                           <tr key={sub.id} style={{ background:'rgba(0,0,0,.05)', borderBottom:'1px solid var(--border)' }}>
+                             <td style={{ padding:'4px 10px', paddingLeft:36, textAlign:'center' }}>
+                               <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--border)', margin:'0 auto' }} />
+                             </td>
+                             <td style={{ padding:'4px 10px', paddingLeft:24 }}>
+                               <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                                 <span style={{ fontSize:12, color:'var(--muted)' }}>↳</span>
+                                 <span style={{ fontSize:13, flex:1 }}>{sub.name}</span>
+                                 <button onClick={e=>{ e.stopPropagation(); setItemDetailPanel(sub); }}
+                                   style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:'2px 4px' }}>
+                                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                 </button>
+                               </div>
+                             </td>
+                             <td colSpan={COLUMNS.length-1} style={{ padding:'4px 10px' }}>
+                               <div style={{ display:'inline-flex', alignItems:'center', background:sub.status_color||'rgba(77,142,240,.2)', color:'#fff', padding:'2px 8px', borderRadius:4, fontSize:11, fontWeight:600 }}>{sub.status||''}</div>
+                             </td>
+                             <td style={{ padding:'4px 10px' }}>
+                               <button onClick={async(e)=>{ e.stopPropagation(); await supabase.from('workspace_items').delete().eq('id',sub.id); setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).filter(s=>s.id!==sub.id)})); }} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:14, opacity:0.6 }}>×</button>
+                             </td>
+                           </tr>
                         ))}
                         {expandedItems[item.id] && (
                           <tr style={{ background:'rgba(0,0,0,.05)' }}>
@@ -3090,8 +2916,9 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
           {Object.entries(selected).map(([gId, gSet])=> gSet.size>0 ? (
             <React.Fragment key={gId}>
               <div style={{ position:'relative' }}>
-                <button onClick={()=>setBatchStatusOpen(o=>!o)} className="bar-btn" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
-                  >
+                <button onClick={()=>setBatchStatusOpen(o=>!o)} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
+                  onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
+                  onMouseOut={e=>e.currentTarget.style.background=''}>
                   <span style={{ fontSize:18 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span>Status
                 </button>
                 {batchStatusOpen && (
@@ -3109,16 +2936,19 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                   </div>
                 )}
               </div>
-              <button onClick={()=>duplicateItems(gId,[...gSet])} className="bar-btn" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
-                >
+              <button onClick={()=>duplicateItems(gId,[...gSet])} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
+                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
+                onMouseOut={e=>e.currentTarget.style.background=''}>
                 <span style={{ fontSize:18 }}>⧉</span>Duplicate
               </button>
-              <button onClick={()=>archiveItems(gId,[...gSet])} className="bar-btn" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
-                >
+              <button onClick={()=>archiveItems(gId,[...gSet])} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--text)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
+                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
+                onMouseOut={e=>e.currentTarget.style.background=''}>
                 <span style={{ fontSize:18 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>Archive
               </button>
-              <button onClick={()=>deleteSelectedItems(gId,[...gSet])} className="bar-btn" style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--danger)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
-                >
+              <button onClick={()=>deleteSelectedItems(gId,[...gSet])} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:2, background:'none', border:'none', color:'var(--danger)', cursor:'pointer', padding:'4px 8px', borderRadius:6, fontSize:12 }}
+                onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.08)'}
+                onMouseOut={e=>e.currentTarget.style.background=''}>
                 <span style={{ display:"flex" }}>{Icons.trash}</span>Trash
               </button>
               <select onChange={e=>{ if(e.target.value) moveItemsToGroup(gId,[...gSet],e.target.value); e.target.value=''; }}
@@ -3134,10 +2964,6 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
 
       {/* Item Detail Panel */}
       {itemDetailPanel && (
-        <div
-          style={{ position:'fixed', inset:0, zIndex:999, background:'rgba(0,0,0,0.3)' }}
-          onMouseDown={(e) => { if(e.target===e.currentTarget) setItemDetailPanel(null); }}
-        >
         <ItemDetailPanel
           item={itemDetailPanel}
           group={groups.find(g=>g.id===itemDetailPanel.group_id)}
@@ -3153,7 +2979,6 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
             setItemDetailPanel(prev=>({...prev,[field]:val}));
           }}
         />
-        </div>
       )}
       {/* Input Modal */}
       {inputModal && <InputModal title={inputModal.title} placeholder={inputModal.placeholder} defaultValue={inputModal.defaultValue||''} onConfirm={inputModal.onConfirm} onClose={()=>setInputModal(null)} />}
@@ -3164,7 +2989,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
 }
 
 // ─── WORKSPACE ITEM ROW ───────────────────────────────────────────────────────
-function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdate, onDelete, onOpenUpdates, onAddSubItem, onToggleExpand, isExpanded, updateCount=0, subItemCount, selected, onSelect, PRIORITY_COLORS, hiddenCols=[], onDragStart, onDragOver, onDrop, isTrinidadWs=false }) {
+function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdate, onDelete, onOpenUpdates, onAddSubItem, onToggleExpand, isExpanded, subItemCount, selected, onSelect, PRIORITY_COLORS, hiddenCols=[], onDragStart, onDragOver, onDrop, isTrinidadWs=false }) {
   const [editing, setEditing] = useState(null);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showAssignPicker, setShowAssignPicker] = useState(false);
@@ -3183,10 +3008,8 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
       setShowStatusPicker(false);
       setShowAssignPicker(false);
     };
-    const closeAll = () => { setShowStatusPicker(false); setShowAssignPicker(false); };
     const t = setTimeout(()=>document.addEventListener('mousedown', close), 100);
-    document.addEventListener('closeAllPopups', closeAll);
-    return ()=>{ clearTimeout(t); document.removeEventListener('mousedown', close); document.removeEventListener('closeAllPopups', closeAll); };
+    return ()=>{ clearTimeout(t); document.removeEventListener('mousedown', close); };
   },[showStatusPicker, showAssignPicker]);
 
   const statusObj = statuses.find(s=>s.label===item.status);
@@ -3220,11 +3043,9 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
       <td style={{ padding:'4px 10px', minWidth:200 }}>
         <div style={{ display:'flex', alignItems:'center', gap:6 }}>
           <div style={{ flex:1 }}><EditableCell field="name" style={{ fontWeight:500 }} /></div>
-          {(hovered||updateCount>0)&&<button onClick={e=>{e.stopPropagation();onOpenUpdates();}}
-            style={{background:'none',border:'none',color:updateCount>0?'var(--accent)':'var(--muted)',cursor:'pointer',padding:'2px 4px',display:'flex',alignItems:'center',gap:2}}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill={updateCount>0?'currentColor':'none'} stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            {updateCount>0&&<span style={{fontSize:10,fontWeight:700,background:'var(--accent)',color:'#fff',borderRadius:10,padding:'0 4px',minWidth:14,textAlign:'center',lineHeight:'14px'}}>{updateCount}</span>}
-          </button>}
+          {hovered && <button onClick={e=>{ e.stopPropagation(); onOpenUpdates(); }} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:'2px 4px' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </button>}
           {hovered && subItemCount===0 && <button onClick={onAddSubItem} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:3, fontSize:10, flexShrink:0, opacity:.7 }} title="Add sub-item">⊕</button>}
         </div>
       </td>
@@ -3241,9 +3062,6 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
           ))}
           {(item.assigned_officers||[]).length>0 && hovered && <span style={{ fontSize:11, color:'var(--muted)', marginLeft:4 }}>+</span>}
         </div>
-        {showAssignPicker && (
-          <PopupBackdrop onClose={()=>setShowAssignPicker(false)} zIndex={9988}/>
-        )}
         {showAssignPicker && (
           <div ref={assignPickerRef} style={{ position:'fixed', top:assignPos.top, left:assignPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:8, width:240, boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
             <div style={{ fontSize:11, color:'var(--muted)', marginBottom:6, fontWeight:600 }}>ASSIGN OFFICERS</div>
@@ -3272,21 +3090,18 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
         )}
       </td>}
       {isTrinidadWs ? (<>
-        <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}><EditableCell field="deal_value" /></td>
-        <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}><EditableCell field="date" type="date" /></td>
-        <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}><EditableCell field="loan_amount" /></td>
-        <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}><EditableCell field="mortgage_rate" /></td>
-        <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}><EditableCell field="lender" /></td>
-        <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}><EditableCell field="phone" /></td>
-        <td style={{ padding:'4px 10px' }} onClick={e=>e.stopPropagation()}><EditableCell field="alt_phone" /></td>
+        <td style={{ padding:'4px 10px' }}>{item.deal_value ? '$'+Number(item.deal_value).toLocaleString() : '—'}</td>
+        <td style={{ padding:'4px 10px' }}>{item.date ? item.date.split('T')[0] : '—'}</td>
+        <td style={{ padding:'4px 10px' }}>{item.loan_amount ? '$'+Number(item.loan_amount).toLocaleString() : '—'}</td>
+        <td style={{ padding:'4px 10px' }}>{item.mortgage_rate ? item.mortgage_rate+'%' : '—'}</td>
+        <td style={{ padding:'4px 10px' }}>{item.lender || '—'}</td>
+        <td style={{ padding:'4px 10px' }}>{item.phone || '—'}</td>
+        <td style={{ padding:'4px 10px' }}>{item.alt_phone || '—'}</td>
       </>) : (<>
       {!hiddenCols.includes('status') && <td style={{ padding:'4px 10px', position:'relative' }} onClick={e=>e.stopPropagation()}>
         <div onClick={e=>e.stopPropagation()} onMouseDown={e=>{ e.stopPropagation(); const r=e.currentTarget.getBoundingClientRect(); const spaceBelow=window.innerHeight-r.bottom; const dropH=Math.min(320, statuses.length*40+60); const top=spaceBelow<dropH ? r.top-dropH-4 : r.bottom+4; setPickerPos({top,left:r.left}); setShowStatusPicker(s=>!s); setShowAssignPicker(false); }} style={{ display:'inline-flex', alignItems:'center', background:statusColor, color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap' }}>
           {item.status||'No Status'}
         </div>
-        {showStatusPicker && (
-          <PopupBackdrop onClose={()=>setShowStatusPicker(false)} zIndex={9988}/>
-        )}
         {showStatusPicker && (
           <div ref={statusPickerRef} style={{ position:'fixed', top:pickerPos.top, left:pickerPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:12, boxShadow:'0 8px 32px rgba(0,0,0,.4)', width:340, maxHeight:400, overflowY:'auto' }}>
             <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.08em', fontWeight:600, marginBottom:10 }}>Set Status</div>
@@ -3344,159 +3159,6 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
 
 // ─── UPDATES PANEL ────────────────────────────────────────────────────────────
 // ─── ITEM DETAIL PANEL ───────────────────────────────────────────────────────
-// ── Global click-outside hook ─────────────────────────────────────────────
-function useClickOutside(refs, onClose, enabled = true) {
-  React.useEffect(() => {
-    if (!enabled) return;
-    const handler = (e) => {
-      const refsArr = Array.isArray(refs) ? refs : [refs];
-      if (refsArr.every(r => !r?.current?.contains(e.target))) {
-        onClose();
-      }
-    };
-    // Small delay so the click that opens the popup doesn't immediately close it
-    const t = setTimeout(() => document.addEventListener('mousedown', handler), 50);
-    return () => { clearTimeout(t); document.removeEventListener('mousedown', handler); };
-  }, [enabled]);
-}
-
-// ── Popup overlay — transparent full-screen backdrop that closes on click ──
-function PopupBackdrop({ onClose, zIndex = 9990 }) {
-  React.useEffect(() => {
-    const handler = () => onClose();
-    document.addEventListener('closeAllPopups', handler);
-    return () => document.removeEventListener('closeAllPopups', handler);
-  }, []);
-  return (
-    <div
-      style={{ position: 'fixed', inset: 0, zIndex }}
-      onMouseDown={(e) => { e.stopPropagation(); onClose(); }}
-    />
-  );
-}
-
-
-// ── Emoji Picker ─────────────────────────────────────────────────────────
-const EMOJI_DATA = {
-  'Smileys': ['😀','😂','🤣','😅','😊','🥰','😍','😘','😎','🤩','🥳','😤','😭','😱','😰','🤔','🙄','😏','😒','💀','👻','🤡'],
-  'Gestures': ['👍','👎','👏','🙌','🤝','✌️','🤞','🙏','💪','🫶','🤜','🤛','✊','👊','🫡'],
-  'Hearts': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','💔','❤️‍🔥','💯','✅','⭐','🌟','🔥','💡','🎉','🎊'],
-  'Work': ['📌','📎','🔗','📧','📱','💻','📊','📈','📉','💰','💸','🏆','🥇','🎯','✍️','📝'],
-};
-
-function EmojiPicker({ onSelect, onClose, anchorPos }) {
-  const [tab, setTab] = React.useState('Smileys');
-  return (
-    <div style={{position:'fixed',bottom:anchorPos?.openUp!==false?`calc(100vh - ${anchorPos?.top||200}px)`:'auto',top:anchorPos?.openUp===false?`${anchorPos?.top||200}px`:'auto',left:`${Math.min(anchorPos?.left||100, window.innerWidth-300)}px`,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.6)',zIndex:99999,width:280,overflow:'hidden'}}
-      onMouseDown={e=>e.stopPropagation()}>
-      <div style={{display:'flex',borderBottom:'1px solid var(--border)',padding:'4px 6px',gap:4}}>
-        {Object.keys(EMOJI_DATA).map(cat=>(
-          <button key={cat} onClick={()=>setTab(cat)} style={{background:tab===cat?'rgba(77,142,240,.2)':'none',border:'none',color:tab===cat?'var(--accent)':'var(--muted)',cursor:'pointer',padding:'4px 8px',borderRadius:6,fontSize:11,fontWeight:600}}>
-            {cat}
-          </button>
-        ))}
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(8,1fr)',gap:2,padding:10,maxHeight:180,overflowY:'auto'}}>
-        {EMOJI_DATA[tab].map(e=>(
-          <button key={e} onClick={()=>{onSelect(e);onClose();}} style={{background:'none',border:'none',cursor:'pointer',fontSize:20,padding:4,borderRadius:6,lineHeight:1}}
-            onMouseOver={ev=>ev.currentTarget.style.background='rgba(255,255,255,.1)'}
-            onMouseOut={ev=>ev.currentTarget.style.background='none'}>
-            {e}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── GIF Picker ────────────────────────────────────────────────────────────
-function GifPicker({ onSelect, onClose, anchorRef }) {
-  const [query, setQuery] = React.useState('');
-  const [gifs, setGifs] = React.useState([]);
-  const [loading, setLoading] = React.useState(false);
-  const [pos, setPos] = React.useState({top:0,left:0,openUp:true});
-  const popupRef = React.useRef();
-
-  React.useEffect(() => {
-    // Calculate position relative to anchor
-    if(anchorRef?.current) {
-      const rect = anchorRef.current.getBoundingClientRect();
-      const spaceAbove = rect.top;
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const openUp = spaceAbove > spaceBelow || spaceBelow < 320;
-      setPos({
-        top: openUp ? rect.top - 8 : rect.bottom + 8,
-        left: Math.min(rect.left, window.innerWidth - 340),
-        openUp
-      });
-    }
-    fetchGifs('');
-    // Click outside to close
-    const handler = (e) => { if(popupRef.current && !popupRef.current.contains(e.target)) onClose(); };
-    setTimeout(() => document.addEventListener('mousedown', handler), 0);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const fetchGifs = async (q) => {
-    setLoading(true);
-    setGifs([]);
-    try {
-      // Tenor v2 - free, no auth needed for basic use
-      const base = 'https://tenor.googleapis.com/v2';
-      const key = 'AIzaSyAyimkuYQYF_FXVALexPzfikAGQgPNf4kA';
-      const url = q.trim()
-        ? `${base}/search?q=${encodeURIComponent(q)}&key=${key}&limit=18&media_filter=gif`
-        : `${base}/featured?key=${key}&limit=18&media_filter=gif`;
-      const res = await fetch(url);
-      const json = await res.json();
-      setGifs(json.results || []);
-    } catch(e) { setGifs([]); }
-    setLoading(false);
-  };
-
-  const style = pos.openUp
-    ? {position:'fixed',bottom:`calc(100vh - ${pos.top}px)`,left:pos.left}
-    : {position:'fixed',top:pos.top,left:pos.left};
-
-  return (
-    <div ref={popupRef} style={{...style,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,boxShadow:'0 8px 40px rgba(0,0,0,.6)',zIndex:99999,width:330,overflow:'hidden'}}
-      onMouseDown={e=>e.stopPropagation()}>
-      <div style={{padding:'10px 10px 8px',borderBottom:'1px solid var(--border)',display:'flex',gap:8,alignItems:'center'}}>
-        <input autoFocus value={query} onChange={e=>setQuery(e.target.value)}
-          onKeyDown={e=>{ if(e.key==='Enter') fetchGifs(query); if(e.key==='Escape') onClose(); }}
-          placeholder="Search GIFs..."
-          style={{flex:1,background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,padding:'7px 10px',color:'var(--text)',fontSize:13,outline:'none'}}/>
-        <button onClick={()=>fetchGifs(query)} style={{background:'var(--accent)',border:'none',borderRadius:8,padding:'7px 12px',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600,flexShrink:0}}>Go</button>
-      </div>
-      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:3,padding:8,height:240,overflowY:'auto'}}>
-        {loading && <div style={{gridColumn:'span 3',display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--muted)',fontSize:13,gap:8}}>
-          <div style={{width:18,height:18,border:'2px solid var(--accent)',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 0.8s linear infinite'}}/>
-          Loading...
-        </div>}
-        {!loading && gifs.length===0 && (
-          <div style={{gridColumn:'span 3',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',color:'var(--muted)',gap:8}}>
-            <div style={{fontSize:28}}>🔍</div>
-            <div style={{fontSize:13}}>Search for a GIF above</div>
-          </div>
-        )}
-        {gifs.map((g,i)=>{
-          const media = g.media_formats?.gif || g.media_formats?.tinygif || Object.values(g.media_formats||{})[0];
-          if(!media) return null;
-          return (
-            <img key={g.id||i} src={media.url} alt={g.content_description||'gif'}
-              onClick={()=>{ onSelect(media.url); onClose(); }}
-              style={{width:'100%',height:80,objectFit:'cover',borderRadius:6,cursor:'pointer',border:'2px solid transparent',display:'block'}}
-              onMouseOver={e=>e.currentTarget.style.borderColor='var(--accent)'}
-              onMouseOut={e=>e.currentTarget.style.borderColor='transparent'}/>
-          );
-        })}
-      </div>
-      <div style={{padding:'4px 10px 6px',fontSize:10,color:'var(--muted)',textAlign:'right'}}>Powered by Tenor</div>
-    </div>
-  );
-}
-
-
 function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, profile, onClose, onUpdate, toast, allGroups }) {
   const [item, setItem] = useState(initialItem);
   const [tab, setTab] = useState('updates');
@@ -3515,27 +3177,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   const [editingField, setEditingField] = useState(null);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showAssignPicker, setShowAssignPicker] = useState(false);
-  const [showLinkPopup, setShowLinkPopup] = React.useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = React.useState(false);
-  const [showGifPicker, setShowGifPicker] = React.useState(false);
-  const [showReplyEmoji, setShowReplyEmoji] = React.useState(false);
-  const [showReplyGif, setShowReplyGif] = React.useState(false);
-  const mainFileRef = React.useRef();
-  const gifBtnRef = React.useRef();
-  const emojiBtnRef = React.useRef();
-  const replyGifBtnRef = React.useRef();
-  const replyEmojiBtnRef = React.useRef();
-  const [gifBtnPos, setGifBtnPos] = React.useState(null);
-  const [emojiBtnPos, setEmojiBtnPos] = React.useState(null);
-  const [replyGifBtnPos, setReplyGifBtnPos] = React.useState(null);
-  const [replyEmojiBtnPos, setReplyEmojiBtnPos] = React.useState(null);
   const [replyTo, setReplyTo] = useState(null);
-  const [replyText, setReplyText] = useState('');
-  const [showReplyLink, setShowReplyLink] = useState(false);
-  const [editingUpdateId, setEditingUpdateId] = useState(null);
-  const [editText, setEditText] = useState('');
-  const replyRef = React.useRef();
-  const replyFileRef = React.useRef();
   const [likedUpdates, setLikedUpdates] = useState(new Set());
   const textareaRef = React.useRef();
   const fileInputRef = React.useRef();
@@ -3597,15 +3239,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   };
 
   const loadUpdates = async () => {
-    let allUpdates = [], from = 0, batchSize = 1000;
-    while(true) {
-      const { data: batch } = await supabase.from('workspace_updates').select('*').eq('item_id', item.id).order('created_at', { ascending: false }).range(from, from + batchSize - 1);
-      if(!batch || batch.length === 0) break;
-      allUpdates = [...allUpdates, ...batch];
-      if(batch.length < batchSize) break;
-      from += batchSize;
-    }
-    const data = allUpdates;
+    const { data } = await supabase.from('workspace_updates').select('*').eq('item_id', item.id).order('created_at', { ascending: false });
     setUpdates(data||[]);
   };
 
@@ -3719,56 +3353,9 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
 
   const filteredMembers = teamMembers.filter(m=> m.id !== profile.id && (mentionSearch==='' || m.full_name.toLowerCase().includes(mentionSearch)));
 
-  const saveEditUpdate = async (id) => {
-    if(!editText.trim()) return;
-    await supabase.from('workspace_updates').update({ body: editText.trim() }).eq('id', id);
-    setUpdates(prev => prev.map(u => u.id === id ? {...u, body: editText.trim()} : u));
-    setEditingUpdateId(null);
-    setEditText('');
-  };
-
-  const submitReply = async (parentId) => {
-    if(!replyText.trim()) return;
-    const body = replyText.trim();
-    setReplyText('');
-    setReplyTo(null);
-    setShowReplyLink(false);
-    const {data} = await supabase.from('workspace_updates').insert([{
-      item_id: item.id,
-      author_name: profile.full_name,
-      author_id: profile.id,
-      body: '↩ ' + body,
-      likes_count: 0,
-      parent_update_id: parentId
-    }]).select().single();
-    if(data) setUpdates(prev => [...prev, data]);
-  };
-
   const renderBody = (body) => {
-    if(!body) return null;
-    // Split on URLs and @mentions
-    const parts = body.split(/(\[[^\]]+\]\(https?:\/\/[^\)]+\)|https?:\/\/[^\s]+|@[a-zA-Z][a-zA-Z0-9 ]*)/g);
-    return parts.map((part, i) => {
-      if(/^\[.+\]\(https?:\/\/.+\)$/.test(part)) {
-        // [text](url) format
-        const match = part.match(/^\[(.+)\]\((https?:\/\/.+)\)$/);
-        if(match) return <a key={i} href={match[2]} target="_blank" rel="noopener noreferrer"
-          style={{color:'var(--accent)',textDecoration:'underline'}}>{match[1]}</a>;
-      }
-      if(/^https?:\/\//.test(part)) {
-        // Clean trailing punctuation from URL
-        const clean = part.replace(/[.,;!?)'"]+$/, '');
-        const trail = part.slice(clean.length);
-        let display = clean;
-        try { display = new URL(clean).hostname + (new URL(clean).pathname !== '/' ? '...' : ''); } catch(e) {}
-        return <React.Fragment key={i}><a href={clean} target="_blank" rel="noopener noreferrer"
-          style={{color:'var(--accent)',textDecoration:'underline',wordBreak:'break-all'}}>{clean}</a>{trail}</React.Fragment>;
-      }
-      if(part.startsWith('@')) {
-        return <span key={i} style={{color:'var(--accent)',fontWeight:600,background:'rgba(77,142,240,.15)',borderRadius:4,padding:'1px 4px'}}>{part}</span>;
-      }
-      return <React.Fragment key={i}>{part}</React.Fragment>;
-    });
+    const parts = body.split(/(@[a-zA-Z][a-zA-Z0-9 ]*)/g);
+    return parts.map((part,i)=>{ if(part.startsWith('@')) return <span key={i} style={{ color:'var(--accent)', fontWeight:600 }}>{part}</span>; return part; });
   };
 
   const handleFileUpload = async (e) => {
@@ -3821,7 +3408,6 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
           <div onClick={()=>setShowStatusPicker(s=>!s)} style={{ position:'relative', display:'inline-flex', alignItems:'center', gap:6, background:statusColor, color:'#fff', padding:'4px 12px', borderRadius:5, fontSize:12, fontWeight:700, cursor:'pointer' }}>
             {item.status||'Set Status'}
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="6 9 12 15 18 9"/></svg>
-            {showStatusPicker && <PopupBackdrop onClose={()=>setShowStatusPicker(false)} zIndex={9988}/>}
             {showStatusPicker && (
               <div onClick={e=>e.stopPropagation()} style={{ position:'absolute', top:'calc(100% + 6px)', left:0, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:6, width:220, maxHeight:300, overflowY:'auto', boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
                 {statuses.map(s=>(
@@ -3880,14 +3466,11 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                 </div>
               </div>
               {showAssignPicker && (
-                <PopupBackdrop onClose={()=>setShowAssignPicker(false)} zIndex={9988}/>
-              )}
-              {showAssignPicker && (
                 <div style={{ marginTop:8, background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:8, padding:8, maxHeight:200, overflowY:'auto' }}>
                   {teamMembers.map(m=>{
                     const assigned = (item.assigned_officers||[]).includes(m.full_name);
                     return (
-                      <div key={m.id} onClick={()=>{ const curr=item.assigned_officers||[]; updateField('assigned_officers', assigned?curr.filter(x=>x!==m.full_name):[...curr,m.full_name]); setShowAssignPicker(false); }}
+                      <div key={m.id} onClick={()=>{ const curr=item.assigned_officers||[]; updateField('assigned_officers', assigned?curr.filter(x=>x!==m.full_name):[...curr,m.full_name]); }}
                         style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:4, cursor:'pointer', background:assigned?'rgba(77,142,240,.15)':'' }}
                         onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
                         onMouseOut={e=>e.currentTarget.style.background=assigned?'rgba(77,142,240,.15)':''}>
@@ -3946,76 +3529,42 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
         {/* UPDATES TAB */}
         {tab==='updates' && (
           <div>
-<div style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:20 }}>
-                <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(profile.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', flexShrink:0, marginTop:2 }}>
-                  {profile.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}
-                </div>
-                <div style={{ flex:1, border:'1px solid var(--border)', borderRadius:10, padding:'10px 12px', background:'var(--surface2)', transition:'border-color .15s' }}
-                  onFocusCapture={e=>e.currentTarget.style.borderColor='var(--accent)'}
-                  onBlurCapture={e=>e.currentTarget.style.borderColor='var(--border)'}>
-                  <textarea ref={textareaRef} rows={3} value={newUpdate} onChange={handleTextChange}
-                    placeholder="Write an update... paste a link, type @ to mention"
-                    onKeyDown={e=>{
-                      if(mentionOpen){ if(e.key==='Escape'){setMentionOpen(false);return;} if(e.key==='Enter'&&filteredMembers.length>0){e.preventDefault();insertMention(filteredMembers[0]);return;} }
-                      if(e.key==='Enter'&&e.ctrlKey) postUpdate();
-                    }}
-                    style={{ width:'100%', resize:'vertical', background:'transparent', border:'none', outline:'none', fontSize:13, color:'var(--text)', fontFamily:'inherit', lineHeight:1.6, minHeight:60, boxSizing:'border-box' }}/>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6 }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:2, position:'relative' }}>
-                      <button title="Mention" onClick={()=>{textareaRef.current?.focus();setNewUpdate(v=>v+'@');}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
-                      </button>
-                      <input ref={mainFileRef} type="file" style={{display:'none'}} onChange={async e=>{ const f=e.target.files[0]; if(!f) return; const path=`items/${item.id}/${Date.now()}_${f.name}`; const {error}=await supabase.storage.from('workspace-files').upload(path,f); if(!error){ const url=supabase.storage.from('workspace-files').getPublicUrl(path).data.publicUrl; setNewUpdate(v=>v+(v?' ':'')+url); } e.target.value=''; }}/>
-                      <button title="Attach file" onClick={()=>mainFileRef.current?.click()} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                      </button>
-                      <button onClick={()=>{setShowGifPicker(s=>!s);setShowEmojiPicker(false);}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,fontSize:11,fontWeight:700,letterSpacing:'-0.5px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>GIF</button>
-                      <button title="Emoji" onClick={()=>{setShowEmojiPicker(s=>!s);setShowGifPicker(false);}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
-                      </button>
-                      <button title="Insert link" onClick={()=>setShowLinkPopup(s=>!s)} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                      </button>
-                      <div style={{width:8,height:8,borderRadius:'50%',background:'var(--accent)',marginLeft:2}}/>
-                      {showEmojiPicker && <EmojiPicker anchorPos={emojiBtnPos} onSelect={e=>setNewUpdate(v=>v+e)} onClose={()=>setShowEmojiPicker(false)}/>}
-                      {showGifPicker && <GifPicker anchorRef={gifBtnRef} onSelect={url=>setNewUpdate(v=>v+(v?' ':'')+url)} onClose={()=>setShowGifPicker(false)}/>}
-                      {showLinkPopup && <PopupBackdrop onClose={()=>setShowLinkPopup(false)} zIndex={9988}/>}
-                      {showLinkPopup && (
-                        <div style={{position:'absolute',bottom:'100%',left:0,marginBottom:8,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:14,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:300}}>
-                          <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Insert Link</div>
-                          <input id="link-disp-1" placeholder="Display text (e.g. Register Here)" autoFocus style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:8,boxSizing:'border-box',outline:'none'}}/>
-                          <input id="link-url-1" placeholder="https://..." style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:10,boxSizing:'border-box',outline:'none'}}/>
-                          <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-                            <button onClick={()=>setShowLinkPopup(false)} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'5px 12px',color:'var(--muted)',cursor:'pointer',fontSize:12}}>Cancel</button>
-                            <button onClick={()=>{const d=document.getElementById('link-disp-1').value.trim();const u=document.getElementById('link-url-1').value.trim();if(!u)return;setNewUpdate(v=>v+(d?`[${d}](${u})`:u));setShowLinkPopup(false);}} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'5px 12px',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>Insert</button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Update'}</button>
-                  </div>
-                </div>
-                {mentionOpen && filteredMembers.length>0 && (
-                  <div style={{ position:'fixed', top:mentionPos.top, left:mentionPos.left, transform:'translateY(-100%)', zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 8px 32px rgba(0,0,0,.4)', minWidth:220, overflow:'hidden' }}>
-                    <div style={{ padding:'6px 10px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em' }}>Team Members</div>
-                    {filteredMembers.slice(0,6).map(m=>(
-                      <div key={m.id} onMouseDown={e=>{ e.preventDefault(); insertMention(m); }}
-                        style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', cursor:'pointer' }}
-                        onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.15)'}
-                        onMouseOut={e=>e.currentTarget.style.background=''}>
-                        <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff' }}>{m.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}</div>
-                        <div>
-                          <div style={{ fontSize:13, fontWeight:600 }}>{m.full_name}</div>
-                          <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+            <div style={{ background:'var(--surface2)', borderRadius:10, padding:14, marginBottom:20, border:'1px solid var(--border)', position:'relative' }}>
+              <div style={{ display:'flex', gap:10, marginBottom:8 }}>
+                <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(profile.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(profile.full_name)}</div>
+                <textarea ref={textareaRef} rows={3} value={newUpdate} onChange={handleTextChange}
+                  placeholder="Write an update... type @ to mention a teammate"
+                  onKeyDown={e=>{
+                    if(mentionOpen){ if(e.key==='Escape'){setMentionOpen(false);return;} if(e.key==='Enter'&&filteredMembers.length>0){e.preventDefault();insertMention(filteredMembers[0]);return;} }
+                    if(e.key==='Enter'&&e.ctrlKey) postUpdate();
+                  }}
+                  style={{ flex:1, resize:'vertical', background:'transparent', border:'none', outline:'none', fontSize:13, color:'var(--text)', lineHeight:1.6 }} />
               </div>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:11, color:'var(--muted)' }}>Type <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>@</kbd> to mention · <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>Ctrl+Enter</kbd> to post</span>
+                <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Post Update'}</button>
+              </div>
+              {mentionOpen && filteredMembers.length>0 && (
+                <div style={{ position:'fixed', top:mentionPos.top, left:mentionPos.left, transform:'translateY(-100%)', zIndex:9999, background:'var(--surface)', border:'1px solid var(--accent)', borderRadius:8, width:240, boxShadow:'0 8px 32px rgba(0,0,0,.5)', overflow:'hidden' }}>
+                  <div style={{ padding:'6px 10px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--border)', background:'var(--surface2)' }}>Team Members</div>
+                  {filteredMembers.slice(0,6).map(m=>(
+                    <div key={m.id} onMouseDown={e=>{ e.preventDefault(); insertMention(m); }}
+                      style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', cursor:'pointer' }}
+                      onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.15)'}
+                      onMouseOut={e=>e.currentTarget.style.background=''}>
+                      <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, flexShrink:0 }}>{initials(m.full_name)}</div>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:600 }}>{m.full_name}</div>
+                        <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             {updates.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No updates yet — be the first to post!</div>}
             {/* Group updates: top-level first, replies nested under their parent */}
-            {updates.filter(u=>!u.body.startsWith('↩ ')).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).map(u=>(
+            {updates.filter(u=>!u.body.startsWith('↩ ')).map(u=>(
               <div key={u.id} style={{ marginBottom:20 }}>
                 {/* Top-level update */}
                 <div style={{ display:'flex', gap:10 }}>
@@ -4028,27 +3577,10 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                         <span style={{ fontWeight:700, fontSize:13 }}>{u.author_name}</span>
                         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                           <span style={{ fontSize:11, color:'var(--muted)' }}>{new Date(u.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
-                          {u.author_id===profile.id && (
-                              editingUpdateId===u.id
-                                ? <button onClick={()=>{ setEditingUpdateId(null); setEditText(''); }} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',fontSize:11,padding:'2px 6px'}}>Cancel</button>
-                                : <button title="Edit" onClick={()=>{ setEditingUpdateId(u.id); setEditText(u.body); }} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',display:'flex',alignItems:'center',padding:'2px 4px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                  </button>
-                            )}
-                            {(u.author_id===profile.id||profile.role==='admin') && <button onClick={()=>deleteUpdate(u.id)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:14, padding:0, lineHeight:1 }}>×</button>}
+                          {(u.author_id===profile.id||profile.role==='admin') && <button onClick={()=>deleteUpdate(u.id)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:14, padding:0, lineHeight:1 }}>×</button>}
                         </div>
                       </div>
-                      {editingUpdateId===u.id
-                       ? <div>
-                           <textarea autoFocus value={editText} onChange={e=>setEditText(e.target.value)}
-                             onKeyDown={e=>{ if(e.key==='Enter'&&e.ctrlKey) saveEditUpdate(u.id); if(e.key==='Escape'){setEditingUpdateId(null);setEditText('');} }}
-                             style={{width:'100%',background:'var(--surface)',border:'1px solid var(--accent)',borderRadius:6,padding:'8px',color:'var(--text)',fontSize:13,resize:'vertical',outline:'none',fontFamily:'inherit',lineHeight:1.65,minHeight:60,boxSizing:'border-box'}}/>
-                           <div style={{display:'flex',gap:6,justifyContent:'flex-end',marginTop:6}}>
-                             <button onClick={()=>{setEditingUpdateId(null);setEditText('');}} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'4px 12px',color:'var(--muted)',cursor:'pointer',fontSize:12}}>Cancel</button>
-                             <button onClick={()=>saveEditUpdate(u.id)} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'4px 12px',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>Save</button>
-                           </div>
-                         </div>
-                       : <div style={{ fontSize:13, lineHeight:1.65, whiteSpace:'pre-wrap', color:'var(--text)' }}>{renderBody(u.body)}</div>}
+                      <div style={{ fontSize:13, lineHeight:1.65, whiteSpace:'pre-wrap', color:'var(--text)' }}>{renderBody(u.body)}</div>
                     </div>
                     <div style={{ display:'flex', alignItems:'center', gap:16, paddingLeft:4, marginBottom:8 }}>
                       <button onClick={()=>likeUpdate(u.id)} style={{ background:'none', border:'none', color: likedUpdates.has(u.id)?'var(--accent)':'var(--muted)', cursor:'pointer', display:'flex', alignItems:'center', gap:4, fontSize:12, padding:'2px 0' }}>
@@ -4061,92 +3593,22 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                       </button>
                     </div>
                     {/* Replies — indented under this update */}
-                    {updates.filter(r=>r.body.startsWith('↩ ')&&(r.parent_update_id?r.parent_update_id===u.id:true)).map((r,ri)=>(
+                    {updates.filter(r=>r.body.startsWith('↩ ')).slice(0,50).map((r,ri)=>(
                       <div key={r.id} style={{ display:'flex', gap:8, marginBottom:10, paddingLeft:8, borderLeft:'2px solid var(--border)' }}>
-                        <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(r.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', flexShrink:0 }}>
-                          {(r.author_name||'?').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}
-                        </div>
+                        <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(r.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', flexShrink:0 }}>{(r.author_name||'?').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}</div>
                         <div style={{ flex:1, background:'rgba(255,255,255,.04)', borderRadius:8, padding:'8px 12px', border:'1px solid var(--border)' }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
                             <span style={{ fontWeight:700, fontSize:12 }}>{r.author_name}</span>
-                            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                              <span style={{ fontSize:11, color:'var(--muted)' }}>{new Date(r.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</span>
-                              {r.author_id===profile.id && (
-                                editingUpdateId===r.id
-                                  ? <button onClick={()=>{setEditingUpdateId(null);setEditText('');}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',fontSize:11,padding:'2px 6px'}}>Cancel</button>
-                                  : <button title="Edit" onClick={()=>{ setEditingUpdateId(r.id); setEditText(r.body); }} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',display:'flex',alignItems:'center',padding:'2px 4px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                                    </button>
-                              )}
-                              {(r.author_id===profile.id||profile.role==='admin') && (
-                                <button onClick={()=>deleteUpdate(r.id)} style={{background:'none',border:'none',color:'var(--danger)',cursor:'pointer',fontSize:14,lineHeight:1,padding:'2px 4px',opacity:0.7}} title="Delete">×</button>
-                              )}
-                            </div>
+                            <span style={{ fontSize:11, color:'var(--muted)' }}>{new Date(r.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</span>
                           </div>
-                          {editingUpdateId===r.id
-                            ? <div>
-                                <textarea autoFocus value={editText} onChange={e=>setEditText(e.target.value)}
-                                  onKeyDown={e=>{ if(e.key==='Enter'&&e.ctrlKey) saveEditUpdate(r.id); if(e.key==='Escape'){setEditingUpdateId(null);setEditText('');} }}
-                                  style={{width:'100%',background:'var(--surface)',border:'1px solid var(--accent)',borderRadius:6,padding:'6px',color:'var(--text)',fontSize:12,resize:'vertical',outline:'none',fontFamily:'inherit',lineHeight:1.6,minHeight:50,boxSizing:'border-box'}}/>
-                                <div style={{display:'flex',gap:6,justifyContent:'flex-end',marginTop:4}}>
-                                  <button onClick={()=>{setEditingUpdateId(null);setEditText('');}} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'3px 10px',color:'var(--muted)',cursor:'pointer',fontSize:11}}>Cancel</button>
-                                  <button onClick={()=>saveEditUpdate(r.id)} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'3px 10px',color:'#fff',cursor:'pointer',fontSize:11,fontWeight:600}}>Save</button>
-                                </div>
-                              </div>
-                            : <div style={{ fontSize:12, lineHeight:1.6, whiteSpace:'pre-wrap', color:'var(--text)' }}>{renderBody(r.body.replace(/^↩ /,''))}</div>
-                          }
+                          <div style={{ fontSize:12, lineHeight:1.6, whiteSpace:'pre-wrap', color:'var(--text)' }}>{renderBody(r.body.replace(/^↩ /,''))}</div>
                         </div>
                       </div>
                     ))}
                     {replyTo===u.id && (
-                      <div style={{marginTop:10,paddingLeft:8}}>
-                        <div style={{display:'flex',gap:10,alignItems:'flex-start'}}>
-                          <div style={{width:28,height:28,borderRadius:'50%',background:avatarColor(profile.full_name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,color:'#fff',flexShrink:0,marginTop:2}}>
-                            {profile.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}
-                          </div>
-                          <div style={{flex:1,border:'1px solid var(--accent)',borderRadius:10,padding:'10px 12px',background:'var(--surface2)'}}>
-                            <textarea ref={replyRef} rows={2} value={replyText} onChange={e=>setReplyText(e.target.value)}
-                              placeholder="Write a reply... type @ to mention"
-                              onKeyDown={e=>{ if(e.key==='Enter'&&e.ctrlKey) submitReply(u.id); }}
-                              style={{width:'100%',background:'transparent',border:'none',outline:'none',fontSize:13,color:'var(--text)',resize:'none',fontFamily:'inherit',lineHeight:1.5}}/>
-                            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginTop:6}}>
-                              <div style={{display:'flex',alignItems:'center',gap:2,position:'relative'}}>
-                                <button title="Mention" onClick={()=>{replyRef.current?.focus();setReplyText(v=>v+'@');}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
-                                </button>
-                                <button title="Attach file" onClick={()=>replyFileRef.current?.click()} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                                </button>
-                                <input ref={replyFileRef} type="file" style={{display:'none'}} onChange={async e=>{ const f=e.target.files[0]; if(!f) return; const path=`items/${item.id}/${Date.now()}_${f.name}`; const {error}=await supabase.storage.from('workspace-files').upload(path,f); if(!error){ const url=supabase.storage.from('workspace-files').getPublicUrl(path).data.publicUrl; setReplyText(v=>v+(v?' ':'')+url); }}}/>
-                                <button ref={replyGifBtnRef} onClick={()=>{ if(replyGifBtnRef.current){ const r=replyGifBtnRef.current.getBoundingClientRect(); const openUp=r.top>window.innerHeight-r.bottom||window.innerHeight-r.bottom<320; setReplyGifBtnPos({top:openUp?r.top:r.bottom,left:r.left,openUp}); } setShowReplyGif(s=>!s);setShowReplyEmoji(false); }} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,fontSize:11,fontWeight:700,letterSpacing:'-0.5px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>GIF</button>
-                                <button ref={replyEmojiBtnRef} title="Emoji" onClick={()=>{ if(replyEmojiBtnRef.current){ const r=replyEmojiBtnRef.current.getBoundingClientRect(); const openUp=r.top>window.innerHeight-r.bottom||window.innerHeight-r.bottom<320; setReplyEmojiBtnPos({top:openUp?r.top:r.bottom,left:r.left,openUp}); } setShowReplyEmoji(s=>!s);setShowReplyGif(false); }} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
-                                </button>
-                                {showReplyEmoji && <EmojiPicker anchorPos={replyEmojiBtnPos} onSelect={e=>setReplyText(v=>v+e)} onClose={()=>setShowReplyEmoji(false)}/>}
-                                {showReplyGif && <GifPicker anchorRef={replyGifBtnRef} onSelect={url=>setReplyText(v=>v+(v?' ':'')+url)} onClose={()=>setShowReplyGif(false)}/>}
-                                <button title="Insert link" onClick={()=>setShowReplyLink(s=>!s)} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                                </button>
-                                <div style={{width:8,height:8,borderRadius:'50%',background:'var(--accent)',marginLeft:2}}/>
-                                {showReplyLink && (
-                                  <div style={{position:'absolute',bottom:'100%',left:0,marginBottom:8,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:14,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:300}}>
-                                    <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Insert Link</div>
-                                    <input id="rlink-disp" placeholder="Display text (e.g. Register Here)" autoFocus style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:8,boxSizing:'border-box',outline:'none'}}/>
-                                    <input id="rlink-url" placeholder="https://..." style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:10,boxSizing:'border-box',outline:'none'}}/>
-                                    <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-                                      <button onClick={()=>setShowReplyLink(false)} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'5px 12px',color:'var(--muted)',cursor:'pointer',fontSize:12}}>Cancel</button>
-                                      <button onClick={()=>{const d=document.getElementById('rlink-disp').value.trim();const u2=document.getElementById('rlink-url').value.trim();if(!u2)return;setReplyText(v=>v+(d?`[${d}](${u2})`:u2));setShowReplyLink(false);}} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'5px 12px',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>Insert</button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                              <div style={{display:'flex',alignItems:'center',gap:6}}>
-                                <button onClick={()=>{ setReplyTo(null); setReplyText(''); setShowReplyLink(false); }} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'5px 14px',color:'var(--muted)',cursor:'pointer',fontSize:12}}>Cancel</button>
-                                <button onClick={()=>submitReply(u.id)} disabled={!replyText.trim()} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'5px 14px',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600,opacity:replyText.trim()?1:0.5}}>Reply</button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
+                      <div style={{ display:'flex', gap:8, paddingLeft:8 }}>
+                        <input placeholder='Write a reply...' style={{ flex:1, padding:'7px 12px', borderRadius:8, border:'1px solid var(--border)', background:'var(--surface2)', color:'var(--text)', fontSize:13 }}
+                          onKeyDown={async e=>{ if(e.key==='Enter'&&e.target.value.trim()){ const body=e.target.value.trim(); e.target.value=''; setReplyTo(null); const {data}=await supabase.from('workspace_updates').insert([{item_id:item.id,author_name:profile.full_name,author_id:profile.id,body:'↩ '+body,likes_count:0}]).select().single(); if(data) setUpdates(prev=>[...prev,data]); } }} />
                       </div>
                     )}
                   </div>
@@ -4241,13 +3703,6 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
   const [mentionStart, setMentionStart] = useState(0);
   const textareaRef = React.useRef();
   const fileInputRef = React.useRef();
-  const mainFileRef2 = React.useRef();
-  const gifBtnRef2 = React.useRef();
-  const emojiBtnRef2 = React.useRef();
-  const [gifBtnPos2, setGifBtnPos2] = React.useState(null);
-  const [emojiBtnPos2, setEmojiBtnPos2] = React.useState(null);
-  const [showEmojiPicker2, setShowEmojiPicker2] = React.useState(false);
-  const [showGifPicker2, setShowGifPicker2] = React.useState(false);
 
   useEffect(() => {
     loadUpdates(); loadFiles(); buildActivityLog();
@@ -4298,42 +3753,17 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
 
   // Render update body with highlighted @mentions
   const renderBody = (body) => {
-    if(!body) return null;
-    // Split on URLs and @mentions
-    const parts = body.split(/(\[[^\]]+\]\(https?:\/\/[^\)]+\)|https?:\/\/[^\s]+|@[a-zA-Z][a-zA-Z0-9 ]*)/g);
-    return parts.map((part, i) => {
-      if(/^\[.+\]\(https?:\/\/.+\)$/.test(part)) {
-        // [text](url) format
-        const match = part.match(/^\[(.+)\]\((https?:\/\/.+)\)$/);
-        if(match) return <a key={i} href={match[2]} target="_blank" rel="noopener noreferrer"
-          style={{color:'var(--accent)',textDecoration:'underline'}}>{match[1]}</a>;
+    const parts = body.split(/(@[a-zA-Z][a-zA-Z0-9 ]*)/g);
+    return parts.map((part,i)=>{
+      if(part.startsWith('@') && teamMembers.some(m=>'@'+m.full_name===part.trim()||body.includes(part))) {
+        return <span key={i} style={{ color:'var(--accent)', fontWeight:600 }}>{part}</span>;
       }
-      if(/^https?:\/\//.test(part)) {
-        // Clean trailing punctuation from URL
-        const clean = part.replace(/[.,;!?)'"]+$/, '');
-        const trail = part.slice(clean.length);
-        let display = clean;
-        try { display = new URL(clean).hostname + (new URL(clean).pathname !== '/' ? '...' : ''); } catch(e) {}
-        return <React.Fragment key={i}><a href={clean} target="_blank" rel="noopener noreferrer"
-          style={{color:'var(--accent)',textDecoration:'underline',wordBreak:'break-all'}}>{clean}</a>{trail}</React.Fragment>;
-      }
-      if(part.startsWith('@')) {
-        return <span key={i} style={{color:'var(--accent)',fontWeight:600,background:'rgba(77,142,240,.15)',borderRadius:4,padding:'1px 4px'}}>{part}</span>;
-      }
-      return <React.Fragment key={i}>{part}</React.Fragment>;
+      return part;
     });
   };
 
   const loadUpdates = async () => {
-    let allUpdates2 = [], from2 = 0, batchSize2 = 1000;
-    while(true) {
-      const { data: batch2 } = await supabase.from('workspace_updates').select('*').eq('item_id', item.id).order('created_at', {ascending:false}).range(from2, from2 + batchSize2 - 1);
-      if(!batch2 || batch2.length === 0) break;
-      allUpdates2 = [...allUpdates2, ...batch2];
-      if(batch2.length < batchSize2) break;
-      from2 += batchSize2;
-    }
-    const data = allUpdates2;
+    const {data} = await supabase.from('workspace_updates').select('*').eq('item_id', item.id).order('created_at', {ascending:false});
     setUpdates(data||[]);
   };
 
@@ -4424,73 +3854,64 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
         {tab==='updates' && (
           <div>
             {/* Post box */}
-<div style={{ display:'flex', gap:10, alignItems:'flex-start', marginBottom:20 }}>
-                <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(profile.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', flexShrink:0, marginTop:2 }}>
-                  {profile.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}
-                </div>
-                <div style={{ flex:1, border:'1px solid var(--border)', borderRadius:10, padding:'10px 12px', background:'var(--surface2)', transition:'border-color .15s' }}
-                  onFocusCapture={e=>e.currentTarget.style.borderColor='var(--accent)'}
-                  onBlurCapture={e=>e.currentTarget.style.borderColor='var(--border)'}>
-                  <textarea ref={textareaRef} rows={3} value={newUpdate} onChange={handleTextChange}
-                    placeholder="Write an update... paste a link, type @ to mention"
-                    onKeyDown={e=>{
-                      if(mentionOpen){ if(e.key==='Escape'){setMentionOpen(false);return;} if(e.key==='Enter'&&filteredMembers.length>0){e.preventDefault();insertMention(filteredMembers[0]);return;} }
-                      if(e.key==='Enter'&&e.ctrlKey) postUpdate();
-                    }}
-                    style={{ width:'100%', resize:'vertical', background:'transparent', border:'none', outline:'none', fontSize:13, color:'var(--text)', fontFamily:'inherit', lineHeight:1.6, minHeight:60, boxSizing:'border-box' }}/>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6 }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:2, position:'relative' }}>
-                      <button title="Mention" onClick={()=>{textareaRef.current?.focus();setNewUpdate(v=>v+'@');}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-3.92 7.94"/></svg>
-                      </button>
-                      <button title="Attach file" onClick={()=>mainFileRef2.current?.click()} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-                      </button>
-                      <input ref={mainFileRef2} type="file" style={{display:'none'}} onChange={async e=>{ const f=e.target.files[0]; if(!f) return; const path=`items/${item.id}/${Date.now()}_${f.name}`; const {error}=await supabase.storage.from('workspace-files').upload(path,f); if(!error){ const url=supabase.storage.from('workspace-files').getPublicUrl(path).data.publicUrl; setNewUpdate(v=>v+(v?' ':'')+ url); } e.target.value=''; }}/>
-                      <button onClick={()=>{setShowGifPicker2(s=>!s);setShowEmojiPicker2(false);}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,fontSize:11,fontWeight:700,letterSpacing:'-0.5px'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>GIF</button>
-                      <button title="Emoji" onClick={()=>{setShowEmojiPicker2(s=>!s);setShowGifPicker2(false);}} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
-                      </button>
-                      <button title="Insert link" onClick={()=>setShowLinkPopup(s=>!s)} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',padding:'4px 6px',borderRadius:4,display:'flex',alignItems:'center'}} onMouseOver={e=>e.currentTarget.style.color='var(--text)'} onMouseOut={e=>e.currentTarget.style.color='var(--muted)'}>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                      </button>
-                      <div style={{width:8,height:8,borderRadius:'50%',background:'var(--accent)',marginLeft:2}}/>
-                      {showEmojiPicker2 && <EmojiPicker anchorPos={emojiBtnPos2} onSelect={e=>setNewUpdate(v=>v+e)} onClose={()=>setShowEmojiPicker2(false)}/>}
-                      {showGifPicker2 && <GifPicker anchorRef={gifBtnRef2} onSelect={url=>setNewUpdate(v=>v+(v?' ':'')+url)} onClose={()=>setShowGifPicker2(false)}/>}
-                      {showLinkPopup && <PopupBackdrop onClose={()=>setShowLinkPopup(false)} zIndex={9988}/>}
-                      {showLinkPopup && (
-                        <div style={{position:'absolute',bottom:'100%',left:0,marginBottom:8,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:14,zIndex:9999,boxShadow:'0 8px 32px rgba(0,0,0,.4)',minWidth:300}}>
-                          <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Insert Link</div>
-                          <input id="link-disp-1" placeholder="Display text (e.g. Register Here)" autoFocus style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:8,boxSizing:'border-box',outline:'none'}}/>
-                          <input id="link-url-1" placeholder="https://..." style={{width:'100%',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:6,padding:'7px 10px',color:'var(--text)',fontSize:13,marginBottom:10,boxSizing:'border-box',outline:'none'}}/>
-                          <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
-                            <button onClick={()=>setShowLinkPopup(false)} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'5px 12px',color:'var(--muted)',cursor:'pointer',fontSize:12}}>Cancel</button>
-                            <button onClick={()=>{const d=document.getElementById('link-disp-1').value.trim();const u=document.getElementById('link-url-1').value.trim();if(!u)return;setNewUpdate(v=>v+(d?`[${d}](${u})`:u));setShowLinkPopup(false);}} style={{background:'var(--accent)',border:'none',borderRadius:6,padding:'5px 12px',color:'#fff',cursor:'pointer',fontSize:12,fontWeight:600}}>Insert</button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Update'}</button>
-                  </div>
-                </div>
-                {mentionOpen && filteredMembers.length>0 && (
-                  <div style={{ position:'fixed', top:mentionPos.top, left:mentionPos.left, transform:'translateY(-100%)', zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, boxShadow:'0 8px 32px rgba(0,0,0,.4)', minWidth:220, overflow:'hidden' }}>
-                    <div style={{ padding:'6px 10px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em' }}>Team Members</div>
-                    {filteredMembers.slice(0,6).map(m=>(
-                      <div key={m.id} onMouseDown={e=>{ e.preventDefault(); insertMention(m); }}
-                        style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', cursor:'pointer' }}
-                        onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.15)'}
-                        onMouseOut={e=>e.currentTarget.style.background=''}>
-                        <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff' }}>{m.full_name.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}</div>
-                        <div>
-                          <div style={{ fontSize:13, fontWeight:600 }}>{m.full_name}</div>
-                          <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+            <div style={{ background:'var(--surface2)', borderRadius:10, padding:14, marginBottom:20, border:'1px solid var(--border)', position:'relative' }}>
+              <div style={{ display:'flex', gap:10, marginBottom:8 }}>
+                <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(profile.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(profile.full_name)}</div>
+                <textarea ref={textareaRef} rows={3} value={newUpdate} onChange={handleTextChange}
+                  placeholder="Write an update... type @ to mention a teammate"
+                  onKeyDown={e=>{
+                    if(mentionOpen) {
+                      if(e.key==='Escape') { setMentionOpen(false); return; }
+                      if(e.key==='ArrowDown'||e.key==='ArrowUp') { e.preventDefault(); return; }
+                      if(e.key==='Enter' && filteredMembers.length>0) { e.preventDefault(); insertMention(filteredMembers[0]); return; }
+                    }
+                    if(e.key==='Enter'&&e.ctrlKey) postUpdate();
+                  }}
+                  style={{ flex:1, resize:'vertical', background:'transparent', border:'none', outline:'none', fontSize:13, color:'var(--text)', lineHeight:1.6 }} />
               </div>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:11, color:'var(--muted)' }}>Type <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>@</kbd> to mention · <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>Ctrl+Enter</kbd> to post</span>
+                <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Post Update'}</button>
+              </div>
+
+              {/* @ Mention dropdown */}
+              {mentionOpen && filteredMembers.length>0 && (
+                <div style={{ position:'fixed', bottom: window.innerHeight - mentionPos.top + 8, left: mentionPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, width:240, boxShadow:'0 8px 24px rgba(0,0,0,.4)', overflow:'hidden' }}>
+                  <div style={{ padding:'6px 10px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em', borderBottom:'1px solid var(--border)', background:'var(--surface2)' }}>
+                    Team Members
+                  </div>
+                  {filteredMembers.slice(0,6).map(m=>(
+                    <div key={m.id} onMouseDown={e=>{ e.preventDefault(); insertMention(m); }}
+                      style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', cursor:'pointer' }}
+                      onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.15)'}
+                      onMouseOut={e=>e.currentTarget.style.background=''}>
+                      <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, flexShrink:0 }}>{initials(m.full_name)}</div>
+                      <div>
+                        <div style={{ fontSize:13, fontWeight:600 }}>{m.full_name}</div>
+                        <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {updates.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No updates yet — be the first to post!</div>}
+            {updates.map(u=>(
+              <div key={u.id} style={{ display:'flex', gap:10, marginBottom:16 }}>
+                <div style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(u.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(u.author_name||'?')}</div>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:5 }}>
+                    <span style={{ fontWeight:700, fontSize:13 }}>{u.author_name}</span>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <span style={{ fontSize:11, color:'var(--muted)' }}>{new Date(u.created_at).toLocaleString()}</span>
+                      {u.author_id===profile.id && <button onClick={()=>deleteUpdate(u.id)} style={{ background:'none', border:'none', color:'var(--danger)', cursor:'pointer', fontSize:13, padding:0 }}>×</button>}
+                    </div>
+                  </div>
+                  <div style={{ background:'var(--surface2)', borderRadius:8, padding:'10px 14px', fontSize:13, lineHeight:1.7, whiteSpace:'pre-wrap', border:'1px solid var(--border)' }}>{renderBody(u.body)}</div>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
@@ -7332,24 +6753,25 @@ function MISMOImportModal({ onClose, onImport, toast }) {
 }
 
 // ─── PRICING ENGINE PANEL ─────────────────────────────────────────────────────
-function PricingEnginePanel({ onClose, onApplyRate }) {
-  const [loanAmount,   setLoanAmount]   = useState('500000');
-  const [loanType,     setLoanType]     = useState('Conventional');
-  const [loanPurpose,  setLoanPurpose]  = useState('Purchase');
-  const [creditScore,  setCreditScore]  = useState('740');
-  const [ltv,          setLtv]          = useState('80');
+function PricingEnginePanel({ onClose, onApplyRate, preset }) {
+  const [loanAmount,   setLoanAmount]   = useState(preset?.loanAmount?.toString()  || '500000');
+  const [loanType,     setLoanType]     = useState(preset?.loanType     || 'Conventional');
+  const [loanPurpose,  setLoanPurpose]  = useState(preset?.loanPurpose  || 'Purchase');
+  const [creditScore,  setCreditScore]  = useState(preset?.creditScore?.toString() || '740');
+  const [ltv,          setLtv]          = useState(preset?.ltv?.toString()         || '80');
   const [propertyType, setPropertyType] = useState('Single Family');
   const [occupancy,    setOccupancy]    = useState('Primary');
-  const [term,         setTerm]         = useState('30');
+  const [term,         setTerm]         = useState(preset?.loanTerm?.toString()    || '30');
   const [lockDays,     setLockDays]     = useState('30');
   const [pricingRows,  setPricingRows]  = useState([]);
   const [loading,      setLoading]      = useState(false);
   const [selectedRow,  setSelectedRow]  = useState(null);
-  const [manualRate,   setManualRate]   = useState('');
-  const [manualPoints, setManualPoints] = useState('0');
-  const [tab,          setTab]          = useState('grid');
-  const [notes,        setNotes]        = useState('');
+  const [manualRate,   setManualRate]   = useState(preset?.selectedLender?.rate   || '');
+  const [manualPoints, setManualPoints] = useState(preset?.selectedLender?.points || '0');
+  const [tab,          setTab]          = useState(preset ? 'grid' : 'grid');
+  const [notes,        setNotes]        = useState(preset?.selectedLender ? `Pre-populated from qualification.\nLender: ${preset.selectedLender.lenderName}\nBorrower: ${preset.borrowerName || ''}\nTimeline: ${preset.timeline || ''}` : '');
   const [lastPriced,   setLastPriced]   = useState(null);
+  const [presetBanner, setPresetBanner] = useState(!!preset);
 
   const computeBase = (type, fico, ltvN, termN, purpose) => {
     let base = 6.875;
@@ -7375,6 +6797,12 @@ function PricingEnginePanel({ onClose, onApplyRate }) {
         rows.push({ rate:rate.toFixed(3), points:pts.toFixed(3), pointsDollar:Math.round(parseFloat(loanAmount||0)*(pts/100)), monthly_payment:mp, total_interest:totalInt, apr:(rate+pts*0.08).toFixed(3) });
       }
       setPricingRows(rows); setLoading(false); setLastPriced(new Date());
+      // Auto-select row closest to preset lender rate if available
+      if (preset?.selectedLender?.rate) {
+        const targetRate = preset.selectedLender.rate;
+        const closest = rows.reduce((best, r) => Math.abs(parseFloat(r.rate) - parseFloat(targetRate)) < Math.abs(parseFloat(best.rate) - parseFloat(targetRate)) ? r : best, rows[0]);
+        if (closest) setSelectedRow(closest);
+      }
     }, 600);
   };
 
@@ -7414,6 +6842,19 @@ function PricingEnginePanel({ onClose, onApplyRate }) {
           <button onClick={onClose} style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.6)', width:30, height:30, borderRadius:7, cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
         </div>
         {lastPriced && <div style={{ fontSize:11, color:'rgba(255,255,255,.3)', marginTop:4 }}>Last priced: {lastPriced.toLocaleTimeString()}</div>}
+        {preset && presetBanner && (
+          <div style={{ marginTop:10, background:'rgba(0,166,81,.15)', border:'1px solid rgba(0,166,81,.3)', borderRadius:8, padding:'8px 12px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <div>
+              <div style={{ fontSize:11, color:'#00A651', fontWeight:700, marginBottom:2 }}>✓ Auto-populated from qualification</div>
+              <div style={{ fontSize:11, color:'rgba(255,255,255,.5)' }}>
+                {preset.borrowerName && `${preset.borrowerName} · `}
+                {preset.selectedLender && `${preset.selectedLender.lenderName} @ ${preset.selectedLender.rate}% · `}
+                FICO {preset.creditScore} · LTV {preset.ltv}%
+              </div>
+            </div>
+            <button onClick={() => setPresetBanner(false)} style={{ background:'none', border:'none', color:'rgba(255,255,255,.4)', cursor:'pointer', fontSize:14 }}>✕</button>
+          </div>
+        )}
       </div>
       {/* Tabs */}
       <div style={{ display:'flex', borderBottom:'1px solid var(--border)', flexShrink:0 }}>
@@ -7425,6 +6866,20 @@ function PricingEnginePanel({ onClose, onApplyRate }) {
       <div style={{ flex:1, overflowY:'auto', padding:16 }}>
 
         {tab==='grid' && (<div>
+          {/* Preset borrower context if opened from qualification */}
+          {preset?.borrowerName && (
+            <div style={{ background:'rgba(0,166,81,.07)', border:'1px solid rgba(0,166,81,.2)', borderRadius:8, padding:'9px 12px', marginBottom:12, display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+              <div style={{ width:26, height:26, borderRadius:'50%', background:'linear-gradient(135deg,#00A651,#007a3d)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontSize:11, fontWeight:700, flexShrink:0 }}>
+                {preset.borrowerName[0].toUpperCase()}
+              </div>
+              <div style={{ fontSize:12 }}>
+                <span style={{ fontWeight:700, color:'var(--text)' }}>{preset.borrowerName}</span>
+                <span style={{ color:'var(--muted)', marginLeft:8 }}>{preset.loanPurpose}</span>
+                {preset.selectedLender && <span style={{ color:'#00A651', marginLeft:8, fontWeight:600 }}>· {preset.selectedLender.lenderName} @ {preset.selectedLender.rate}%</span>}
+              </div>
+              <span style={{ marginLeft:'auto', fontSize:10, color:'var(--muted)', padding:'2px 7px', borderRadius:4, border:'1px solid var(--border)', background:'var(--bg)' }}>From Qualification</span>
+            </div>
+          )}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:14 }}>
             {[['Loan','$'+Number(loanAmount||0).toLocaleString()],['Type',loanType],['FICO',creditScore],['LTV',ltv+'%']].map(([l,v])=>(
               <div key={l} style={{ background:'var(--surface2)', borderRadius:7, padding:'8px 10px', textAlign:'center' }}>
@@ -8149,6 +7604,146 @@ const AI_QUAL_QUESTIONS = [
   { id:'q6', text:"Perfect! I can put together a FREE no-obligation digital presentation showing your estimated rate, payment, and options. Would you like that sent by text or email?", key:'channel', opts:['Text 📱','Email 📧','Both ✓'] },
 ];
 
+// ─── LENDER RATE ENGINE ───────────────────────────────────────────────────────
+// Derives per-lender rate estimates from qualification data + lender specialty.
+// channel: 'Text 📱' | 'Email 📧' | 'Both ✓'  →  banking = UWM/PennyMac only
+//          'Banking' → banking lenders; anything else → brokered network
+// ─────────────────────────────────────────────────────────────────────────────
+const LENDER_RATE_ENGINE = (qualData) => {
+  const { creditScore, ltv, loanPurpose, loanAmount, loanType } = qualData;
+  const channelPref = qualData.preferredChannel || '';
+  const useBanking  = channelPref === 'Banking (UWM/PennyMac)';
+
+  // ── BASE RATE (matches PricingEnginePanel logic exactly) ──────────────────
+  const computeBase = (fico, ltvN, purpose, type = 'Conventional') => {
+    let base = 6.875;
+    if (type === 'FHA')    base += 0.125;
+    else if (type === 'VA')    base -= 0.25;
+    else if (type === 'Jumbo') base += 0.375;
+    else if (type === 'Non-QM') base += 0.5;
+    if (fico >= 780) base -= 0.375;
+    else if (fico >= 760) base -= 0.25;
+    else if (fico >= 740) base -= 0.125;
+    else if (fico >= 720) base += 0.0;
+    else if (fico >= 700) base += 0.125;
+    else if (fico >= 680) base += 0.375;
+    else base += 0.625;
+    if (ltvN <= 60) base -= 0.25;
+    else if (ltvN <= 70) base -= 0.125;
+    else if (ltvN > 80 && ltvN <= 90) base += 0.25;
+    else if (ltvN > 90) base += 0.5;
+    if (purpose === 'Refinance' || purpose === 'Rate/Term Refinance') base += 0.25;
+    if (purpose === 'Cash-Out Refinance') base += 0.5;
+    return Math.round(base * 8) / 8; // snap to nearest .125
+  };
+
+  const base = computeBase(creditScore, ltv, loanPurpose, loanType || 'Conventional');
+
+  // ── LENDER POOL SELECTION ─────────────────────────────────────────────────
+  const brokeredPool = BROKERED_LENDERS.filter(l => {
+    // filter to relevant category for loan type
+    if (loanPurpose === 'Cash-Out Refinance' && l.category === 'Reverse') return false;
+    if (creditScore < 680 && (l.category === 'Conventional' || l.category === 'Agency')) return false;
+    return true;
+  });
+
+  const bankingPool = BANKING_LENDERS.filter(l =>
+    l.name === 'UWM' || l.name === 'PennyMac'
+  );
+
+  const pool = useBanking ? bankingPool : brokeredPool;
+
+  // ── LENDER SPREAD TABLE ────────────────────────────────────────────────────
+  // Each lender has a competitive positioning spread vs base rate
+  const LENDER_SPREADS = {
+    'JMAC':                  -0.125,
+    'First Alliance':         0.0,
+    'AMC':                    0.125,
+    'Axos Bank':             -0.125,
+    'Axos Marketing':         0.0,
+    'Newfi':                  0.125,  // Non-QM specialty
+    'Spring EQ':              0.25,   // HELOC specialty, higher conv rate
+    'EPM':                    0.0,
+    'AFR':                   -0.125,
+    'Change':                 0.125,
+    'Angel Oak':              0.25,   // Non-QM
+    'FundLoans':              0.25,   // Non-QM
+    'FAR':                    0.125,  // Reverse specialist
+    'ReverseVision':          0.25,   // Reverse specialist
+    'Champions':             -0.125,
+    'SmartFi':                0.0,
+    'Preferred Rate/APM':    -0.125,
+    'DeepHaven':              0.375,  // Non-QM
+    'FCB':                    0.0,
+    'The Loan Store':        -0.25,   // Aggressive pricing
+    'Velocity':               0.125,
+    'Sierra Pacific':        -0.125,
+    'Orion':                  0.0,
+    'Mutual Omaha':          -0.125,
+    'Kind Lending':          -0.25,   // Aggressive pricing
+    'Open Mortgage':          0.125,
+    'The Lender':             0.0,
+    'Wells Fargo Correspondent': 0.125,
+    'Chase Mortgage':         0.125,
+    'PennyMac':              -0.125,
+    'UWM':                   -0.25,   // Volume leader, aggressive
+    'LoanDepot':              0.0,
+    'Flagstar':               0.0,
+    'Plaza Home':             0.125,
+    'Caliber':                0.0,
+  };
+
+  // Lender credit amount (negative points = lender pays toward closing)
+  const LENDER_CREDITS = {
+    'UWM':            -0.5,
+    'Kind Lending':   -0.375,
+    'The Loan Store': -0.375,
+    'JMAC':           -0.25,
+    'AFR':            -0.25,
+    'Sierra Pacific': -0.25,
+    'PennyMac':       -0.125,
+    'Axos Bank':      -0.125,
+  };
+
+  const calcMonthlyPayment = (amount, rate, termYears = 30) => {
+    const r = rate / 100 / 12;
+    const n = termYears * 12;
+    if (r === 0) return Math.round(amount / n);
+    return Math.round((amount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1));
+  };
+
+  // ── BUILD LENDER RATE CARDS ───────────────────────────────────────────────
+  const results = pool.map(lender => {
+    const spread  = LENDER_SPREADS[lender.name] || 0;
+    const rate    = Math.round((base + spread) * 8) / 8;
+    const points  = LENDER_CREDITS[lender.name] || 0;
+    const monthly = calcMonthlyPayment(loanAmount, rate);
+    const apr     = Math.round((rate + points * 0.08) * 1000) / 1000;
+    return {
+      lenderName:   lender.name,
+      category:     lender.category,
+      ae:           lender.ae,
+      rate:         rate.toFixed(3),
+      points:       points.toFixed(3),
+      pointsDollar: Math.round(loanAmount * (points / 100)),
+      monthly,
+      apr:          apr.toFixed(3),
+      channel:      useBanking ? 'Banking' : 'Brokered',
+    };
+  });
+
+  // Sort by monthly payment ascending (best deal first)
+  results.sort((a, b) => a.monthly - b.monthly);
+
+  return {
+    top3:     results.slice(0, 3),
+    all:      results,
+    baseRate: base.toFixed(3),
+    channel:  useBanking ? 'banking' : 'brokerage',
+    lenderCount: pool.length,
+  };
+};
+
 const MOCK_CAMPAIGNS = [
   { id:1, name:'March Purchase Leads — Bay Area', status:'active',   total:2840, sent:1200, replied:187, qualified:94, presentations:61, apps:12, created:'2026-02-15', batch:500,  channel:'both',  tags:['Purchase','Bay Area'] },
   { id:2, name:'Q1 Refi Outreach — CA Statewide', status:'paused',   total:5600, sent:5600, replied:623, qualified:289,presentations:201,apps:47, created:'2026-01-10', batch:1000, channel:'email', tags:['Refinance'] },
@@ -8178,23 +7773,536 @@ const STEP_INFO = {
   stalled:           { color:'#888',    label:'Stalled' },
 };
 
-function AutomationView({ contacts, profile, toast }) {
-  const [tab, setTab]               = useState('campaigns');
-  const [campaigns, setCampaigns]   = useState(MOCK_CAMPAIGNS);
-  const [responses]                 = useState(MOCK_RESPONSES);
-  const [showCreate, setShowCreate] = useState(false);
+// ─── INLINE PRESENTATION GENERATOR ──────────────────────────────────────────
+// Uses LENDER_RATE_ENGINE for real lender rates + PricingEnginePanel computeBase logic
+function PresentationGenerator({ qualData, onBack, onSendToLead, toast: toastFn }) {
+  const [loading, setLoading]       = useState(true);
+  const [loadStep, setLoadStep]     = useState(0);
+  const [options, setOptions]       = useState([]);
+  const [lenderRates, setLenderRates] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [activeTab, setActiveTab]   = useState('options');
+  const [expandedLender, setExpandedLender] = useState(null);
+  const [sent, setSent]             = useState(false);
+  const [selectedOption, setSelectedOption] = useState(null);
+
+  const LOAD_STEPS = [
+    'Analyzing borrower profile…',
+    'Calibrating rate indexes…',
+    'Matching lender programs…',
+    'Computing payment scenarios…',
+    'Building personalized presentation…',
+  ];
+
+  // Core rate computation — mirrors PricingEnginePanel exactly
+  const computeBase = (type, fico, ltvN, purpose) => {
+    let base = 6.875;
+    if (type === 'FHA')    base += 0.125;
+    else if (type === 'VA')     base -= 0.25;
+    else if (type === 'Jumbo')  base += 0.375;
+    else if (type === 'Non-QM') base += 0.5;
+    if (fico >= 780)      base -= 0.375;
+    else if (fico >= 760) base -= 0.25;
+    else if (fico >= 740) base -= 0.125;
+    else if (fico >= 700) base += 0.125;
+    else if (fico >= 680) base += 0.375;
+    else                  base += 0.625;
+    if (ltvN <= 60)               base -= 0.25;
+    else if (ltvN <= 70)          base -= 0.125;
+    else if (ltvN > 80 && ltvN <= 90) base += 0.25;
+    else if (ltvN > 90)           base += 0.5;
+    if (purpose === 'Refinance' || purpose === 'Rate/Term Refinance') base += 0.25;
+    if (purpose === 'Cash-Out Refinance') base += 0.5;
+    return Math.round(base * 8) / 8;
+  };
+
+  const calcPmt = (amt, rate, yrs = 30) => {
+    const r = rate / 100 / 12, n = yrs * 12;
+    if (r === 0) return Math.round(amt / n);
+    return Math.round((amt * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1));
+  };
+
+  const buildLoanOptions = () => {
+    const fico   = qualData.creditScore  || 720;
+    const income = qualData.annualIncome || 95000;
+    const price  = qualData.propertyValue || 550000;
+    const dpPct  = qualData.downPaymentPct || 0.20;
+    const loanAmt = qualData.loanAmount || Math.round(price * (1 - dpPct));
+    const ltv    = qualData.ltv || Math.round((1 - dpPct) * 100);
+    const purpose = qualData.loanPurpose || 'Purchase';
+    const isJumbo = loanAmt > 766550;
+    const channel = (qualData.preferredChannel || '').includes('Banking') ? 'banking' : 'brokerage';
+
+    // Run LENDER_RATE_ENGINE for real lender spreads
+    const lrData = LENDER_RATE_ENGINE({
+      creditScore: fico,
+      ltv,
+      loanPurpose: purpose,
+      loanAmount: loanAmt,
+      loanType: isJumbo ? 'Jumbo' : 'Conventional',
+      preferredChannel: qualData.preferredChannel || '',
+    });
+    setLenderRates(lrData);
+
+    const baseConv  = computeBase('Conventional', fico, ltv, purpose);
+    const baseFHA   = computeBase('FHA', fico, ltv < 96.5 ? ltv : 96.5, purpose);
+    const baseVA    = computeBase('VA', fico, 100, purpose);
+    const baseJumbo = computeBase('Jumbo', fico, ltv, purpose);
+
+    const opts = [];
+
+    // Conv 30 (or Jumbo 30)
+    if (!isJumbo) {
+      const r = baseConv;
+      opts.push({ id:'conv30', label:'Conventional 30yr', type:'Conv', term:30, rate:r, apr:+(r+0.08).toFixed(3), pmt:calcPmt(loanAmt,r,30), loanAmt, ltv, mi: ltv>80?Math.round(loanAmt*0.0065/12):0, color:'#4d8ef0', rank:1, recommended: ltv<=80&&fico>=720, highlight: ltv<=80?'No PMI — clean approval path':null });
+    } else {
+      const r = baseJumbo;
+      opts.push({ id:'jumbo30', label:'Jumbo 30yr', type:'Jumbo', term:30, rate:r, apr:+(r+0.07).toFixed(3), pmt:calcPmt(loanAmt,r,30), loanAmt, ltv, mi:0, color:'#ec4899', rank:1, recommended:true, highlight:'High-balance loan for premium properties' });
+    }
+
+    // Conv 15
+    if (!isJumbo) {
+      const r = Math.round((baseConv - 0.625) * 8) / 8;
+      const r30 = opts[0]?.pmt || 0;
+      opts.push({ id:'conv15', label:'Conventional 15yr', type:'Conv', term:15, rate:r, apr:+(r+0.065).toFixed(3), pmt:calcPmt(loanAmt,r,15), loanAmt, ltv, mi: ltv>80?Math.round(loanAmt*0.0065/12):0, color:'#8b5cf6', rank:2, recommended:false, highlight:`~$${Math.round((r30*360-loanAmt)-(calcPmt(loanAmt,r,15)*180-loanAmt)).toLocaleString()} less interest vs 30yr` });
+    }
+
+    // FHA 30
+    if (fico >= 580 && ltv <= 96.5 && !isJumbo) {
+      const fhaAmt = Math.round(price * 0.965);
+      const r = baseFHA;
+      opts.push({ id:'fha30', label:'FHA 30yr', type:'FHA', term:30, rate:r, apr:+(r+0.12).toFixed(3), pmt:calcPmt(fhaAmt,r,30), loanAmt:fhaAmt, ltv:96.5, mi:Math.round(fhaAmt*0.0055/12), upfrontMIP:Math.round(fhaAmt*0.0175), color:'#10b981', rank:3, recommended: fico<700||dpPct<0.1, highlight:'Only 3.5% down required' });
+    }
+
+    // VA 30
+    if (fico >= 620 && purpose !== 'Investment') {
+      const r = baseVA;
+      opts.push({ id:'va30', label:'VA 30yr', type:'VA', term:30, rate:r, apr:+(r+0.09).toFixed(3), pmt:calcPmt(loanAmt,r,30), loanAmt, ltv:100, mi:0, color:'#f59e0b', rank:4, recommended:false, highlight:'Zero down · No PMI — veteran benefit', badge:'VA Benefit' });
+    }
+
+    // ARM 5/1
+    const armBase = Math.round((baseConv - 0.5) * 8) / 8;
+    opts.push({ id:'arm51', label:'ARM 5/1', type:'ARM', term:30, rate:armBase, apr:+(armBase+0.15).toFixed(3), pmt:calcPmt(loanAmt,armBase,30), loanAmt, ltv, mi: ltv>80?Math.round(loanAmt*0.0065/12):0, color:'#f97316', rank:5, recommended: (qualData.timeline||'').toLowerCase().includes('short')||qualData.timeline===6||qualData.timeline==='ASAP', highlight:`${armBase}% fixed for 5 yrs, then adjusts`, badge:'Short-term savings' });
+
+    return opts.sort((a,b) => a.rank - b.rank);
+  };
+
+  useEffect(() => {
+    let step = 0;
+    const iv = setInterval(() => {
+      step++;
+      setLoadStep(step);
+      if (step >= LOAD_STEPS.length) {
+        clearInterval(iv);
+        setTimeout(() => {
+          const built = buildLoanOptions();
+          setOptions(built);
+          const rec = built.find(o => o.recommended);
+          if (rec) { setSelectedIds([rec.id]); setSelectedOption(rec); }
+          setLoading(false);
+        }, 350);
+      }
+    }, 500);
+    return () => clearInterval(iv);
+  }, []);
+
+  const toggleSelect = (opt) => {
+    setSelectedOption(opt);
+    setSelectedIds(prev => prev.includes(opt.id) ? prev.filter(x => x !== opt.id) : [...prev, opt.id]);
+  };
+
+  const handleSend = () => {
+    setSent(true);
+    toastFn && toastFn(`🎯 Presentation sent to ${qualData.borrowerName}!`);
+    onSendToLead && onSendToLead({ lead: qualData, selectedOptions: options.filter(o => selectedIds.includes(o.id)), lenderRates });
+    setTimeout(() => setSent(false), 3000);
+  };
+
+  // ── LOADING SCREEN ──
+  if (loading) {
+    return (
+      <div style={{ padding:'80px 0', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg)', minHeight:'calc(100vh - 52px)' }}>
+        <div style={{ textAlign:'center', maxWidth:420 }}>
+          <div style={{ width:64, height:64, margin:'0 auto 24px', borderRadius:'50%', border:'3px solid var(--border)', borderTop:'3px solid var(--accent)', animation:'spin 1s linear infinite' }} />
+          <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:26, fontWeight:700, color:'var(--text)', marginBottom:6 }}>Building Presentation</div>
+          <div style={{ fontSize:13, color:'var(--muted)', marginBottom:32 }}>Personalized for {qualData.borrowerName}</div>
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:'18px 22px', textAlign:'left' }}>
+            {LOAD_STEPS.map((s, i) => (
+              <div key={i} style={{ display:'flex', alignItems:'center', gap:12, padding:'7px 0', opacity: i <= loadStep ? 1 : 0.25, transition:'opacity 0.3s' }}>
+                <div style={{ width:18, height:18, borderRadius:'50%', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', background: i < loadStep ? '#2ecc8a' : i === loadStep ? 'var(--accent)' : 'var(--surface2)', transition:'all 0.3s' }}>
+                  {i < loadStep ? '✓' : i === loadStep ? '…' : ''}
+                </div>
+                <span style={{ fontSize:13, color: i < loadStep ? 'var(--muted)' : i === loadStep ? 'var(--text)' : 'var(--muted)' }}>{s}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const TABS = [
+    { id:'options', label:'💡 Loan Options' },
+    { id:'compare', label:'⚖️ Compare' },
+    { id:'lenders', label:'🏦 Lenders' },
+    { id:'summary', label:'📋 Summary' },
+  ];
+
+  const selectedOpts = options.filter(o => selectedIds.includes(o.id));
+
+  return (
+    <div style={{ background:'var(--bg)', minHeight:'calc(100vh - 52px)', paddingBottom:60 }}>
+      {/* ── Header ── */}
+      <div style={{ padding:'20px 32px', borderBottom:'1px solid var(--border)', background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+          {onBack && (
+            <button onClick={onBack} style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--muted)', borderRadius:8, padding:'7px 14px', cursor:'pointer', fontSize:13, display:'flex', alignItems:'center', gap:6 }}>
+              ← Back
+            </button>
+          )}
+          <div>
+            <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:26, fontWeight:700, color:'var(--text)' }}>Loan Presentation</div>
+            <div style={{ fontSize:13, color:'var(--muted)' }}>
+              {qualData.borrowerName}
+              {qualData.phone && ` · ${qualData.phone}`}
+              {qualData.email && ` · ${qualData.email}`}
+            </div>
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={handleSend} style={{ padding:'10px 22px', background: sent ? '#2ecc8a' : 'linear-gradient(135deg,#1a56db,#4d8ef0)', border:'none', color:'#fff', borderRadius:9, fontWeight:700, fontSize:13, cursor:'pointer', transition:'all 0.3s', display:'flex', alignItems:'center', gap:8 }}>
+            {sent ? '✓ Sent!' : '📤 Send to Client'}
+          </button>
+        </div>
+      </div>
+
+      <div style={{ maxWidth:1100, margin:'0 auto', padding:'24px 28px' }}>
+        {/* ── Stat Cards ── */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:14, marginBottom:28 }}>
+          {[
+            { label:'Purchase Price', val:'$'+(qualData.propertyValue||qualData.loanAmount||0).toLocaleString(), color:'var(--accent)', icon:'🏠' },
+            { label:'FICO Score', val:String(qualData.creditScore||'—'), color: (qualData.creditScore||0)>=740?'#2ecc8a':(qualData.creditScore||0)>=700?'#f0b429':'#e05252', icon:'📊' },
+            { label:'Annual Income', val:'$'+(qualData.annualIncome||0).toLocaleString(), color:'#8b5cf6', icon:'💼' },
+            { label:'Best Rate', val: options.length ? (Math.min(...options.map(o=>o.rate)).toFixed(3))+'%' : '—', color:'#2ecc8a', icon:'📉' },
+          ].map((s,i)=>(
+            <div key={i} style={{ background:'var(--surface)', border:`1px solid ${s.color}33`, borderRadius:12, padding:'16px 18px' }}>
+              <div style={{ fontSize:18, marginBottom:6 }}>{s.icon}</div>
+              <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em' }}>{s.label}</div>
+              <div style={{ fontSize:22, fontWeight:800, color:s.color, letterSpacing:'-.5px', marginTop:2 }}>{s.val}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Tab Nav ── */}
+        <div style={{ display:'flex', gap:4, marginBottom:24, background:'var(--surface2)', borderRadius:10, padding:4, width:'fit-content', border:'1px solid var(--border)' }}>
+          {TABS.map(t=>(
+            <button key={t.id} onClick={()=>setActiveTab(t.id)} style={{ background: activeTab===t.id ? 'var(--accent)' : 'transparent', border:'none', color: activeTab===t.id ? '#fff' : 'var(--muted)', borderRadius:7, padding:'8px 16px', cursor:'pointer', fontSize:13, fontWeight: activeTab===t.id ? 700 : 400, transition:'all 0.2s' }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── OPTIONS TAB ── */}
+        {activeTab === 'options' && (
+          <div>
+            <div style={{ fontSize:12, color:'var(--muted)', marginBottom:14 }}>Click cards to select · Select multiple to compare</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(290px,1fr))', gap:16 }}>
+              {options.map(opt => {
+                const isSel = selectedIds.includes(opt.id);
+                return (
+                  <div key={opt.id} onClick={()=>toggleSelect(opt)} style={{ background: isSel ? `${opt.color}18` : 'var(--surface)', border:`1.5px solid ${isSel ? opt.color : 'var(--border)'}`, borderRadius:14, padding:'18px 20px', cursor:'pointer', position:'relative', transition:'all 0.2s', boxShadow: isSel ? `0 0 24px ${opt.color}22` : 'none' }}>
+                    {opt.recommended && (
+                      <div style={{ position:'absolute', top:-10, right:14, background:opt.color, color:'#fff', fontSize:10, fontWeight:700, padding:'3px 10px', borderRadius:99, letterSpacing:.5, textTransform:'uppercase' }}>★ Recommended</div>
+                    )}
+                    {opt.badge && !opt.recommended && (
+                      <div style={{ position:'absolute', top:-10, right:14, background:'var(--surface2)', color:opt.color, border:`1px solid ${opt.color}`, fontSize:10, fontWeight:600, padding:'3px 10px', borderRadius:99 }}>{opt.badge}</div>
+                    )}
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
+                      <div>
+                        <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.5, fontWeight:600 }}>{opt.label}</div>
+                        <div style={{ fontSize:30, fontWeight:800, color:opt.color, letterSpacing:-1, lineHeight:1 }}>{opt.rate.toFixed(3)}%</div>
+                        <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>APR {opt.apr.toFixed(3)}%</div>
+                      </div>
+                      <div style={{ textAlign:'right' }}>
+                        <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', letterSpacing:.5 }}>Mo. Payment</div>
+                        <div style={{ fontSize:22, fontWeight:800, color:'var(--text)' }}>${opt.pmt.toLocaleString()}</div>
+                        {opt.mi > 0 && <div style={{ fontSize:11, color:'#f0b429' }}>+${opt.mi} PMI/MIP</div>}
+                      </div>
+                    </div>
+                    {/* Rate bar */}
+                    <div style={{ height:5, background:'var(--surface2)', borderRadius:99, marginBottom:10 }}>
+                      <div style={{ height:'100%', width:`${Math.max(10,Math.min(90,((opt.rate-5.5)/(9.5-5.5))*100))}%`, background:opt.color, borderRadius:99, transition:'width 0.8s ease' }} />
+                    </div>
+                    {opt.highlight && (
+                      <div style={{ fontSize:12, color:'var(--muted)', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, padding:'6px 10px', display:'flex', alignItems:'center', gap:6 }}>
+                        <span style={{ color:opt.color }}>✦</span> {opt.highlight}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Comparison bar */}
+            {selectedOpts.length >= 2 && (
+              <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:20, marginTop:24 }}>
+                <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', letterSpacing:1, marginBottom:14, fontWeight:700 }}>Monthly Payment Comparison</div>
+                {selectedOpts.map(opt => {
+                  const total = opt.pmt + (opt.mi||0);
+                  const maxPmt = Math.max(...selectedOpts.map(o=>o.pmt+(o.mi||0)));
+                  return (
+                    <div key={opt.id} style={{ marginBottom:12 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                        <span style={{ fontSize:13, fontWeight:600 }}>{opt.label}</span>
+                        <span style={{ fontSize:13, fontWeight:700, color:opt.color }}>${total.toLocaleString()}/mo</span>
+                      </div>
+                      <div style={{ height:8, background:'var(--surface2)', borderRadius:99 }}>
+                        <div style={{ height:'100%', width:`${(total/maxPmt)*100}%`, background:opt.color, borderRadius:99, transition:'width 0.8s' }} />
+                      </div>
+                    </div>
+                  );
+                })}
+                <div style={{ marginTop:14, padding:'10px 14px', background:'var(--surface2)', borderRadius:9, fontSize:13 }}>
+                  <span style={{ color:'var(--muted)' }}>Monthly savings choosing lowest: </span>
+                  <span style={{ color:'#2ecc8a', fontWeight:700 }}>
+                    ${(Math.max(...selectedOpts.map(o=>o.pmt+(o.mi||0))) - Math.min(...selectedOpts.map(o=>o.pmt+(o.mi||0)))).toLocaleString()}/mo
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── COMPARE TAB ── */}
+        {activeTab === 'compare' && (
+          <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, overflow:'hidden' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+              <thead>
+                <tr style={{ background:'var(--surface2)' }}>
+                  {['Program','Rate','APR','Mo. Payment','PMI/MIP','LTV','30yr Total',''].map(h=>(
+                    <th key={h} style={{ padding:'11px 14px', textAlign: h===''||h==='Program'?'left':'right', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.06em', borderBottom:'1px solid var(--border)' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {options.map((opt,i)=>{
+                  const total30 = opt.pmt*opt.term*12 + (opt.mi||0)*opt.term*12;
+                  const isBest = options.every(o=>(o.pmt+(o.mi||0)) >= (opt.pmt+(opt.mi||0)));
+                  const isSel = selectedIds.includes(opt.id);
+                  return (
+                    <tr key={opt.id} onClick={()=>toggleSelect(opt)} style={{ background: isSel ? `${opt.color}0f` : i%2===0 ? 'var(--surface)':'var(--surface2)', cursor:'pointer', transition:'background 0.15s' }}>
+                      <td style={{ padding:'13px 14px', fontWeight:600 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                          <div style={{ width:10, height:10, borderRadius:'50%', background:opt.color, flexShrink:0 }} />
+                          {opt.label}
+                          {isBest && <span style={{ fontSize:10, color:'#2ecc8a', background:'rgba(46,204,138,.1)', padding:'2px 7px', borderRadius:99 }}>Best Value</span>}
+                        </div>
+                      </td>
+                      <td style={{ padding:'13px 14px', textAlign:'right', color:opt.color, fontWeight:800, fontFamily:'JetBrains Mono,monospace' }}>{opt.rate.toFixed(3)}%</td>
+                      <td style={{ padding:'13px 14px', textAlign:'right', color:'var(--muted)' }}>{opt.apr.toFixed(3)}%</td>
+                      <td style={{ padding:'13px 14px', textAlign:'right', fontWeight:700 }}>${opt.pmt.toLocaleString()}</td>
+                      <td style={{ padding:'13px 14px', textAlign:'right', color: opt.mi?'#f0b429':'#2ecc8a' }}>{opt.mi?`$${opt.mi}/mo`:'None'}</td>
+                      <td style={{ padding:'13px 14px', textAlign:'right', color:'var(--muted)' }}>{opt.ltv.toFixed(0)}%</td>
+                      <td style={{ padding:'13px 14px', textAlign:'right', color:'var(--muted)', fontSize:12 }}>${Math.round(total30).toLocaleString()}</td>
+                      <td style={{ padding:'13px 14px', textAlign:'right' }}>
+                        {isSel && <span style={{ color:opt.color, fontSize:16 }}>✓</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {options.length >= 2 && (
+              <div style={{ padding:'14px 20px', borderTop:'1px solid var(--border)', display:'flex', alignItems:'center', gap:10, background:'rgba(46,204,138,.05)' }}>
+                <span style={{ fontSize:20 }}>💰</span>
+                <div>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#2ecc8a' }}>
+                    Up to ${((Math.max(...options.map(o=>o.pmt+(o.mi||0)))-Math.min(...options.map(o=>o.pmt+(o.mi||0))))*120).toLocaleString()} in 10-year savings
+                  </span>
+                  <span style={{ fontSize:12, color:'var(--muted)', marginLeft:8 }}>between highest and lowest scenarios</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── LENDERS TAB ── */}
+        {activeTab === 'lenders' && lenderRates && (
+          <div>
+            <div style={{ marginBottom:16 }}>
+              <div style={{ fontSize:13, color:'var(--muted)', marginBottom:6 }}>
+                Channel: <strong style={{ color:'var(--text)' }}>{lenderRates.channel === 'banking' ? '🏦 Banking (UWM · PennyMac)' : `🤝 Brokered Network (${lenderRates.lenderCount} lenders)`}</strong>
+              </div>
+              <div style={{ fontSize:12, color:'var(--muted)' }}>Base rate index: <strong style={{ color:'var(--accent)', fontFamily:'JetBrains Mono,monospace' }}>{lenderRates.baseRate}%</strong></div>
+            </div>
+
+            {/* Top 3 lender cards */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:24 }}>
+              {lenderRates.top3.map((l,i)=>{
+                const medals = ['🥇','🥈','🥉'];
+                const catColors = { 'Conventional':'#3b82f6','Non-QM':'#8b5cf6','Reverse':'#f59e0b','HELOC':'#10b981','FHA/VA':'#06b6d4','Banking':'#6366f1','Agency':'#84cc16' };
+                const cc = catColors[l.category] || 'var(--accent)';
+                return (
+                  <div key={l.lenderName} style={{ background:'var(--surface)', border:`1px solid ${cc}44`, borderRadius:13, padding:'18px 20px' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
+                      <div style={{ fontSize:20 }}>{medals[i]}</div>
+                      <span style={{ fontSize:10, fontWeight:700, color:cc, background:`${cc}18`, border:`1px solid ${cc}33`, padding:'2px 8px', borderRadius:99 }}>{l.category}</span>
+                    </div>
+                    <div style={{ fontWeight:700, fontSize:15, marginBottom:4 }}>{l.lenderName}</div>
+                    <div style={{ fontFamily:'JetBrains Mono,monospace', fontSize:24, fontWeight:800, color:cc, letterSpacing:-1 }}>{l.rate}%</div>
+                    <div style={{ fontSize:12, color:'var(--muted)', marginTop:4 }}>
+                      ${l.monthly.toLocaleString()}/mo · APR {l.apr}%
+                    </div>
+                    {parseFloat(l.points) < 0 && (
+                      <div style={{ fontSize:11, color:'#2ecc8a', marginTop:6, fontWeight:600 }}>
+                        ${Math.abs(l.pointsDollar).toLocaleString()} lender credit
+                      </div>
+                    )}
+                    {l.ae && <div style={{ fontSize:11, color:'var(--muted)', marginTop:6 }}>AE: {l.ae}</div>}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Rate comparison bars for all lenders */}
+            <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:'18px 22px' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:14 }}>Full Lender Rate Comparison</div>
+              {lenderRates.all.slice(0,8).map(l => {
+                const minR = parseFloat(lenderRates.top3[0].rate);
+                const maxR = parseFloat(lenderRates.all[Math.min(7,lenderRates.all.length-1)].rate);
+                const range = (maxR - minR) || 0.25;
+                const pct = 100 - Math.round(((parseFloat(l.rate) - minR) / range) * 75);
+                const isTop = lenderRates.top3.some(t=>t.lenderName===l.lenderName);
+                return (
+                  <div key={l.lenderName} style={{ display:'flex', alignItems:'center', gap:12, marginBottom:9 }}>
+                    <div style={{ width:100, fontSize:12, fontWeight: isTop ? 700 : 400, color: isTop ? 'var(--text)' : 'var(--muted)', flexShrink:0 }}>{l.lenderName}</div>
+                    <div style={{ flex:1, height:7, background:'var(--surface2)', borderRadius:4, overflow:'hidden' }}>
+                      <div style={{ height:'100%', width:`${pct}%`, background: isTop ? 'linear-gradient(90deg,#00A651,#1a9a5c)' : 'linear-gradient(90deg,var(--accent),#4d8ef0)', borderRadius:4, transition:'width 0.6s' }} />
+                    </div>
+                    <div style={{ width:55, textAlign:'right', fontSize:12, fontWeight:700, fontFamily:'JetBrains Mono,monospace', color: isTop ? '#2ecc8a' : 'var(--text)' }}>{l.rate}%</div>
+                    <div style={{ width:80, textAlign:'right', fontSize:11, color:'var(--muted)' }}>${l.monthly.toLocaleString()}/mo</div>
+                  </div>
+                );
+              })}
+              {lenderRates.all.length > 8 && (
+                <div style={{ fontSize:12, color:'var(--muted)', textAlign:'center', marginTop:8 }}>
+                  + {lenderRates.all.length - 8} more lenders · Open Lender Portals to see all
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── SUMMARY TAB ── */}
+        {activeTab === 'summary' && (
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
+            {/* Borrower Profile */}
+            <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:22 }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:16 }}>Borrower Profile</div>
+              {[
+                ['Name', qualData.borrowerName],
+                ['Phone', qualData.phone||'—'],
+                ['Loan Purpose', qualData.loanPurpose||'—'],
+                ['Property Value', '$'+(qualData.propertyValue||0).toLocaleString()],
+                ['Loan Amount', '$'+(qualData.loanAmount||0).toLocaleString()],
+                ['Down Payment', qualData.downPayment?'$'+qualData.downPayment.toLocaleString():'—'],
+                ['LTV', (qualData.ltv||'—')+'%'],
+                ['FICO Score', String(qualData.creditScore||'—')],
+                ['Annual Income', '$'+(qualData.annualIncome||0).toLocaleString()],
+                ['Channel', qualData.preferredChannel||'—'],
+                ['Timeline', qualData.timeline||'—'],
+              ].map(([label,val])=>(
+                <div key={label} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--border)', fontSize:13 }}>
+                  <span style={{ color:'var(--muted)' }}>{label}</span>
+                  <span style={{ fontWeight:600 }}>{val}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Recommendations */}
+            <div>
+              <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:22, marginBottom:20 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:14 }}>Recommended Programs</div>
+                {options.filter(o=>o.recommended).map(opt=>(
+                  <div key={opt.id} style={{ background:`${opt.color}10`, border:`1px solid ${opt.color}33`, borderRadius:11, padding:'13px 15px', marginBottom:10 }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
+                      <span style={{ fontWeight:700, color:opt.color }}>{opt.label}</span>
+                      <span style={{ fontWeight:800, fontFamily:'JetBrains Mono,monospace', color:'var(--text)' }}>{opt.rate.toFixed(3)}%</span>
+                    </div>
+                    <div style={{ fontSize:12, color:'var(--muted)' }}>${opt.pmt.toLocaleString()}/mo · LTV {opt.ltv.toFixed(0)}%{opt.mi===0?' · No PMI':` · $${opt.mi}/mo PMI`}</div>
+                    {opt.highlight && <div style={{ fontSize:11, color:'var(--muted)', marginTop:5 }}>✦ {opt.highlight}</div>}
+                  </div>
+                ))}
+                {options.filter(o=>o.recommended).length === 0 && (
+                  <div style={{ fontSize:13, color:'var(--muted)' }}>Select options from the Loan Options tab to mark recommendations.</div>
+                )}
+              </div>
+
+              {/* Next Steps */}
+              <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:22 }}>
+                <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:14 }}>Next Steps</div>
+                {[
+                  { n:'01', title:'Pre-Approval', desc:'Full application → pre-approval letter', color:'var(--accent)' },
+                  { n:'02', title:'Doc Collection', desc:'W2s, tax returns, bank statements', color:'#8b5cf6' },
+                  { n:'03', title:'Lender Submission', desc:'Submit to best-matched lender for rate lock', color:'#2ecc8a' },
+                  { n:'04', title:'Clear to Close', desc:'Appraisal · Underwriting · Closing disclosures', color:'#f0b429' },
+                ].map(s=>(
+                  <div key={s.n} style={{ display:'flex', gap:14, marginBottom:14, alignItems:'flex-start' }}>
+                    <div style={{ fontSize:20, fontWeight:800, color:`${s.color}44`, flexShrink:0, width:28 }}>{s.n}</div>
+                    <div>
+                      <div style={{ fontSize:13, fontWeight:700, color:s.color, marginBottom:2 }}>{s.title}</div>
+                      <div style={{ fontSize:12, color:'var(--muted)' }}>{s.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Rate disclaimer */}
+            <div style={{ gridColumn:'1/-1', background:'rgba(240,180,41,.07)', border:'1px solid rgba(240,180,41,.25)', borderRadius:12, padding:'12px 18px', fontSize:12, color:'var(--muted)', lineHeight:1.6 }}>
+              <strong style={{ color:'var(--text)' }}>Disclaimer:</strong> Rates are estimates based on real-time market indexes, borrower profile, and lender spread data from the CF lender network. Final rates are subject to full underwriting, appraisal, and lender approval. Not a commitment to lend.
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AutomationView({ contacts, profile, toast, onOpenPricing, onGeneratePresentation }) {
+  const [tab, setTab]                 = useState('campaigns');
+  const [campaigns, setCampaigns]     = useState(MOCK_CAMPAIGNS);
+  const [liveResponses, setLiveResponses] = useState(MOCK_RESPONSES);
+  const [showCreate, setShowCreate]   = useState(false);
   const [viewCampaign, setViewCampaign] = useState(null);
   const [uploadedLeads, setUploadedLeads] = useState(null);
-  const [creating, setCreating]     = useState(false);
+  const [creating, setCreating]       = useState(false);
   const [previewStep, setPreviewStep] = useState(0);
   const fileRef = React.useRef(null);
-  const [form, setForm] = useState({ name:'', batch:500, channel:'both', tag:'Purchase' });
+  const [form, setForm]               = useState({ name:'', batch:500, channel:'both', tag:'Purchase' });
   const setF = (k, v) => setForm(f => ({...f,[k]:v}));
 
-  const totalLeads = campaigns.reduce((s, c) => s + c.total, 0);
-  const totalSent  = campaigns.reduce((s, c) => s + c.sent, 0);
-  const totalResp  = campaigns.reduce((s, c) => s + c.replied, 0);
-  const totalApps  = campaigns.reduce((s, c) => s + c.apps, 0);
+  // ── QUALIFY LEAD TAB STATE ──
+  const [qualStep, setQualStep]           = useState(0);
+  const [qualAnswers, setQualAnswers]     = useState({});
+  const [qualContact, setQualContact]     = useState(null);
+  const [qualManual, setQualManual]       = useState({ name:'', phone:'', email:'', channel:'sms' });
+  const [qualMode, setQualMode]           = useState('pick'); // 'pick' | 'manual' | 'running' | 'complete'
+  const [qualContactSearch, setQualContactSearch] = useState('');
+  const [qualAnimating, setQualAnimating] = useState(false);
+  const [showPresentation, setShowPresentation] = useState(false);
+  const [qualData, setQualData]           = useState(null);
+  const [selectedLenderRate, setSelectedLenderRate] = useState(null);
+
+  // ── CONVERSATION MODAL STATE ──
+  const [viewConvo, setViewConvo]         = useState(null); // response object
+  const [convoMessage, setConvoMessage]   = useState('');
+  const [convoThread, setConvoThread]     = useState({});
+  const [aiTyping, setAiTyping]           = useState(false);
+
+  const totalLeads  = campaigns.reduce((s, c) => s + c.total, 0);
+  const totalSent   = campaigns.reduce((s, c) => s + c.sent, 0);
+  const totalResp   = campaigns.reduce((s, c) => s + c.replied, 0);
+  const totalApps   = campaigns.reduce((s, c) => s + c.apps, 0);
   const activeCount = campaigns.filter(c => c.status === 'active').length;
 
   const handleCSV = file => {
@@ -8227,19 +8335,195 @@ function AutomationView({ contacts, profile, toast }) {
     toast && toast(next === 'active' ? 'Campaign resumed' : 'Campaign paused');
   };
 
+  // ── QUALIFY LEAD LOGIC ──
+  const startQualification = (contact) => {
+    setQualContact(contact);
+    setQualStep(0);
+    setQualAnswers({});
+    setQualMode('running');
+  };
+
+  const startManualQualification = () => {
+    if (!qualManual.name || !qualManual.phone) { toast && toast('Enter a name and phone number to continue'); return; }
+    setQualContact({ full_name: qualManual.name, phone: qualManual.phone, email: qualManual.email, channel: qualManual.channel, id: Date.now() });
+    setQualStep(0);
+    setQualAnswers({});
+    setQualMode('running');
+  };
+
+  const handleQualAnswer = (qKey, answer) => {
+    if (qualAnimating) return;
+    const newAnswers = { ...qualAnswers, [qKey]: answer };
+    setQualAnswers(newAnswers);
+    setQualAnimating(true);
+    setTimeout(() => {
+      if (qualStep < AI_QUAL_QUESTIONS.length - 1) {
+        setQualStep(qualStep + 1);
+      } else {
+        // ALL QUESTIONS ANSWERED — build loan data and show presentation trigger
+        const priceMap    = { 'Under $400K': 350000, '$400K–$700K': 550000, '$700K–$1M': 850000, 'Over $1M': 1250000 };
+        const creditMap   = { 'Excellent (740+)': 760, 'Good (700–739)': 720, 'Fair (660–699)': 680, 'Not sure': 700 };
+        const incomeMap   = { 'Under $75K': 50000, '$75K–$120K': 95000, '$120K–$200K': 160000, 'Over $200K': 250000 };
+        const propVal     = priceMap[newAnswers.price_range] || 500000;
+        const downPct     = newAnswers.intent === 'Purchase 🏠' ? 0.15 : 0;
+        const loanAmt     = Math.round(propVal * (1 - downPct));
+        const data = {
+          borrowerName:  qualContact?.full_name || qualManual.name,
+          phone:         qualContact?.phone || qualManual.phone,
+          email:         qualContact?.email || qualManual.email,
+          intent:        newAnswers.intent,
+          propertyValue: propVal,
+          loanAmount:    loanAmt,
+          creditScore:   creditMap[newAnswers.credit] || 700,
+          annualIncome:  incomeMap[newAnswers.income] || 100000,
+          timeline:      newAnswers.timeline,
+          channel:       newAnswers.channel,
+          loanPurpose:   newAnswers.intent === 'Purchase 🏠' ? 'Purchase' : newAnswers.intent === 'Refinance 🔄' ? 'Refinance' : newAnswers.intent === 'Cash-Out Refi 💰' ? 'Cash-Out Refinance' : 'Purchase',
+          loanTerm:      '30',
+          // ── AUTO RATE ESTIMATE ──────────────────────────────────────
+          // Base rate by loan purpose
+          estimatedRate: (() => {
+            const cs = creditMap[newAnswers.credit] || 700;
+            let base = newAnswers.intent === 'Purchase 🏠' ? 6.875
+                     : newAnswers.intent === 'Refinance 🔄' ? 7.125
+                     : newAnswers.intent === 'Cash-Out Refi 💰' ? 7.375
+                     : 6.875;
+            // Credit adjustments (LLPA approximation)
+            if (cs >= 760) base -= 0.375;
+            else if (cs >= 740) base -= 0.25;
+            else if (cs >= 720) base -= 0.125;
+            else if (cs < 680) base += 0.5;
+            else if (cs < 700) base += 0.25;
+            // LTV adjustment — if <20% down (purchase) add high-LTV adj
+            const ltv = newAnswers.intent === 'Purchase 🏠' ? Math.round(loanAmt / propVal * 100) : 75;
+            if (ltv > 90) base += 0.375;
+            else if (ltv > 80) base += 0.125;
+            // Round to nearest .125
+            return (Math.round(base * 8) / 8).toFixed(3);
+          })(),
+          ltv: newAnswers.intent === 'Purchase 🏠' ? Math.round(loanAmt / propVal * 100) : 75,
+          downPayment: newAnswers.intent === 'Purchase 🏠' ? Math.round(propVal * 0.15) : 0,
+          preferredChannel: newAnswers.channel,
+        };
+        // ── COMPUTE LENDER RATES FROM QUALIFICATION DATA ───────────────────
+        const lenderResults = LENDER_RATE_ENGINE(data);
+        const enrichedData = {
+          ...data,
+          lenderRates: lenderResults,
+          selectedLender: lenderResults.top3[0] || null,
+        };
+        setQualData(enrichedData);
+        setSelectedLenderRate(lenderResults.top3[0] || null);
+        setQualMode('complete');
+        // Add to live responses
+        const newResp = {
+          id: Date.now(),
+          contact: data.borrowerName,
+          phone: data.phone,
+          channel: newAnswers.channel === 'Text 📱' ? 'sms' : 'email',
+          step: 6,
+          lastMsg: newAnswers.channel,
+          timestamp: 'Just now',
+          status: 'qualified',
+          intent: data.loanPurpose,
+          price: newAnswers.price_range,
+        };
+        setLiveResponses(prev => [newResp, ...prev]);
+        // Update campaign qualified count
+        setCampaigns(prev => prev.map((c, i) => i === 0 ? {...c, qualified: c.qualified + 1, replied: c.replied + 1} : c));
+      }
+      setQualAnimating(false);
+    }, 600);
+  };
+
+  const resetQualification = () => {
+    setQualStep(0);
+    setQualAnswers({});
+    setQualContact(null);
+    setQualManual({ name:'', phone:'', email:'', channel:'sms' });
+    setQualMode('pick');
+    setQualData(null);
+    setSelectedLenderRate(null);
+    setShowPresentation(false);
+  };
+
+  // ── CONVERSATION MODAL LOGIC ──
+  const openConversation = (r) => {
+    setViewConvo(r);
+    // Build initial thread from step data
+    if (!convoThread[r.id]) {
+      const thread = [];
+      for (let i = 0; i < r.step; i++) {
+        const q = AI_QUAL_QUESTIONS[i];
+        thread.push({ role:'ai', text: q.text.replace('{name}', r.contact.split(' ')[0]).replace('{lo_name}', profile?.full_name || 'your loan officer') });
+        if (i < r.step - 1) {
+          const mockAns = ['Purchase 🏠', '$400K–$700K', 'Good (700–739)', '$120K–$200K', '1–3 months', r.lastMsg][i] || '—';
+          thread.push({ role:'lead', text: mockAns });
+        } else {
+          thread.push({ role:'lead', text: r.lastMsg });
+        }
+      }
+      if (r.step < AI_QUAL_QUESTIONS.length) {
+        thread.push({ role:'ai', text: AI_QUAL_QUESTIONS[r.step].text.replace('{name}', r.contact.split(' ')[0]).replace('{lo_name}', profile?.full_name || 'your loan officer') });
+      }
+      setConvoThread(prev => ({...prev, [r.id]: thread}));
+    }
+  };
+
+  const sendConvoMessage = (r) => {
+    if (!convoMessage.trim()) return;
+    const thread = [...(convoThread[r.id] || [])];
+    thread.push({ role:'lead', text: convoMessage });
+    setConvoMessage('');
+    setConvoThread(prev => ({...prev, [r.id]: thread}));
+    setAiTyping(true);
+    setTimeout(() => {
+      const nextStep = r.step + 1;
+      let aiReply;
+      if (nextStep < AI_QUAL_QUESTIONS.length) {
+        aiReply = AI_QUAL_QUESTIONS[nextStep].text.replace('{name}', r.contact.split(' ')[0]).replace('{lo_name}', profile?.full_name || 'your loan officer');
+        setLiveResponses(prev => prev.map(x => x.id === r.id ? {...x, step: nextStep, lastMsg: convoMessage, timestamp: 'Just now'} : x));
+        setViewConvo(prev => prev ? {...prev, step: nextStep, lastMsg: convoMessage} : prev);
+      } else {
+        aiReply = "Thank you! Your personalized presentation is on its way — check your " + (r.channel === 'sms' ? 'phone' : 'email') + " in about 60 seconds. 🎯";
+        setLiveResponses(prev => prev.map(x => x.id === r.id ? {...x, status:'presentation_sent', lastMsg: convoMessage, timestamp: 'Just now'} : x));
+        setViewConvo(prev => prev ? {...prev, status:'presentation_sent'} : prev);
+      }
+      const updated = [...convoThread[r.id] || [], { role:'lead', text: convoMessage }];
+      updated.push({ role:'ai', text: aiReply });
+      setConvoThread(prev => ({...prev, [r.id]: updated}));
+      setAiTyping(false);
+    }, 1500);
+  };
+
+  const filteredContacts = (contacts || []).filter(c => {
+    if (!qualContactSearch) return true;
+    const q = qualContactSearch.toLowerCase();
+    return (c.full_name||'').toLowerCase().includes(q) || (c.phone||'').includes(q) || (c.email||'').toLowerCase().includes(q);
+  }).slice(0, 8);
+
+  const currentQ = AI_QUAL_QUESTIONS[qualStep];
+
   return (
     <div style={{ marginLeft:240, paddingTop:52, minHeight:'100vh', background:'var(--bg)', fontFamily:'Inter,sans-serif' }}>
       <div style={{ padding:'28px 32px', maxWidth:1200 }}>
+
         {/* Header */}
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:24 }}>
           <div>
             <h1 style={{ fontFamily:'Cormorant Garamond,serif', fontSize:32, fontWeight:700, margin:0, letterSpacing:'-.01em', color:'var(--text)' }}>AI Lead Outreach</h1>
             <div style={{ color:'var(--muted)', fontSize:14, marginTop:4 }}>Automated qualification → presentation → application pipeline</div>
           </div>
-          <button onClick={() => setShowCreate(true)} style={{ background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', borderRadius:9, padding:'10px 22px', fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:8 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            New Campaign
-          </button>
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={() => { setTab('qualify'); resetQualification(); }} style={{ background:'linear-gradient(135deg,#00A651,#007a3d)', color:'#fff', border:'none', borderRadius:9, padding:'10px 22px', fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:8 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              Qualify Lead
+            </button>
+            <button onClick={() => setShowCreate(true)} style={{ background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', borderRadius:9, padding:'10px 22px', fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:8 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              New Campaign
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -8260,7 +8544,7 @@ function AutomationView({ contacts, profile, toast }) {
 
         {/* Tabs */}
         <div style={{ display:'flex', gap:0, marginBottom:20, borderBottom:'1px solid var(--border)' }}>
-          {[['campaigns','Campaigns'],['responses','Live Responses'],['flow','AI Script Flow']].map(([id, lbl]) => (
+          {[['campaigns','📊 Campaigns'],['responses','🔴 Live Responses'],['qualify','✅ Qualify Lead'],['flow','🤖 AI Script']].map(([id, lbl]) => (
             <div key={id} onClick={() => setTab(id)} style={{ padding:'10px 22px', cursor:'pointer', fontSize:13, fontWeight:tab===id?700:400, color:tab===id?'var(--accent)':'var(--muted)', borderBottom:tab===id?'2px solid var(--accent)':'2px solid transparent', transition:'color .15s' }}>{lbl}</div>
           ))}
         </div>
@@ -8297,8 +8581,6 @@ function AutomationView({ contacts, profile, toast }) {
                       <button onClick={() => setViewCampaign(viewCampaign===c.id?null:c.id)} style={{ fontSize:12, padding:'6px 14px', borderRadius:7, background:'var(--bg)', border:'1px solid var(--border)', color:'var(--text)', cursor:'pointer', fontWeight:600 }}>Details {viewCampaign===c.id?'↑':'↓'}</button>
                     </div>
                   </div>
-
-                  {/* Progress bar */}
                   {c.total > 0 && (
                     <div style={{ marginBottom:14 }}>
                       <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
@@ -8310,54 +8592,33 @@ function AutomationView({ contacts, profile, toast }) {
                       </div>
                     </div>
                   )}
-
-                  {/* Metrics grid */}
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:10 }}>
-                    {[
-                      ['Total Leads',    c.total.toLocaleString()],
-                      ['Sent',           c.sent.toLocaleString()],
-                      ['Replied',        c.replied.toLocaleString()],
-                      ['Reply Rate',     replyRate+'%'],
-                      ['Qualified',      c.qualified.toLocaleString()],
-                      ['Presentations',  c.presentations.toLocaleString()],
-                    ].map(([label, val]) => (
+                    {[['Total Leads',c.total.toLocaleString()],['Sent',c.sent.toLocaleString()],['Replied',c.replied.toLocaleString()],['Reply Rate',replyRate+'%'],['Qualified',c.qualified.toLocaleString()],['Presentations',c.presentations.toLocaleString()]].map(([label, val]) => (
                       <div key={label} style={{ background:'var(--bg)', borderRadius:9, padding:'10px 12px', textAlign:'center' }}>
                         <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'.04em', marginBottom:4 }}>{label}</div>
                         <div style={{ fontFamily:'JetBrains Mono,monospace', fontSize:18, fontWeight:700, color:'var(--text)' }}>{val}</div>
                       </div>
                     ))}
                   </div>
-
-                  {/* Expanded detail */}
                   {viewCampaign === c.id && (
                     <div style={{ marginTop:16, paddingTop:16, borderTop:'1px solid var(--border)', display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
                       <div>
                         <div style={{ fontSize:12, fontWeight:700, marginBottom:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em' }}>Conversion Funnel</div>
-                        {[
-                          ['Leads loaded',       c.total,         '#3b82f6'],
-                          ['Outreach sent',      c.sent,          '#8b5cf6'],
-                          ['Responded',          c.replied,       '#f59e0b'],
-                          ['Qualified',          c.qualified,     '#22c55e'],
-                          ['Presentations sent', c.presentations, '#10b981'],
-                          ['Applications',       c.apps,          '#ec4899'],
-                        ].map(([label, val, color]) => (
-                          <div key={label} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:7 }}>
-                            <div style={{ width:130, fontSize:12, color:'var(--muted)' }}>{label}</div>
-                            <div style={{ flex:1, background:'var(--bg)', borderRadius:3, height:8, overflow:'hidden' }}>
-                              <div style={{ height:'100%', width:c.total>0?(val/c.total*100)+'%':'0%', background:color, borderRadius:3 }} />
+                        {[['Leads loaded',c.total,'#3b82f6'],['Outreach sent',c.sent,'#8b5cf6'],['Responded',c.replied,'#f59e0b'],['Qualified',c.qualified,'#22c55e'],['Presentations',c.presentations,'#10b981'],['Applications',c.apps,'#ec4899']].map(([label, val, color]) => (
+                          <div key={label} style={{ marginBottom:8 }}>
+                            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
+                              <span style={{ fontSize:11, color:'var(--muted)' }}>{label}</span>
+                              <span style={{ fontSize:11, fontFamily:'JetBrains Mono,monospace', fontWeight:700, color }}>{val.toLocaleString()}</span>
                             </div>
-                            <div style={{ width:50, textAlign:'right', fontFamily:'JetBrains Mono,monospace', fontSize:12, fontWeight:700, color:'var(--text)' }}>{val.toLocaleString()}</div>
+                            <div style={{ background:'var(--bg)', borderRadius:3, height:4 }}>
+                              <div style={{ height:'100%', width:(c.total>0?Math.min(100,val/c.total*100):0)+'%', background:color, borderRadius:3 }} />
+                            </div>
                           </div>
                         ))}
                       </div>
                       <div>
                         <div style={{ fontSize:12, fontWeight:700, marginBottom:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em' }}>Key Rates</div>
-                        {[
-                          ['Reply Rate',         c.sent>0      ? +(c.replied/c.sent*100).toFixed(1)         : 0, '%', '#f59e0b'],
-                          ['Qualification Rate', c.replied>0   ? +(c.qualified/c.replied*100).toFixed(0)    : 0, '%', '#22c55e'],
-                          ['Presentation Rate',  c.qualified>0 ? +(c.presentations/c.qualified*100).toFixed(0) : 0, '%', '#10b981'],
-                          ['Application Rate',   c.presentations>0 ? +(c.apps/c.presentations*100).toFixed(0) : 0, '%', '#ec4899'],
-                        ].map(([label, val, unit, color]) => (
+                        {[['Reply Rate',c.sent>0?+(c.replied/c.sent*100).toFixed(1):0,'%','#f59e0b'],['Qualification Rate',c.replied>0?+(c.qualified/c.replied*100).toFixed(0):0,'%','#22c55e'],['Presentation Rate',c.qualified>0?+(c.presentations/c.qualified*100).toFixed(0):0,'%','#10b981'],['Application Rate',c.presentations>0?+(c.apps/c.presentations*100).toFixed(0):0,'%','#ec4899']].map(([label, val, unit, color]) => (
                           <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background:'var(--bg)', borderRadius:8, marginBottom:6 }}>
                             <span style={{ fontSize:12, color:'var(--muted)' }}>{label}</span>
                             <span style={{ fontFamily:'JetBrains Mono,monospace', fontSize:18, fontWeight:700, color }}>{val}{unit}</span>
@@ -8376,18 +8637,18 @@ function AutomationView({ contacts, profile, toast }) {
         {tab === 'responses' && (
           <div>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-              <div style={{ fontSize:13, color:'var(--muted)' }}>Showing {responses.length} active AI conversations</div>
+              <div style={{ fontSize:13, color:'var(--muted)' }}>Showing {liveResponses.length} active AI conversations</div>
               <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <div style={{ width:8, height:8, borderRadius:'50%', background:'#22c55e' }} />
+                <div style={{ width:8, height:8, borderRadius:'50%', background:'#22c55e', animation:'pulse 2s infinite' }} />
                 <span style={{ fontSize:12, color:'#22c55e', fontWeight:600 }}>AI responding live</span>
               </div>
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              {responses.map(r => {
+              {liveResponses.map(r => {
                 const si  = STEP_INFO[r.status] || STEP_INFO.active;
                 const pct = Math.round(r.step / AI_QUAL_QUESTIONS.length * 100);
                 return (
-                  <div key={r.id} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 20px', display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr 120px', alignItems:'center', gap:14 }}>
+                  <div key={r.id} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 20px', display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr 140px', alignItems:'center', gap:14 }}>
                     <div>
                       <div style={{ fontWeight:700, fontSize:14, marginBottom:2, color:'var(--text)' }}>{r.contact}</div>
                       <div style={{ fontSize:12, color:'var(--muted)', display:'flex', gap:8 }}>
@@ -8397,7 +8658,7 @@ function AutomationView({ contacts, profile, toast }) {
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4 }}>Progress (step {r.step}/{AI_QUAL_QUESTIONS.length})</div>
+                      <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4 }}>Progress ({r.step}/{AI_QUAL_QUESTIONS.length})</div>
                       <div style={{ background:'var(--bg)', borderRadius:3, height:5 }}>
                         <div style={{ height:'100%', width:pct+'%', background:'linear-gradient(90deg,#1a56db,#00A651)', borderRadius:3 }} />
                       </div>
@@ -8410,15 +8671,417 @@ function AutomationView({ contacts, profile, toast }) {
                       <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:`${si.color}18`, color:si.color, fontWeight:700 }}>● {si.label}</span>
                     </div>
                     <div style={{ display:'flex', gap:6 }}>
-                      <button onClick={() => toast && toast(`Opening conversation with ${r.contact}`)} style={{ fontSize:11, padding:'5px 11px', borderRadius:6, background:'var(--bg)', border:'1px solid var(--border)', color:'var(--text)', cursor:'pointer', fontWeight:600 }}>View</button>
-                      {r.status === 'qualified' && (
-                        <button onClick={() => toast && toast(`Sending presentation to ${r.contact}`)} style={{ fontSize:11, padding:'5px 11px', borderRadius:6, background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600 }}>Send Pres.</button>
+                      <button onClick={() => openConversation(r)} style={{ fontSize:11, padding:'5px 11px', borderRadius:6, background:'var(--bg)', border:'1px solid var(--border)', color:'var(--text)', cursor:'pointer', fontWeight:600 }}>View</button>
+                      {(r.status === 'qualified' || r.step === 6) && (
+                        <button onClick={() => toast && toast(`Generating presentation for ${r.contact}...`)} style={{ fontSize:11, padding:'5px 11px', borderRadius:6, background:'linear-gradient(135deg,#00A651,#007a3d)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600 }}>Send Pres. 🎯</button>
                       )}
                     </div>
                   </div>
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* ── QUALIFY LEAD TAB ── */}
+        {tab === 'qualify' && (
+          <div style={{ maxWidth:680 }}>
+
+            {/* MODE: PICK CONTACT */}
+            {qualMode === 'pick' && (
+              <div>
+                <div style={{ background:'rgba(0,166,81,.06)', border:'1px solid rgba(0,166,81,.2)', borderRadius:12, padding:'16px 20px', marginBottom:24, fontSize:13, color:'var(--text)', lineHeight:1.7 }}>
+                  <strong style={{ color:'#00A651' }}>Qualify a lead manually</strong> — Pick a contact from your CRM or enter a new lead's info below. The AI qualification script will walk you through 6 questions. When complete, a personalized presentation will be ready to send instantly.
+                </div>
+
+                {/* Search contacts */}
+                {contacts && contacts.length > 0 && (
+                  <div style={{ marginBottom:24 }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>Select from CRM Contacts</div>
+                    <input
+                      value={qualContactSearch}
+                      onChange={e => setQualContactSearch(e.target.value)}
+                      placeholder="Search by name, phone, or email..."
+                      style={{ width:'100%', padding:'9px 13px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box', marginBottom:10 }}
+                    />
+                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                      {filteredContacts.length === 0 && (
+                        <div style={{ fontSize:13, color:'var(--muted)', padding:'12px 0' }}>No contacts found</div>
+                      )}
+                      {filteredContacts.map(c => (
+                        <div key={c.id} onClick={() => startQualification(c)} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:10, cursor:'pointer', transition:'border-color .15s' }}
+                          onMouseEnter={e => e.currentTarget.style.borderColor='var(--accent)'}
+                          onMouseLeave={e => e.currentTarget.style.borderColor='var(--border)'}
+                        >
+                          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                            <div style={{ width:36, height:36, borderRadius:'50%', background:'linear-gradient(135deg,#0f1c3f,#1a56db)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:14 }}>
+                              {(c.full_name||'?')[0].toUpperCase()}
+                            </div>
+                            <div>
+                              <div style={{ fontWeight:700, fontSize:14, color:'var(--text)' }}>{c.full_name}</div>
+                              <div style={{ fontSize:12, color:'var(--muted)' }}>{c.phone || c.email || 'No contact info'}</div>
+                            </div>
+                          </div>
+                          <div style={{ fontSize:12, color:'var(--accent)', fontWeight:600 }}>Qualify →</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* OR manual entry */}
+                <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'20px 24px' }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:14 }}>Or Enter a New Lead</div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                      <div>
+                        <label style={{ fontSize:11, color:'var(--muted)', fontWeight:600, display:'block', marginBottom:4 }}>FULL NAME *</label>
+                        <input value={qualManual.name} onChange={e => setQualManual(m => ({...m, name:e.target.value}))} placeholder="Jane Smith"
+                          style={{ width:'100%', padding:'8px 11px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize:11, color:'var(--muted)', fontWeight:600, display:'block', marginBottom:4 }}>PHONE *</label>
+                        <input value={qualManual.phone} onChange={e => setQualManual(m => ({...m, phone:e.target.value}))} placeholder="(925) 555-0100"
+                          style={{ width:'100%', padding:'8px 11px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }} />
+                      </div>
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                      <div>
+                        <label style={{ fontSize:11, color:'var(--muted)', fontWeight:600, display:'block', marginBottom:4 }}>EMAIL</label>
+                        <input value={qualManual.email} onChange={e => setQualManual(m => ({...m, email:e.target.value}))} placeholder="jane@email.com"
+                          style={{ width:'100%', padding:'8px 11px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize:11, color:'var(--muted)', fontWeight:600, display:'block', marginBottom:4 }}>PREFERRED CHANNEL</label>
+                        <div style={{ display:'flex', gap:8 }}>
+                          {[['sms','📱 SMS'],['email','📧 Email']].map(([val,lbl]) => (
+                            <div key={val} onClick={() => setQualManual(m => ({...m, channel:val}))} style={{ flex:1, textAlign:'center', padding:'8px', borderRadius:7, border:`1px solid ${qualManual.channel===val?'var(--accent)':'var(--border)'}`, background:qualManual.channel===val?'rgba(77,142,240,.1)':'var(--bg)', cursor:'pointer', fontSize:12, fontWeight:qualManual.channel===val?700:400, color:qualManual.channel===val?'var(--accent)':'var(--muted)' }}>{lbl}</div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <button onClick={startManualQualification} style={{ marginTop:4, padding:'11px', background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', borderRadius:8, fontWeight:700, fontSize:14, cursor:'pointer', fontFamily:'inherit' }}>
+                      Start Qualification →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* MODE: RUNNING QUALIFICATION */}
+            {qualMode === 'running' && currentQ && (
+              <div>
+                {/* Contact badge */}
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20, padding:'10px 14px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:10 }}>
+                  <div style={{ width:32, height:32, borderRadius:'50%', background:'linear-gradient(135deg,#0f1c3f,#1a56db)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:13 }}>
+                    {(qualContact?.full_name||'?')[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontWeight:700, fontSize:13 }}>{qualContact?.full_name}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)' }}>{qualContact?.phone}</div>
+                  </div>
+                  <button onClick={resetQualification} style={{ marginLeft:'auto', fontSize:11, padding:'4px 10px', borderRadius:6, background:'var(--bg)', border:'1px solid var(--border)', color:'var(--muted)', cursor:'pointer' }}>✕ Cancel</button>
+                </div>
+
+                {/* Progress */}
+                <div style={{ marginBottom:20 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                    <span style={{ fontSize:12, fontWeight:600, color:'var(--muted)' }}>Step {qualStep + 1} of {AI_QUAL_QUESTIONS.length}</span>
+                    <span style={{ fontSize:12, color:'#00A651', fontWeight:700 }}>{Math.round((qualStep / AI_QUAL_QUESTIONS.length) * 100)}% complete</span>
+                  </div>
+                  <div style={{ background:'var(--bg)', borderRadius:4, height:6, overflow:'hidden' }}>
+                    <div style={{ height:'100%', width:((qualStep+1)/AI_QUAL_QUESTIONS.length*100)+'%', background:'linear-gradient(90deg,#1a56db,#00A651)', borderRadius:4, transition:'width .5s ease' }} />
+                  </div>
+                  <div style={{ display:'flex', gap:4, marginTop:8 }}>
+                    {AI_QUAL_QUESTIONS.map((q,i) => (
+                      <div key={q.id} style={{ flex:1, height:4, borderRadius:2, background: i < qualStep ? '#00A651' : i === qualStep ? '#1a56db' : 'var(--border)', transition:'background .3s' }} />
+                    ))}
+                  </div>
+                </div>
+
+                {/* AI question bubble */}
+                <div style={{ display:'flex', gap:10, marginBottom:20 }}>
+                  <div style={{ width:36, height:36, borderRadius:'50%', background:'linear-gradient(135deg,#0f1c3f,#1a56db)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:16 }}>🤖</div>
+                  <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:'4px 14px 14px 14px', padding:'14px 18px', maxWidth:520 }}>
+                    <div style={{ fontSize:11, color:'var(--accent)', fontWeight:700, marginBottom:6 }}>AI · Citizens Financial</div>
+                    <div style={{ fontSize:14, lineHeight:1.6, color:'var(--text)' }}>
+                      {currentQ.text
+                        .replace('{name}', (qualContact?.full_name||'').split(' ')[0] || 'there')
+                        .replace('{lo_name}', profile?.full_name || 'your loan officer')}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Previous answers summary */}
+                {qualStep > 0 && (
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:16 }}>
+                    {Object.entries(qualAnswers).map(([key, val]) => (
+                      <span key={key} style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(0,166,81,.1)', border:'1px solid rgba(0,166,81,.25)', color:'#00A651', fontWeight:600 }}>✓ {val}</span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Answer options */}
+                <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:20 }}>
+                  {currentQ.opts.map(opt => (
+                    <button
+                      key={opt}
+                      onClick={() => handleQualAnswer(currentQ.key, opt)}
+                      disabled={qualAnimating}
+                      style={{
+                        padding:'14px 18px',
+                        borderRadius:10,
+                        border: qualAnswers[currentQ.key] === opt ? '2px solid #00A651' : '1px solid var(--border)',
+                        background: qualAnswers[currentQ.key] === opt ? 'rgba(0,166,81,.1)' : 'var(--card)',
+                        color: qualAnswers[currentQ.key] === opt ? '#00A651' : 'var(--text)',
+                        fontSize:14,
+                        fontWeight: qualAnswers[currentQ.key] === opt ? 700 : 500,
+                        cursor: qualAnimating ? 'wait' : 'pointer',
+                        transition:'all 0.15s',
+                        textAlign:'left',
+                        fontFamily:'inherit',
+                        opacity: qualAnimating ? 0.6 : 1,
+                      }}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Back button */}
+                {qualStep > 0 && (
+                  <button onClick={() => { setQualStep(qualStep - 1); setQualAnswers(a => { const n={...a}; delete n[AI_QUAL_QUESTIONS[qualStep].key]; return n; }); }} style={{ fontSize:12, padding:'6px 14px', borderRadius:7, background:'var(--bg)', border:'1px solid var(--border)', color:'var(--muted)', cursor:'pointer', fontWeight:600 }}>← Back</button>
+                )}
+              </div>
+            )}
+
+            {/* MODE: COMPLETE — QUALIFICATION DONE */}
+            {qualMode === 'complete' && qualData && (
+              <div>
+                {/* Success banner */}
+                <div style={{ background:'linear-gradient(135deg,#0a2a0a,#0d3d0d)', border:'1px solid rgba(0,166,81,.4)', borderRadius:14, padding:'20px 24px', marginBottom:20, textAlign:'center' }}>
+                  <div style={{ fontSize:40, marginBottom:8 }}>✅</div>
+                  <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:24, fontWeight:700, color:'#00A651', marginBottom:6 }}>Lead Qualified!</div>
+                  <div style={{ fontSize:13, color:'rgba(255,255,255,.6)', lineHeight:1.6 }}>
+                    {qualData.borrowerName} has completed all 6 qualification steps. An estimated rate has been computed and their personalized presentation is ready to generate.
+                  </div>
+                </div>
+
+                {/* ── FUNNEL PROGRESS ── */}
+                <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'18px 24px', marginBottom:16 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:14 }}>Lead Journey</div>
+                  <div style={{ display:'flex', alignItems:'center', gap:0 }}>
+                    {[
+                      { label:'Lead Entered', icon:'👤', done:true },
+                      { label:'AI Outreach', icon:'🤖', done:true },
+                      { label:'Qualified', icon:'✅', done:true },
+                      { label:'Rate Estimated', icon:'📊', done:true },
+                      { label:'Presentation', icon:'🎯', done:false },
+                      { label:'Application', icon:'📋', done:false },
+                    ].map((step, i, arr) => (
+                      <React.Fragment key={step.label}>
+                        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', flex:'0 0 auto', minWidth:72 }}>
+                          <div style={{
+                            width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16,
+                            background: step.done ? 'linear-gradient(135deg,#00A651,#007a3d)' : 'var(--bg)',
+                            border: step.done ? 'none' : '2px dashed var(--border)',
+                            marginBottom:6,
+                          }}>{step.icon}</div>
+                          <div style={{ fontSize:10, fontWeight:600, color: step.done ? '#00A651' : 'var(--muted)', textAlign:'center', lineHeight:1.3 }}>{step.label}</div>
+                        </div>
+                        {i < arr.length - 1 && (
+                          <div style={{ flex:1, height:2, background: step.done ? '#00A651' : 'var(--border)', margin:'0 2px', marginBottom:22, transition:'background .3s' }} />
+                        )}
+                      </React.Fragment>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ── LENDER RATE COMPARISON GRID ── */}
+                {qualData.lenderRates && (
+                  <div style={{ marginBottom:16 }}>
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>
+                        Top Lender Options
+                        <span style={{ fontSize:11, color:'var(--muted)', fontWeight:400, marginLeft:8 }}>
+                          {qualData.lenderRates.channel === 'banking' ? 'Banking Channel (UWM · PennyMac)' : `Brokered Network (${qualData.lenderRates.lenderCount} lenders)`}
+                        </span>
+                      </div>
+                      <span style={{ fontSize:10, color:'var(--muted)', fontWeight:600, padding:'3px 8px', borderRadius:4, border:'1px solid var(--border)', background:'var(--bg)' }}>
+                        Base rate: {qualData.lenderRates.baseRate}%
+                      </span>
+                    </div>
+
+                    {/* Rate cards row */}
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:10 }}>
+                      {qualData.lenderRates.top3.map((lender, idx) => {
+                        const isSelected = selectedLenderRate?.lenderName === lender.lenderName;
+                        const catColors = { 'Conventional':'#3b82f6','Non-QM':'#8b5cf6','Reverse':'#f59e0b','HELOC':'#10b981','FHA/VA':'#06b6d4','Banking':'#6366f1','Agency':'#84cc16' };
+                        const catColor = catColors[lender.category] || '#6b7280';
+                        return (
+                          <div
+                            key={lender.lenderName}
+                            onClick={() => setSelectedLenderRate(lender)}
+                            style={{
+                              background: isSelected ? 'linear-gradient(135deg,rgba(0,166,81,.12),rgba(0,166,81,.05))' : 'var(--card)',
+                              border: isSelected ? '2px solid #00A651' : '1px solid var(--border)',
+                              borderRadius:12,
+                              padding:'14px 16px',
+                              cursor:'pointer',
+                              transition:'all .15s',
+                              position:'relative',
+                            }}
+                          >
+                            {idx === 0 && (
+                              <div style={{ position:'absolute', top:-9, left:'50%', transform:'translateX(-50%)', background:'#00A651', color:'#fff', fontSize:9, fontWeight:800, padding:'2px 8px', borderRadius:10, letterSpacing:'.05em' }}>BEST OPTION</div>
+                            )}
+                            {/* Lender avatar + name */}
+                            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+                              <div style={{ width:28, height:28, borderRadius:7, background:catColor+'22', border:`1px solid ${catColor}44`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:catColor }}>
+                                {lender.lenderName.slice(0,2).toUpperCase()}
+                              </div>
+                              <div>
+                                <div style={{ fontSize:12, fontWeight:700, color:'var(--text)', lineHeight:1.2 }}>{lender.lenderName}</div>
+                                <span style={{ fontSize:10, color:catColor, fontWeight:600 }}>{lender.category}</span>
+                              </div>
+                              {isSelected && <span style={{ marginLeft:'auto', fontSize:14, color:'#00A651' }}>✓</span>}
+                            </div>
+
+                            {/* Rate big number */}
+                            <div style={{ textAlign:'center', padding:'8px 0', borderTop:'1px solid var(--border)', borderBottom:'1px solid var(--border)', marginBottom:10 }}>
+                              <div style={{ fontSize:28, fontWeight:800, color: isSelected ? '#00A651' : 'var(--text)', fontFamily:'JetBrains Mono,monospace', letterSpacing:'-1px', lineHeight:1 }}>{lender.rate}%</div>
+                              <div style={{ fontSize:10, color:'var(--muted)', marginTop:2 }}>APR {lender.apr}%</div>
+                            </div>
+
+                            {/* Stats grid */}
+                            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+                              <div style={{ background:'var(--bg)', borderRadius:6, padding:'6px 8px', textAlign:'center' }}>
+                                <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600 }}>Mo. Payment</div>
+                                <div style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>${lender.monthly.toLocaleString()}</div>
+                              </div>
+                              <div style={{ background:'var(--bg)', borderRadius:6, padding:'6px 8px', textAlign:'center' }}>
+                                <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600 }}>Points</div>
+                                <div style={{ fontSize:13, fontWeight:700, color: parseFloat(lender.points) < 0 ? '#00A651' : parseFloat(lender.points) > 0 ? '#e05252' : 'var(--text)' }}>
+                                  {parseFloat(lender.points) === 0 ? 'Par' : parseFloat(lender.points) > 0 ? '+' + lender.points : lender.points}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Points dollar if non-zero */}
+                            {lender.pointsDollar !== 0 && (
+                              <div style={{ marginTop:6, textAlign:'center', fontSize:11, color: lender.pointsDollar < 0 ? '#00A651' : '#e05252', fontWeight:600 }}>
+                                {lender.pointsDollar < 0 ? `${(-lender.pointsDollar).toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0})} lender credit` : `+$${lender.pointsDollar.toLocaleString()} in points`}
+                              </div>
+                            )}
+
+                            {/* AE info if available */}
+                            {lender.ae && lender.ae !== '—' && (
+                              <div style={{ marginTop:8, fontSize:10, color:'var(--muted)', lineHeight:1.4, borderTop:'1px solid var(--border)', paddingTop:7 }}>
+                                <span style={{ fontWeight:600 }}>AE: </span>{lender.ae.split('|')[1]?.trim() || '—'}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Selected lender summary bar */}
+                    {selectedLenderRate && (
+                      <div style={{ background:'rgba(0,166,81,.08)', border:'1px solid rgba(0,166,81,.3)', borderRadius:10, padding:'10px 16px', display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
+                        <span style={{ fontSize:12, color:'#00A651', fontWeight:700 }}>✓ {selectedLenderRate.lenderName} Selected</span>
+                        <span style={{ fontSize:13, fontWeight:800, color:'var(--text)', fontFamily:'JetBrains Mono,monospace' }}>{selectedLenderRate.rate}%</span>
+                        <span style={{ fontSize:12, color:'var(--muted)' }}>·</span>
+                        <span style={{ fontSize:12, color:'var(--text)' }}>${selectedLenderRate.monthly.toLocaleString()}/mo</span>
+                        <span style={{ fontSize:12, color:'var(--muted)' }}>·</span>
+                        <span style={{ fontSize:12, color:'var(--text)' }}>APR {selectedLenderRate.apr}%</span>
+                        <button
+                          onClick={() => onOpenPricing && onOpenPricing({ ...qualData, selectedLender: selectedLenderRate })}
+                          style={{ marginLeft:'auto', fontSize:11, padding:'5px 12px', borderRadius:6, background:'linear-gradient(135deg,#1a56db,#0f1c3f)', color:'#fff', border:'none', cursor:'pointer', fontWeight:700, fontFamily:'inherit' }}
+                        >
+                          Open in Pricing Engine →
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Rate comparison visual bars */}
+                    <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 18px', marginTop:10 }}>
+                      <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:12 }}>Rate Comparison</div>
+                      {qualData.lenderRates.top3.map(l => {
+                        const minRate = parseFloat(qualData.lenderRates.top3[0].rate);
+                        const maxRate = parseFloat(qualData.lenderRates.top3[qualData.lenderRates.top3.length - 1].rate);
+                        const range = (maxRate - minRate) || 0.25;
+                        const pct = 100 - Math.round(((parseFloat(l.rate) - minRate) / range) * 80);
+                        const isSelected = selectedLenderRate?.lenderName === l.lenderName;
+                        return (
+                          <div key={l.lenderName} style={{ display:'flex', alignItems:'center', gap:12, marginBottom:8, cursor:'pointer' }} onClick={() => setSelectedLenderRate(l)}>
+                            <div style={{ width:90, fontSize:12, fontWeight: isSelected ? 700 : 400, color: isSelected ? '#00A651' : 'var(--text)', flexShrink:0 }}>{l.lenderName}</div>
+                            <div style={{ flex:1, height:8, background:'var(--bg)', borderRadius:4, overflow:'hidden' }}>
+                              <div style={{ height:'100%', width: pct + '%', background: isSelected ? '#00A651' : 'linear-gradient(90deg,#1a56db,#4d8ef0)', borderRadius:4, transition:'width .3s' }} />
+                            </div>
+                            <div style={{ width:52, fontSize:12, fontWeight:700, fontFamily:'JetBrains Mono,monospace', color: isSelected ? '#00A651' : 'var(--text)', textAlign:'right' }}>{l.rate}%</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Data summary grid */}
+                <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'20px 24px', marginBottom:20 }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:14 }}>Qualification Summary</div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 }}>
+                    {[
+                      ['Borrower',       qualData.borrowerName],
+                      ['Phone',          qualData.phone || '—'],
+                      ['Channel',        qualAnswers.channel],
+                      ['Loan Purpose',   qualData.loanPurpose],
+                      ['Property Value', '$' + qualData.propertyValue.toLocaleString()],
+                      ['Loan Amount',    '$' + qualData.loanAmount.toLocaleString()],
+                      ['Credit Score',   qualAnswers.credit],
+                      ['Annual Income',  qualAnswers.income],
+                      ['Timeline',       qualAnswers.timeline],
+                    ].map(([label, val]) => (
+                      <div key={label} style={{ background:'var(--bg)', borderRadius:8, padding:'10px 12px' }}>
+                        <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em', marginBottom:4 }}>{label}</div>
+                        <div style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>{val}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div style={{ display:'flex', gap:12 }}>
+                  <button
+                    onClick={() => {
+                      if (onGeneratePresentation) {
+                        onGeneratePresentation({
+                          ...qualData,
+                          selectedLender: selectedLenderRate,
+                        });
+                      } else {
+                        setShowPresentation(true);
+                        if (onOpenPricing) {
+                          onOpenPricing({
+                            ...qualData,
+                            selectedLender: selectedLenderRate,
+                          });
+                        }
+                      }
+                    }}
+                    style={{ flex:2, padding:'14px', background:'linear-gradient(135deg,#00A651,#007a3d)', color:'#fff', border:'none', borderRadius:10, fontWeight:700, fontSize:15, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:10 }}
+                  >
+                    🎯 Generate & Send Presentation
+                    {selectedLenderRate && <span style={{ fontSize:12, fontWeight:500, opacity:.8 }}>via {selectedLenderRate.lenderName}</span>}
+                  </button>
+                  <button
+                    onClick={resetQualification}
+                    style={{ flex:1, padding:'14px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:10, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit', color:'var(--text)' }}
+                  >
+                    Qualify Another Lead
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -8471,13 +9134,11 @@ function AutomationView({ contacts, profile, toast }) {
                 <div style={{ fontSize:12, color:'rgba(255,255,255,.4)' }}>AI-powered qualification → presentation → application, fully automated</div>
               </div>
               <div style={{ overflowY:'auto', flex:1, padding:'24px 28px', display:'flex', flexDirection:'column', gap:16 }}>
-
                 <div>
                   <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:6 }}>Campaign Name</label>
                   <input value={form.name} onChange={e => setF('name', e.target.value)} placeholder="e.g. March Purchase Leads — Bay Area"
                     style={{ width:'100%', padding:'9px 12px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }} />
                 </div>
-
                 <div>
                   <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:8 }}>Lead List (CSV)</label>
                   <div onClick={() => fileRef.current.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); handleCSV(e.dataTransfer.files[0]); }}
@@ -8499,7 +9160,6 @@ function AutomationView({ contacts, profile, toast }) {
                     <input ref={fileRef} type="file" accept=".csv" style={{ display:'none' }} onChange={e => handleCSV(e.target.files[0])} />
                   </div>
                 </div>
-
                 <div>
                   <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:8 }}>Daily Batch Size</label>
                   <div style={{ display:'flex', gap:8 }}>
@@ -8510,7 +9170,6 @@ function AutomationView({ contacts, profile, toast }) {
                     ))}
                   </div>
                 </div>
-
                 <div>
                   <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:8 }}>Outreach Channel</label>
                   <div style={{ display:'flex', gap:10 }}>
@@ -8521,14 +9180,12 @@ function AutomationView({ contacts, profile, toast }) {
                     ))}
                   </div>
                 </div>
-
                 <div>
                   <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:6 }}>Lead Type / Campaign Tag</label>
                   <select value={form.tag} onChange={e => setF('tag', e.target.value)} style={{ width:'100%', padding:'9px 12px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none' }}>
                     {['Purchase','Refinance','Rate/Term Refi','Cash-Out Refi','HELOC','Reverse Mortgage','VA Loan','FHA Loan','Non-QM','Jumbo'].map(t => <option key={t}>{t}</option>)}
                   </select>
                 </div>
-
                 <div style={{ background:'rgba(77,142,240,.06)', border:'1px solid rgba(77,142,240,.15)', borderRadius:10, padding:'12px 16px', fontSize:12, color:'var(--muted)', lineHeight:1.7 }}>
                   <span style={{ fontWeight:700, color:'var(--accent)' }}>AI Flow:</span> Each lead gets a personalized greeting → AI asks 6 qualification questions → Builds a digital presentation → Delivers via preferred channel → Follows up with application link.
                 </div>
@@ -8542,10 +9199,131 @@ function AutomationView({ contacts, profile, toast }) {
             </div>
           </div>
         )}
+
+        {/* ── CONVERSATION MODAL ── */}
+        {viewConvo && (
+          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }} onClick={() => setViewConvo(null)}>
+            <div onClick={e => e.stopPropagation()} style={{ width:'min(520px,95vw)', background:'var(--card)', borderRadius:20, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', overflow:'hidden', height:'min(600px,90vh)', display:'flex', flexDirection:'column' }}>
+              {/* Header */}
+              <div style={{ background:'linear-gradient(135deg,#0c1a35,#1a3a6e)', padding:'16px 20px', display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
+                <div style={{ width:38, height:38, borderRadius:'50%', background:'rgba(255,255,255,.15)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, color:'#fff', fontSize:15 }}>
+                  {(viewConvo.contact||'?')[0].toUpperCase()}
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontWeight:700, color:'#fff', fontSize:15 }}>{viewConvo.contact}</div>
+                  <div style={{ fontSize:11, color:'rgba(255,255,255,.5)' }}>{viewConvo.channel==='sms'?'📱':'📧'} {viewConvo.phone} · Step {viewConvo.step}/{AI_QUAL_QUESTIONS.length}</div>
+                </div>
+                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                  <div style={{ width:7, height:7, borderRadius:'50%', background:'#22c55e' }} />
+                  <span style={{ fontSize:11, color:'#22c55e', fontWeight:600 }}>AI live</span>
+                  <button onClick={() => setViewConvo(null)} style={{ width:28, height:28, borderRadius:'50%', background:'rgba(255,255,255,.1)', border:'none', color:'#fff', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+                </div>
+              </div>
+
+              {/* Thread */}
+              <div style={{ flex:1, overflowY:'auto', padding:'16px 20px', display:'flex', flexDirection:'column', gap:12 }}>
+                {(convoThread[viewConvo.id] || []).map((msg, i) => (
+                  <div key={i} style={{ display:'flex', justifyContent: msg.role === 'ai' ? 'flex-start' : 'flex-end' }}>
+                    {msg.role === 'ai' && (
+                      <div style={{ width:28, height:28, borderRadius:'50%', background:'linear-gradient(135deg,#0f1c3f,#1a56db)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, marginRight:8, flexShrink:0, alignSelf:'flex-end' }}>🤖</div>
+                    )}
+                    <div style={{
+                      maxWidth:'75%',
+                      padding:'10px 14px',
+                      borderRadius: msg.role === 'ai' ? '4px 14px 14px 14px' : '14px 4px 14px 14px',
+                      background: msg.role === 'ai' ? 'var(--bg)' : 'linear-gradient(135deg,#0f1c3f,#1a56db)',
+                      border: msg.role === 'ai' ? '1px solid var(--border)' : 'none',
+                      color: msg.role === 'ai' ? 'var(--text)' : '#fff',
+                      fontSize:13,
+                      lineHeight:1.5,
+                    }}>
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+                {aiTyping && (
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <div style={{ width:28, height:28, borderRadius:'50%', background:'linear-gradient(135deg,#0f1c3f,#1a56db)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13 }}>🤖</div>
+                    <div style={{ padding:'10px 16px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:'4px 14px 14px 14px', fontSize:18, letterSpacing:2, color:'var(--muted)' }}>•••</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Input / actions */}
+              <div style={{ padding:'12px 16px', borderTop:'1px solid var(--border)', flexShrink:0 }}>
+                {viewConvo.status === 'presentation_sent' ? (
+                  <div style={{ textAlign:'center', padding:'12px', background:'rgba(0,166,81,.08)', border:'1px solid rgba(0,166,81,.2)', borderRadius:10 }}>
+                    <span style={{ fontSize:13, color:'#00A651', fontWeight:700 }}>✓ Presentation sent — lead moved to pipeline</span>
+                  </div>
+                ) : (
+                  <div>
+                    {viewConvo.step >= AI_QUAL_QUESTIONS.length ? (
+                      <button onClick={() => { toast && toast(`Generating presentation for ${viewConvo.contact}...`); setViewConvo(v => v ? {...v, status:'presentation_sent'} : v); }} style={{ width:'100%', padding:'12px', background:'linear-gradient(135deg,#00A651,#007a3d)', color:'#fff', border:'none', borderRadius:9, fontWeight:700, fontSize:14, cursor:'pointer', fontFamily:'inherit' }}>
+                        🎯 Generate & Send Presentation
+                      </button>
+                    ) : (
+                      <div style={{ display:'flex', gap:8 }}>
+                        <input
+                          value={convoMessage}
+                          onChange={e => setConvoMessage(e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && sendConvoMessage(viewConvo)}
+                          placeholder="Type a response or override the AI..."
+                          style={{ flex:1, padding:'9px 13px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none' }}
+                        />
+                        <button onClick={() => sendConvoMessage(viewConvo)} style={{ padding:'9px 16px', background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', borderRadius:8, cursor:'pointer', fontWeight:700, fontSize:13 }}>Send</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── PRESENTATION BUILDER TRIGGER (from Qualify Lead) ── */}
+        {showPresentation && qualData && (
+          <PresentationBuilderModal
+            contact={{ full_name: qualData.borrowerName, phone: qualData.phone, email: qualData.email }}
+            profile={profile}
+            onClose={() => setShowPresentation(false)}
+            toast={toast}
+            onSent={() => {
+              setShowPresentation(false);
+              toast && toast('🎯 Presentation sent to ' + qualData.borrowerName + '!');
+              // ── Update funnel counters ──
+              setCampaigns(prev => prev.map((c, i) => i === 0 ? {...c, presentations: c.presentations + 1} : c));
+              setLiveResponses(prev => prev.map(r => r.contact === qualData.borrowerName ? {...r, status: 'presentation_sent', timestamp: 'Just now'} : r));
+              setQualMode('pick');
+            }}
+            pricingRate={{
+              rate:        qualData.estimatedRate,
+              term:        qualData.loanTerm || '30',
+              loan_amount: String(qualData.loanAmount),
+              loan_type:   qualData.loanPurpose,
+            }}
+            importedLoanData={{
+              loan_purpose:      qualData.loanPurpose,
+              loan_amount:       String(qualData.loanAmount),
+              mortgage_type:     qualData.loanPurpose,
+              loan_term:         qualData.loanTerm || '30',
+              note_rate:         qualData.estimatedRate,
+              property_value:    String(qualData.propertyValue),
+              down_payment:      String(qualData.downPayment || 0),
+              ltv:               String(qualData.ltv || 80),
+              credit_score:      String(qualData.creditScore),
+              annual_income:     String(qualData.annualIncome),
+              timeline:          qualData.timeline,
+              preferred_channel: qualData.preferredChannel,
+            }}
+          />
+        )}
+
       </div>
     </div>
   );
 }
+
+
 
 
 // ─── CF ASSISTANT ────────────────────────────────────────────────────────────
@@ -8919,8 +9697,10 @@ export default function App() {
   const [presContact, setPresContact] = useState(null);
   const [pricingOpen, setPricingOpen] = useState(false);
   const [pricingRate, setPricingRate] = useState(null);
+  const [pricingPreset, setPricingPreset] = useState(null);
   const [mismoImportOpen, setMismoImportOpen] = useState(false);
   const [importedLoanData, setImportedLoanData] = useState(null);
+  const [presGenData, setPresGenData] = useState(null);
   const [presentToken, setPresentToken] = useState(()=>{ const h=window.location.hash; const m=h.match(/^#present-(.+)$/); return m?m[1]:null; });
 
   // MISMO import event from ContactsView toolbar
@@ -8930,39 +9710,12 @@ export default function App() {
     return ()=>window.removeEventListener('openMISMOImport', h);
   }, []);
 
-  // Close all slide-out panels on navigation
-  useEffect(()=>{
-    const handler = () => {
-      setSelectedContact(null);
-      setPresContact(null);
-      setPricingOpen(false);
-    };
-    document.addEventListener('closeAllPopups', handler);
-    return () => document.removeEventListener('closeAllPopups', handler);
-  }, []);
-
-  // Global Escape key closes any open panel/drawer
-  useEffect(()=>{
-    const handler = (e) => {
-      if(e.key === 'Escape') {
-        if(selectedContact) { setSelectedContact(null); return; }
-        if(pricingOpen) { setPricingOpen(false); return; }
-        if(presContact) { setPresContact(null); return; }
-        if(showForm) { setShowForm(false); setEditContact(null); return; }
-      }
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [selectedContact, pricingOpen, presContact, showForm]);
-
   // Browser history navigation
   const setView = useCallback((newView, workspace=null) => {
     const state = { view: newView, workspaceId: workspace?.id||null, workspaceName: workspace?.name||null };
     window.history.pushState(state, '', `#${newView}${workspace?'-'+workspace.id:''}`);
     setViewRaw(newView);
     if(workspace !== undefined) setActiveWorkspace(workspace);
-    // Close all open popups when navigating
-    document.dispatchEvent(new CustomEvent('closeAllPopups'));
   }, []);
 
   useEffect(() => {
@@ -9138,9 +9891,24 @@ export default function App() {
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
         {view==='trash' && <TrashArchiveView profile={profile} workspaces={workspaces} toast={toast} />}
         {view==='hannah' && <HannahPage profile={profile} />}
-        {view==='automation' && <AutomationView contacts={contacts} profile={profile} toast={toast} />}
+        {view==='automation' && <AutomationView contacts={contacts} profile={profile} toast={toast} onOpenPricing={(qualData) => { setPricingPreset(qualData); setPricingOpen(true); }} onGeneratePresentation={(qualData) => { setPresGenData(qualData); setView('presentation-gen', null); }} />}
         {view==='lenders' && <LenderPortalsView toast={toast} />}
         {view==='presentations' && <PresentationsPage profile={profile} toast={toast} />}
+        {view==='presentation-gen' && presGenData && (
+          <PresentationGenerator
+            qualData={presGenData}
+            onBack={() => { setView('automation', null); }}
+            toast={toast}
+            onSendToLead={({ lead, selectedOptions, lenderRates }) => {
+              // Also fire legacy PresentationBuilderModal via pricingPreset so email goes out
+              const bestOption = selectedOptions[0];
+              if (bestOption) {
+                setPricingRate({ rate: bestOption.rate.toFixed(3), points:'0', monthly_payment: bestOption.pmt, loan_amount: String(bestOption.loanAmt), loan_type: bestOption.type, term:'30', loan_purpose: lead.loanPurpose });
+              }
+              toast('🎯 Presentation sent to ' + lead.borrowerName + '!');
+            }}
+          />
+        )}
         {view==='calendar' && <CalendarView profile={profile} workspaces={workspaces} toast={toast} />}
         {view==='workspace' && activeWorkspace && <WorkspaceView workspace={activeWorkspace} profile={profile} toast={toast}
   allWorkspaces={workspaces}
@@ -9151,12 +9919,6 @@ export default function App() {
       </div>
 
       {/* Contact Drawer */}
-      {selectedContact && (
-        <div
-          style={{ position:'fixed', inset:0, zIndex:199, background:'rgba(0,0,0,0.3)' }}
-          onMouseDown={(e) => { if(e.target===e.currentTarget) setSelectedContact(null); }}
-        />
-      )}
       <ContactDrawer
         contact={selectedContact}
         onClose={()=>setSelectedContact(null)}
@@ -9227,15 +9989,10 @@ export default function App() {
       />}
 
       {/* Pricing Engine Panel */}
-      {pricingOpen && (
-        <div
-          style={{ position:'fixed', inset:0, zIndex:899, background:'rgba(0,0,0,0.3)' }}
-          onMouseDown={(e) => { if(e.target===e.currentTarget) setPricingOpen(false); }}
-        />
-      )}
       {pricingOpen && <PricingEnginePanel
-        onClose={()=>setPricingOpen(false)}
+        onClose={()=>{ setPricingOpen(false); setPricingPreset(null); }}
         onApplyRate={rateData=>{ setPricingRate(rateData); toast('Rate applied — open Build Presentation to use it'); }}
+        preset={pricingPreset}
       />}
 
       <CFAssistant profile={profile} />
