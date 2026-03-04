@@ -7365,7 +7365,7 @@ const CAT_COLORS = {
 };
 
 
-// ─── RATE COMPARE VIEW (LoanSifter-style) ─────────────────────────────────────
+// ─── RATE COMPARE VIEW ────────────────────────────────────────────────────────
 function RateCompareView({ toast, onOpenPricing }) {
   const [loanAmount,  setLoanAmount]  = useState('500000');
   const [creditScore, setCreditScore] = useState('740');
@@ -7379,12 +7379,10 @@ function RateCompareView({ toast, onOpenPricing }) {
   const [catFilter,   setCatFilter]   = useState('All');
   const [expandedRow, setExpandedRow] = useState(null);
   const [hasRun,      setHasRun]      = useState(false);
-  const [viewMode,    setViewMode]    = useState('grid'); // 'grid' | 'table'
+  const [viewMode,    setViewMode]    = useState('grid');
 
   const runSearch = () => {
-    setLoading(true);
-    setHasRun(true);
-    setExpandedRow(null);
+    setLoading(true); setHasRun(true); setExpandedRow(null);
     setTimeout(() => {
       const r = LENDER_RATE_ENGINE({
         loanAmount:       parseFloat(loanAmount) || 500000,
@@ -7400,68 +7398,61 @@ function RateCompareView({ toast, onOpenPricing }) {
   };
 
   const allLenders = results ? (results.all || []) : [];
-
   const cats = ['All', ...Array.from(new Set(allLenders.map(l => l.category || 'Conventional')))];
-
   const sorted = [...allLenders]
     .filter(l => catFilter === 'All' || l.category === catFilter)
     .sort((a, b) => {
       if (sortBy === 'rate')    return parseFloat(a.rate)    - parseFloat(b.rate);
-      if (sortBy === 'payment') return (a.monthly||0)        - (b.monthly||0);
-      if (sortBy === 'credit')  return (parseFloat(b.points)||0) - (parseFloat(a.points)||0);
+      if (sortBy === 'payment') return (a.monthly || 0)      - (b.monthly || 0);
+      if (sortBy === 'credit')  return parseFloat(b.points||0) - parseFloat(a.points||0);
       return 0;
     });
 
-  const top3   = sorted.slice(0, 3);
+  const top3 = sorted.slice(0, 3);
   const medals = ['🥇','🥈','🥉'];
-  const medalColors = ['#f59e0b','#9ca3af','#b45309'];
-
-  const CAT_COLOR = {
-    'Conventional':'#3b82f6','Non-QM':'#8b5cf6','Reverse':'#f59e0b',
-    'HELOC':'#10b981','FHA/VA':'#06b6d4','Banking':'#6366f1','Agency':'#84cc16','Default':'#4d8ef0'
-  };
-  const cc = (cat) => CAT_COLOR[cat] || CAT_COLOR['Default'];
-
-  const fmt$  = n => '$' + Math.round(n||0).toLocaleString();
-  const fmtR  = n => parseFloat(n||0).toFixed(3) + '%';
-  const fmtPt = pts => {
+  const MCOL   = ['#f59e0b','#9ca3af','#b45309'];
+  const CCAT   = { 'Conventional':'#3b82f6','Non-QM':'#8b5cf6','Reverse':'#f59e0b','HELOC':'#10b981','FHA/VA':'#06b6d4','Banking':'#6366f1','Agency':'#84cc16' };
+  const cc     = c => CCAT[c] || '#4d8ef0';
+  const fmt$   = n => '$' + Math.round(n||0).toLocaleString();
+  const fmtR   = n => parseFloat(n||0).toFixed(3) + '%';
+  const fmtPt  = pts => {
     const p = parseFloat(pts||0);
-    if (p < 0) return { label: fmt$(Math.abs(p/100*(parseFloat(loanAmount)||500000))), color:'#2ecc8a', prefix:'Credit ' };
-    if (p > 0) return { label: p.toFixed(3) + ' pts', color:'#f59e0b', prefix:'' };
-    return { label: 'Par', color:'#9db8d4', prefix:'' };
+    if (p < 0) return { txt: fmt$(Math.abs(p/100*(parseFloat(loanAmount)||500000))) + ' credit', col:'#2ecc8a' };
+    if (p > 0) return { txt: p.toFixed(3) + ' pts', col:'#f0b429' };
+    return { txt:'Par', col:'#9db8d4' };
   };
 
   return (
     <div style={{ display:'flex', height:'100%', overflow:'hidden' }}>
 
-      {/* ── LEFT INPUT PANEL ── */}
-      <div style={{ width:280, minWidth:280, background:'var(--surface2)', borderRight:'1px solid var(--border)',
-        padding:'24px 20px', overflowY:'auto', display:'flex', flexDirection:'column', gap:16 }}>
+      {/* ── LEFT PANEL ── */}
+      <div style={{ width:276, minWidth:276, background:'var(--surface2)', borderRight:'1px solid var(--border)',
+        padding:'24px 18px', overflowY:'auto', display:'flex', flexDirection:'column', gap:14 }}>
 
         <div>
-          <div style={{ fontSize:17, fontWeight:700, color:'var(--text)' }}>Rate Compare</div>
-          <div style={{ fontSize:12, color:'var(--muted)', marginTop:3 }}>
-            {channel==='brokered' ? '27 wholesale lenders' : '8 banking lenders'}
+          <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:22, fontWeight:700, color:'var(--text)' }}>Rate Compare</div>
+          <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>
+            {channel==='brokered' ? '27 wholesale lenders' : '8 banking lenders'} · live pricing
           </div>
         </div>
 
-        {/* Channel toggle */}
+        {/* Channel */}
         <div style={{ display:'flex', background:'var(--surface)', borderRadius:8, padding:3 }}>
-          {[['brokered','🤝 Wholesale'],['banking','🏦 Banking']].map(([ch,label]) => (
+          {[['brokered','🤝 Wholesale'],['banking','🏦 Banking']].map(([ch,label])=>(
             <button key={ch} onClick={()=>setChannel(ch)} style={{
-              flex:1, padding:'7px 0', borderRadius:6, border:'none', cursor:'pointer',
-              fontSize:12, fontWeight:600,
+              flex:1, padding:'7px 0', borderRadius:6, border:'none', cursor:'pointer', fontSize:12, fontWeight:600,
               background: channel===ch ? 'var(--accent)' : 'transparent',
-              color:       channel===ch ? '#fff'         : 'var(--muted)',
-            }}>{label}</button>
+              color:       channel===ch ? '#fff'         : 'var(--muted)' }}>
+              {label}
+            </button>
           ))}
         </div>
 
         {/* Loan Amount */}
         <div>
-          <label style={{ fontSize:11, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.05em' }}>Loan Amount</label>
+          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }}>Loan Amount</label>
           <div style={{ position:'relative' }}>
-            <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--muted)', fontSize:13 }}>$</span>
+            <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--muted)', fontSize:13, pointerEvents:'none' }}>$</span>
             <input type="number" value={loanAmount} onChange={e=>setLoanAmount(e.target.value)}
               style={{ width:'100%', padding:'9px 12px 9px 22px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:13, boxSizing:'border-box' }}/>
           </div>
@@ -7469,71 +7460,67 @@ function RateCompareView({ toast, onOpenPricing }) {
 
         {/* Credit Score */}
         <div>
-          <label style={{ fontSize:11, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.05em' }}>Credit Score</label>
+          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }}>Credit Score</label>
           <select value={creditScore} onChange={e=>setCreditScore(e.target.value)}
             style={{ width:'100%', padding:'9px 12px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:13 }}>
-            {['620','640','660','680','700','720','740','760','780','800'].map(s=>(
-              <option key={s} value={s}>{s}</option>
-            ))}
+            {['620','640','660','680','700','720','740','760','780','800'].map(s=><option key={s} value={s}>{s}</option>)}
           </select>
         </div>
 
         {/* LTV */}
         <div>
-          <label style={{ fontSize:11, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.05em' }}>LTV %</label>
+          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }}>LTV %</label>
           <div style={{ position:'relative' }}>
             <input type="number" value={ltv} onChange={e=>setLtv(e.target.value)}
               style={{ width:'100%', padding:'9px 32px 9px 12px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:13, boxSizing:'border-box' }}/>
-            <span style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', color:'var(--muted)', fontSize:13 }}>%</span>
+            <span style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', color:'var(--muted)', fontSize:13, pointerEvents:'none' }}>%</span>
           </div>
         </div>
 
         {/* Loan Type */}
         <div>
-          <label style={{ fontSize:11, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.05em' }}>Loan Type</label>
+          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }}>Loan Type</label>
           <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
             {['Conventional','FHA','VA','USDA','Jumbo','Non-QM'].map(t=>(
               <button key={t} onClick={()=>setLoanType(t)} style={{
                 padding:'5px 9px', borderRadius:5, fontSize:11, fontWeight:600, cursor:'pointer',
-                border: `1px solid ${loanType===t ? 'var(--accent)' : 'var(--border)'}`,
+                border:`1px solid ${loanType===t?'var(--accent)':'var(--border)'}`,
                 background: loanType===t ? 'rgba(77,142,240,.18)' : 'var(--surface)',
-                color: loanType===t ? 'var(--accent)' : 'var(--muted)',
-              }}>{t}</button>
+                color:       loanType===t ? 'var(--accent)' : 'var(--muted)' }}>
+                {t}
+              </button>
             ))}
           </div>
         </div>
 
         {/* Purpose */}
         <div>
-          <label style={{ fontSize:11, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.05em' }}>Purpose</label>
+          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }}>Purpose</label>
           {['Purchase','Rate/Term Refinance','Cash-Out Refinance'].map(p=>(
             <button key={p} onClick={()=>setLoanPurpose(p)} style={{
-              display:'block', width:'100%', marginBottom:4, padding:'8px 11px', borderRadius:6,
-              border: `1px solid ${loanPurpose===p ? 'var(--accent)' : 'var(--border)'}`,
+              display:'block', width:'100%', marginBottom:4, padding:'7px 11px', borderRadius:6, textAlign:'left',
+              border:`1px solid ${loanPurpose===p?'var(--accent)':'var(--border)'}`,
               background: loanPurpose===p ? 'rgba(77,142,240,.18)' : 'var(--surface)',
-              color: loanPurpose===p ? 'var(--accent)' : 'var(--text)',
-              fontSize:12, fontWeight:600, cursor:'pointer', textAlign:'left',
-            }}>{p}</button>
+              color:       loanPurpose===p ? 'var(--accent)' : 'var(--text)',
+              fontSize:12, fontWeight:600, cursor:'pointer' }}>
+              {p}
+            </button>
           ))}
         </div>
 
         <button onClick={runSearch} disabled={loading} style={{
-          padding:'12px', background: loading ? 'var(--surface)' : 'var(--accent)',
-          color: loading ? 'var(--muted)' : '#fff', border:'none', borderRadius:8,
-          fontSize:14, fontWeight:700, cursor: loading ? 'not-allowed' : 'pointer',
-        }}>
+          padding:'12px', borderRadius:8, border:'none', fontSize:14, fontWeight:700, cursor: loading?'not-allowed':'pointer',
+          background: loading ? 'var(--surface)' : 'var(--accent)', color: loading ? 'var(--muted)' : '#fff' }}>
           {loading ? '⏳ Pricing...' : '🔍 Compare Rates'}
         </button>
 
-        {/* Best execution box */}
+        {/* Best execution */}
         {results && (
-          <div style={{ background:'rgba(46,204,138,.1)', border:'1px solid rgba(46,204,138,.35)', borderRadius:8, padding:14 }}>
+          <div style={{ background:'rgba(46,204,138,.1)', border:'1px solid rgba(46,204,138,.3)', borderRadius:8, padding:14 }}>
             <div style={{ fontSize:10, color:'var(--success)', fontWeight:800, letterSpacing:'0.08em', marginBottom:6 }}>✅ BEST EXECUTION</div>
-            <div style={{ fontSize:26, fontWeight:800, color:'var(--text)', lineHeight:1 }}>{fmtR(results.all?.[0]?.rate)}</div>
+            <div style={{ fontSize:28, fontWeight:800, color:'var(--text)', lineHeight:1 }}>{fmtR(results.all?.[0]?.rate)}</div>
             <div style={{ fontSize:12, color:'var(--muted)', marginTop:4 }}>{results.all?.[0]?.lenderName}</div>
-            <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>
-              {fmt$(results.all?.[0]?.monthly)}/mo · {results.lenderCount} lenders checked
-            </div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{fmt$(results.all?.[0]?.monthly)}/mo · {results.lenderCount} lenders priced</div>
           </div>
         )}
       </div>
@@ -7541,57 +7528,50 @@ function RateCompareView({ toast, onOpenPricing }) {
       {/* ── RIGHT RESULTS PANEL ── */}
       <div style={{ flex:1, overflowY:'auto', padding:24, background:'var(--bg)' }}>
 
-        {/* Empty state */}
         {!hasRun && (
-          <div style={{ height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14, color:'var(--muted)' }}>
+          <div style={{ height:'80%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14 }}>
             <div style={{ fontSize:56 }}>📊</div>
             <div style={{ fontSize:20, fontWeight:700, color:'var(--text)' }}>Multi-Lender Rate Comparison</div>
-            <div style={{ fontSize:13, color:'var(--muted)', textAlign:'center', maxWidth:380, lineHeight:1.6 }}>
-              Configure your loan scenario on the left, then click <strong style={{color:'var(--accent)'}}>Compare Rates</strong> to see side-by-side pricing across your entire lender network.
+            <div style={{ fontSize:13, color:'var(--muted)', textAlign:'center', maxWidth:400, lineHeight:1.7 }}>
+              Enter your loan scenario on the left, then click <strong style={{color:'var(--accent)'}}>Compare Rates</strong> to see side-by-side pricing across your entire lender network.
             </div>
           </div>
         )}
 
-        {/* Loading */}
         {loading && (
-          <div style={{ height:'100%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14 }}>
+          <div style={{ height:'80%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14 }}>
             <div style={{ fontSize:44 }}>⏳</div>
             <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>
-              Pricing across {channel==='brokered' ? '27 wholesale investors' : '8 banking lenders'}...
-            </div>
-            <div style={{ width:200, height:4, background:'var(--surface)', borderRadius:4, overflow:'hidden' }}>
-              <div style={{ height:'100%', background:'var(--accent)', borderRadius:4, animation:'pulse 1s ease-in-out infinite', width:'60%' }}/>
+              Pricing across {channel==='brokered'?'27 wholesale investors':'8 banking lenders'}...
             </div>
           </div>
         )}
 
-        {/* Results */}
         {!loading && results && (
           <>
-            {/* Top 3 podium */}
-            <div style={{ marginBottom:28 }}>
+            {/* ── TOP 3 PODIUM ── */}
+            <div style={{ marginBottom:24 }}>
               <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:12 }}>
                 Top Results — {sorted.length} lenders compared
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
-                {top3.map((l, i) => {
+                {top3.map((l,i)=>{
                   const pt = fmtPt(l.points);
                   return (
                     <div key={l.lenderName} style={{
                       background:'var(--surface)', borderRadius:12, padding:18,
-                      border: `2px solid ${i===0 ? medalColors[0] : 'var(--border)'}`,
-                      boxShadow: i===0 ? `0 0 24px ${medalColors[0]}28` : 'none',
-                      position:'relative', overflow:'hidden',
-                    }}>
-                      {i===0 && <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${medalColors[0]},transparent)` }}/>}
+                      border:`2px solid ${i===0?MCOL[0]:'var(--border)'}`,
+                      boxShadow: i===0 ? `0 0 28px ${MCOL[0]}28` : 'none', position:'relative', overflow:'hidden' }}>
+                      {i===0 && <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${MCOL[0]},transparent)` }}/>}
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
-                        <span style={{ fontSize:22 }}>{medals[i]}</span>
-                        <span style={{ fontSize:10, fontWeight:700, padding:'2px 8px', borderRadius:20, background:cc(l.category)+'22', color:cc(l.category) }}>{l.category||'Conventional'}</span>
+                        <span style={{ fontSize:24 }}>{medals[i]}</span>
+                        <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:20, background:cc(l.category)+'22', color:cc(l.category) }}>{l.category||'Conv'}</span>
                       </div>
-                      <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', marginBottom:6 }}>{l.lenderName}</div>
-                      <div style={{ fontSize:28, fontWeight:800, color: i===0 ? medalColors[0] : 'var(--accent)', lineHeight:1, marginBottom:4 }}>{fmtR(l.rate)}</div>
-                      <div style={{ fontSize:12, color:'var(--muted)', marginBottom:8 }}>{fmt$(l.monthly)}/mo</div>
-                      <div style={{ fontSize:11, fontWeight:600, color:pt.color }}>{pt.prefix}{pt.label}</div>
+                      <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', marginBottom:4 }}>{l.lenderName}</div>
+                      <div style={{ fontSize:30, fontWeight:800, color:i===0?MCOL[0]:'var(--accent)', lineHeight:1, marginBottom:4 }}>{fmtR(l.rate)}</div>
+                      <div style={{ fontSize:12, color:'var(--muted)', marginBottom:6 }}>{fmt$(l.monthly)}/mo</div>
+                      <div style={{ fontSize:11, fontWeight:600, color:pt.col }}>{pt.txt}</div>
+                      <div style={{ fontSize:11, color:'var(--muted)', marginTop:3 }}>APR {fmtR(l.apr)}</div>
                       <button onClick={()=>onOpenPricing&&onOpenPricing({loanAmount:parseFloat(loanAmount),creditScore:parseInt(creditScore),loanType,loanPurpose,ltv:parseFloat(ltv)})}
                         style={{ width:'100%', marginTop:12, padding:'6px 0', background:'var(--accent)', color:'#fff', border:'none', borderRadius:6, fontSize:11, fontWeight:600, cursor:'pointer' }}>
                         Open in Pricing Engine
@@ -7602,67 +7582,58 @@ function RateCompareView({ toast, onOpenPricing }) {
               </div>
             </div>
 
-            {/* Controls bar */}
-            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14, flexWrap:'wrap' }}>
-              {/* Category filters */}
-              <div style={{ display:'flex', gap:5, flexWrap:'wrap', flex:1 }}>
+            {/* ── CONTROLS BAR ── */}
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12, flexWrap:'wrap' }}>
+              <div style={{ display:'flex', gap:5, flex:1, flexWrap:'wrap' }}>
                 {cats.map(c=>(
                   <button key={c} onClick={()=>setCatFilter(c)} style={{
                     padding:'4px 11px', borderRadius:20, fontSize:11, fontWeight:600, cursor:'pointer',
-                    border:`1px solid ${catFilter===c ? 'var(--accent)' : 'var(--border)'}`,
-                    background: catFilter===c ? 'var(--accent)' : 'transparent',
-                    color: catFilter===c ? '#fff' : 'var(--muted)',
-                  }}>{c}</button>
+                    border:`1px solid ${catFilter===c?'var(--accent)':'var(--border)'}`,
+                    background: catFilter===c?'var(--accent)':'transparent',
+                    color: catFilter===c?'#fff':'var(--muted)' }}>
+                    {c}
+                  </button>
                 ))}
               </div>
-              {/* Sort */}
-              <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{
-                padding:'5px 10px', background:'var(--surface)', border:'1px solid var(--border)',
-                borderRadius:6, color:'var(--text)', fontSize:12 }}>
+              <select value={sortBy} onChange={e=>setSortBy(e.target.value)} style={{ padding:'5px 10px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:12 }}>
                 <option value="rate">↑ Lowest Rate</option>
                 <option value="payment">↑ Lowest Payment</option>
-                <option value="credit">↓ Most Lender Credit</option>
+                <option value="credit">↓ Most Credit</option>
               </select>
-              {/* View toggle */}
-              <div style={{ display:'flex', background:'var(--surface)', borderRadius:6, padding:2, gap:1 }}>
-                {[['grid','⊞'],['table','☰']].map(([m,icon])=>(
+              <div style={{ display:'flex', background:'var(--surface)', borderRadius:6, padding:2 }}>
+                {[['grid','⊞ Grid'],['table','☰ Table']].map(([m,label])=>(
                   <button key={m} onClick={()=>setViewMode(m)} style={{
-                    padding:'4px 10px', borderRadius:5, border:'none', cursor:'pointer', fontSize:13,
-                    background: viewMode===m ? 'var(--accent)' : 'transparent',
-                    color: viewMode===m ? '#fff' : 'var(--muted)',
-                  }}>{icon}</button>
+                    padding:'4px 10px', borderRadius:5, border:'none', cursor:'pointer', fontSize:11, fontWeight:600,
+                    background: viewMode===m?'var(--accent)':'transparent',
+                    color: viewMode===m?'#fff':'var(--muted)' }}>
+                    {label}
+                  </button>
                 ))}
               </div>
             </div>
 
-            {/* GRID VIEW */}
+            {/* ── GRID VIEW ── */}
             {viewMode==='grid' && (
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:12 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))', gap:10 }}>
                 {sorted.map((l,i)=>{
                   const pt = fmtPt(l.points);
                   return (
                     <div key={l.lenderName} onClick={()=>setExpandedRow(expandedRow===i?null:i)} style={{
                       background:'var(--surface)', border:`1px solid ${expandedRow===i?'var(--accent)':'var(--border)'}`,
-                      borderRadius:10, padding:16, cursor:'pointer', transition:'all .15s',
-                      boxShadow: expandedRow===i ? '0 0 0 1px var(--accent)' : 'none',
-                    }}>
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                        <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:20, background:cc(l.category)+'22', color:cc(l.category) }}>{l.category||'Conv'}</span>
+                      borderRadius:10, padding:14, cursor:'pointer', transition:'border-color .15s' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:7 }}>
+                        <span style={{ fontSize:10, fontWeight:700, padding:'2px 6px', borderRadius:20, background:cc(l.category)+'22', color:cc(l.category) }}>{l.category||'Conv'}</span>
                         <span style={{ fontSize:11, color:'var(--muted)', fontWeight:600 }}>#{i+1}</span>
                       </div>
-                      <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', marginBottom:4 }}>{l.lenderName}</div>
-                      <div style={{ fontSize:22, fontWeight:800, color:'var(--accent)' }}>{fmtR(l.rate)}</div>
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:6 }}>
-                        <span style={{ fontSize:12, color:'var(--muted)' }}>{fmt$(l.monthly)}/mo</span>
-                        <span style={{ fontSize:11, fontWeight:600, color:pt.color }}>{pt.prefix}{pt.label}</span>
+                      <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', marginBottom:3 }}>{l.lenderName}</div>
+                      <div style={{ fontSize:22, fontWeight:800, color:'var(--accent)', lineHeight:1.1 }}>{fmtR(l.rate)}</div>
+                      <div style={{ display:'flex', justifyContent:'space-between', marginTop:6, alignItems:'center' }}>
+                        <span style={{ fontSize:11, color:'var(--muted)' }}>{fmt$(l.monthly)}/mo</span>
+                        <span style={{ fontSize:11, fontWeight:600, color:pt.col }}>{pt.txt}</span>
                       </div>
                       {expandedRow===i && (
-                        <div style={{ marginTop:12, paddingTop:12, borderTop:'1px solid var(--border)' }}>
-                          <div style={{ fontSize:11, color:'var(--muted)', lineHeight:1.9 }}>
-                            APR: {fmtR(l.apr)}<br/>
-                            Channel: {l.channel}<br/>
-                            {l.ae && <span>AE: {l.ae}<br/></span>}
-                          </div>
+                        <div style={{ marginTop:10, paddingTop:10, borderTop:'1px solid var(--border)' }}>
+                          <div style={{ fontSize:11, color:'var(--muted)', lineHeight:1.9 }}>APR: {fmtR(l.apr)}<br/>Channel: {l.channel}<br/>{l.ae&&<span>{l.ae}</span>}</div>
                           <button onClick={e=>{e.stopPropagation();onOpenPricing&&onOpenPricing({loanAmount:parseFloat(loanAmount),creditScore:parseInt(creditScore),loanType,loanPurpose,ltv:parseFloat(ltv)});}}
                             style={{ width:'100%', marginTop:8, padding:'6px 0', background:'var(--accent)', color:'#fff', border:'none', borderRadius:6, fontSize:11, fontWeight:600, cursor:'pointer' }}>
                             Pricing Engine →
@@ -7675,51 +7646,49 @@ function RateCompareView({ toast, onOpenPricing }) {
               </div>
             )}
 
-            {/* TABLE VIEW */}
+            {/* ── TABLE VIEW ── */}
             {viewMode==='table' && (
               <div style={{ background:'var(--surface)', borderRadius:10, border:'1px solid var(--border)', overflow:'hidden' }}>
-                {/* Header */}
-                <div style={{ display:'grid', gridTemplateColumns:'32px 1fr 90px 110px 110px 90px 30px',
-                  padding:'10px 16px', background:'var(--surface2)', gap:8,
+                <div style={{ display:'grid', gridTemplateColumns:'36px 1fr 90px 110px 120px 90px 30px',
+                  padding:'9px 16px', background:'var(--surface2)', gap:8,
                   fontSize:10, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-                  <span>#</span><span>Lender</span><span>Rate</span><span>Payment</span><span>Pts/Credit</span><span>APR</span><span/>
+                  <span>#</span><span>Lender</span><span>Rate</span><span>Payment</span><span>Pts / Credit</span><span>APR</span><span/>
                 </div>
                 {sorted.map((l,i)=>{
                   const pt = fmtPt(l.points);
                   return (
                     <div key={l.lenderName}>
                       <div onClick={()=>setExpandedRow(expandedRow===i?null:i)} style={{
-                        display:'grid', gridTemplateColumns:'32px 1fr 90px 110px 110px 90px 30px',
+                        display:'grid', gridTemplateColumns:'36px 1fr 90px 110px 120px 90px 30px',
                         padding:'11px 16px', borderTop:'1px solid var(--border)', cursor:'pointer', gap:8, alignItems:'center',
-                        background: expandedRow===i ? 'rgba(77,142,240,.08)' : i%2===0 ? 'transparent' : 'rgba(255,255,255,.015)',
-                      }}>
+                        background: expandedRow===i?'rgba(77,142,240,.08)':i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
                         <span style={{ fontSize:12, color:'var(--muted)', fontWeight:600 }}>{i+1}</span>
-                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, overflow:'hidden' }}>
                           <span style={{ fontSize:10, fontWeight:700, padding:'2px 6px', borderRadius:20, background:cc(l.category)+'22', color:cc(l.category), whiteSpace:'nowrap' }}>{l.category||'Conv'}</span>
-                          <span style={{ fontSize:13, fontWeight:600, color:'var(--text)' }}>{l.lenderName}</span>
+                          <span style={{ fontSize:13, fontWeight:600, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{l.lenderName}</span>
                         </div>
                         <span style={{ fontSize:14, fontWeight:700, color:'var(--accent)' }}>{fmtR(l.rate)}</span>
                         <span style={{ fontSize:13, color:'var(--text)' }}>{fmt$(l.monthly)}/mo</span>
-                        <span style={{ fontSize:12, fontWeight:600, color:pt.color }}>{pt.prefix}{pt.label}</span>
+                        <span style={{ fontSize:12, fontWeight:600, color:pt.col }}>{pt.txt}</span>
                         <span style={{ fontSize:12, color:'var(--muted)' }}>{fmtR(l.apr)}</span>
-                        <span style={{ color:'var(--muted)', fontSize:14 }}>{expandedRow===i?'▲':'▼'}</span>
+                        <span style={{ color:'var(--muted)', fontSize:12 }}>{expandedRow===i?'▲':'▼'}</span>
                       </div>
                       {expandedRow===i && (
                         <div style={{ padding:'14px 20px', background:'rgba(77,142,240,.05)', borderTop:'1px solid var(--border)',
                           display:'grid', gridTemplateColumns:'1fr 1fr auto', gap:20, alignItems:'start' }}>
                           <div style={{ fontSize:12, color:'var(--text)', lineHeight:1.9 }}>
-                            <span style={{ color:'var(--muted)', fontWeight:700 }}>LOAN&nbsp;</span>
+                            <div style={{ fontSize:10, color:'var(--muted)', fontWeight:700, marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Loan</div>
                             {loanType} · {loanPurpose}<br/>
                             {fmt$(parseFloat(loanAmount))} · LTV {ltv}% · Score {creditScore}
                           </div>
                           <div style={{ fontSize:12, color:'var(--text)', lineHeight:1.9 }}>
-                            <span style={{ color:'var(--muted)', fontWeight:700 }}>PRICING&nbsp;</span>
+                            <div style={{ fontSize:10, color:'var(--muted)', fontWeight:700, marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Pricing</div>
                             Rate {fmtR(l.rate)} · APR {fmtR(l.apr)}<br/>
-                            {fmt$(l.monthly)}/mo · {pt.prefix}{pt.label}
-                            {l.ae && <><br/><span style={{color:'var(--muted)'}}>{l.ae}</span></>}
+                            {fmt$(l.monthly)}/mo · {pt.txt}
+                            {l.ae && <><br/><span style={{color:'var(--muted)',fontSize:11}}>{l.ae}</span></>}
                           </div>
                           <button onClick={e=>{e.stopPropagation();onOpenPricing&&onOpenPricing({loanAmount:parseFloat(loanAmount),creditScore:parseInt(creditScore),loanType,loanPurpose,ltv:parseFloat(ltv)});}}
-                            style={{ padding:'7px 14px', background:'var(--accent)', color:'#fff', border:'none', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                            style={{ padding:'8px 14px', background:'var(--accent)', color:'#fff', border:'none', borderRadius:6, fontSize:12, fontWeight:600, cursor:'pointer' }}>
                             Pricing Engine →
                           </button>
                         </div>
@@ -7731,7 +7700,7 @@ function RateCompareView({ toast, onOpenPricing }) {
             )}
 
             <div style={{ marginTop:14, fontSize:11, color:'var(--muted)', textAlign:'center' }}>
-              {sorted.length} lenders · Rates indicative, subject to change · Lock with lender to confirm
+              {sorted.length} lenders shown · Rates indicative, subject to change · Lock with lender to confirm
             </div>
           </>
         )}
@@ -10193,7 +10162,7 @@ export default function App() {
         </div>
         <nav style={{ flex:1, padding:'12px 0', overflowY:'auto' }}>
           {navItems.map(n=>(
-            <div key={n.id} className={`nav-item ${(n.id==='pricing'?pricingOpen:view===n.id&&!activeWorkspace)?'active':''}`} onClick={()=>{ if(n.id==='pricing'){setPricingOpen(o=>!o);}else{setView(n.id,null);} }}>
+            <div key={n.id} className={`nav-item ${(n.id==='pricing'?pricingOpen:view===n.id&&!activeWorkspace)?'active':''}`} onClick={()=>{ if(n.id==='pricing'){setPricingOpen(o=>!o);}else{setPricingOpen(false);setView(n.id,null);} }}>
               <span>{n.icon}</span><span className="nav-label">{n.label}</span>
             </div>
           ))}
