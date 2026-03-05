@@ -10621,6 +10621,7 @@ export default function App() {
   if (!profile) return <><style>{css}</style><div style={{ padding:40, textAlign:'center', color:'var(--muted)' }}>Loading...</div></>;
 
   const accentColor = brand.brand_color || '#3b82f6';
+  const navItems = [
     { id:'dashboard', label:'Dashboard', icon:Icons.dashboard },
     { id:'calendar', label:'Calendar', icon:Icons.calendar },
     { id:'contacts', label:'Contacts', icon:Icons.contacts },
