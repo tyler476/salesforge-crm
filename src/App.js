@@ -7935,26 +7935,8 @@ const BROKERED_LENDERS = [
   { name:'DUNMOR',                       user:'gritchie@citizensfinancial.co', pass:'Badgesbroker@1',        ae:'',                                                                                                          category:'Non-QM' },
 ];
 
-const BANKING_LENDERS = [
-  { name:'Wells Fargo Correspondent', user:'', pass:'', ae:'', category:'Conventional', note:'Correspondent channel' },
-  { name:'Chase Mortgage',            user:'', pass:'', ae:'', category:'Conventional', note:'Wholesale division' },
-  { name:'PennyMac',                  user:'', pass:'', ae:'', category:'Agency',       note:'Correspondent & bulk' },
-  { name:'UWM (United Wholesale)',    user:'', pass:'', ae:'', category:'Agency',       note:'Primary wholesale partner' },
-  { name:'LoanDepot Wholesale',       user:'', pass:'', ae:'', category:'Conventional', note:'Wholesale channel' },
-  { name:'Flagstar Bank',             user:'', pass:'', ae:'', category:'Agency',       note:'Wholesale & correspondent' },
-  { name:'Plaza Home Mortgage',       user:'', pass:'', ae:'', category:'Conventional', note:'Wholesale' },
-  { name:'Caliber Home Loans',        user:'', pass:'', ae:'', category:'Agency',       note:'Correspondent channel' },
-];
-
-// Combined pool — all lenders in one grid with poolType badge
-// Banking lenders deduplicated (UWM appears in both; Wholesale entry wins for portal creds)
-const _bankingNames = new Set(BANKING_LENDERS.map(l => l.name));
-const ALL_LENDERS = [
-  ...BROKERED_LENDERS.map(l => ({ ...l, poolType: _bankingNames.has(l.name) ? 'Both' : 'Wholesale' })),
-  ...BANKING_LENDERS
-    .filter(l => !BROKERED_LENDERS.find(b => b.name === l.name))
-    .map(l => ({ ...l, poolType: 'Banking' })),
-];
+// Single unified lender list — all portal lenders from the Citizens Financial roster
+const ALL_LENDERS = BROKERED_LENDERS.map(l => ({ ...l, poolType: 'Wholesale' }));
 
 const CAT_COLORS = {
   'Conventional':'#3b82f6',
@@ -7991,7 +7973,7 @@ function RateCompareView({ toast, onOpenPricing }) {
   const [lockDays,     setLockDays]     = useState(sc.lockDays?.toString()    || '30');
   const [term,         setTerm]         = useState(sc.term?.toString()        || '30');
   const [loMargin,     setLoMargin]     = useState(sc.loMarginBps?.toString() || '0');
-  const [poolFilter,   setPoolFilter]   = useState('All');   // 'All' | 'Wholesale' | 'Banking'
+  const [poolFilter,   setPoolFilter]   = useState('All');   // kept for compat, unused
   const [results,      setResults]      = useState(pricingCtx?.ppeResults     || null);
   const [loading,      setLoading]      = useState(false);
   const [sortBy,       setSortBy]       = useState('rate');
@@ -8036,9 +8018,8 @@ function RateCompareView({ toast, onOpenPricing }) {
   const allLenders      = results ? (results.eligible   || []) : [];
   const ineligibleLenders = results ? (results.ineligible || []) : [];
 
-  // Pool filter applied display-side
-  const filteredByPool = poolFilter === 'All' ? allLenders
-    : allLenders.filter(l => l.poolType === poolFilter || l.poolType === 'Both');
+  // All lenders shown — single unified pool
+  const filteredByPool = allLenders;
 
   const cats = ['All', ...Array.from(new Set(filteredByPool.map(l => l.category || 'Conventional')))];
   const sorted = [...filteredByPool]
@@ -8086,7 +8067,7 @@ function RateCompareView({ toast, onOpenPricing }) {
         <div>
           <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:22, fontWeight:700, color:'var(--text)' }}>PPE Search</div>
           <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>
-            {ALL_LENDERS.length} lenders · wholesale + banking · eligibility-filtered
+            {ALL_LENDERS.length} lenders · eligibility-filtered
           </div>
         </div>
 
@@ -8132,18 +8113,6 @@ function RateCompareView({ toast, onOpenPricing }) {
             )}
           </div>
         )}
-
-        {/* ── POOL FILTER ── */}
-        <div style={{ display:'flex', background:'var(--surface)', borderRadius:8, padding:3 }}>
-          {[['All','⚡ All'],['Wholesale','🤝 Wholesale'],['Banking','🏦 Banking']].map(([pf,label])=>(
-            <button key={pf} onClick={()=>setPoolFilter(pf)} style={{
-              flex:1, padding:'7px 0', borderRadius:6, border:'none', cursor:'pointer', fontSize:11, fontWeight:600,
-              background: poolFilter===pf ? 'var(--accent)' : 'transparent',
-              color:       poolFilter===pf ? '#fff'         : 'var(--muted)' }}>
-              {label}
-            </button>
-          ))}
-        </div>
 
         {/* ── LOAN SECTION ── */}
         <div style={{ fontSize:10, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.06em', paddingBottom:4, borderBottom:'1px solid var(--border)' }}>Loan</div>
@@ -8295,7 +8264,7 @@ function RateCompareView({ toast, onOpenPricing }) {
           <div style={{ height:'80%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14 }}>
             <div style={{ fontSize:44 }}>⏳</div>
             <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>
-              Pricing across {ALL_LENDERS.length} lenders — wholesale + banking…
+              Pricing across {ALL_LENDERS.length} lenders…
             </div>
             {usingLive && <div style={{ fontSize:12, color:'#2ecc8a' }}>✓ Live OBMMI rates · {rateDate}</div>}
           </div>
@@ -8307,7 +8276,7 @@ function RateCompareView({ toast, onOpenPricing }) {
             <div style={{ marginBottom:24 }}>
               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12, flexWrap:'wrap' }}>
                 <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', letterSpacing:'0.08em', textTransform:'uppercase' }}>
-                  Top Results — {sorted.length} eligible{poolFilter !== 'All' ? ` ${poolFilter}` : ''} lenders
+                  Top Results — {sorted.length} eligible lenders
                 </div>
                 {results.ineligible.length > 0 && (
                   <button onClick={()=>setShowIneligible(o=>!o)} style={{
@@ -8366,7 +8335,7 @@ function RateCompareView({ toast, onOpenPricing }) {
                       </div>
                       <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', marginBottom:2 }}>
                         {l.lenderName}
-                        <span style={poolBadgeStyle(l.poolType)}>{l.poolType==='Both'?'WS+Bank':l.poolType}</span>
+                        
                       </div>
                       {l.productName && <div style={{ fontSize:10, color:'var(--muted)', marginBottom:6 }}>{l.productName}</div>}
                       <div style={{ fontSize:30, fontWeight:800, color:i===0?MCOL[0]:'var(--accent)', lineHeight:1, marginBottom:4 }}>{fmtR(l.rate)}</div>
@@ -8433,7 +8402,7 @@ function RateCompareView({ toast, onOpenPricing }) {
                       </div>
                       <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', marginBottom:3 }}>
                         {l.lenderName}
-                        <span style={poolBadgeStyle(l.poolType)}>{l.poolType==='Both'?'WS+Bank':l.poolType}</span>
+                        
                       </div>
                       <div style={{ fontSize:22, fontWeight:800, color:'var(--accent)', lineHeight:1.1 }}>{fmtR(l.rate)}</div>
                       <div style={{ display:'flex', justifyContent:'space-between', marginTop:6, alignItems:'center' }}>
@@ -8475,7 +8444,7 @@ function RateCompareView({ toast, onOpenPricing }) {
                         <div style={{ display:'flex', alignItems:'center', gap:8, overflow:'hidden' }}>
                           <span style={{ fontSize:10, fontWeight:700, padding:'2px 6px', borderRadius:20, background:cc(l.category)+'22', color:cc(l.category), whiteSpace:'nowrap' }}>{l.category||'Conv'}</span>
                           <span style={{ fontSize:13, fontWeight:600, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{l.lenderName}</span>
-                          <span style={poolBadgeStyle(l.poolType)}>{l.poolType==='Both'?'WS+Bank':l.poolType}</span>
+                          
                         </div>
                         <span style={{ fontSize:14, fontWeight:700, color:'var(--accent)' }}>{fmtR(l.rate)}</span>
                         <span style={{ fontSize:13, color:'var(--text)' }}>{fmt$(l.monthly)}/mo</span>
@@ -8525,13 +8494,12 @@ function LenderPortalsView({ toast }) {
   const [catFilter, setCatFilter] = useState('All');
   const [search, setSearch]     = useState('');
   const [editRow, setEditRow]   = useState(null);
-  const [bankLenders, setBankLenders]     = useState(BANKING_LENDERS);
-  const [brokerLenders, setBrokerLenders] = useState(BROKERED_LENDERS);
+  const [portalLenders, setPortalLenders] = useState(BROKERED_LENDERS);
   const [showAdd, setShowAdd]   = useState(false);
   const [newEntry, setNewEntry] = useState({ name:'', user:'', pass:'', ae:'', category:'Conventional', note:'' });
   const [copied, setCopied]     = useState('');
 
-  const allLenders = tab === 'brokered' ? brokerLenders : bankLenders;
+  const allLenders = portalLenders;
   const cats = ['All', ...Array.from(new Set(allLenders.map(l => l.category))).sort()];
   const filtered = allLenders.filter(l => {
     if (catFilter !== 'All' && l.category !== catFilter) return false;
@@ -8546,16 +8514,14 @@ function LenderPortalsView({ toast }) {
   };
 
   const saveRow = (lender, idx) => {
-    if (tab === 'brokered') setBrokerLenders(prev => prev.map((l, i) => i === idx ? lender : l));
-    else setBankLenders(prev => prev.map((l, i) => i === idx ? lender : l));
+    setPortalLenders(prev => prev.map((l, i) => i === idx ? lender : l));
     setEditRow(null);
     toast && toast('Lender updated');
   };
 
   const addLender = () => {
     if (!newEntry.name) return;
-    if (tab === 'brokered') setBrokerLenders(prev => [...prev, { ...newEntry }]);
-    else setBankLenders(prev => [...prev, { ...newEntry }]);
+    setPortalLenders(prev => [...prev, { ...newEntry }]);
     setNewEntry({ name:'', user:'', pass:'', ae:'', category:'Conventional', note:'' });
     setShowAdd(false);
     toast && toast('Lender added!');
@@ -8579,15 +8545,9 @@ function LenderPortalsView({ toast }) {
           </button>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display:'flex', gap:0, marginBottom:24, background:'var(--card)', borderRadius:12, padding:4, width:'fit-content', border:'1px solid var(--border)' }}>
-          {[['brokered','Brokered Portals', brokerLenders.length], ['banking','Banking Portals', bankLenders.length]].map(([id, lbl, cnt]) => (
-            <div key={id} onClick={() => { setTab(id); setCatFilter('All'); setSearch(''); }}
-              style={{ padding:'9px 24px', borderRadius:9, cursor:'pointer', fontWeight:tab===id?700:400, fontSize:14, background:tab===id?'var(--bg)':'transparent', color:tab===id?'var(--text)':'var(--muted)', transition:'all .15s', display:'flex', alignItems:'center', gap:8 }}>
-              {lbl}
-              <span style={{ fontSize:11, background:tab===id?'#00A651':'var(--border)', color:'#fff', padding:'2px 7px', borderRadius:20, fontWeight:700 }}>{cnt}</span>
-            </div>
-          ))}
+        {/* Lender count summary */}
+        <div style={{ marginBottom:20, fontSize:13, color:'var(--muted)' }}>
+          <span style={{ fontWeight:700, color:'var(--text)' }}>{portalLenders.length}</span> lenders · all portal credentials in one place
         </div>
 
         {/* Category filter pills */}
@@ -8728,13 +8688,11 @@ function LenderPortalsView({ toast }) {
                     {Object.keys(CAT_COLORS).map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
-                {tab === 'banking' && (
-                  <div>
+                <div>
                     <label style={{ fontSize:11, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>Notes</label>
-                    <input value={newEntry.note} onChange={e => setNewEntry(n => ({...n,note:e.target.value}))} placeholder="Wholesale, correspondent, etc."
+                    <input value={newEntry.note} onChange={e => setNewEntry(n => ({...n,note:e.target.value}))} placeholder="Any notes about this lender..."
                       style={{ width:'100%', padding:'8px 12px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }} />
                   </div>
-                )}
                 <div style={{ display:'flex', gap:10, marginTop:6 }}>
                   <button onClick={() => setShowAdd(false)} style={{ flex:1, background:'none', border:'1px solid var(--border)', borderRadius:8, padding:'10px', cursor:'pointer', color:'var(--muted)', fontFamily:'inherit', fontWeight:600 }}>Cancel</button>
                   <button onClick={addLender} style={{ flex:2, background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', borderRadius:8, padding:'10px', fontWeight:700, cursor:'pointer', fontFamily:'inherit' }}>Add Lender</button>
@@ -8767,9 +8725,7 @@ const AI_QUAL_QUESTIONS = [
 const LENDER_RATE_ENGINE = (qualData) => {
   const { creditScore, ltv, loanPurpose, loanAmount, loanType, preferredChannel } = qualData;
   const useBanking = (preferredChannel || '').includes('Banking');
-  const pool = useBanking
-    ? BANKING_LENDERS.filter(l => l.name === 'UWM (United Wholesale)' || l.name === 'PennyMac')
-    : BROKERED_LENDERS;
+  const pool = BROKERED_LENDERS;
 
   const scenario = {
     loanAmount: parseFloat(loanAmount) || 500000,
