@@ -1,6 +1,342 @@
 /* @jsxRuntime classic */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useContext, createContext, useRef, useMemo } from 'react';
 import { supabase } from './lib/supabase';
+
+// ─── PRICING CONTEXT (Shared state across all pricing modules) ────────────────
+const PricingContext = createContext(null);
+
+function usePricing() {
+  const ctx = useContext(PricingContext);
+  if (!ctx) throw new Error('usePricing must be used within PricingProvider');
+  return ctx;
+}
+
+// ─── LLPA MATRIX ENGINE ───────────────────────────────────────────────────────
+// Multi-dimensional LLPA adjustments applied per scenario factor
+// Each factor returns basis points adjustment (converted to % in computeLLPA)
+const LLPA_TABLES = {
+  // FICO × LTV grid (standard Fannie/Freddie baseline)
+  ficoLtv: (fico, ltv) => {
+    if (fico >= 780) {
+      if (ltv <= 60) return -0.500; if (ltv <= 65) return -0.375; if (ltv <= 70) return -0.375;
+      if (ltv <= 75) return -0.250; if (ltv <= 80) return -0.250; if (ltv <= 85) return -0.125;
+      if (ltv <= 90) return  0.000; if (ltv <= 95) return  0.125; return 0.250;
+    } else if (fico >= 760) {
+      if (ltv <= 60) return -0.375; if (ltv <= 65) return -0.250; if (ltv <= 70) return -0.250;
+      if (ltv <= 75) return -0.125; if (ltv <= 80) return  0.000; if (ltv <= 85) return  0.125;
+      if (ltv <= 90) return  0.125; if (ltv <= 95) return  0.250; return 0.375;
+    } else if (fico >= 740) {
+      if (ltv <= 60) return -0.250; if (ltv <= 65) return -0.125; if (ltv <= 70) return  0.000;
+      if (ltv <= 75) return  0.000; if (ltv <= 80) return  0.125; if (ltv <= 85) return  0.250;
+      if (ltv <= 90) return  0.375; if (ltv <= 95) return  0.500; return 0.625;
+    } else if (fico >= 720) {
+      if (ltv <= 60) return  0.000; if (ltv <= 65) return  0.125; if (ltv <= 70) return  0.125;
+      if (ltv <= 75) return  0.250; if (ltv <= 80) return  0.375; if (ltv <= 85) return  0.500;
+      if (ltv <= 90) return  0.625; if (ltv <= 95) return  0.750; return 0.875;
+    } else if (fico >= 700) {
+      if (ltv <= 60) return  0.125; if (ltv <= 65) return  0.250; if (ltv <= 70) return  0.375;
+      if (ltv <= 75) return  0.500; if (ltv <= 80) return  0.625; if (ltv <= 85) return  0.750;
+      if (ltv <= 90) return  0.875; if (ltv <= 95) return  1.000; return 1.125;
+    } else if (fico >= 680) {
+      if (ltv <= 60) return  0.375; if (ltv <= 65) return  0.500; if (ltv <= 70) return  0.625;
+      if (ltv <= 75) return  0.750; if (ltv <= 80) return  0.875; if (ltv <= 85) return  1.000;
+      if (ltv <= 90) return  1.125; return 1.250;
+    } else if (fico >= 660) {
+      if (ltv <= 60) return  0.625; if (ltv <= 65) return  0.750; if (ltv <= 70) return  0.875;
+      if (ltv <= 75) return  1.000; if (ltv <= 80) return  1.125; if (ltv <= 85) return  1.250;
+      if (ltv <= 90) return  1.375; return 1.500;
+    } else {
+      if (ltv <= 60) return  1.000; if (ltv <= 65) return  1.125; if (ltv <= 70) return  1.250;
+      if (ltv <= 75) return  1.375; if (ltv <= 80) return  1.500; return 1.750;
+    }
+  },
+  // Loan purpose adder
+  purpose: (purpose) => {
+    if (purpose === 'Cash-Out Refinance') return 0.500;
+    if (purpose === 'Rate/Term Refinance' || purpose === 'Refinance') return 0.250;
+    return 0.000;
+  },
+  // Loan type spread over base
+  loanType: (type) => {
+    if (type === 'FHA')    return  0.125;
+    if (type === 'VA')     return -0.250;
+    if (type === 'USDA')   return -0.125;
+    if (type === 'Jumbo')  return  0.375;
+    if (type === 'Non-QM') return  0.500;
+    return 0.000;
+  },
+  // Property type adjustment
+  propertyType: (propType, ltv) => {
+    if (propType === 'Condo') {
+      if (ltv > 75) return 0.750; return 0.500;
+    }
+    if (propType === '2-4 Unit') return 1.000;
+    if (propType === 'Manufactured') return 0.500;
+    if (propType === 'PUD') return 0.000;
+    return 0.000; // SFR
+  },
+  // Occupancy adjustment
+  occupancy: (occupancy, ltv) => {
+    if (occupancy === 'Investment') {
+      if (ltv <= 65) return 1.500; if (ltv <= 75) return 1.750; return 2.625;
+    }
+    if (occupancy === 'Second Home') {
+      if (ltv <= 65) return 0.500; if (ltv <= 75) return 0.750; return 1.125;
+    }
+    return 0.000; // Primary
+  },
+  // Rate lock period adjustment
+  lockPeriod: (days) => {
+    const d = parseInt(days) || 30;
+    if (d <= 15) return -0.125;
+    if (d <= 30) return  0.000;
+    if (d <= 45) return  0.125;
+    if (d <= 60) return  0.250;
+    return 0.500; // 90 day
+  },
+  // Loan term adjustment
+  term: (termYears) => {
+    const t = parseInt(termYears) || 30;
+    if (t === 10) return -0.875;
+    if (t === 15) return -0.625;
+    if (t === 20) return -0.375;
+    if (t === 25) return -0.125;
+    return 0.000; // 30yr
+  },
+  // DTI adjustment
+  dti: (dti, loanType) => {
+    if (!dti) return 0.000;
+    const d = parseFloat(dti);
+    if (loanType === 'FHA' || loanType === 'VA') return 0.000; // Government loans more flexible
+    if (d > 50) return 0.750;
+    if (d > 45) return 0.375;
+    if (d > 43) return 0.125;
+    return 0.000;
+  },
+  // High-balance / jumbo loan amount tier
+  loanAmount: (amount, loanType) => {
+    const a = parseFloat(amount) || 0;
+    const conformingLimit = 806500; // 2026 baseline
+    if (loanType === 'Conventional') {
+      if (a > 1500000) return 0.500;
+      if (a > conformingLimit * 1.5) return 0.250;
+      if (a > conformingLimit) return 0.125; // High balance
+    }
+    return 0.000;
+  },
+};
+
+// Master LLPA compute function — sums all applicable adjustments
+function computeLLPA(scenario) {
+  const { loanType='Conventional', fico=740, ltv=80, loanPurpose='Purchase',
+    propertyType='Single Family', occupancy='Primary',
+    lockDays=30, term=30, dti=null, loanAmount=500000 } = scenario;
+
+  const ficoN   = parseInt(fico) || 740;
+  const ltvN    = parseFloat(ltv) || 80;
+  const BASE    = 6.875; // Today's market base (LO can override via rate sheet)
+
+  const adj =
+    LLPA_TABLES.ficoLtv(ficoN, ltvN)              +
+    LLPA_TABLES.purpose(loanPurpose)               +
+    LLPA_TABLES.loanType(loanType)                 +
+    LLPA_TABLES.propertyType(propertyType, ltvN)   +
+    LLPA_TABLES.occupancy(occupancy, ltvN)          +
+    LLPA_TABLES.lockPeriod(lockDays)               +
+    LLPA_TABLES.term(term)                         +
+    LLPA_TABLES.dti(dti, loanType)                 +
+    LLPA_TABLES.loanAmount(loanAmount, loanType);
+
+  return Math.round((BASE + adj) * 8) / 8; // Snap to nearest .125
+}
+
+// Eligibility check — returns { eligible: bool, reasons: string[] }
+function checkEligibility(scenario, product) {
+  const reasons = [];
+  const { fico=740, ltv=80, dti=null, loanPurpose='Purchase',
+    propertyType='Single Family', occupancy='Primary',
+    state='', loanAmount=500000, loanType='Conventional' } = scenario;
+
+  if (product.minFICO && parseInt(fico) < product.minFICO)
+    reasons.push(`Min FICO ${product.minFICO} (yours: ${fico})`);
+  if (product.maxLTV && parseFloat(ltv) > product.maxLTV)
+    reasons.push(`Max LTV ${product.maxLTV}% (yours: ${ltv}%)`);
+  if (product.maxDTI && dti && parseFloat(dti) > product.maxDTI)
+    reasons.push(`Max DTI ${product.maxDTI}% (yours: ${dti}%)`);
+  if (product.allowedPurposes?.length && !product.allowedPurposes.includes(loanPurpose))
+    reasons.push(`Purpose not allowed (${loanPurpose})`);
+  if (product.allowedPropTypes?.length && !product.allowedPropTypes.includes(propertyType))
+    reasons.push(`Property type not allowed (${propertyType})`);
+  if (product.allowedOccupancy?.length && !product.allowedOccupancy.includes(occupancy))
+    reasons.push(`Occupancy not allowed (${occupancy})`);
+  if (product.eligibleStates?.length && state && !product.eligibleStates.includes(state))
+    reasons.push(`Not licensed in ${state}`);
+  if (product.loanAmountMin && parseFloat(loanAmount) < product.loanAmountMin)
+    reasons.push(`Min loan $${product.loanAmountMin.toLocaleString()}`);
+  if (product.loanAmountMax && parseFloat(loanAmount) > product.loanAmountMax)
+    reasons.push(`Max loan $${product.loanAmountMax.toLocaleString()}`);
+
+  return { eligible: reasons.length === 0, reasons };
+}
+
+// Monthly P&I payment
+function calcMonthlyPayment(amount, rate, termYears = 30) {
+  const P = parseFloat(amount) || 0;
+  const r = parseFloat(rate) / 100 / 12;
+  const n = (parseInt(termYears) || 30) * 12;
+  if (!P || !r) return P > 0 ? Math.round(P / n) : 0;
+  return Math.round((P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1));
+}
+
+// LENDER PRODUCTS CATALOG — default built-in products per lender
+// Each lender can have multiple products with eligibility rules
+const DEFAULT_LENDER_PRODUCTS = {
+  'JMAC':                    [{ productName:'Conventional 30yr', minFICO:620, maxLTV:97, maxDTI:50, allowedPurposes:['Purchase','Rate/Term Refinance','Cash-Out Refinance'], allowedPropTypes:['Single Family','PUD','Condo','2-4 Unit'], allowedOccupancy:['Primary','Second Home','Investment'], loanAmountMax:806500 }],
+  'First Alliance Home Mortgage': [{ productName:'Conventional', minFICO:620, maxLTV:97, maxDTI:50, allowedPurposes:['Purchase','Rate/Term Refinance','Cash-Out Refinance'], allowedPropTypes:['Single Family','PUD','Condo'], allowedOccupancy:['Primary','Second Home','Investment'], loanAmountMax:1500000 }],
+  'AFR':                     [{ productName:'FHA 30yr', minFICO:580, maxLTV:96.5, maxDTI:57, allowedPurposes:['Purchase','Rate/Term Refinance'], allowedPropTypes:['Single Family','PUD','Condo'], allowedOccupancy:['Primary'] }, { productName:'VA 30yr', minFICO:580, maxLTV:100, maxDTI:55, allowedPurposes:['Purchase','Rate/Term Refinance'], allowedOccupancy:['Primary'] }],
+  'Open Mortgage':           [{ productName:'FHA/VA', minFICO:580, maxLTV:100, maxDTI:57, allowedPurposes:['Purchase','Rate/Term Refinance'], allowedOccupancy:['Primary'] }],
+  'Newfi':                   [{ productName:'Non-QM Bank Statement', minFICO:640, maxLTV:85, maxDTI:55, allowedPurposes:['Purchase','Rate/Term Refinance','Cash-Out Refinance'], allowedPropTypes:['Single Family','Condo'], allowedOccupancy:['Primary','Investment'], loanAmountMin:150000 }],
+  'Angel Oak':               [{ productName:'Non-QM Bank Statement', minFICO:640, maxLTV:85, maxDTI:55, allowedPurposes:['Purchase','Rate/Term Refinance','Cash-Out Refinance'], allowedOccupancy:['Primary','Investment'] }, { productName:'DSCR Investment', minFICO:620, maxLTV:80, allowedPurposes:['Purchase','Rate/Term Refinance','Cash-Out Refinance'], allowedOccupancy:['Investment'] }],
+  'Change':                  [{ productName:'Non-QM', minFICO:620, maxLTV:85, maxDTI:55, allowedPurposes:['Purchase','Rate/Term Refinance','Cash-Out Refinance'], allowedOccupancy:['Primary','Second Home','Investment'] }],
+  'FundLoans':               [{ productName:'Non-QM', minFICO:620, maxLTV:80, maxDTI:55, allowedPurposes:['Purchase','Rate/Term Refinance','Cash-Out Refinance'], allowedOccupancy:['Primary','Investment'] }],
+  'DeepHaven':               [{ productName:'Non-QM Expanded', minFICO:620, maxLTV:80, maxDTI:55, allowedPurposes:['Purchase','Rate/Term Refinance','Cash-Out Refinance'], allowedOccupancy:['Primary','Investment'] }],
+  'Champions Funding':       [{ productName:'Non-QM', minFICO:620, maxLTV:80, maxDTI:55, allowedPurposes:['Purchase','Rate/Term Refinance','Cash-Out Refinance'], allowedOccupancy:['Primary','Investment'] }],
+  'Orion Lending':           [{ productName:'Non-QM', minFICO:620, maxLTV:80, maxDTI:55, allowedPurposes:['Purchase','Rate/Term Refinance','Cash-Out Refinance'], allowedOccupancy:['Primary','Investment'] }],
+  'The Lender':              [{ productName:'Non-QM', minFICO:620, maxLTV:80, maxDTI:55, allowedPurposes:['Purchase','Rate/Term Refinance','Cash-Out Refinance'], allowedOccupancy:['Primary','Investment'] }],
+  'FAR':                     [{ productName:'Reverse HECM', minFICO:0, maxLTV:75, allowedPurposes:['Purchase','Reverse'], allowedOccupancy:['Primary'], loanAmountMin:100000 }],
+  'ReverseVision':           [{ productName:'Reverse HECM', minFICO:0, maxLTV:75, allowedPurposes:['Purchase','Reverse'], allowedOccupancy:['Primary'] }],
+  'SmartFi (QuantumReverse)':[{ productName:'Reverse/HECM', minFICO:0, maxLTV:75, allowedPurposes:['Purchase','Reverse'], allowedOccupancy:['Primary'] }],
+  'Mutual Omaha':            [{ productName:'Reverse HECM', minFICO:0, maxLTV:75, allowedPurposes:['Purchase','Reverse'], allowedOccupancy:['Primary'] }],
+  'Spring EQ':               [{ productName:'HELOC', minFICO:680, maxLTV:90, allowedPurposes:['HELOC'], allowedOccupancy:['Primary','Second Home'] }],
+  'UWM (United Wholesale)':  [{ productName:'Agency Conv', minFICO:620, maxLTV:97, maxDTI:50, allowedPurposes:['Purchase','Rate/Term Refinance','Cash-Out Refinance'], allowedPropTypes:['Single Family','PUD','Condo','2-4 Unit'], allowedOccupancy:['Primary','Second Home','Investment'], loanAmountMax:1500000 }, { productName:'FHA', minFICO:580, maxLTV:96.5, maxDTI:57, allowedPurposes:['Purchase','Rate/Term Refinance'], allowedOccupancy:['Primary'] }],
+  'PennyMac':                [{ productName:'Agency', minFICO:620, maxLTV:97, maxDTI:50, allowedPurposes:['Purchase','Rate/Term Refinance','Cash-Out Refinance'], allowedOccupancy:['Primary','Second Home','Investment'], loanAmountMax:2000000 }],
+};
+// Fallback product for lenders without specific catalog
+const DEFAULT_PRODUCT = { productName:'Conventional', minFICO:620, maxLTV:97, maxDTI:50, allowedPurposes:['Purchase','Rate/Term Refinance','Cash-Out Refinance'], allowedPropTypes:['Single Family','PUD','Condo','2-4 Unit','Manufactured'], allowedOccupancy:['Primary','Second Home','Investment'] };
+
+// ── Master PPE Search Function ───────────────────────────────────────────────
+// Replaces LENDER_RATE_ENGINE — runs eligibility + full LLPA pricing per lender
+function runPPESearch(scenario, lenderPool, lenderSpreads, lenderCredits) {
+  const {
+    loanAmount = 500000, fico = 740, ltv = 80,
+    loanPurpose = 'Purchase', loanType = 'Conventional',
+    propertyType = 'Single Family', occupancy = 'Primary',
+    lockDays = 30, term = 30, dti = null, state = '',
+    channel = 'brokered', loMarginBps = 0,
+  } = scenario;
+
+  const baseRate = computeLLPA(scenario);
+  const eligible = [];
+  const ineligible = [];
+
+  lenderPool.forEach(lender => {
+    const products = DEFAULT_LENDER_PRODUCTS[lender.name] || [DEFAULT_PRODUCT];
+    const bestProduct = products.find(p => {
+      const elig = checkEligibility(scenario, p);
+      return elig.eligible;
+    });
+    const anyProduct = products[0];
+    const eligResult = checkEligibility(scenario, anyProduct);
+
+    if (!bestProduct) {
+      ineligible.push({ lenderName: lender.name, category: lender.category, ae: lender.ae, reasons: eligResult.reasons });
+      return;
+    }
+
+    const spread  = lenderSpreads[lender.name] || 0;
+    const marginAdj = (loMarginBps || 0) / 100; // convert bps to %
+    const rate    = Math.round((baseRate + spread + marginAdj) * 8) / 8;
+    const points  = lenderCredits[lender.name] || 0;
+    const monthly = calcMonthlyPayment(loanAmount, rate, term);
+    const apr     = Math.round((rate + Math.abs(points) * 0.08) * 1000) / 1000;
+    const totalInt = (monthly * parseInt(term) * 12) - parseFloat(loanAmount);
+
+    eligible.push({
+      lenderName:    lender.name,
+      productName:   bestProduct.productName,
+      category:      lender.category,
+      ae:            lender.ae,
+      rate:          rate.toFixed(3),
+      points:        points.toFixed(3),
+      pointsDollar:  Math.round(parseFloat(loanAmount) * (points / 100)),
+      monthly,
+      apr:           apr.toFixed(3),
+      totalInterest: Math.round(totalInt),
+      channel:       channel === 'banking' ? 'Banking' : 'Brokered',
+      eligible:      true,
+    });
+  });
+
+  eligible.sort((a, b) => parseFloat(a.rate) - parseFloat(b.rate));
+
+  return {
+    eligible,
+    ineligible,
+    top3:        eligible.slice(0, 3),
+    baseRate:    baseRate.toFixed(3),
+    scenario,
+    searchedAt:  new Date().toISOString(),
+    lenderCount: eligible.length,
+  };
+}
+
+// ─── PRICING PROVIDER ────────────────────────────────────────────────────────
+function PricingProvider({ children }) {
+  const [scenario, setScenario] = useState({
+    loanAmount: 500000, loanType: 'Conventional', loanPurpose: 'Purchase',
+    fico: 740, ltv: 80, dti: null, propertyType: 'Single Family',
+    occupancy: 'Primary', state: 'CA', lockDays: 30, term: 30,
+    channel: 'brokered', loMarginBps: 0,
+    monthlyIncome: null, monthlyDebts: null,
+  });
+  const [ppeResults, setPpeResults]         = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [selectedContact, setSelectedContact] = useState(null);
+  const [rateSheetDate, setRateSheetDate]   = useState(null);
+  const [searching, setSearching]           = useState(false);
+
+  const updateScenario = useCallback((updates) => {
+    setScenario(prev => {
+      const next = { ...prev, ...updates };
+      // Auto-calculate DTI if income + debts provided
+      if (next.monthlyIncome && next.monthlyDebts) {
+        next.dti = Math.round((next.monthlyDebts / next.monthlyIncome) * 100);
+      }
+      return next;
+    });
+  }, []);
+
+  const search = useCallback((overrideScenario, lenderPool, spreads, credits) => {
+    setSearching(true);
+    const s = overrideScenario || scenario;
+    setTimeout(() => {
+      const results = runPPESearch(s, lenderPool, spreads, credits);
+      setPpeResults(results);
+      setSearching(false);
+    }, 400);
+  }, [scenario]);
+
+  const selectProduct = useCallback((product) => {
+    setSelectedProduct(product);
+  }, []);
+
+  const linkContact = useCallback((contact) => {
+    setSelectedContact(contact);
+  }, []);
+
+  return (
+    <PricingContext.Provider value={{
+      scenario, updateScenario,
+      ppeResults, search, searching,
+      selectedProduct, selectProduct,
+      selectedContact, linkContact,
+      rateSheetDate, setRateSheetDate,
+      setPpeResults,
+    }}>
+      {children}
+    </PricingContext.Provider>
+  );
+}
 
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 const css = `
@@ -6754,56 +7090,68 @@ function MISMOImportModal({ onClose, onImport, toast }) {
 
 // ─── PRICING ENGINE PANEL ─────────────────────────────────────────────────────
 function PricingEnginePanel({ onClose, onApplyRate, preset }) {
-  const [loanAmount,   setLoanAmount]   = useState(preset?.loanAmount?.toString()  || '500000');
-  const [loanType,     setLoanType]     = useState(preset?.loanType     || 'Conventional');
-  const [loanPurpose,  setLoanPurpose]  = useState(preset?.loanPurpose  || 'Purchase');
-  const [creditScore,  setCreditScore]  = useState(preset?.creditScore?.toString() || '740');
-  const [ltv,          setLtv]          = useState(preset?.ltv?.toString()         || '80');
-  const [propertyType, setPropertyType] = useState('Single Family');
-  const [occupancy,    setOccupancy]    = useState('Primary');
-  const [term,         setTerm]         = useState(preset?.loanTerm?.toString()    || '30');
-  const [lockDays,     setLockDays]     = useState('30');
+  // Try to use shared PricingContext if available, fall back gracefully
+  let pricingCtx = null;
+  try { pricingCtx = usePricing(); } catch(e) { /* standalone mode */ }
+
+  const [loanAmount,   setLoanAmount]   = useState(preset?.loanAmount?.toString()  || pricingCtx?.scenario?.loanAmount?.toString() || '500000');
+  const [loanType,     setLoanType]     = useState(preset?.loanType     || pricingCtx?.scenario?.loanType     || 'Conventional');
+  const [loanPurpose,  setLoanPurpose]  = useState(preset?.loanPurpose  || pricingCtx?.scenario?.loanPurpose  || 'Purchase');
+  const [creditScore,  setCreditScore]  = useState(preset?.creditScore?.toString() || pricingCtx?.scenario?.fico?.toString() || '740');
+  const [ltv,          setLtv]          = useState(preset?.ltv?.toString()         || pricingCtx?.scenario?.ltv?.toString()   || '80');
+  const [propertyType, setPropertyType] = useState(preset?.propertyType || pricingCtx?.scenario?.propertyType || 'Single Family');
+  const [occupancy,    setOccupancy]    = useState(preset?.occupancy    || pricingCtx?.scenario?.occupancy    || 'Primary');
+  const [dtiVal,       setDtiVal]       = useState(pricingCtx?.scenario?.dti?.toString() || '');
+  const [term,         setTerm]         = useState(preset?.loanTerm?.toString()    || pricingCtx?.scenario?.term?.toString()   || '30');
+  const [lockDays,     setLockDays]     = useState(pricingCtx?.scenario?.lockDays?.toString() || '30');
+  const [loMargin,     setLoMargin]     = useState(pricingCtx?.scenario?.loMarginBps?.toString() || '0');
   const [pricingRows,  setPricingRows]  = useState([]);
   const [loading,      setLoading]      = useState(false);
   const [selectedRow,  setSelectedRow]  = useState(null);
   const [manualRate,   setManualRate]   = useState(preset?.selectedLender?.rate   || '');
   const [manualPoints, setManualPoints] = useState(preset?.selectedLender?.points || '0');
-  const [tab,          setTab]          = useState(preset ? 'grid' : 'grid');
+  const [tab,          setTab]          = useState('grid');
   const [notes,        setNotes]        = useState(preset?.selectedLender ? `Pre-populated from qualification.\nLender: ${preset.selectedLender.lenderName}\nBorrower: ${preset.borrowerName || ''}\nTimeline: ${preset.timeline || ''}` : '');
   const [lastPriced,   setLastPriced]   = useState(null);
   const [presetBanner, setPresetBanner] = useState(!!preset);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const computeBase = (type, fico, ltvN, termN, purpose) => {
-    let base = 6.875;
-    if(termN===15) base-=0.625; else if(termN===10) base-=0.875; else if(termN===20) base-=0.375;
-    if(type==='FHA') base+=0.125; else if(type==='VA') base-=0.25; else if(type==='USDA') base-=0.125; else if(type==='Jumbo') base+=0.375;
-    if(fico>=780) base-=0.375; else if(fico>=760) base-=0.25; else if(fico>=740) base-=0.125;
-    else if(fico>=700) base+=0.125; else if(fico>=680) base+=0.375; else if(fico>=660) base+=0.625; else base+=1.0;
-    if(ltvN<=60) base-=0.25; else if(ltvN<=70) base-=0.125; else if(ltvN>80&&ltvN<=90) base+=0.25; else if(ltvN>90) base+=0.5;
-    if(purpose==='Rate/Term Refinance'||purpose==='Refinance') base+=0.25;
-    if(purpose==='Cash-Out Refinance') base+=0.5;
-    return Math.round(base*1000)/1000;
-  };
+  // Use the unified LLPA engine from PricingContext
+  const buildScenario = () => ({
+    loanAmount: parseFloat(loanAmount) || 500000,
+    loanType, loanPurpose,
+    fico: parseInt(creditScore) || 740,
+    ltv: parseFloat(ltv) || 80,
+    propertyType, occupancy,
+    dti: dtiVal ? parseFloat(dtiVal) : null,
+    term: parseInt(term) || 30,
+    lockDays: parseInt(lockDays) || 30,
+    loMarginBps: parseFloat(loMargin) || 0,
+  });
 
   const runPricing = () => {
     setLoading(true); setSelectedRow(null);
     setTimeout(()=>{
-      const base = computeBase(loanType, parseInt(creditScore), parseFloat(ltv), parseInt(term), loanPurpose);
+      const sc = buildScenario();
+      const base = computeLLPA(sc); // ← now uses full LLPA engine
+      const marginAdj = sc.loMarginBps / 100;
       const rows = [];
       for(let pts=-0.5; pts<=2.001; pts=Math.round((pts+0.125)*1000)/1000) {
-        const rate = Math.round((base - pts*0.25)*1000)/1000;
+        const rate = Math.round((base + marginAdj - pts * 0.25) * 1000) / 1000;
         if(rate<3||rate>12) continue;
-        const { mp, totalInt } = calcLoan({ loanAmount, rate, term });
-        rows.push({ rate:rate.toFixed(3), points:pts.toFixed(3), pointsDollar:Math.round(parseFloat(loanAmount||0)*(pts/100)), monthly_payment:mp, total_interest:totalInt, apr:(rate+pts*0.08).toFixed(3) });
+        const { mp, totalInt } = calcLoan({ loanAmount: sc.loanAmount, rate, term: sc.term });
+        rows.push({ rate:rate.toFixed(3), points:pts.toFixed(3), pointsDollar:Math.round(sc.loanAmount*(pts/100)), monthly_payment:mp, total_interest:totalInt, apr:(rate+pts*0.08).toFixed(3) });
       }
       setPricingRows(rows); setLoading(false); setLastPriced(new Date());
+      // Sync scenario to PricingContext
+      if (pricingCtx) pricingCtx.updateScenario(sc);
       // Auto-select row closest to preset lender rate if available
       if (preset?.selectedLender?.rate) {
         const targetRate = preset.selectedLender.rate;
         const closest = rows.reduce((best, r) => Math.abs(parseFloat(r.rate) - parseFloat(targetRate)) < Math.abs(parseFloat(best.rate) - parseFloat(targetRate)) ? r : best, rows[0]);
         if (closest) setSelectedRow(closest);
       }
-    }, 600);
+    }, 400);
   };
 
   useEffect(()=>{ runPricing(); }, []);
@@ -6923,20 +7271,81 @@ function PricingEnginePanel({ onClose, onApplyRate, preset }) {
 
         {tab==='inputs' && (
           <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            {/* Core Loan Parameters */}
+            <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', paddingBottom:6, borderBottom:'1px solid var(--border)' }}>Loan Parameters</div>
             {[
               ['Loan Amount ($)', <input key="la" type="number" value={loanAmount} onChange={e=>setLoanAmount(e.target.value)} placeholder="500000" />],
               ['Loan Type',       <select key="lt" value={loanType} onChange={e=>setLoanType(e.target.value)} style={{width:'100%'}}>{['Conventional','FHA','VA','USDA','Jumbo','Non-QM'].map(t=><option key={t}>{t}</option>)}</select>],
-              ['Loan Purpose',    <select key="lp" value={loanPurpose} onChange={e=>setLoanPurpose(e.target.value)} style={{width:'100%'}}>{['Purchase','Rate/Term Refinance','Cash-Out Refinance','Streamline Refi'].map(t=><option key={t}>{t}</option>)}</select>],
-              ['Credit Score',    <select key="cs" value={creditScore} onChange={e=>setCreditScore(e.target.value)} style={{width:'100%'}}>{['800','780','760','740','720','700','680','660','640','620'].map(s=><option key={s}>{s}</option>)}</select>],
-              ['LTV (%)',         <input key="lv" type="number" value={ltv} onChange={e=>setLtv(e.target.value)} placeholder="80" min="50" max="100" />],
-              ['Property Type',   <select key="pt" value={propertyType} onChange={e=>setPropertyType(e.target.value)} style={{width:'100%'}}>{['Single Family','Condo','2 Unit','3 Unit','4 Unit','PUD','Manufactured'].map(t=><option key={t}>{t}</option>)}</select>],
-              ['Occupancy',       <select key="oc" value={occupancy} onChange={e=>setOccupancy(e.target.value)} style={{width:'100%'}}>{['Primary','Second Home','Investment'].map(t=><option key={t}>{t}</option>)}</select>],
+              ['Loan Purpose',    <select key="lp" value={loanPurpose} onChange={e=>setLoanPurpose(e.target.value)} style={{width:'100%'}}>{['Purchase','Rate/Term Refinance','Cash-Out Refinance','Streamline Refi','HELOC','Reverse'].map(t=><option key={t}>{t}</option>)}</select>],
               ['Term',            <select key="tm" value={term} onChange={e=>setTerm(e.target.value)} style={{width:'100%'}}>{['10','15','20','25','30'].map(t=><option key={t} value={t}>{t} year</option>)}</select>],
-              ['Rate Lock',       <select key="rl" value={lockDays} onChange={e=>setLockDays(e.target.value)} style={{width:'100%'}}>{['15','30','45','60','90'].map(d=><option key={d} value={d}>{d}-day lock</option>)}</select>],
+              ['Rate Lock',       <select key="rl" value={lockDays} onChange={e=>setLockDays(e.target.value)} style={{width:'100%'}}>{[['15','15-day (−0.125)'],['30','30-day (par)'],['45','45-day (+0.125)'],['60','60-day (+0.25)'],['90','90-day (+0.50)']].map(([v,l])=><option key={v} value={v}>{l}</option>)}</select>],
             ].map(([label,input])=>(
               <div className="form-group" key={label} style={{ margin:0 }}><label style={{ fontSize:12 }}>{label}</label>{input}</div>
             ))}
-            <button onClick={runPricing} style={{ background:'linear-gradient(135deg,#1a9a5c,#0f7a48)', color:'#fff', border:'none', borderRadius:8, padding:11, fontWeight:700, fontSize:14, cursor:'pointer', fontFamily:'inherit', marginTop:4 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Run Pricing</button>
+
+            {/* Borrower Factors — shown always now */}
+            <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', paddingBottom:6, borderBottom:'1px solid var(--border)', marginTop:4 }}>Borrower & Property Factors (LLPA)</div>
+            {[
+              ['Credit Score',    <select key="cs" value={creditScore} onChange={e=>setCreditScore(e.target.value)} style={{width:'100%'}}>{['800','780','760','740','720','700','680','660','640','620'].map(s=><option key={s}>{s}</option>)}</select>],
+              ['LTV (%)',         <input key="lv" type="number" value={ltv} onChange={e=>setLtv(e.target.value)} placeholder="80" min="50" max="100" />],
+              ['Property Type',   <select key="pt" value={propertyType} onChange={e=>setPropertyType(e.target.value)} style={{width:'100%'}}>{['Single Family','Condo','2-4 Unit','PUD','Manufactured'].map(t=><option key={t}>{t}</option>)}</select>],
+              ['Occupancy',       <select key="oc" value={occupancy} onChange={e=>setOccupancy(e.target.value)} style={{width:'100%'}}>{['Primary','Second Home','Investment'].map(t=><option key={t}>{t}</option>)}</select>],
+              ['DTI % (optional)', <input key="dti" type="number" value={dtiVal} onChange={e=>setDtiVal(e.target.value)} placeholder="e.g. 43" min="0" max="65" />],
+            ].map(([label,input])=>(
+              <div className="form-group" key={label} style={{ margin:0 }}><label style={{ fontSize:12 }}>{label}</label>{input}</div>
+            ))}
+
+            {/* LO Margin */}
+            <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', paddingBottom:6, borderBottom:'1px solid var(--border)', marginTop:4 }}>LO Compensation</div>
+            <div className="form-group" style={{ margin:0 }}>
+              <label style={{ fontSize:12 }}>LO Margin (bps) — added to rate</label>
+              <input type="number" value={loMargin} onChange={e=>setLoMargin(e.target.value)} placeholder="0" min="0" max="300" />
+              {parseFloat(loMargin) > 0 && <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>{loMargin}bps = +{(parseFloat(loMargin)/100).toFixed(3)}% added to all rates</div>}
+            </div>
+
+            {/* LLPA Breakdown Preview */}
+            {(() => {
+              const sc = { loanType, loanPurpose, fico:parseInt(creditScore)||740, ltv:parseFloat(ltv)||80, propertyType, occupancy, lockDays:parseInt(lockDays)||30, term:parseInt(term)||30, dti:dtiVal?parseFloat(dtiVal):null, loanAmount:parseFloat(loanAmount)||500000 };
+              const breakdowns = [
+                ['FICO×LTV Grid', LLPA_TABLES.ficoLtv(sc.fico, sc.ltv)],
+                ['Loan Purpose',  LLPA_TABLES.purpose(sc.loanPurpose)],
+                ['Loan Type',     LLPA_TABLES.loanType(sc.loanType)],
+                ['Property Type', LLPA_TABLES.propertyType(sc.propertyType, sc.ltv)],
+                ['Occupancy',     LLPA_TABLES.occupancy(sc.occupancy, sc.ltv)],
+                ['Lock Period',   LLPA_TABLES.lockPeriod(sc.lockDays)],
+                ['Term Adj.',     LLPA_TABLES.term(sc.term)],
+                ['DTI',           LLPA_TABLES.dti(sc.dti, sc.loanType)],
+                ['Loan Amount',   LLPA_TABLES.loanAmount(sc.loanAmount, sc.loanType)],
+              ].filter(([,v]) => v !== 0);
+              const total = computeLLPA(sc);
+              return (
+                <div style={{ background:'var(--surface2)', borderRadius:10, padding:12, border:'1px solid var(--border)', marginTop:4 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:8 }}>LLPA Adjustment Breakdown</div>
+                  <div style={{ fontSize:11, color:'var(--muted)', marginBottom:6 }}>Base: 6.875%</div>
+                  {breakdowns.map(([label, adj]) => (
+                    <div key={label} style={{ display:'flex', justifyContent:'space-between', marginBottom:4, fontSize:12 }}>
+                      <span style={{ color:'var(--text)' }}>{label}</span>
+                      <span style={{ fontWeight:600, color: adj > 0 ? '#e05252' : '#2ecc8a' }}>{adj > 0 ? '+' : ''}{adj.toFixed(3)}</span>
+                    </div>
+                  ))}
+                  {breakdowns.length === 0 && <div style={{ fontSize:12, color:'var(--muted)' }}>No adjustments — par scenario</div>}
+                  <div style={{ display:'flex', justifyContent:'space-between', marginTop:8, paddingTop:8, borderTop:'1px solid var(--border)', fontSize:13, fontWeight:700 }}>
+                    <span>Par Rate</span>
+                    <span style={{ color:'var(--accent)' }}>{total.toFixed(3)}%</span>
+                  </div>
+                  {parseFloat(loMargin) > 0 && (
+                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginTop:4 }}>
+                      <span style={{ color:'var(--muted)' }}>+ LO Margin ({loMargin}bps)</span>
+                      <span style={{ color:'#f0b429' }}>+{(parseFloat(loMargin)/100).toFixed(3)}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            <button onClick={()=>{ runPricing(); setTab('grid'); }} style={{ background:'linear-gradient(135deg,#1a9a5c,#0f7a48)', color:'#fff', border:'none', borderRadius:8, padding:11, fontWeight:700, fontSize:14, cursor:'pointer', fontFamily:'inherit', marginTop:4 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Run Pricing → View Grid
+            </button>
           </div>
         )}
 
@@ -7313,6 +7722,58 @@ Respond with well-structured answers using bullet points and headers. Be concise
 }
 
 // ─── LENDER PORTALS VIEW ─────────────────────────────────────────────────────
+
+// Lender competitive spread vs LLPA base rate (basis points relative to market)
+const LENDER_SPREADS = {
+  'JMAC':                        -0.125,
+  'First Alliance Home Mortgage': 0.000,
+  'AMC':                          0.125,
+  'Axos Bank':                   -0.125,
+  'Axos Bank Marketing':          0.000,
+  'Newfi':                        0.125,
+  'Spring EQ':                    0.250,
+  'EPM':                          0.000,
+  'AFR':                         -0.125,
+  'Change':                       0.125,
+  'Angel Oak':                    0.250,
+  'FundLoans':                    0.250,
+  'FAR':                          0.125,
+  'ReverseVision':                0.250,
+  'Champions Funding':           -0.125,
+  'SmartFi (QuantumReverse)':     0.000,
+  'Preferred Rate | APM':        -0.125,
+  'DeepHaven':                    0.375,
+  'FCB':                          0.000,
+  'The Loan Store':              -0.250,
+  'Velocity Mortgage':            0.125,
+  'Sierra Pacific Mortgage':     -0.125,
+  'Orion Lending':                0.000,
+  'Mutual Omaha':                -0.125,
+  'Kind Lending':                -0.250,
+  'Open Mortgage':                0.125,
+  'The Lender':                   0.000,
+  'Wells Fargo Correspondent':    0.125,
+  'Chase Mortgage':               0.125,
+  'PennyMac':                    -0.125,
+  'UWM (United Wholesale)':      -0.250,
+  'LoanDepot Wholesale':          0.000,
+  'Flagstar Bank':                0.000,
+  'Plaza Home Mortgage':          0.125,
+  'Caliber Home Loans':           0.000,
+};
+
+// Lender credit at par (negative = lender credit, positive = points required)
+const LENDER_CREDITS = {
+  'UWM (United Wholesale)':  -0.500,
+  'Kind Lending':            -0.375,
+  'The Loan Store':          -0.375,
+  'JMAC':                    -0.250,
+  'AFR':                     -0.250,
+  'Sierra Pacific Mortgage': -0.250,
+  'PennyMac':                -0.125,
+  'Axos Bank':               -0.125,
+};
+
 const BROKERED_LENDERS = [
   { name:'JMAC',                       user:'gritchie@citizensfinancial.co', pass:'a2556db5',              ae:'',                                                                          category:'Conventional' },
   { name:'First Alliance Home Mortgage',user:'gritchie@citizensfinancial.co', pass:'Badgesbroker1',        ae:'AE | Jamal Ransford | jransford@fahmloans.com | 214-929-8234',              category:'Conventional' },
@@ -7367,37 +7828,64 @@ const CAT_COLORS = {
 
 // ─── RATE COMPARE VIEW ────────────────────────────────────────────────────────
 function RateCompareView({ toast, onOpenPricing }) {
-  const [loanAmount,  setLoanAmount]  = useState('500000');
-  const [creditScore, setCreditScore] = useState('740');
-  const [ltv,         setLtv]         = useState('80');
-  const [loanPurpose, setLoanPurpose] = useState('Purchase');
-  const [loanType,    setLoanType]    = useState('Conventional');
-  const [channel,     setChannel]     = useState('brokered');
-  const [results,     setResults]     = useState(null);
-  const [loading,     setLoading]     = useState(false);
-  const [sortBy,      setSortBy]      = useState('rate');
-  const [catFilter,   setCatFilter]   = useState('All');
-  const [expandedRow, setExpandedRow] = useState(null);
-  const [hasRun,      setHasRun]      = useState(false);
-  const [viewMode,    setViewMode]    = useState('grid');
+  // Connect to shared PricingContext
+  let pricingCtx = null;
+  try { pricingCtx = usePricing(); } catch(e) {}
+
+  const sc = pricingCtx?.scenario || {};
+  const [loanAmount,   setLoanAmount]   = useState(sc.loanAmount?.toString() || '500000');
+  const [creditScore,  setCreditScore]  = useState(sc.fico?.toString()       || '740');
+  const [ltv,          setLtv]          = useState(sc.ltv?.toString()         || '80');
+  const [loanPurpose,  setLoanPurpose]  = useState(sc.loanPurpose             || 'Purchase');
+  const [loanType,     setLoanType]     = useState(sc.loanType                || 'Conventional');
+  const [propertyType, setPropertyType] = useState(sc.propertyType            || 'Single Family');
+  const [occupancy,    setOccupancy]    = useState(sc.occupancy               || 'Primary');
+  const [dtiInput,     setDtiInput]     = useState(sc.dti?.toString()         || '');
+  const [lockDays,     setLockDays]     = useState(sc.lockDays?.toString()    || '30');
+  const [term,         setTerm]         = useState(sc.term?.toString()        || '30');
+  const [loMargin,     setLoMargin]     = useState(sc.loMarginBps?.toString() || '0');
+  const [channel,      setChannel]      = useState(sc.channel                 || 'brokered');
+  const [results,      setResults]      = useState(pricingCtx?.ppeResults     || null);
+  const [loading,      setLoading]      = useState(false);
+  const [sortBy,       setSortBy]       = useState('rate');
+  const [catFilter,    setCatFilter]    = useState('All');
+  const [expandedRow,  setExpandedRow]  = useState(null);
+  const [hasRun,       setHasRun]       = useState(!!pricingCtx?.ppeResults);
+  const [viewMode,     setViewMode]     = useState('grid');
+  const [showIneligible, setShowIneligible] = useState(false);
+  const [compareSet,   setCompareSet]   = useState(new Set());
+  const [showCompare,  setShowCompare]  = useState(false);
+
+  const buildScenario = () => ({
+    loanAmount: parseFloat(loanAmount) || 500000,
+    fico: parseInt(creditScore) || 740,
+    ltv: parseFloat(ltv) || 80,
+    loanPurpose, loanType, propertyType, occupancy,
+    dti: dtiInput ? parseFloat(dtiInput) : null,
+    lockDays: parseInt(lockDays) || 30,
+    term: parseInt(term) || 30,
+    loMarginBps: parseFloat(loMargin) || 0,
+    channel,
+  });
 
   const runSearch = () => {
-    setLoading(true); setHasRun(true); setExpandedRow(null);
+    setLoading(true); setHasRun(true); setExpandedRow(null); setCompareSet(new Set());
+    const scenario = buildScenario();
+    const pool = channel === 'banking' ? BANKING_LENDERS : BROKERED_LENDERS;
     setTimeout(() => {
-      const r = LENDER_RATE_ENGINE({
-        loanAmount:       parseFloat(loanAmount) || 500000,
-        creditScore:      parseInt(creditScore)  || 740,
-        ltv:              parseFloat(ltv)        || 80,
-        loanPurpose,
-        loanType,
-        preferredChannel: channel === 'banking' ? 'Banking (UWM/PennyMac)' : 'Brokered',
-      });
+      const r = runPPESearch(scenario, pool, LENDER_SPREADS, LENDER_CREDITS);
       setResults(r);
       setLoading(false);
-    }, 700);
+      // Sync to PricingContext
+      if (pricingCtx) {
+        pricingCtx.updateScenario(scenario);
+        pricingCtx.setPpeResults(r);
+      }
+    }, 500);
   };
 
-  const allLenders = results ? (results.all || []) : [];
+  const allLenders = results ? (results.eligible || []) : [];
+  const ineligibleLenders = results ? (results.ineligible || []) : [];
   const cats = ['All', ...Array.from(new Set(allLenders.map(l => l.category || 'Conventional')))];
   const sorted = [...allLenders]
     .filter(l => catFilter === 'All' || l.category === catFilter)
@@ -7426,13 +7914,13 @@ function RateCompareView({ toast, onOpenPricing }) {
     <div style={{ display:'flex', height:'100%', overflow:'hidden' }}>
 
       {/* ── LEFT PANEL ── */}
-      <div style={{ width:276, minWidth:276, background:'var(--surface2)', borderRight:'1px solid var(--border)',
-        padding:'24px 18px', overflowY:'auto', display:'flex', flexDirection:'column', gap:14 }}>
+      <div style={{ width:288, minWidth:288, background:'var(--surface2)', borderRight:'1px solid var(--border)',
+        padding:'20px 16px', overflowY:'auto', display:'flex', flexDirection:'column', gap:12 }}>
 
         <div>
-          <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:22, fontWeight:700, color:'var(--text)' }}>Rate Compare</div>
-          <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>
-            {channel==='brokered' ? '27 wholesale lenders' : '8 banking lenders'} · live pricing
+          <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:22, fontWeight:700, color:'var(--text)' }}>PPE Search</div>
+          <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>
+            {channel==='brokered' ? `${BROKERED_LENDERS.length} wholesale investors` : '8 banking lenders'} · eligibility-filtered
           </div>
         </div>
 
@@ -7448,42 +7936,26 @@ function RateCompareView({ toast, onOpenPricing }) {
           ))}
         </div>
 
+        {/* ── LOAN SECTION ── */}
+        <div style={{ fontSize:10, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.06em', paddingBottom:4, borderBottom:'1px solid var(--border)' }}>Loan</div>
+
         {/* Loan Amount */}
         <div>
-          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }}>Loan Amount</label>
+          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Loan Amount</label>
           <div style={{ position:'relative' }}>
             <span style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', color:'var(--muted)', fontSize:13, pointerEvents:'none' }}>$</span>
             <input type="number" value={loanAmount} onChange={e=>setLoanAmount(e.target.value)}
-              style={{ width:'100%', padding:'9px 12px 9px 22px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:13, boxSizing:'border-box' }}/>
-          </div>
-        </div>
-
-        {/* Credit Score */}
-        <div>
-          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }}>Credit Score</label>
-          <select value={creditScore} onChange={e=>setCreditScore(e.target.value)}
-            style={{ width:'100%', padding:'9px 12px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:13 }}>
-            {['620','640','660','680','700','720','740','760','780','800'].map(s=><option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-
-        {/* LTV */}
-        <div>
-          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }}>LTV %</label>
-          <div style={{ position:'relative' }}>
-            <input type="number" value={ltv} onChange={e=>setLtv(e.target.value)}
-              style={{ width:'100%', padding:'9px 32px 9px 12px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:13, boxSizing:'border-box' }}/>
-            <span style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', color:'var(--muted)', fontSize:13, pointerEvents:'none' }}>%</span>
+              style={{ width:'100%', padding:'8px 12px 8px 22px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:13, boxSizing:'border-box' }}/>
           </div>
         </div>
 
         {/* Loan Type */}
         <div>
-          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }}>Loan Type</label>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
+          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Loan Type</label>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
             {['Conventional','FHA','VA','USDA','Jumbo','Non-QM'].map(t=>(
               <button key={t} onClick={()=>setLoanType(t)} style={{
-                padding:'5px 9px', borderRadius:5, fontSize:11, fontWeight:600, cursor:'pointer',
+                padding:'4px 8px', borderRadius:5, fontSize:11, fontWeight:600, cursor:'pointer',
                 border:`1px solid ${loanType===t?'var(--accent)':'var(--border)'}`,
                 background: loanType===t ? 'rgba(77,142,240,.18)' : 'var(--surface)',
                 color:       loanType===t ? 'var(--accent)' : 'var(--muted)' }}>
@@ -7495,32 +7967,104 @@ function RateCompareView({ toast, onOpenPricing }) {
 
         {/* Purpose */}
         <div>
-          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:5, textTransform:'uppercase', letterSpacing:'0.06em' }}>Purpose</label>
-          {['Purchase','Rate/Term Refinance','Cash-Out Refinance'].map(p=>(
-            <button key={p} onClick={()=>setLoanPurpose(p)} style={{
-              display:'block', width:'100%', marginBottom:4, padding:'7px 11px', borderRadius:6, textAlign:'left',
-              border:`1px solid ${loanPurpose===p?'var(--accent)':'var(--border)'}`,
-              background: loanPurpose===p ? 'rgba(77,142,240,.18)' : 'var(--surface)',
-              color:       loanPurpose===p ? 'var(--accent)' : 'var(--text)',
-              fontSize:12, fontWeight:600, cursor:'pointer' }}>
-              {p}
-            </button>
-          ))}
+          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Purpose</label>
+          <select value={loanPurpose} onChange={e=>setLoanPurpose(e.target.value)}
+            style={{ width:'100%', padding:'8px 12px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:13 }}>
+            {['Purchase','Rate/Term Refinance','Cash-Out Refinance','HELOC','Reverse'].map(p=><option key={p}>{p}</option>)}
+          </select>
+        </div>
+
+        {/* Term + Lock side by side */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+          <div>
+            <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Term</label>
+            <select value={term} onChange={e=>setTerm(e.target.value)} style={{ width:'100%', padding:'8px 6px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:12 }}>
+              {['10','15','20','25','30'].map(t=><option key={t} value={t}>{t}yr</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Lock</label>
+            <select value={lockDays} onChange={e=>setLockDays(e.target.value)} style={{ width:'100%', padding:'8px 6px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:12 }}>
+              {[['15','-0.125'],['30','par'],['45','+0.125'],['60','+0.25'],['90','+0.50']].map(([d,adj])=><option key={d} value={d}>{d}d {adj}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* ── BORROWER SECTION ── */}
+        <div style={{ fontSize:10, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.06em', paddingBottom:4, borderBottom:'1px solid var(--border)', marginTop:4 }}>Borrower & Property (LLPA)</div>
+
+        {/* FICO + LTV side by side */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+          <div>
+            <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>FICO</label>
+            <select value={creditScore} onChange={e=>setCreditScore(e.target.value)} style={{ width:'100%', padding:'8px 6px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:12 }}>
+              {['800','780','760','740','720','700','680','660','640','620'].map(s=><option key={s}>{s}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>LTV %</label>
+            <input type="number" value={ltv} onChange={e=>setLtv(e.target.value)} min="50" max="100"
+              style={{ width:'100%', padding:'8px 8px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:13, boxSizing:'border-box' }}/>
+          </div>
+        </div>
+
+        {/* Property Type */}
+        <div>
+          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Property Type</label>
+          <select value={propertyType} onChange={e=>setPropertyType(e.target.value)} style={{ width:'100%', padding:'8px 12px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:13 }}>
+            {['Single Family','Condo','2-4 Unit','PUD','Manufactured'].map(t=><option key={t}>{t}</option>)}
+          </select>
+        </div>
+
+        {/* Occupancy */}
+        <div>
+          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Occupancy</label>
+          <div style={{ display:'flex', gap:4 }}>
+            {[['Primary','🏠'],['Second Home','✈️'],['Investment','💼']].map(([occ,em])=>(
+              <button key={occ} onClick={()=>setOccupancy(occ)} style={{
+                flex:1, padding:'5px 4px', borderRadius:6, border:`1px solid ${occupancy===occ?'var(--accent)':'var(--border)'}`,
+                background: occupancy===occ ? 'rgba(77,142,240,.18)' : 'var(--surface)',
+                color: occupancy===occ ? 'var(--accent)' : 'var(--muted)',
+                fontSize:10, fontWeight:600, cursor:'pointer', textAlign:'center' }}>
+                {em}<br/>{occ.split(' ')[0]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* DTI */}
+        <div>
+          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>DTI % (optional)</label>
+          <input type="number" value={dtiInput} onChange={e=>setDtiInput(e.target.value)} placeholder="e.g. 43" min="0" max="65"
+            style={{ width:'100%', padding:'8px 12px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:13, boxSizing:'border-box' }}/>
+        </div>
+
+        {/* LO Margin */}
+        <div>
+          <label style={{ fontSize:10, color:'var(--muted)', fontWeight:700, display:'block', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>LO Margin (bps)</label>
+          <input type="number" value={loMargin} onChange={e=>setLoMargin(e.target.value)} placeholder="0" min="0" max="300"
+            style={{ width:'100%', padding:'8px 12px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:13, boxSizing:'border-box' }}/>
         </div>
 
         <button onClick={runSearch} disabled={loading} style={{
           padding:'12px', borderRadius:8, border:'none', fontSize:14, fontWeight:700, cursor: loading?'not-allowed':'pointer',
-          background: loading ? 'var(--surface)' : 'var(--accent)', color: loading ? 'var(--muted)' : '#fff' }}>
-          {loading ? '⏳ Pricing...' : '🔍 Compare Rates'}
+          background: loading ? 'var(--surface)' : 'var(--accent)', color: loading ? 'var(--muted)' : '#fff', marginTop:4 }}>
+          {loading ? '⏳ Searching...' : '🔍 Search Rates'}
         </button>
 
-        {/* Best execution */}
-        {results && (
-          <div style={{ background:'rgba(46,204,138,.1)', border:'1px solid rgba(46,204,138,.3)', borderRadius:8, padding:14 }}>
+        {/* Best execution summary */}
+        {results && results.eligible.length > 0 && (
+          <div style={{ background:'rgba(46,204,138,.1)', border:'1px solid rgba(46,204,138,.3)', borderRadius:8, padding:12 }}>
             <div style={{ fontSize:10, color:'var(--success)', fontWeight:800, letterSpacing:'0.08em', marginBottom:6 }}>✅ BEST EXECUTION</div>
-            <div style={{ fontSize:28, fontWeight:800, color:'var(--text)', lineHeight:1 }}>{fmtR(results.all?.[0]?.rate)}</div>
-            <div style={{ fontSize:12, color:'var(--muted)', marginTop:4 }}>{results.all?.[0]?.lenderName}</div>
-            <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{fmt$(results.all?.[0]?.monthly)}/mo · {results.lenderCount} lenders priced</div>
+            <div style={{ fontSize:26, fontWeight:800, color:'var(--text)', lineHeight:1 }}>{fmtR(results.eligible[0]?.rate)}</div>
+            <div style={{ fontSize:12, color:'var(--muted)', marginTop:3 }}>{results.eligible[0]?.lenderName}</div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{fmt$(results.eligible[0]?.monthly)}/mo</div>
+            <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>
+              {results.eligible.length} eligible · {results.ineligible.length} screened out
+            </div>
+            <div style={{ fontSize:10, color:'var(--muted)', marginTop:6, padding:'4px 8px', background:'rgba(0,0,0,.2)', borderRadius:4 }}>
+              LLPA base: {results.baseRate}%
+            </div>
           </div>
         )}
       </div>
@@ -7551,30 +8095,79 @@ function RateCompareView({ toast, onOpenPricing }) {
           <>
             {/* ── TOP 3 PODIUM ── */}
             <div style={{ marginBottom:24 }}>
-              <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:12 }}>
-                Top Results — {sorted.length} lenders compared
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12, flexWrap:'wrap' }}>
+                <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', letterSpacing:'0.08em', textTransform:'uppercase' }}>
+                  Top Results — {sorted.length} eligible lenders
+                </div>
+                {results.ineligible.length > 0 && (
+                  <button onClick={()=>setShowIneligible(o=>!o)} style={{
+                    fontSize:11, fontWeight:600, padding:'3px 10px', borderRadius:20, cursor:'pointer',
+                    border:'1px solid rgba(224,82,82,.4)', background:showIneligible?'rgba(224,82,82,.12)':'transparent',
+                    color:'#e05252' }}>
+                    ⚠ {results.ineligible.length} screened out {showIneligible ? '▲' : '▼'}
+                  </button>
+                )}
+                {compareSet.size > 0 && (
+                  <button onClick={()=>setShowCompare(true)} style={{
+                    fontSize:11, fontWeight:700, padding:'3px 12px', borderRadius:20, cursor:'pointer',
+                    border:'1px solid var(--accent)', background:'var(--accent)', color:'#fff' }}>
+                    Compare {compareSet.size} selected →
+                  </button>
+                )}
               </div>
+
+              {/* Ineligible lenders accordion */}
+              {showIneligible && results.ineligible.length > 0 && (
+                <div style={{ marginBottom:16, background:'rgba(224,82,82,.05)', border:'1px solid rgba(224,82,82,.2)', borderRadius:10, padding:14 }}>
+                  <div style={{ fontSize:11, fontWeight:700, color:'#e05252', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:10 }}>
+                    Screened Out — Eligibility Failures
+                  </div>
+                  {results.ineligible.map((l,i) => (
+                    <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:12, paddingBottom:8, marginBottom:8, borderBottom: i < results.ineligible.length-1 ? '1px solid rgba(224,82,82,.15)' : 'none' }}>
+                      <div style={{ flex:1 }}>
+                        <div style={{ fontSize:12, fontWeight:700, color:'var(--text)', opacity:0.5 }}>{l.lenderName}</div>
+                        <div style={{ fontSize:11, color:'#e05252', marginTop:2 }}>{(l.reasons||[]).join(' · ')}</div>
+                      </div>
+                      <span style={{ fontSize:10, padding:'2px 6px', borderRadius:4, background:'rgba(224,82,82,.15)', color:'#e05252', fontWeight:700, whiteSpace:'nowrap' }}>{l.category}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
                 {top3.map((l,i)=>{
                   const pt = fmtPt(l.points);
+                  const inCompare = compareSet.has(l.lenderName);
                   return (
                     <div key={l.lenderName} style={{
                       background:'var(--surface)', borderRadius:12, padding:18,
-                      border:`2px solid ${i===0?MCOL[0]:'var(--border)'}`,
+                      border:`2px solid ${inCompare?'var(--accent)':i===0?MCOL[0]:'var(--border)'}`,
                       boxShadow: i===0 ? `0 0 28px ${MCOL[0]}28` : 'none', position:'relative', overflow:'hidden' }}>
                       {i===0 && <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:`linear-gradient(90deg,${MCOL[0]},transparent)` }}/>}
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:10 }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
                         <span style={{ fontSize:24 }}>{medals[i]}</span>
-                        <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:20, background:cc(l.category)+'22', color:cc(l.category) }}>{l.category||'Conv'}</span>
+                        <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+                          <button onClick={()=>{ const s=new Set(compareSet); inCompare?s.delete(l.lenderName):s.size<3&&s.add(l.lenderName); setCompareSet(s); }}
+                            style={{ fontSize:9, padding:'2px 6px', borderRadius:4, cursor:'pointer', border:`1px solid ${inCompare?'var(--accent)':'var(--border)'}`, background:inCompare?'var(--accent)':'transparent', color:inCompare?'#fff':'var(--muted)', fontWeight:700 }}>
+                            {inCompare ? '✓ Added' : '+ Compare'}
+                          </button>
+                          <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:20, background:cc(l.category)+'22', color:cc(l.category) }}>{l.category||'Conv'}</span>
+                        </div>
                       </div>
-                      <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', marginBottom:4 }}>{l.lenderName}</div>
+                      <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', marginBottom:2 }}>{l.lenderName}</div>
+                      {l.productName && <div style={{ fontSize:10, color:'var(--muted)', marginBottom:6 }}>{l.productName}</div>}
                       <div style={{ fontSize:30, fontWeight:800, color:i===0?MCOL[0]:'var(--accent)', lineHeight:1, marginBottom:4 }}>{fmtR(l.rate)}</div>
                       <div style={{ fontSize:12, color:'var(--muted)', marginBottom:6 }}>{fmt$(l.monthly)}/mo</div>
                       <div style={{ fontSize:11, fontWeight:600, color:pt.col }}>{pt.txt}</div>
                       <div style={{ fontSize:11, color:'var(--muted)', marginTop:3 }}>APR {fmtR(l.apr)}</div>
-                      <button onClick={()=>onOpenPricing&&onOpenPricing({loanAmount:parseFloat(loanAmount),creditScore:parseInt(creditScore),loanType,loanPurpose,ltv:parseFloat(ltv)})}
-                        style={{ width:'100%', marginTop:12, padding:'6px 0', background:'var(--accent)', color:'#fff', border:'none', borderRadius:6, fontSize:11, fontWeight:600, cursor:'pointer' }}>
-                        Open in Pricing Engine
+                      {l.ae && <div style={{ fontSize:10, color:'var(--muted)', marginTop:4, borderTop:'1px solid var(--border)', paddingTop:6 }}>{l.ae.split('|')[1]?.trim() || l.ae}</div>}
+                      <button onClick={()=>{
+                        const sc = { loanAmount:parseFloat(loanAmount), creditScore:parseInt(creditScore), loanType, loanPurpose, ltv:parseFloat(ltv), propertyType, occupancy, lockDays:parseInt(lockDays), term:parseInt(term) };
+                        if (pricingCtx) { pricingCtx.updateScenario(sc); pricingCtx.selectProduct(l); }
+                        onOpenPricing && onOpenPricing(sc);
+                      }}
+                        style={{ width:'100%', marginTop:10, padding:'6px 0', background:'var(--accent)', color:'#fff', border:'none', borderRadius:6, fontSize:11, fontWeight:600, cursor:'pointer' }}>
+                        Price Full Grid →
                       </button>
                     </div>
                   );
@@ -7955,137 +8548,32 @@ const AI_QUAL_QUESTIONS = [
 //          'Banking' → banking lenders; anything else → brokered network
 // ─────────────────────────────────────────────────────────────────────────────
 const LENDER_RATE_ENGINE = (qualData) => {
-  const { creditScore, ltv, loanPurpose, loanAmount, loanType } = qualData;
-  const channelPref = qualData.preferredChannel || '';
-  const useBanking  = channelPref === 'Banking (UWM/PennyMac)';
+  const { creditScore, ltv, loanPurpose, loanAmount, loanType, preferredChannel } = qualData;
+  const useBanking = (preferredChannel || '').includes('Banking');
+  const pool = useBanking
+    ? BANKING_LENDERS.filter(l => l.name === 'UWM (United Wholesale)' || l.name === 'PennyMac')
+    : BROKERED_LENDERS;
 
-  // ── BASE RATE (matches PricingEnginePanel logic exactly) ──────────────────
-  const computeBase = (fico, ltvN, purpose, type = 'Conventional') => {
-    let base = 6.875;
-    if (type === 'FHA')    base += 0.125;
-    else if (type === 'VA')    base -= 0.25;
-    else if (type === 'Jumbo') base += 0.375;
-    else if (type === 'Non-QM') base += 0.5;
-    if (fico >= 780) base -= 0.375;
-    else if (fico >= 760) base -= 0.25;
-    else if (fico >= 740) base -= 0.125;
-    else if (fico >= 720) base += 0.0;
-    else if (fico >= 700) base += 0.125;
-    else if (fico >= 680) base += 0.375;
-    else base += 0.625;
-    if (ltvN <= 60) base -= 0.25;
-    else if (ltvN <= 70) base -= 0.125;
-    else if (ltvN > 80 && ltvN <= 90) base += 0.25;
-    else if (ltvN > 90) base += 0.5;
-    if (purpose === 'Refinance' || purpose === 'Rate/Term Refinance') base += 0.25;
-    if (purpose === 'Cash-Out Refinance') base += 0.5;
-    return Math.round(base * 8) / 8; // snap to nearest .125
+  const scenario = {
+    loanAmount: parseFloat(loanAmount) || 500000,
+    fico: parseInt(creditScore) || 740,
+    ltv: parseFloat(ltv) || 80,
+    loanPurpose, loanType: loanType || 'Conventional',
+    channel: useBanking ? 'banking' : 'brokered',
+    term: parseInt(qualData.loanTerm) || 30,
+    propertyType: qualData.propertyType || 'Single Family',
+    occupancy: qualData.occupancy || 'Primary',
+    lockDays: 30, dti: null,
   };
 
-  const base = computeBase(creditScore, ltv, loanPurpose, loanType || 'Conventional');
-
-  // ── LENDER POOL SELECTION ─────────────────────────────────────────────────
-  const brokeredPool = BROKERED_LENDERS.filter(l => {
-    // filter to relevant category for loan type
-    if (loanPurpose === 'Cash-Out Refinance' && l.category === 'Reverse') return false;
-    if (creditScore < 680 && (l.category === 'Conventional' || l.category === 'Agency')) return false;
-    return true;
-  });
-
-  const bankingPool = BANKING_LENDERS.filter(l =>
-    l.name === 'UWM' || l.name === 'PennyMac'
-  );
-
-  const pool = useBanking ? bankingPool : brokeredPool;
-
-  // ── LENDER SPREAD TABLE ────────────────────────────────────────────────────
-  // Each lender has a competitive positioning spread vs base rate
-  const LENDER_SPREADS = {
-    'JMAC':                  -0.125,
-    'First Alliance':         0.0,
-    'AMC':                    0.125,
-    'Axos Bank':             -0.125,
-    'Axos Marketing':         0.0,
-    'Newfi':                  0.125,  // Non-QM specialty
-    'Spring EQ':              0.25,   // HELOC specialty, higher conv rate
-    'EPM':                    0.0,
-    'AFR':                   -0.125,
-    'Change':                 0.125,
-    'Angel Oak':              0.25,   // Non-QM
-    'FundLoans':              0.25,   // Non-QM
-    'FAR':                    0.125,  // Reverse specialist
-    'ReverseVision':          0.25,   // Reverse specialist
-    'Champions':             -0.125,
-    'SmartFi':                0.0,
-    'Preferred Rate/APM':    -0.125,
-    'DeepHaven':              0.375,  // Non-QM
-    'FCB':                    0.0,
-    'The Loan Store':        -0.25,   // Aggressive pricing
-    'Velocity':               0.125,
-    'Sierra Pacific':        -0.125,
-    'Orion':                  0.0,
-    'Mutual Omaha':          -0.125,
-    'Kind Lending':          -0.25,   // Aggressive pricing
-    'Open Mortgage':          0.125,
-    'The Lender':             0.0,
-    'Wells Fargo Correspondent': 0.125,
-    'Chase Mortgage':         0.125,
-    'PennyMac':              -0.125,
-    'UWM':                   -0.25,   // Volume leader, aggressive
-    'LoanDepot':              0.0,
-    'Flagstar':               0.0,
-    'Plaza Home':             0.125,
-    'Caliber':                0.0,
-  };
-
-  // Lender credit amount (negative points = lender pays toward closing)
-  const LENDER_CREDITS = {
-    'UWM':            -0.5,
-    'Kind Lending':   -0.375,
-    'The Loan Store': -0.375,
-    'JMAC':           -0.25,
-    'AFR':            -0.25,
-    'Sierra Pacific': -0.25,
-    'PennyMac':       -0.125,
-    'Axos Bank':      -0.125,
-  };
-
-  const calcMonthlyPayment = (amount, rate, termYears = 30) => {
-    const r = rate / 100 / 12;
-    const n = termYears * 12;
-    if (r === 0) return Math.round(amount / n);
-    return Math.round((amount * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1));
-  };
-
-  // ── BUILD LENDER RATE CARDS ───────────────────────────────────────────────
-  const results = pool.map(lender => {
-    const spread  = LENDER_SPREADS[lender.name] || 0;
-    const rate    = Math.round((base + spread) * 8) / 8;
-    const points  = LENDER_CREDITS[lender.name] || 0;
-    const monthly = calcMonthlyPayment(loanAmount, rate);
-    const apr     = Math.round((rate + points * 0.08) * 1000) / 1000;
-    return {
-      lenderName:   lender.name,
-      category:     lender.category,
-      ae:           lender.ae,
-      rate:         rate.toFixed(3),
-      points:       points.toFixed(3),
-      pointsDollar: Math.round(loanAmount * (points / 100)),
-      monthly,
-      apr:          apr.toFixed(3),
-      channel:      useBanking ? 'Banking' : 'Brokered',
-    };
-  });
-
-  // Sort by monthly payment ascending (best deal first)
-  results.sort((a, b) => a.monthly - b.monthly);
-
+  const result = runPPESearch(scenario, pool, LENDER_SPREADS, LENDER_CREDITS);
   return {
-    top3:     results.slice(0, 3),
-    all:      results,
-    baseRate: base.toFixed(3),
-    channel:  useBanking ? 'banking' : 'brokerage',
-    lenderCount: pool.length,
+    top3: result.top3,
+    all: result.eligible,
+    baseRate: result.baseRate,
+    channel: useBanking ? 'banking' : 'brokerage',
+    lenderCount: result.eligible.length,
+    ineligible: result.ineligible,
   };
 };
 
@@ -10133,7 +10621,6 @@ export default function App() {
   if (!profile) return <><style>{css}</style><div style={{ padding:40, textAlign:'center', color:'var(--muted)' }}>Loading...</div></>;
 
   const accentColor = brand.brand_color || '#3b82f6';
-  const navItems = [
     { id:'dashboard', label:'Dashboard', icon:Icons.dashboard },
     { id:'calendar', label:'Calendar', icon:Icons.calendar },
     { id:'contacts', label:'Contacts', icon:Icons.contacts },
@@ -10142,12 +10629,13 @@ export default function App() {
     { id:'pipeline', label:'Lead Funnel', icon:Icons.pipeline },
     { id:'team', label:'Team', icon:Icons.team },
     { id:'automation', label:'AI Outreach', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 2 15 22 11 13 2 9 22 2"/></svg> },
-    { id:'ratecompare', label:'Rate Compare', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><polyline points="2 20 22 20"/></svg> },
+    { id:'ratecompare', label:'PPE Search', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><polyline points="2 20 22 20"/></svg> },
     { id:'lenders', label:'Lender Portals', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="14" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><polyline points="8 21 12 17 16 21"/></svg> },
     { id:'hannah', label:'Ask Hannah', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
   ];
 
   return (
+    <PricingProvider>
     <>
       <style>{css}</style>
       <style>{`:root { --accent: ${accentColor}; }`}</style>
@@ -10344,5 +10832,6 @@ export default function App() {
 
       <CFAssistant profile={profile} />
     </>
+    </PricingProvider>
   );
 }
