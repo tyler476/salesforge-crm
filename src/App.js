@@ -126,15 +126,95 @@ const LLPA_TABLES = {
   },
 };
 
+// ── FRED RATE INDEX ──────────────────────────────────────────────────────────
+// Optimal Blue publishes OBMMI daily on FRED — same data LoanSifter is built on
+// Free API key: https://fred.stlouisfed.org/docs/api/api_key.html
+const FRED_SERIES = {
+  base30:           'OBMMIC30YF',         // 30yr Conventional overall
+  base15:           'OBMMIC15YF',         // 15yr Conventional overall
+  fha:              'OBMMIC30YFHA',       // 30yr FHA
+  va:               'OBMMIC30YVA',        // 30yr VA
+  jumbo:            'OBMMIC30YJUMBO',     // 30yr Jumbo
+  // 30yr Conventional broken out by FICO × LTV (most accurate for PPE)
+  conv_le80_ge740:  'OBMMIC30YFLVLE80FGE740',
+  conv_le80_720:    'OBMMIC30YFLVLE80FB720A739',
+  conv_le80_700:    'OBMMIC30YFLVLE80FB700A719',
+  conv_le80_680:    'OBMMIC30YFLVLE80FB680A699',
+  conv_le80_lt680:  'OBMMIC30YFLVLE80FLT680',
+  conv_gt80_ge740:  'OBMMIC30YFLVGT80FGE740',
+  conv_gt80_720:    'OBMMIC30YFLVGT80FB720A739',
+  conv_gt80_700:    'OBMMIC30YFLVGT80FB700A719',
+  conv_gt80_lt680:  'OBMMIC30YFLVGT80FLT680',
+};
+
+// Pick the best FRED series key for a given scenario
+function fredSeriesKey(scenario) {
+  const { loanType='Conventional', fico=740, ltv=80, term=30 } = scenario;
+  const ficoN = parseInt(fico) || 740;
+  const ltvN  = parseFloat(ltv) || 80;
+  const termN = parseInt(term) || 30;
+  if (loanType === 'FHA')  return 'fha';
+  if (loanType === 'VA')   return 'va';
+  if (loanType === 'Jumbo' || loanType === 'Non-QM') return 'jumbo';
+  if (termN === 15) return 'base15';
+  // Conventional — FICO × LTV bucket
+  const ltvBand = ltvN <= 80 ? 'le80' : 'gt80';
+  let ficoBand = ficoN >= 740 ? 'ge740' : ficoN >= 720 ? '720' : ficoN >= 700 ? '700' : ficoN >= 680 ? '680' : 'lt680';
+  const key = `conv_${ltvBand}_${ficoBand}`;
+  return FRED_SERIES[key] ? key : 'base30';
+}
+
+// Get BASE rate from FRED cache; returns null if cache unavailable
+function getBaseFromCache(scenario, fredCache) {
+  if (!fredCache) return null;
+  const key = fredSeriesKey(scenario);
+  if (fredCache[key]?.value) return fredCache[key].value;
+  if (fredCache.base30?.value) return fredCache.base30.value;
+  return null;
+}
+
+// Fetch a single FRED series — returns { value, date } or null
+async function fetchOneFREDSeries(seriesId, apiKey) {
+  try {
+    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=5`;
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const obs = (data.observations || []).find(o => o.value && o.value !== '.');
+    return obs ? { value: parseFloat(obs.value), date: obs.date } : null;
+  } catch { return null; }
+}
+
+// Fetch all FRED rate series in parallel — call once per day
+async function fetchAllFREDRates(fredApiKey) {
+  if (!fredApiKey) return null;
+  const results = {};
+  await Promise.allSettled(
+    Object.entries(FRED_SERIES).map(async ([key, seriesId]) => {
+      const obs = await fetchOneFREDSeries(seriesId, fredApiKey);
+      if (obs) results[key] = obs;
+    })
+  );
+  if (Object.keys(results).length === 0) return null;
+  results._fetchedAt = new Date().toISOString();
+  // Use the most recent date across all fetched series as the "as of" date
+  const dates = Object.values(results).filter(v => v?.date).map(v => v.date);
+  results._rateDate = dates.sort().pop() || null;
+  return results;
+}
+
 // Master LLPA compute function — sums all applicable adjustments
-function computeLLPA(scenario) {
+// fredCache: optional live rate cache from FRED (updates BASE automatically)
+function computeLLPA(scenario, fredCache) {
   const { loanType='Conventional', fico=740, ltv=80, loanPurpose='Purchase',
     propertyType='Single Family', occupancy='Primary',
     lockDays=30, term=30, dti=null, loanAmount=500000 } = scenario;
 
   const ficoN   = parseInt(fico) || 740;
   const ltvN    = parseFloat(ltv) || 80;
-  const BASE    = 6.875; // Today's market base (LO can override via rate sheet)
+  // Use live FRED rate if available, otherwise fall back to hardcoded baseline
+  const liveBase = getBaseFromCache(scenario, fredCache);
+  const BASE     = liveBase !== null ? liveBase : 6.875;
 
   const adj =
     LLPA_TABLES.ficoLtv(ficoN, ltvN)              +
@@ -216,7 +296,7 @@ const DEFAULT_PRODUCT = { productName:'Conventional', minFICO:620, maxLTV:97, ma
 
 // ── Master PPE Search Function ───────────────────────────────────────────────
 // Replaces LENDER_RATE_ENGINE — runs eligibility + full LLPA pricing per lender
-function runPPESearch(scenario, lenderPool, lenderSpreads, lenderCredits) {
+function runPPESearch(scenario, lenderPool, lenderSpreads, lenderCredits, fredCache) {
   const {
     loanAmount = 500000, fico = 740, ltv = 80,
     loanPurpose = 'Purchase', loanType = 'Conventional',
@@ -225,7 +305,7 @@ function runPPESearch(scenario, lenderPool, lenderSpreads, lenderCredits) {
     channel = 'brokered', loMarginBps = 0,
   } = scenario;
 
-  const baseRate = computeLLPA(scenario);
+  const baseRate = computeLLPA(scenario, fredCache);
   const eligible = [];
   const ineligible = [];
 
@@ -239,7 +319,7 @@ function runPPESearch(scenario, lenderPool, lenderSpreads, lenderCredits) {
     const eligResult = checkEligibility(scenario, anyProduct);
 
     if (!bestProduct) {
-      ineligible.push({ lenderName: lender.name, category: lender.category, ae: lender.ae, reasons: eligResult.reasons });
+      ineligible.push({ lenderName: lender.name, category: lender.category, ae: lender.ae, poolType: lender.poolType || 'Wholesale', reasons: eligResult.reasons });
       return;
     }
 
@@ -256,13 +336,14 @@ function runPPESearch(scenario, lenderPool, lenderSpreads, lenderCredits) {
       productName:   bestProduct.productName,
       category:      lender.category,
       ae:            lender.ae,
+      poolType:      lender.poolType || 'Wholesale',
       rate:          rate.toFixed(3),
       points:        points.toFixed(3),
       pointsDollar:  Math.round(parseFloat(loanAmount) * (points / 100)),
       monthly,
       apr:           apr.toFixed(3),
       totalInterest: Math.round(totalInt),
-      channel:       channel === 'banking' ? 'Banking' : 'Brokered',
+      channel:       lender.poolType === 'Banking' ? 'Banking' : 'Brokered',
       eligible:      true,
     });
   });
@@ -289,16 +370,62 @@ function PricingProvider({ children }) {
     channel: 'brokered', loMarginBps: 0,
     monthlyIncome: null, monthlyDebts: null,
   });
-  const [ppeResults, setPpeResults]         = useState(null);
+  const [ppeResults, setPpeResults]           = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [selectedContact, setSelectedContact] = useState(null);
-  const [rateSheetDate, setRateSheetDate]   = useState(null);
-  const [searching, setSearching]           = useState(false);
+  const [rateSheetDate, setRateSheetDate]     = useState(null);
+  const [searching, setSearching]             = useState(false);
+  const [fredCache, setFredCache]             = useState(null);
+  const [fredLoading, setFredLoading]         = useState(false);
+  const [fredApiKey, setFredApiKey]           = useState(
+    () => localStorage.getItem('fred_api_key') || ''
+  );
+
+  // Auto-fetch FRED rates on mount (and when API key changes)
+  useEffect(() => {
+    if (!fredApiKey) return;
+    // Only re-fetch if cache is missing or older than 12 hours
+    const cachedStr = localStorage.getItem('fred_rate_cache');
+    if (cachedStr) {
+      try {
+        const cached = JSON.parse(cachedStr);
+        const age = Date.now() - new Date(cached._fetchedAt).getTime();
+        if (age < 12 * 60 * 60 * 1000) { setFredCache(cached); return; }
+      } catch {}
+    }
+    setFredLoading(true);
+    fetchAllFREDRates(fredApiKey).then(cache => {
+      if (cache) {
+        setFredCache(cache);
+        try { localStorage.setItem('fred_rate_cache', JSON.stringify(cache)); } catch {}
+      }
+      setFredLoading(false);
+    });
+  }, [fredApiKey]);
+
+  const saveFredApiKey = useCallback((key) => {
+    setFredApiKey(key);
+    try { localStorage.setItem('fred_api_key', key); } catch {}
+    // Force re-fetch with new key
+    try { localStorage.removeItem('fred_rate_cache'); } catch {}
+  }, []);
+
+  const refreshFREDRates = useCallback(() => {
+    if (!fredApiKey) return;
+    setFredLoading(true);
+    try { localStorage.removeItem('fred_rate_cache'); } catch {}
+    fetchAllFREDRates(fredApiKey).then(cache => {
+      if (cache) {
+        setFredCache(cache);
+        try { localStorage.setItem('fred_rate_cache', JSON.stringify(cache)); } catch {}
+      }
+      setFredLoading(false);
+    });
+  }, [fredApiKey]);
 
   const updateScenario = useCallback((updates) => {
     setScenario(prev => {
       const next = { ...prev, ...updates };
-      // Auto-calculate DTI if income + debts provided
       if (next.monthlyIncome && next.monthlyDebts) {
         next.dti = Math.round((next.monthlyDebts / next.monthlyIncome) * 100);
       }
@@ -310,19 +437,14 @@ function PricingProvider({ children }) {
     setSearching(true);
     const s = overrideScenario || scenario;
     setTimeout(() => {
-      const results = runPPESearch(s, lenderPool, spreads, credits);
+      const results = runPPESearch(s, lenderPool, spreads, credits, fredCache);
       setPpeResults(results);
       setSearching(false);
     }, 400);
-  }, [scenario]);
+  }, [scenario, fredCache]);
 
-  const selectProduct = useCallback((product) => {
-    setSelectedProduct(product);
-  }, []);
-
-  const linkContact = useCallback((contact) => {
-    setSelectedContact(contact);
-  }, []);
+  const selectProduct = useCallback((product) => { setSelectedProduct(product); }, []);
+  const linkContact   = useCallback((contact)  => { setSelectedContact(contact); }, []);
 
   return (
     <PricingContext.Provider value={{
@@ -332,6 +454,8 @@ function PricingProvider({ children }) {
       selectedContact, linkContact,
       rateSheetDate, setRateSheetDate,
       setPpeResults,
+      fredCache, fredLoading, fredApiKey,
+      saveFredApiKey, refreshFREDRates,
     }}>
       {children}
     </PricingContext.Provider>
@@ -7815,6 +7939,16 @@ const BANKING_LENDERS = [
   { name:'Caliber Home Loans',        user:'', pass:'', ae:'', category:'Agency',       note:'Correspondent channel' },
 ];
 
+// Combined pool — all lenders in one grid with poolType badge
+// Banking lenders deduplicated (UWM appears in both; Wholesale entry wins for portal creds)
+const _bankingNames = new Set(BANKING_LENDERS.map(l => l.name));
+const ALL_LENDERS = [
+  ...BROKERED_LENDERS.map(l => ({ ...l, poolType: _bankingNames.has(l.name) ? 'Both' : 'Wholesale' })),
+  ...BANKING_LENDERS
+    .filter(l => !BROKERED_LENDERS.find(b => b.name === l.name))
+    .map(l => ({ ...l, poolType: 'Banking' })),
+];
+
 const CAT_COLORS = {
   'Conventional':'#3b82f6',
   'Non-QM':      '#8b5cf6',
@@ -7833,6 +7967,12 @@ function RateCompareView({ toast, onOpenPricing }) {
   try { pricingCtx = usePricing(); } catch(e) {}
 
   const sc = pricingCtx?.scenario || {};
+  const fredCache    = pricingCtx?.fredCache    || null;
+  const fredLoading  = pricingCtx?.fredLoading  || false;
+  const fredApiKey   = pricingCtx?.fredApiKey   || '';
+  const saveFredKey  = pricingCtx?.saveFredApiKey || (() => {});
+  const refreshFRED  = pricingCtx?.refreshFREDRates || (() => {});
+
   const [loanAmount,   setLoanAmount]   = useState(sc.loanAmount?.toString() || '500000');
   const [creditScore,  setCreditScore]  = useState(sc.fico?.toString()       || '740');
   const [ltv,          setLtv]          = useState(sc.ltv?.toString()         || '80');
@@ -7844,7 +7984,7 @@ function RateCompareView({ toast, onOpenPricing }) {
   const [lockDays,     setLockDays]     = useState(sc.lockDays?.toString()    || '30');
   const [term,         setTerm]         = useState(sc.term?.toString()        || '30');
   const [loMargin,     setLoMargin]     = useState(sc.loMarginBps?.toString() || '0');
-  const [channel,      setChannel]      = useState(sc.channel                 || 'brokered');
+  const [poolFilter,   setPoolFilter]   = useState('All');   // 'All' | 'Wholesale' | 'Banking'
   const [results,      setResults]      = useState(pricingCtx?.ppeResults     || null);
   const [loading,      setLoading]      = useState(false);
   const [sortBy,       setSortBy]       = useState('rate');
@@ -7855,6 +7995,8 @@ function RateCompareView({ toast, onOpenPricing }) {
   const [showIneligible, setShowIneligible] = useState(false);
   const [compareSet,   setCompareSet]   = useState(new Set());
   const [showCompare,  setShowCompare]  = useState(false);
+  const [fredKeyInput, setFredKeyInput] = useState(fredApiKey);
+  const [showFredSetup, setShowFredSetup] = useState(false);
 
   const buildScenario = () => ({
     loanAmount: parseFloat(loanAmount) || 500000,
@@ -7865,15 +8007,15 @@ function RateCompareView({ toast, onOpenPricing }) {
     lockDays: parseInt(lockDays) || 30,
     term: parseInt(term) || 30,
     loMarginBps: parseFloat(loMargin) || 0,
-    channel,
+    channel: 'all',
   });
 
   const runSearch = () => {
     setLoading(true); setHasRun(true); setExpandedRow(null); setCompareSet(new Set());
     const scenario = buildScenario();
-    const pool = channel === 'banking' ? BANKING_LENDERS : BROKERED_LENDERS;
+    // Always search ALL lenders — poolFilter is applied display-side only
     setTimeout(() => {
-      const r = runPPESearch(scenario, pool, LENDER_SPREADS, LENDER_CREDITS);
+      const r = runPPESearch(scenario, ALL_LENDERS, LENDER_SPREADS, LENDER_CREDITS, fredCache);
       setResults(r);
       setLoading(false);
       // Sync to PricingContext
@@ -7884,10 +8026,15 @@ function RateCompareView({ toast, onOpenPricing }) {
     }, 500);
   };
 
-  const allLenders = results ? (results.eligible || []) : [];
+  const allLenders      = results ? (results.eligible   || []) : [];
   const ineligibleLenders = results ? (results.ineligible || []) : [];
-  const cats = ['All', ...Array.from(new Set(allLenders.map(l => l.category || 'Conventional')))];
-  const sorted = [...allLenders]
+
+  // Pool filter applied display-side
+  const filteredByPool = poolFilter === 'All' ? allLenders
+    : allLenders.filter(l => l.poolType === poolFilter || l.poolType === 'Both');
+
+  const cats = ['All', ...Array.from(new Set(filteredByPool.map(l => l.category || 'Conventional')))];
+  const sorted = [...filteredByPool]
     .filter(l => catFilter === 'All' || l.category === catFilter)
     .sort((a, b) => {
       if (sortBy === 'rate')    return parseFloat(a.rate)    - parseFloat(b.rate);
@@ -7896,7 +8043,7 @@ function RateCompareView({ toast, onOpenPricing }) {
       return 0;
     });
 
-  const top3 = sorted.slice(0, 3);
+  const top3   = sorted.slice(0, 3);
   const medals = ['🥇','🥈','🥉'];
   const MCOL   = ['#f59e0b','#9ca3af','#b45309'];
   const CCAT   = { 'Conventional':'#3b82f6','Non-QM':'#8b5cf6','Reverse':'#f59e0b','HELOC':'#10b981','FHA/VA':'#06b6d4','Banking':'#6366f1','Agency':'#84cc16' };
@@ -7909,6 +8056,18 @@ function RateCompareView({ toast, onOpenPricing }) {
     if (p > 0) return { txt: p.toFixed(3) + ' pts', col:'#f0b429' };
     return { txt:'Par', col:'#9db8d4' };
   };
+  const poolBadgeStyle = pt => ({
+    display:'inline-block', fontSize:9, fontWeight:700, padding:'1px 5px', borderRadius:3,
+    background: pt==='Banking'?'rgba(99,102,241,.2)': pt==='Both'?'rgba(16,185,129,.2)':'rgba(77,142,240,.15)',
+    color: pt==='Banking'?'#a5b4fc': pt==='Both'?'#6ee7b7':'#7eb8f7',
+    marginLeft:5, verticalAlign:'middle',
+  });
+
+  // Rate freshness info from FRED cache
+  const rateDate  = fredCache?._rateDate || null;
+  const fetchedAt = fredCache?._fetchedAt || null;
+  const isStale   = fetchedAt ? (Date.now() - new Date(fetchedAt).getTime()) > 26*60*60*1000 : false;
+  const usingLive = !!fredCache && !!fredCache.base30;
 
   return (
     <div style={{ display:'flex', height:'100%', overflow:'hidden' }}>
@@ -7920,17 +8079,60 @@ function RateCompareView({ toast, onOpenPricing }) {
         <div>
           <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:22, fontWeight:700, color:'var(--text)' }}>PPE Search</div>
           <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>
-            {channel==='brokered' ? `${BROKERED_LENDERS.length} wholesale investors` : '8 banking lenders'} · eligibility-filtered
+            {ALL_LENDERS.length} lenders · wholesale + banking · eligibility-filtered
           </div>
         </div>
 
-        {/* Channel */}
+        {/* ── FRED Rate Status Banner ── */}
+        {usingLive ? (
+          <div style={{ background: isStale ? 'rgba(240,180,41,.08)' : 'rgba(46,204,138,.08)',
+            border:`1px solid ${isStale?'rgba(240,180,41,.3)':'rgba(46,204,138,.3)'}`,
+            borderRadius:7, padding:'7px 10px', fontSize:11 }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <span style={{ color: isStale?'#f0b429':'#2ecc8a', fontWeight:700 }}>
+                {isStale ? '⚠ Rates may be stale' : '✓ Live FRED Rates'}
+              </span>
+              <button onClick={refreshFRED} disabled={fredLoading}
+                style={{ fontSize:10, color:'var(--muted)', background:'none', border:'none', cursor:'pointer', padding:0 }}>
+                {fredLoading ? '⟳ fetching…' : '↺ refresh'}
+              </button>
+            </div>
+            {rateDate && <div style={{ color:'var(--muted)', marginTop:2 }}>OBMMI as of {rateDate}</div>}
+          </div>
+        ) : (
+          <div style={{ background:'rgba(77,142,240,.07)', border:'1px solid rgba(77,142,240,.25)', borderRadius:7, padding:'7px 10px', fontSize:11 }}>
+            {fredLoading ? (
+              <span style={{ color:'var(--accent)' }}>⟳ Fetching live rates from FRED…</span>
+            ) : (
+              <>
+                <div style={{ color:'var(--warning)', fontWeight:700, marginBottom:4 }}>⚠ Using static baseline rates</div>
+                <div style={{ color:'var(--muted)', marginBottom:6 }}>Add a free FRED API key for daily live rates from Optimal Blue.</div>
+                {showFredSetup ? (
+                  <div style={{ display:'flex', gap:4 }}>
+                    <input value={fredKeyInput} onChange={e=>setFredKeyInput(e.target.value)}
+                      placeholder="Paste FRED API key…"
+                      style={{ flex:1, padding:'5px 8px', fontSize:11, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:5, color:'var(--text)' }}/>
+                    <button onClick={()=>{ saveFredKey(fredKeyInput); setShowFredSetup(false); }}
+                      style={{ padding:'5px 8px', fontSize:11, background:'var(--accent)', border:'none', borderRadius:5, color:'#fff', cursor:'pointer', fontWeight:700 }}>Save</button>
+                  </div>
+                ) : (
+                  <button onClick={()=>setShowFredSetup(true)}
+                    style={{ fontSize:11, color:'var(--accent)', background:'none', border:'none', cursor:'pointer', padding:0, fontWeight:700 }}>
+                    + Add FRED API key →
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── POOL FILTER ── */}
         <div style={{ display:'flex', background:'var(--surface)', borderRadius:8, padding:3 }}>
-          {[['brokered','🤝 Wholesale'],['banking','🏦 Banking']].map(([ch,label])=>(
-            <button key={ch} onClick={()=>setChannel(ch)} style={{
-              flex:1, padding:'7px 0', borderRadius:6, border:'none', cursor:'pointer', fontSize:12, fontWeight:600,
-              background: channel===ch ? 'var(--accent)' : 'transparent',
-              color:       channel===ch ? '#fff'         : 'var(--muted)' }}>
+          {[['All','⚡ All'],['Wholesale','🤝 Wholesale'],['Banking','🏦 Banking']].map(([pf,label])=>(
+            <button key={pf} onClick={()=>setPoolFilter(pf)} style={{
+              flex:1, padding:'7px 0', borderRadius:6, border:'none', cursor:'pointer', fontSize:11, fontWeight:600,
+              background: poolFilter===pf ? 'var(--accent)' : 'transparent',
+              color:       poolFilter===pf ? '#fff'         : 'var(--muted)' }}>
               {label}
             </button>
           ))}
@@ -8086,8 +8288,9 @@ function RateCompareView({ toast, onOpenPricing }) {
           <div style={{ height:'80%', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14 }}>
             <div style={{ fontSize:44 }}>⏳</div>
             <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>
-              Pricing across {channel==='brokered'?'27 wholesale investors':'8 banking lenders'}...
+              Pricing across {ALL_LENDERS.length} lenders — wholesale + banking…
             </div>
+            {usingLive && <div style={{ fontSize:12, color:'#2ecc8a' }}>✓ Live OBMMI rates · {rateDate}</div>}
           </div>
         )}
 
@@ -8097,7 +8300,7 @@ function RateCompareView({ toast, onOpenPricing }) {
             <div style={{ marginBottom:24 }}>
               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12, flexWrap:'wrap' }}>
                 <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', letterSpacing:'0.08em', textTransform:'uppercase' }}>
-                  Top Results — {sorted.length} eligible lenders
+                  Top Results — {sorted.length} eligible{poolFilter !== 'All' ? ` ${poolFilter}` : ''} lenders
                 </div>
                 {results.ineligible.length > 0 && (
                   <button onClick={()=>setShowIneligible(o=>!o)} style={{
@@ -8154,7 +8357,10 @@ function RateCompareView({ toast, onOpenPricing }) {
                           <span style={{ fontSize:10, fontWeight:700, padding:'2px 7px', borderRadius:20, background:cc(l.category)+'22', color:cc(l.category) }}>{l.category||'Conv'}</span>
                         </div>
                       </div>
-                      <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', marginBottom:2 }}>{l.lenderName}</div>
+                      <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', marginBottom:2 }}>
+                        {l.lenderName}
+                        <span style={poolBadgeStyle(l.poolType)}>{l.poolType==='Both'?'WS+Bank':l.poolType}</span>
+                      </div>
                       {l.productName && <div style={{ fontSize:10, color:'var(--muted)', marginBottom:6 }}>{l.productName}</div>}
                       <div style={{ fontSize:30, fontWeight:800, color:i===0?MCOL[0]:'var(--accent)', lineHeight:1, marginBottom:4 }}>{fmtR(l.rate)}</div>
                       <div style={{ fontSize:12, color:'var(--muted)', marginBottom:6 }}>{fmt$(l.monthly)}/mo</div>
@@ -8218,7 +8424,10 @@ function RateCompareView({ toast, onOpenPricing }) {
                         <span style={{ fontSize:10, fontWeight:700, padding:'2px 6px', borderRadius:20, background:cc(l.category)+'22', color:cc(l.category) }}>{l.category||'Conv'}</span>
                         <span style={{ fontSize:11, color:'var(--muted)', fontWeight:600 }}>#{i+1}</span>
                       </div>
-                      <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', marginBottom:3 }}>{l.lenderName}</div>
+                      <div style={{ fontSize:13, fontWeight:700, color:'var(--text)', marginBottom:3 }}>
+                        {l.lenderName}
+                        <span style={poolBadgeStyle(l.poolType)}>{l.poolType==='Both'?'WS+Bank':l.poolType}</span>
+                      </div>
                       <div style={{ fontSize:22, fontWeight:800, color:'var(--accent)', lineHeight:1.1 }}>{fmtR(l.rate)}</div>
                       <div style={{ display:'flex', justifyContent:'space-between', marginTop:6, alignItems:'center' }}>
                         <span style={{ fontSize:11, color:'var(--muted)' }}>{fmt$(l.monthly)}/mo</span>
@@ -8226,7 +8435,7 @@ function RateCompareView({ toast, onOpenPricing }) {
                       </div>
                       {expandedRow===i && (
                         <div style={{ marginTop:10, paddingTop:10, borderTop:'1px solid var(--border)' }}>
-                          <div style={{ fontSize:11, color:'var(--muted)', lineHeight:1.9 }}>APR: {fmtR(l.apr)}<br/>Channel: {l.channel}<br/>{l.ae&&<span>{l.ae}</span>}</div>
+                          <div style={{ fontSize:11, color:'var(--muted)', lineHeight:1.9 }}>APR: {fmtR(l.apr)}<br/>Channel: {l.channel} · {l.poolType}<br/>{l.ae&&<span>{l.ae}</span>}</div>
                           <button onClick={e=>{e.stopPropagation();onOpenPricing&&onOpenPricing({loanAmount:parseFloat(loanAmount),creditScore:parseInt(creditScore),loanType,loanPurpose,ltv:parseFloat(ltv)});}}
                             style={{ width:'100%', marginTop:8, padding:'6px 0', background:'var(--accent)', color:'#fff', border:'none', borderRadius:6, fontSize:11, fontWeight:600, cursor:'pointer' }}>
                             Pricing Engine →
@@ -8259,6 +8468,7 @@ function RateCompareView({ toast, onOpenPricing }) {
                         <div style={{ display:'flex', alignItems:'center', gap:8, overflow:'hidden' }}>
                           <span style={{ fontSize:10, fontWeight:700, padding:'2px 6px', borderRadius:20, background:cc(l.category)+'22', color:cc(l.category), whiteSpace:'nowrap' }}>{l.category||'Conv'}</span>
                           <span style={{ fontSize:13, fontWeight:600, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{l.lenderName}</span>
+                          <span style={poolBadgeStyle(l.poolType)}>{l.poolType==='Both'?'WS+Bank':l.poolType}</span>
                         </div>
                         <span style={{ fontSize:14, fontWeight:700, color:'var(--accent)' }}>{fmtR(l.rate)}</span>
                         <span style={{ fontSize:13, color:'var(--text)' }}>{fmt$(l.monthly)}/mo</span>
@@ -8566,7 +8776,7 @@ const LENDER_RATE_ENGINE = (qualData) => {
     lockDays: 30, dti: null,
   };
 
-  const result = runPPESearch(scenario, pool, LENDER_SPREADS, LENDER_CREDITS);
+  const result = runPPESearch(scenario, pool, LENDER_SPREADS, LENDER_CREDITS, null);
   return {
     top3: result.top3,
     all: result.eligible,
