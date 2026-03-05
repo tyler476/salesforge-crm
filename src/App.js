@@ -9685,7 +9685,7 @@ function AutomationView({ contacts, profile, toast, onOpenPricing, onGeneratePre
                     <div>
                       <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:`${si.color}22`, color:si.color, fontWeight:600 }}>{si.label}</span>
                     </div>
-                    <div style={{ display:'flex', gap:8' }}>
+                    <div style={{ display:'flex', gap:8 }}>
                       <button onClick={() => openConversation(lead)} style={{ padding:'5px 12px', borderRadius:6, fontSize:12, background:'rgba(59,130,246,.15)', border:'1px solid rgba(59,130,246,.3)', color:'#3b82f6', cursor:'pointer' }}>View Chat</button>
                     </div>
                   </div>
