@@ -8750,21 +8750,6 @@ const LENDER_RATE_ENGINE = (qualData) => {
   };
 };
 
-const MOCK_CAMPAIGNS = [
-  { id:1, name:'March Purchase Leads — Bay Area', status:'active',   total:2840, sent:1200, replied:187, qualified:94, presentations:61, apps:12, created:'2026-02-15', batch:500,  channel:'both',  tags:['Purchase','Bay Area'] },
-  { id:2, name:'Q1 Refi Outreach — CA Statewide', status:'paused',   total:5600, sent:5600, replied:623, qualified:289,presentations:201,apps:47, created:'2026-01-10', batch:1000, channel:'email', tags:['Refinance'] },
-  { id:3, name:'Reverse Mortgage — 62+ Prospects', status:'complete', total:980,  sent:980,  replied:134, qualified:78, presentations:56, apps:19, created:'2026-01-28', batch:500,  channel:'sms',   tags:['Reverse'] },
-  { id:4, name:'HELOC Campaign — Homeowners 80% LTV',status:'draft',  total:0,    sent:0,    replied:0,   qualified:0,  presentations:0,  apps:0,  created:'2026-02-27', batch:750,  channel:'both',  tags:['HELOC'] },
-];
-
-const MOCK_RESPONSES = [
-  { id:1, contact:'Maria Gonzalez',   phone:'(925) 555-0142', channel:'sms',   step:3, lastMsg:'Good (700-739)',  timestamp:'2m ago',  status:'active',            intent:'Purchase',  price:'$400K–$700K' },
-  { id:2, contact:'James Wu',         phone:'(415) 555-0289', channel:'email', step:6, lastMsg:'Email 📧',        timestamp:'8m ago',  status:'qualified',         intent:'Refinance', credit:'Excellent (740+)' },
-  { id:3, contact:'Priya Sharma',     phone:'(510) 555-0331', channel:'sms',   step:2, lastMsg:'Purchase 🏠',     timestamp:'15m ago', status:'active',            intent:'Purchase',  price:null },
-  { id:4, contact:'Robert Castillo',  phone:'(628) 555-0198', channel:'sms',   step:6, lastMsg:'Both ✓',          timestamp:'31m ago', status:'presentation_sent', intent:'Purchase',  price:'$700K–$1M' },
-  { id:5, contact:'Linda Park',       phone:'(925) 555-0477', channel:'email', step:4, lastMsg:'$120K–$200K',     timestamp:'1h ago',  status:'active',            intent:'Refinance', price:'Over $1M' },
-];
-
 const STATUS_INFO = {
   draft:    { color:'#888',     label:'Draft' },
   active:   { color:'#22c55e', label:'Active' },
@@ -9274,25 +9259,28 @@ function PresentationGenerator({ qualData, onBack, onSendToLead, toast: toastFn 
   );
 }
 
+
+// ─── AI OUTREACH AUTOMATION VIEW (real data) ────────────────────────────────
 function AutomationView({ contacts, profile, toast, onOpenPricing, onGeneratePresentation }) {
-  const [tab, setTab]                 = useState('campaigns');
-  const [campaigns, setCampaigns]     = useState(MOCK_CAMPAIGNS);
-  const [liveResponses, setLiveResponses] = useState(MOCK_RESPONSES);
-  const [showCreate, setShowCreate]   = useState(false);
+  const [tab, setTab]             = useState('campaigns');
+  const [campaigns, setCampaigns] = useState([]);
+  const [liveResponses, setLiveResponses] = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
   const [viewCampaign, setViewCampaign] = useState(null);
   const [uploadedLeads, setUploadedLeads] = useState(null);
-  const [creating, setCreating]       = useState(false);
-  const [previewStep, setPreviewStep] = useState(0);
+  const [creating, setCreating]   = useState(false);
   const fileRef = React.useRef(null);
-  const [form, setForm]               = useState({ name:'', batch:500, channel:'both', tag:'Purchase' });
+  const [form, setForm]           = useState({ name:'', batch:500, channel:'both', tag:'Purchase' });
   const setF = (k, v) => setForm(f => ({...f,[k]:v}));
+  const [selectedContactIds, setSelectedContactIds] = useState([]);
 
   // ── QUALIFY LEAD TAB STATE ──
   const [qualStep, setQualStep]           = useState(0);
   const [qualAnswers, setQualAnswers]     = useState({});
   const [qualContact, setQualContact]     = useState(null);
   const [qualManual, setQualManual]       = useState({ name:'', phone:'', email:'', channel:'sms' });
-  const [qualMode, setQualMode]           = useState('pick'); // 'pick' | 'manual' | 'running' | 'complete'
+  const [qualMode, setQualMode]           = useState('pick');
   const [qualContactSearch, setQualContactSearch] = useState('');
   const [qualAnimating, setQualAnimating] = useState(false);
   const [showPresentation, setShowPresentation] = useState(false);
@@ -9300,1034 +9288,645 @@ function AutomationView({ contacts, profile, toast, onOpenPricing, onGeneratePre
   const [selectedLenderRate, setSelectedLenderRate] = useState(null);
 
   // ── CONVERSATION MODAL STATE ──
-  const [viewConvo, setViewConvo]         = useState(null); // response object
-  const [convoMessage, setConvoMessage]   = useState('');
-  const [convoThread, setConvoThread]     = useState({});
-  const [aiTyping, setAiTyping]           = useState(false);
+  const [viewConvo, setViewConvo]   = useState(null);
+  const [convoMessage, setConvoMessage] = useState('');
+  const [smsThread, setSmsThread]   = useState([]);
+  const [aiTyping, setAiTyping]     = useState(false);
 
-  const totalLeads  = campaigns.reduce((s, c) => s + c.total, 0);
-  const totalSent   = campaigns.reduce((s, c) => s + c.sent, 0);
-  const totalResp   = campaigns.reduce((s, c) => s + c.replied, 0);
-  const totalApps   = campaigns.reduce((s, c) => s + c.apps, 0);
+  const companyId = profile?.company_name;
+
+  // ── LOAD REAL DATA ──
+  const loadData = React.useCallback(async () => {
+    if (!companyId) return;
+    setLoading(true);
+
+    const [{ data: camps }, { data: leads }] = await Promise.all([
+      supabase.from('automation_campaigns').select('*')
+        .eq('company_id', companyId).order('created_at', { ascending: false }),
+      supabase.from('campaign_leads').select('*, contacts(full_name, phone, email)')
+        .eq('company_id', companyId)
+        .in('status', ['sent','replied','qualified','presentation_sent'])
+        .order('last_activity', { ascending: false })
+        .limit(50),
+    ]);
+
+    setCampaigns(camps || []);
+    setLiveResponses(leads || []);
+    setLoading(false);
+  }, [companyId]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // ── REAL-TIME subscription ──
+  useEffect(() => {
+    const sub = supabase.channel('automation_' + companyId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'automation_campaigns',
+          filter: `company_id=eq.${companyId}` },
+        () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'campaign_leads',
+          filter: `company_id=eq.${companyId}` },
+        () => loadData())
+      .subscribe();
+    return () => supabase.removeChannel(sub);
+  }, [companyId, loadData]);
+
+  const totalLeads  = campaigns.reduce((s, c) => s + (c.total_leads || 0), 0);
+  const totalSent   = campaigns.reduce((s, c) => s + (c.sent_count || 0), 0);
+  const totalResp   = campaigns.reduce((s, c) => s + (c.replied_count || 0), 0);
+  const totalApps   = campaigns.reduce((s, c) => s + (c.app_count || 0), 0);
   const activeCount = campaigns.filter(c => c.status === 'active').length;
+
+  const STATUS_INFO = {
+    draft:    { color:'#888',     label:'Draft' },
+    active:   { color:'#22c55e', label:'Active' },
+    paused:   { color:'#f59e0b', label:'Paused' },
+    complete: { color:'#3b82f6', label:'Complete' },
+  };
+
+  const STEP_INFO_MAP = {
+    pending:           { color:'#888',     label:'Pending' },
+    sent:              { color:'#f59e0b',  label:'Message sent' },
+    replied:           { color:'#22c55e',  label:'In conversation' },
+    qualified:         { color:'#22c55e',  label:'Qualified' },
+    presentation_sent: { color:'#3b82f6',  label:'Presentation sent' },
+    applied:           { color:'#8b5cf6',  label:'Applied' },
+    opted_out:         { color:'#ef4444',  label:'Opted out' },
+  };
 
   const handleCSV = file => {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = e => {
       const lines = e.target.result.split('\n').filter(Boolean);
-      setUploadedLeads({ count: lines.length - 1, file: file.name });
+      // Parse first row as headers, collect phone/emails
+      const rows = lines.slice(1).map(l => l.split(',').map(x => x.trim().replace(/^"|"$/g, '')));
+      setUploadedLeads({ count: rows.length, file: file.name, rows });
     };
     reader.readAsText(file);
   };
 
-  const launchCampaign = () => {
-    if (!form.name || !uploadedLeads) { toast && toast('Add a campaign name and upload leads first'); return; }
+  const launchCampaign = async () => {
+    if (!form.name) { toast('Add a campaign name first'); return; }
+    if (!selectedContactIds.length && !uploadedLeads) { toast('Select contacts or upload a CSV'); return; }
     setCreating(true);
-    setTimeout(() => {
-      const c = { id:Date.now(), name:form.name, status:'active', total:uploadedLeads.count, sent:0, replied:0, qualified:0, presentations:0, apps:0, created:new Date().toISOString().split('T')[0], batch:form.batch, channel:form.channel, tags:[form.tag] };
-      setCampaigns(prev => [c, ...prev]);
-      setShowCreate(false);
-      setUploadedLeads(null);
-      setCreating(false);
-      setForm({ name:'', batch:500, channel:'both', tag:'Purchase' });
-      toast && toast('Campaign launched! First batch sending now...');
-    }, 1200);
+
+    // Create campaign in Supabase
+    const { data: camp, error } = await supabase.from('automation_campaigns').insert([{
+      company_id: companyId,
+      name: form.name,
+      status: 'active',
+      channel: form.channel,
+      tag: form.tag,
+      batch_size: form.batch,
+      created_by: profile.id,
+    }]).select().single();
+
+    if (error) { toast('Error: ' + error.message); setCreating(false); return; }
+
+    // Gather contact IDs
+    const contactIds = selectedContactIds.length
+      ? selectedContactIds
+      : contacts.slice(0, form.batch).map(c => c.id);
+
+    // Fire campaign via automation engine
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/automation-engine', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + session.access_token,
+      },
+      body: JSON.stringify({
+        action: 'launchCampaign',
+        campaign_id: camp.id,
+        contact_ids: contactIds,
+        company_id: companyId,
+      }),
+    });
+    const result = await res.json();
+
+    setCreating(false);
+    setShowCreate(false);
+    setSelectedContactIds([]);
+    setUploadedLeads(null);
+    setForm({ name:'', batch:500, channel:'both', tag:'Purchase' });
+    toast(result.success ? `Campaign launched! Sending to ${result.result?.sent || 0} leads...` : 'Error: ' + result.error);
+    loadData();
   };
 
-  const toggleStatus = c => {
+  const toggleStatus = async c => {
     const next = c.status === 'active' ? 'paused' : 'active';
-    setCampaigns(prev => prev.map(x => x.id === c.id ? {...x, status:next} : x));
-    toast && toast(next === 'active' ? 'Campaign resumed' : 'Campaign paused');
+    await supabase.from('automation_campaigns').update({ status: next, updated_at: new Date().toISOString() }).eq('id', c.id);
+    setCampaigns(prev => prev.map(x => x.id === c.id ? {...x, status: next} : x));
+    toast(next === 'active' ? 'Campaign resumed' : 'Campaign paused');
+  };
+
+  // ── LOAD SMS THREAD for conversation modal ──
+  const openConversation = async (lead) => {
+    setViewConvo(lead);
+    if (!lead.contact_id) return;
+    const { data } = await supabase.from('sms_messages')
+      .select('*').eq('contact_id', lead.contact_id)
+      .order('created_at', { ascending: true });
+    setSmsThread(data || []);
+  };
+
+  const sendManualReply = async () => {
+    if (!convoMessage.trim() || !viewConvo) return;
+    setAiTyping(true);
+    const contact = contacts.find(c => c.id === viewConvo.contact_id);
+    if (contact?.phone) {
+      const { data: { session } } = await supabase.auth.getSession();
+      await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/twilio-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+        body: JSON.stringify({
+          contact_id: viewConvo.contact_id,
+          company_id: companyId,
+          to: contact.phone,
+          body: convoMessage,
+        }),
+      });
+      setConvoMessage('');
+      // Reload thread
+      const { data } = await supabase.from('sms_messages')
+        .select('*').eq('contact_id', viewConvo.contact_id)
+        .order('created_at', { ascending: true });
+      setSmsThread(data || []);
+    }
+    setAiTyping(false);
   };
 
   // ── QUALIFY LEAD LOGIC ──
+  const AI_QUAL_QUESTIONS_LOCAL = [
+    { id:'q1', text:"Hi {name}! This is Citizens Financial. Are you currently looking to purchase or refinance?", key:'intent', opts:['Purchase 🏠','Refinance 🔄','Just exploring 👀'] },
+    { id:'q2', text:"Great! What price range are you looking at?", key:'price_range', opts:['Under $400K','$400K–$700K','$700K–$1M','Over $1M'] },
+    { id:'q3', text:"Roughly, where does your credit score fall? (No credit pull needed)", key:'credit', opts:['Excellent (740+)','Good (700–739)','Fair (660–699)','Not sure'] },
+    { id:'q4', text:"What's your estimated household income (annual)?", key:'income', opts:['Under $75K','$75K–$120K','$120K–$200K','Over $200K'] },
+    { id:'q5', text:"What's your timeline?", key:'timeline', opts:['ASAP / Already looking','1–3 months','3–6 months','Just researching'] },
+    { id:'q6', text:"I can send a FREE personalized rate presentation. Prefer text or email?", key:'channel', opts:['Text 📱','Email 📧','Both ✓'] },
+  ];
+
   const startQualification = (contact) => {
     setQualContact(contact);
-    setQualStep(0);
-    setQualAnswers({});
+    setQualStep(0); setQualAnswers({});
     setQualMode('running');
   };
 
-  const startManualQualification = () => {
-    if (!qualManual.name || !qualManual.phone) { toast && toast('Enter a name and phone number to continue'); return; }
-    setQualContact({ full_name: qualManual.name, phone: qualManual.phone, email: qualManual.email, channel: qualManual.channel, id: Date.now() });
-    setQualStep(0);
-    setQualAnswers({});
-    setQualMode('running');
-  };
-
-  const handleQualAnswer = (qKey, answer) => {
+  const handleQualAnswer = async (qKey, answer) => {
     if (qualAnimating) return;
     const newAnswers = { ...qualAnswers, [qKey]: answer };
     setQualAnswers(newAnswers);
     setQualAnimating(true);
-    setTimeout(() => {
-      if (qualStep < AI_QUAL_QUESTIONS.length - 1) {
+
+    setTimeout(async () => {
+      if (qualStep < AI_QUAL_QUESTIONS_LOCAL.length - 1) {
         setQualStep(qualStep + 1);
       } else {
-        // ALL QUESTIONS ANSWERED — build loan data and show presentation trigger
-        const priceMap    = { 'Under $400K': 350000, '$400K–$700K': 550000, '$700K–$1M': 850000, 'Over $1M': 1250000 };
-        const creditMap   = { 'Excellent (740+)': 760, 'Good (700–739)': 720, 'Fair (660–699)': 680, 'Not sure': 700 };
-        const incomeMap   = { 'Under $75K': 50000, '$75K–$120K': 95000, '$120K–$200K': 160000, 'Over $200K': 250000 };
-        const propVal     = priceMap[newAnswers.price_range] || 500000;
-        const downPct     = newAnswers.intent === 'Purchase 🏠' ? 0.15 : 0;
-        const loanAmt     = Math.round(propVal * (1 - downPct));
+        // Build qual data
+        const priceMap  = { 'Under $400K':350000,'$400K–$700K':550000,'$700K–$1M':850000,'Over $1M':1250000 };
+        const creditMap = { 'Excellent (740+)':760,'Good (700–739)':720,'Fair (660–699)':680,'Not sure':700 };
+        const incomeMap = { 'Under $75K':50000,'$75K–$120K':95000,'$120K–$200K':160000,'Over $200K':250000 };
+        const propVal   = priceMap[newAnswers.price_range] || 500000;
+        const loanAmt   = Math.round(propVal * 0.85);
         const data = {
-          borrowerName:  qualContact?.full_name || qualManual.name,
-          phone:         qualContact?.phone || qualManual.phone,
-          email:         qualContact?.email || qualManual.email,
-          intent:        newAnswers.intent,
-          propertyValue: propVal,
-          loanAmount:    loanAmt,
-          creditScore:   creditMap[newAnswers.credit] || 700,
-          annualIncome:  incomeMap[newAnswers.income] || 100000,
-          timeline:      newAnswers.timeline,
-          channel:       newAnswers.channel,
-          loanPurpose:   newAnswers.intent === 'Purchase 🏠' ? 'Purchase' : newAnswers.intent === 'Refinance 🔄' ? 'Refinance' : newAnswers.intent === 'Cash-Out Refi 💰' ? 'Cash-Out Refinance' : 'Purchase',
-          loanTerm:      '30',
-          // ── AUTO RATE ESTIMATE ──────────────────────────────────────
-          // Base rate by loan purpose
-          estimatedRate: (() => {
-            const cs = creditMap[newAnswers.credit] || 700;
-            let base = newAnswers.intent === 'Purchase 🏠' ? 6.875
-                     : newAnswers.intent === 'Refinance 🔄' ? 7.125
-                     : newAnswers.intent === 'Cash-Out Refi 💰' ? 7.375
-                     : 6.875;
-            // Credit adjustments (LLPA approximation)
-            if (cs >= 760) base -= 0.375;
-            else if (cs >= 740) base -= 0.25;
-            else if (cs >= 720) base -= 0.125;
-            else if (cs < 680) base += 0.5;
-            else if (cs < 700) base += 0.25;
-            // LTV adjustment — if <20% down (purchase) add high-LTV adj
-            const ltv = newAnswers.intent === 'Purchase 🏠' ? Math.round(loanAmt / propVal * 100) : 75;
-            if (ltv > 90) base += 0.375;
-            else if (ltv > 80) base += 0.125;
-            // Round to nearest .125
-            return (Math.round(base * 8) / 8).toFixed(3);
-          })(),
-          ltv: newAnswers.intent === 'Purchase 🏠' ? Math.round(loanAmt / propVal * 100) : 75,
-          downPayment: newAnswers.intent === 'Purchase 🏠' ? Math.round(propVal * 0.15) : 0,
+          borrowerName: qualContact?.full_name || qualManual.name,
+          phone: qualContact?.phone, email: qualContact?.email,
+          intent: newAnswers.intent, propertyValue: propVal,
+          loanAmount: loanAmt, creditScore: creditMap[newAnswers.credit] || 700,
+          annualIncome: incomeMap[newAnswers.income] || 100000,
+          timeline: newAnswers.timeline, channel: newAnswers.channel,
+          loanPurpose: newAnswers.intent === 'Purchase 🏠' ? 'Purchase' : 'Refinance',
+          ltv: 85, downPayment: Math.round(propVal * 0.15),
           preferredChannel: newAnswers.channel,
         };
-        // ── COMPUTE LENDER RATES FROM QUALIFICATION DATA ───────────────────
-        const lenderResults = LENDER_RATE_ENGINE(data);
-        const enrichedData = {
-          ...data,
-          lenderRates: lenderResults,
-          selectedLender: lenderResults.top3[0] || null,
-        };
-        setQualData(enrichedData);
-        setSelectedLenderRate(lenderResults.top3[0] || null);
+
+        // Score this lead via automation engine
+        if (qualContact?.id) {
+          const { data: { session } } = await supabase.auth.getSession();
+          await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/automation-engine', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+            body: JSON.stringify({ action: 'scoreLead', contact_id: qualContact.id, qualData: data }),
+          });
+        }
+
+        setQualData(data);
         setQualMode('complete');
-        // Add to live responses
-        const newResp = {
-          id: Date.now(),
-          contact: data.borrowerName,
-          phone: data.phone,
-          channel: newAnswers.channel === 'Text 📱' ? 'sms' : 'email',
-          step: 6,
-          lastMsg: newAnswers.channel,
-          timestamp: 'Just now',
-          status: 'qualified',
-          intent: data.loanPurpose,
-          price: newAnswers.price_range,
-        };
-        setLiveResponses(prev => [newResp, ...prev]);
-        // Update campaign qualified count
-        setCampaigns(prev => prev.map((c, i) => i === 0 ? {...c, qualified: c.qualified + 1, replied: c.replied + 1} : c));
       }
       setQualAnimating(false);
-    }, 600);
+    }, 500);
   };
 
   const resetQualification = () => {
-    setQualStep(0);
-    setQualAnswers({});
-    setQualContact(null);
+    setQualStep(0); setQualAnswers({}); setQualContact(null);
     setQualManual({ name:'', phone:'', email:'', channel:'sms' });
-    setQualMode('pick');
-    setQualData(null);
-    setSelectedLenderRate(null);
-    setShowPresentation(false);
+    setQualMode('pick'); setQualData(null); setShowPresentation(false);
   };
 
-  // ── CONVERSATION MODAL LOGIC ──
-  const openConversation = (r) => {
-    setViewConvo(r);
-    // Build initial thread from step data
-    if (!convoThread[r.id]) {
-      const thread = [];
-      for (let i = 0; i < r.step; i++) {
-        const q = AI_QUAL_QUESTIONS[i];
-        thread.push({ role:'ai', text: q.text.replace('{name}', r.contact.split(' ')[0]).replace('{lo_name}', profile?.full_name || 'your loan officer') });
-        if (i < r.step - 1) {
-          const mockAns = ['Purchase 🏠', '$400K–$700K', 'Good (700–739)', '$120K–$200K', '1–3 months', r.lastMsg][i] || '—';
-          thread.push({ role:'lead', text: mockAns });
-        } else {
-          thread.push({ role:'lead', text: r.lastMsg });
-        }
-      }
-      if (r.step < AI_QUAL_QUESTIONS.length) {
-        thread.push({ role:'ai', text: AI_QUAL_QUESTIONS[r.step].text.replace('{name}', r.contact.split(' ')[0]).replace('{lo_name}', profile?.full_name || 'your loan officer') });
-      }
-      setConvoThread(prev => ({...prev, [r.id]: thread}));
-    }
-  };
+  const filteredContacts = qualContactSearch
+    ? contacts.filter(c => (c.full_name||'').toLowerCase().includes(qualContactSearch.toLowerCase()) || (c.phone||'').includes(qualContactSearch))
+    : contacts;
 
-  const sendConvoMessage = (r) => {
-    if (!convoMessage.trim()) return;
-    const thread = [...(convoThread[r.id] || [])];
-    thread.push({ role:'lead', text: convoMessage });
-    setConvoMessage('');
-    setConvoThread(prev => ({...prev, [r.id]: thread}));
-    setAiTyping(true);
-    setTimeout(() => {
-      const nextStep = r.step + 1;
-      let aiReply;
-      if (nextStep < AI_QUAL_QUESTIONS.length) {
-        aiReply = AI_QUAL_QUESTIONS[nextStep].text.replace('{name}', r.contact.split(' ')[0]).replace('{lo_name}', profile?.full_name || 'your loan officer');
-        setLiveResponses(prev => prev.map(x => x.id === r.id ? {...x, step: nextStep, lastMsg: convoMessage, timestamp: 'Just now'} : x));
-        setViewConvo(prev => prev ? {...prev, step: nextStep, lastMsg: convoMessage} : prev);
-      } else {
-        aiReply = "Thank you! Your personalized presentation is on its way — check your " + (r.channel === 'sms' ? 'phone' : 'email') + " in about 60 seconds. 🎯";
-        setLiveResponses(prev => prev.map(x => x.id === r.id ? {...x, status:'presentation_sent', lastMsg: convoMessage, timestamp: 'Just now'} : x));
-        setViewConvo(prev => prev ? {...prev, status:'presentation_sent'} : prev);
-      }
-      const updated = [...convoThread[r.id] || [], { role:'lead', text: convoMessage }];
-      updated.push({ role:'ai', text: aiReply });
-      setConvoThread(prev => ({...prev, [r.id]: updated}));
-      setAiTyping(false);
-    }, 1500);
-  };
+  const currentQ = AI_QUAL_QUESTIONS_LOCAL[qualStep];
 
-  const filteredContacts = (contacts || []).filter(c => {
-    if (!qualContactSearch) return true;
-    const q = qualContactSearch.toLowerCase();
-    return (c.full_name||'').toLowerCase().includes(q) || (c.phone||'').includes(q) || (c.email||'').toLowerCase().includes(q);
-  }).slice(0, 8);
-
-  const currentQ = AI_QUAL_QUESTIONS[qualStep];
-
+  // ─────────────────────────────────────────────────────────────────────────
+  //  RENDER
+  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div style={{ marginLeft:240, paddingTop:52, minHeight:'100vh', background:'var(--bg)', fontFamily:'Inter,sans-serif' }}>
-      <div style={{ padding:'28px 32px', maxWidth:1200 }}>
-
-        {/* Header */}
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:24 }}>
-          <div>
-            <h1 style={{ fontFamily:'Cormorant Garamond,serif', fontSize:32, fontWeight:700, margin:0, letterSpacing:'-.01em', color:'var(--text)' }}>AI Lead Outreach</h1>
-            <div style={{ color:'var(--muted)', fontSize:14, marginTop:4 }}>Automated qualification → presentation → application pipeline</div>
-          </div>
-          <div style={{ display:'flex', gap:10 }}>
-            <button onClick={() => { setTab('qualify'); resetQualification(); }} style={{ background:'linear-gradient(135deg,#00A651,#007a3d)', color:'#fff', border:'none', borderRadius:9, padding:'10px 22px', fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:8 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              Qualify Lead
-            </button>
-            <button onClick={() => setShowCreate(true)} style={{ background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', borderRadius:9, padding:'10px 22px', fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:8 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              New Campaign
-            </button>
-          </div>
+    <div style={{ padding:24, maxWidth:1200, margin:'0 auto' }}>
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:24 }}>
+        <div>
+          <h1 style={{ fontFamily:"Cormorant Garamond, serif", fontSize:28, fontWeight:700, margin:0 }}>
+            AI Automation Engine
+          </h1>
+          <p style={{ color:'var(--muted)', fontSize:13, margin:'4px 0 0' }}>
+            Autonomous lead outreach, qualification, and follow-up
+          </p>
         </div>
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={loadData} style={{ padding:'8px 16px', borderRadius:8, background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', fontSize:13, cursor:'pointer' }}>
+            ↻ Refresh
+          </button>
+          <button onClick={() => setShowCreate(true)}
+            style={{ padding:'8px 18px', borderRadius:8, background:'linear-gradient(135deg,#22c55e,#16a34a)', border:'none', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+            + New Campaign
+          </button>
+        </div>
+      </div>
 
-        {/* Stats */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:14, marginBottom:28 }}>
-          {[
-            ['Total Leads Loaded', totalLeads.toLocaleString(), '#3b82f6'],
-            ['Outreach Sent',      totalSent.toLocaleString(),  '#8b5cf6'],
-            ['Responses',          totalResp.toLocaleString(),  '#f59e0b'],
-            ['Active Campaigns',   activeCount,                  '#22c55e'],
-            ['Applications',       totalApps.toLocaleString(),  '#ec4899'],
-          ].map(([label, val, color]) => (
-            <div key={label} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:14, padding:'18px 20px' }}>
-              <div style={{ fontSize:11, color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em', marginBottom:10 }}>{label}</div>
-              <div style={{ fontFamily:'JetBrains Mono,monospace', fontSize:26, fontWeight:700, color }}>{val}</div>
+      {/* Stats row */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:12, marginBottom:24 }}>
+        {[
+          { label:'Total Leads', val:totalLeads.toLocaleString(), color:'#3b82f6' },
+          { label:'Messages Sent', val:totalSent.toLocaleString(), color:'#8b5cf6' },
+          { label:'Replied', val:totalResp.toLocaleString(), color:'#22c55e' },
+          { label:'Active Campaigns', val:activeCount, color:'#f59e0b' },
+          { label:'Applications', val:totalApps.toLocaleString(), color:'#ef4444' },
+        ].map(s => (
+          <div key={s.label} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:16 }}>
+            <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:6 }}>{s.label}</div>
+            <div style={{ fontSize:24, fontWeight:700, color:s.color, fontFamily:'Syne,sans-serif' }}>{s.val}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display:'flex', gap:4, marginBottom:20, background:'var(--surface2)', padding:4, borderRadius:10, width:'fit-content' }}>
+        {[['campaigns','📊 Campaigns'],['responses','💬 Live Conversations'],['qualify','🤖 Qualify Lead']].map(([t,l]) => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            padding:'7px 16px', borderRadius:7, fontSize:13, fontWeight:500, border:'none', cursor:'pointer',
+            background: tab===t ? 'var(--accent)' : 'transparent',
+            color: tab===t ? '#fff' : 'var(--muted)',
+          }}>{l}</button>
+        ))}
+      </div>
+
+      {/* ── CAMPAIGNS TAB ── */}
+      {tab === 'campaigns' && (
+        <div>
+          {loading ? (
+            <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loading campaigns...</div>
+          ) : campaigns.length === 0 ? (
+            <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>🚀</div>
+              <div style={{ fontSize:16, marginBottom:8 }}>No campaigns yet</div>
+              <div style={{ fontSize:13 }}>Launch your first AI outreach campaign to start qualifying leads automatically.</div>
+              <button onClick={() => setShowCreate(true)} style={{ marginTop:20, padding:'10px 24px', borderRadius:8, background:'var(--accent)', border:'none', color:'#fff', fontWeight:600, cursor:'pointer' }}>
+                Launch First Campaign
+              </button>
             </div>
-          ))}
-        </div>
-
-        {/* Tabs */}
-        <div style={{ display:'flex', gap:0, marginBottom:20, borderBottom:'1px solid var(--border)' }}>
-          {[['campaigns','📊 Campaigns'],['responses','🔴 Live Responses'],['qualify','✅ Qualify Lead'],['flow','🤖 AI Script']].map(([id, lbl]) => (
-            <div key={id} onClick={() => setTab(id)} style={{ padding:'10px 22px', cursor:'pointer', fontSize:13, fontWeight:tab===id?700:400, color:tab===id?'var(--accent)':'var(--muted)', borderBottom:tab===id?'2px solid var(--accent)':'2px solid transparent', transition:'color .15s' }}>{lbl}</div>
-          ))}
-        </div>
-
-        {/* ── CAMPAIGNS TAB ── */}
-        {tab === 'campaigns' && (
-          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
-            {campaigns.map(c => {
-              const si   = STATUS_INFO[c.status];
-              const pct  = c.total > 0 ? Math.round(c.sent / c.total * 100) : 0;
-              const replyRate = c.sent > 0 ? (c.replied / c.sent * 100).toFixed(1) : '0.0';
-              return (
-                <div key={c.id} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:14, padding:'20px 24px' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:14 }}>
-                    <div>
-                      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
-                        <div style={{ fontWeight:700, fontSize:16, color:'var(--text)' }}>{c.name}</div>
-                        <span style={{ fontSize:11, padding:'2px 9px', borderRadius:20, background:`${si.color}18`, color:si.color, fontWeight:700 }}>● {si.label}</span>
-                        {c.tags.map(t => <span key={t} style={{ fontSize:10, padding:'2px 8px', borderRadius:20, background:'rgba(77,142,240,.12)', color:'var(--accent)', fontWeight:600 }}>{t}</span>)}
-                      </div>
-                      <div style={{ fontSize:12, color:'var(--muted)' }}>
-                        Created {c.created} · Batch: {c.batch.toLocaleString()}/day · {c.channel==='both'?'SMS + Email':c.channel==='sms'?'SMS only':'Email only'}
-                      </div>
-                    </div>
-                    <div style={{ display:'flex', gap:8 }}>
-                      {c.status !== 'complete' && c.status !== 'draft' && (
-                        <button onClick={() => toggleStatus(c)} style={{ fontSize:12, padding:'6px 14px', borderRadius:7, background:c.status==='active'?'rgba(245,158,11,.12)':'rgba(34,197,94,.12)', border:`1px solid ${c.status==='active'?'rgba(245,158,11,.3)':'rgba(34,197,94,.3)'}`, color:c.status==='active'?'#f59e0b':'#22c55e', cursor:'pointer', fontWeight:600 }}>
-                          {c.status === 'active' ? '⏸ Pause' : '▶ Resume'}
-                        </button>
-                      )}
-                      {c.status === 'draft' && (
-                        <button onClick={() => toast && toast('Upload leads to launch this campaign')} style={{ fontSize:12, padding:'6px 14px', borderRadius:7, background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600 }}>Launch</button>
-                      )}
-                      <button onClick={() => setViewCampaign(viewCampaign===c.id?null:c.id)} style={{ fontSize:12, padding:'6px 14px', borderRadius:7, background:'var(--bg)', border:'1px solid var(--border)', color:'var(--text)', cursor:'pointer', fontWeight:600 }}>Details {viewCampaign===c.id?'↑':'↓'}</button>
-                    </div>
-                  </div>
-                  {c.total > 0 && (
-                    <div style={{ marginBottom:14 }}>
-                      <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                        <span style={{ fontSize:11, color:'var(--muted)' }}>Outreach progress</span>
-                        <span style={{ fontSize:11, fontFamily:'JetBrains Mono,monospace', color:'var(--accent)' }}>{c.sent.toLocaleString()} / {c.total.toLocaleString()} ({pct}%)</span>
-                      </div>
-                      <div style={{ background:'var(--bg)', borderRadius:4, height:6, overflow:'hidden' }}>
-                        <div style={{ height:'100%', width:pct+'%', background:'linear-gradient(90deg,#1a56db,#00A651)', borderRadius:4, transition:'width .4s' }} />
-                      </div>
-                    </div>
-                  )}
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:10 }}>
-                    {[['Total Leads',c.total.toLocaleString()],['Sent',c.sent.toLocaleString()],['Replied',c.replied.toLocaleString()],['Reply Rate',replyRate+'%'],['Qualified',c.qualified.toLocaleString()],['Presentations',c.presentations.toLocaleString()]].map(([label, val]) => (
-                      <div key={label} style={{ background:'var(--bg)', borderRadius:9, padding:'10px 12px', textAlign:'center' }}>
-                        <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'.04em', marginBottom:4 }}>{label}</div>
-                        <div style={{ fontFamily:'JetBrains Mono,monospace', fontSize:18, fontWeight:700, color:'var(--text)' }}>{val}</div>
-                      </div>
-                    ))}
-                  </div>
-                  {viewCampaign === c.id && (
-                    <div style={{ marginTop:16, paddingTop:16, borderTop:'1px solid var(--border)', display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-                      <div>
-                        <div style={{ fontSize:12, fontWeight:700, marginBottom:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em' }}>Conversion Funnel</div>
-                        {[['Leads loaded',c.total,'#3b82f6'],['Outreach sent',c.sent,'#8b5cf6'],['Responded',c.replied,'#f59e0b'],['Qualified',c.qualified,'#22c55e'],['Presentations',c.presentations,'#10b981'],['Applications',c.apps,'#ec4899']].map(([label, val, color]) => (
-                          <div key={label} style={{ marginBottom:8 }}>
-                            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:3 }}>
-                              <span style={{ fontSize:11, color:'var(--muted)' }}>{label}</span>
-                              <span style={{ fontSize:11, fontFamily:'JetBrains Mono,monospace', fontWeight:700, color }}>{val.toLocaleString()}</span>
-                            </div>
-                            <div style={{ background:'var(--bg)', borderRadius:3, height:4 }}>
-                              <div style={{ height:'100%', width:(c.total>0?Math.min(100,val/c.total*100):0)+'%', background:color, borderRadius:3 }} />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div>
-                        <div style={{ fontSize:12, fontWeight:700, marginBottom:10, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em' }}>Key Rates</div>
-                        {[['Reply Rate',c.sent>0?+(c.replied/c.sent*100).toFixed(1):0,'%','#f59e0b'],['Qualification Rate',c.replied>0?+(c.qualified/c.replied*100).toFixed(0):0,'%','#22c55e'],['Presentation Rate',c.qualified>0?+(c.presentations/c.qualified*100).toFixed(0):0,'%','#10b981'],['Application Rate',c.presentations>0?+(c.apps/c.presentations*100).toFixed(0):0,'%','#ec4899']].map(([label, val, unit, color]) => (
-                          <div key={label} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'10px 14px', background:'var(--bg)', borderRadius:8, marginBottom:6 }}>
-                            <span style={{ fontSize:12, color:'var(--muted)' }}>{label}</span>
-                            <span style={{ fontFamily:'JetBrains Mono,monospace', fontSize:18, fontWeight:700, color }}>{val}{unit}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ── LIVE RESPONSES TAB ── */}
-        {tab === 'responses' && (
-          <div>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-              <div style={{ fontSize:13, color:'var(--muted)' }}>Showing {liveResponses.length} active AI conversations</div>
-              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                <div style={{ width:8, height:8, borderRadius:'50%', background:'#22c55e', animation:'pulse 2s infinite' }} />
-                <span style={{ fontSize:12, color:'#22c55e', fontWeight:600 }}>AI responding live</span>
-              </div>
-            </div>
+          ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              {liveResponses.map(r => {
-                const si  = STEP_INFO[r.status] || STEP_INFO.active;
-                const pct = Math.round(r.step / AI_QUAL_QUESTIONS.length * 100);
+              {campaigns.map(c => {
+                const si = STATUS_INFO[c.status] || STATUS_INFO.draft;
+                const pct = c.total_leads > 0 ? Math.round(c.sent_count / c.total_leads * 100) : 0;
+                const replyRate = c.sent_count > 0 ? Math.round(c.replied_count / c.sent_count * 100) : 0;
                 return (
-                  <div key={r.id} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 20px', display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr 140px', alignItems:'center', gap:14 }}>
-                    <div>
-                      <div style={{ fontWeight:700, fontSize:14, marginBottom:2, color:'var(--text)' }}>{r.contact}</div>
-                      <div style={{ fontSize:12, color:'var(--muted)', display:'flex', gap:8 }}>
-                        <span>{r.channel==='sms'?'📱':'📧'} {r.phone}</span>
-                        <span>·</span>
-                        <span>{r.timestamp}</span>
+                  <div key={c.id} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 20px' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
+                      <div>
+                        <div style={{ fontWeight:700, fontSize:15 }}>{c.name}</div>
+                        <div style={{ display:'flex', gap:8, marginTop:4 }}>
+                          <span style={{ fontSize:11, padding:'2px 8px', borderRadius:20, background:`${si.color}22`, color:si.color, fontWeight:600 }}>{si.label}</span>
+                          <span style={{ fontSize:11, color:'var(--muted)' }}>📱 {c.channel}</span>
+                          {c.tag && <span className="tag">{c.tag}</span>}
+                        </div>
+                      </div>
+                      <div style={{ display:'flex', gap:8 }}>
+                        <button onClick={() => setViewCampaign(c)} style={{ padding:'5px 12px', borderRadius:6, fontSize:12, background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', cursor:'pointer' }}>View</button>
+                        {c.status !== 'complete' && (
+                          <button onClick={() => toggleStatus(c)} style={{ padding:'5px 12px', borderRadius:6, fontSize:12, background: c.status==='active' ? 'rgba(245,158,11,.15)' : 'rgba(34,197,94,.15)', border:`1px solid ${c.status==='active'?'rgba(245,158,11,.3)':'rgba(34,197,94,.3)'}`, color: c.status==='active'?'#f59e0b':'#22c55e', cursor:'pointer' }}>
+                            {c.status==='active' ? 'Pause' : 'Resume'}
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize:11, color:'var(--muted)', marginBottom:4 }}>Progress ({r.step}/{AI_QUAL_QUESTIONS.length})</div>
-                      <div style={{ background:'var(--bg)', borderRadius:3, height:5 }}>
-                        <div style={{ height:'100%', width:pct+'%', background:'linear-gradient(90deg,#1a56db,#00A651)', borderRadius:3 }} />
-                      </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:12, marginBottom:10 }}>
+                      {[
+                        ['Total',c.total_leads||0],['Sent',c.sent_count||0],['Replied',c.replied_count||0],
+                        ['Qualified',c.qualified_count||0],['Presentations',c.presentation_count||0],['Apps',c.app_count||0]
+                      ].map(([l,v]) => (
+                        <div key={l}>
+                          <div style={{ fontSize:11, color:'var(--muted)', marginBottom:2 }}>{l}</div>
+                          <div style={{ fontSize:18, fontWeight:700, fontFamily:'Syne,sans-serif' }}>{v.toLocaleString()}</div>
+                        </div>
+                      ))}
                     </div>
-                    <div style={{ fontSize:12 }}>
-                      <div style={{ color:'var(--muted)', marginBottom:2, fontSize:11 }}>Last response</div>
-                      <div style={{ fontWeight:600, color:'var(--text)' }}>{r.lastMsg}</div>
+                    <div style={{ background:'var(--surface2)', borderRadius:4, height:4, overflow:'hidden' }}>
+                      <div style={{ height:'100%', background:'var(--accent)', width:`${pct}%`, transition:'width .3s' }} />
                     </div>
-                    <div>
-                      <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:`${si.color}18`, color:si.color, fontWeight:700 }}>● {si.label}</span>
-                    </div>
-                    <div style={{ display:'flex', gap:6 }}>
-                      <button onClick={() => openConversation(r)} style={{ fontSize:11, padding:'5px 11px', borderRadius:6, background:'var(--bg)', border:'1px solid var(--border)', color:'var(--text)', cursor:'pointer', fontWeight:600 }}>View</button>
-                      {(r.status === 'qualified' || r.step === 6) && (
-                        <button onClick={() => toast && toast(`Generating presentation for ${r.contact}...`)} style={{ fontSize:11, padding:'5px 11px', borderRadius:6, background:'linear-gradient(135deg,#00A651,#007a3d)', color:'#fff', border:'none', cursor:'pointer', fontWeight:600 }}>Send Pres. 🎯</button>
-                      )}
+                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--muted)', marginTop:4 }}>
+                      <span>{pct}% sent</span>
+                      <span>Reply rate: {replyRate}%</span>
                     </div>
                   </div>
                 );
               })}
             </div>
-          </div>
-        )}
+          )}
+        </div>
+      )}
 
-        {/* ── QUALIFY LEAD TAB ── */}
-        {tab === 'qualify' && (
-          <div style={{ maxWidth:680 }}>
-
-            {/* MODE: PICK CONTACT */}
-            {qualMode === 'pick' && (
-              <div>
-                <div style={{ background:'rgba(0,166,81,.06)', border:'1px solid rgba(0,166,81,.2)', borderRadius:12, padding:'16px 20px', marginBottom:24, fontSize:13, color:'var(--text)', lineHeight:1.7 }}>
-                  <strong style={{ color:'#00A651' }}>Qualify a lead manually</strong> — Pick a contact from your CRM or enter a new lead's info below. The AI qualification script will walk you through 6 questions. When complete, a personalized presentation will be ready to send instantly.
-                </div>
-
-                {/* Search contacts */}
-                {contacts && contacts.length > 0 && (
-                  <div style={{ marginBottom:24 }}>
-                    <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:10 }}>Select from CRM Contacts</div>
-                    <input
-                      value={qualContactSearch}
-                      onChange={e => setQualContactSearch(e.target.value)}
-                      placeholder="Search by name, phone, or email..."
-                      style={{ width:'100%', padding:'9px 13px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box', marginBottom:10 }}
-                    />
-                    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                      {filteredContacts.length === 0 && (
-                        <div style={{ fontSize:13, color:'var(--muted)', padding:'12px 0' }}>No contacts found</div>
-                      )}
-                      {filteredContacts.map(c => (
-                        <div key={c.id} onClick={() => startQualification(c)} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:10, cursor:'pointer', transition:'border-color .15s' }}
-                          onMouseEnter={e => e.currentTarget.style.borderColor='var(--accent)'}
-                          onMouseLeave={e => e.currentTarget.style.borderColor='var(--border)'}
-                        >
-                          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                            <div style={{ width:36, height:36, borderRadius:'50%', background:'linear-gradient(135deg,#0f1c3f,#1a56db)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:14 }}>
-                              {(c.full_name||'?')[0].toUpperCase()}
-                            </div>
-                            <div>
-                              <div style={{ fontWeight:700, fontSize:14, color:'var(--text)' }}>{c.full_name}</div>
-                              <div style={{ fontSize:12, color:'var(--muted)' }}>{c.phone || c.email || 'No contact info'}</div>
-                            </div>
-                          </div>
-                          <div style={{ fontSize:12, color:'var(--accent)', fontWeight:600 }}>Qualify →</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* OR manual entry */}
-                <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'20px 24px' }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:14 }}>Or Enter a New Lead</div>
-                  <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                      <div>
-                        <label style={{ fontSize:11, color:'var(--muted)', fontWeight:600, display:'block', marginBottom:4 }}>FULL NAME *</label>
-                        <input value={qualManual.name} onChange={e => setQualManual(m => ({...m, name:e.target.value}))} placeholder="Jane Smith"
-                          style={{ width:'100%', padding:'8px 11px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }} />
-                      </div>
-                      <div>
-                        <label style={{ fontSize:11, color:'var(--muted)', fontWeight:600, display:'block', marginBottom:4 }}>PHONE *</label>
-                        <input value={qualManual.phone} onChange={e => setQualManual(m => ({...m, phone:e.target.value}))} placeholder="(925) 555-0100"
-                          style={{ width:'100%', padding:'8px 11px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }} />
-                      </div>
-                    </div>
-                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                      <div>
-                        <label style={{ fontSize:11, color:'var(--muted)', fontWeight:600, display:'block', marginBottom:4 }}>EMAIL</label>
-                        <input value={qualManual.email} onChange={e => setQualManual(m => ({...m, email:e.target.value}))} placeholder="jane@email.com"
-                          style={{ width:'100%', padding:'8px 11px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }} />
-                      </div>
-                      <div>
-                        <label style={{ fontSize:11, color:'var(--muted)', fontWeight:600, display:'block', marginBottom:4 }}>PREFERRED CHANNEL</label>
-                        <div style={{ display:'flex', gap:8 }}>
-                          {[['sms','📱 SMS'],['email','📧 Email']].map(([val,lbl]) => (
-                            <div key={val} onClick={() => setQualManual(m => ({...m, channel:val}))} style={{ flex:1, textAlign:'center', padding:'8px', borderRadius:7, border:`1px solid ${qualManual.channel===val?'var(--accent)':'var(--border)'}`, background:qualManual.channel===val?'rgba(77,142,240,.1)':'var(--bg)', cursor:'pointer', fontSize:12, fontWeight:qualManual.channel===val?700:400, color:qualManual.channel===val?'var(--accent)':'var(--muted)' }}>{lbl}</div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <button onClick={startManualQualification} style={{ marginTop:4, padding:'11px', background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', borderRadius:8, fontWeight:700, fontSize:14, cursor:'pointer', fontFamily:'inherit' }}>
-                      Start Qualification →
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* MODE: RUNNING QUALIFICATION */}
-            {qualMode === 'running' && currentQ && (
-              <div>
-                {/* Contact badge */}
-                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20, padding:'10px 14px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:10 }}>
-                  <div style={{ width:32, height:32, borderRadius:'50%', background:'linear-gradient(135deg,#0f1c3f,#1a56db)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:13 }}>
-                    {(qualContact?.full_name||'?')[0].toUpperCase()}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight:700, fontSize:13 }}>{qualContact?.full_name}</div>
-                    <div style={{ fontSize:11, color:'var(--muted)' }}>{qualContact?.phone}</div>
-                  </div>
-                  <button onClick={resetQualification} style={{ marginLeft:'auto', fontSize:11, padding:'4px 10px', borderRadius:6, background:'var(--bg)', border:'1px solid var(--border)', color:'var(--muted)', cursor:'pointer' }}>✕ Cancel</button>
-                </div>
-
-                {/* Progress */}
-                <div style={{ marginBottom:20 }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                    <span style={{ fontSize:12, fontWeight:600, color:'var(--muted)' }}>Step {qualStep + 1} of {AI_QUAL_QUESTIONS.length}</span>
-                    <span style={{ fontSize:12, color:'#00A651', fontWeight:700 }}>{Math.round((qualStep / AI_QUAL_QUESTIONS.length) * 100)}% complete</span>
-                  </div>
-                  <div style={{ background:'var(--bg)', borderRadius:4, height:6, overflow:'hidden' }}>
-                    <div style={{ height:'100%', width:((qualStep+1)/AI_QUAL_QUESTIONS.length*100)+'%', background:'linear-gradient(90deg,#1a56db,#00A651)', borderRadius:4, transition:'width .5s ease' }} />
-                  </div>
-                  <div style={{ display:'flex', gap:4, marginTop:8 }}>
-                    {AI_QUAL_QUESTIONS.map((q,i) => (
-                      <div key={q.id} style={{ flex:1, height:4, borderRadius:2, background: i < qualStep ? '#00A651' : i === qualStep ? '#1a56db' : 'var(--border)', transition:'background .3s' }} />
-                    ))}
-                  </div>
-                </div>
-
-                {/* AI question bubble */}
-                <div style={{ display:'flex', gap:10, marginBottom:20 }}>
-                  <div style={{ width:36, height:36, borderRadius:'50%', background:'linear-gradient(135deg,#0f1c3f,#1a56db)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:16 }}>🤖</div>
-                  <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:'4px 14px 14px 14px', padding:'14px 18px', maxWidth:520 }}>
-                    <div style={{ fontSize:11, color:'var(--accent)', fontWeight:700, marginBottom:6 }}>AI · Citizens Financial</div>
-                    <div style={{ fontSize:14, lineHeight:1.6, color:'var(--text)' }}>
-                      {currentQ.text
-                        .replace('{name}', (qualContact?.full_name||'').split(' ')[0] || 'there')
-                        .replace('{lo_name}', profile?.full_name || 'your loan officer')}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Previous answers summary */}
-                {qualStep > 0 && (
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:6, marginBottom:16 }}>
-                    {Object.entries(qualAnswers).map(([key, val]) => (
-                      <span key={key} style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(0,166,81,.1)', border:'1px solid rgba(0,166,81,.25)', color:'#00A651', fontWeight:600 }}>✓ {val}</span>
-                    ))}
-                  </div>
-                )}
-
-                {/* Answer options */}
-                <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:20 }}>
-                  {currentQ.opts.map(opt => (
-                    <button
-                      key={opt}
-                      onClick={() => handleQualAnswer(currentQ.key, opt)}
-                      disabled={qualAnimating}
-                      style={{
-                        padding:'14px 18px',
-                        borderRadius:10,
-                        border: qualAnswers[currentQ.key] === opt ? '2px solid #00A651' : '1px solid var(--border)',
-                        background: qualAnswers[currentQ.key] === opt ? 'rgba(0,166,81,.1)' : 'var(--card)',
-                        color: qualAnswers[currentQ.key] === opt ? '#00A651' : 'var(--text)',
-                        fontSize:14,
-                        fontWeight: qualAnswers[currentQ.key] === opt ? 700 : 500,
-                        cursor: qualAnimating ? 'wait' : 'pointer',
-                        transition:'all 0.15s',
-                        textAlign:'left',
-                        fontFamily:'inherit',
-                        opacity: qualAnimating ? 0.6 : 1,
-                      }}
-                    >
-                      {opt}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Back button */}
-                {qualStep > 0 && (
-                  <button onClick={() => { setQualStep(qualStep - 1); setQualAnswers(a => { const n={...a}; delete n[AI_QUAL_QUESTIONS[qualStep].key]; return n; }); }} style={{ fontSize:12, padding:'6px 14px', borderRadius:7, background:'var(--bg)', border:'1px solid var(--border)', color:'var(--muted)', cursor:'pointer', fontWeight:600 }}>← Back</button>
-                )}
-              </div>
-            )}
-
-            {/* MODE: COMPLETE — QUALIFICATION DONE */}
-            {qualMode === 'complete' && qualData && (
-              <div>
-                {/* Success banner */}
-                <div style={{ background:'linear-gradient(135deg,#0a2a0a,#0d3d0d)', border:'1px solid rgba(0,166,81,.4)', borderRadius:14, padding:'20px 24px', marginBottom:20, textAlign:'center' }}>
-                  <div style={{ fontSize:40, marginBottom:8 }}>✅</div>
-                  <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:24, fontWeight:700, color:'#00A651', marginBottom:6 }}>Lead Qualified!</div>
-                  <div style={{ fontSize:13, color:'rgba(255,255,255,.6)', lineHeight:1.6 }}>
-                    {qualData.borrowerName} has completed all 6 qualification steps. An estimated rate has been computed and their personalized presentation is ready to generate.
-                  </div>
-                </div>
-
-                {/* ── FUNNEL PROGRESS ── */}
-                <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'18px 24px', marginBottom:16 }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:14 }}>Lead Journey</div>
-                  <div style={{ display:'flex', alignItems:'center', gap:0 }}>
-                    {[
-                      { label:'Lead Entered', icon:'👤', done:true },
-                      { label:'AI Outreach', icon:'🤖', done:true },
-                      { label:'Qualified', icon:'✅', done:true },
-                      { label:'Rate Estimated', icon:'📊', done:true },
-                      { label:'Presentation', icon:'🎯', done:false },
-                      { label:'Application', icon:'📋', done:false },
-                    ].map((step, i, arr) => (
-                      <React.Fragment key={step.label}>
-                        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', flex:'0 0 auto', minWidth:72 }}>
-                          <div style={{
-                            width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16,
-                            background: step.done ? 'linear-gradient(135deg,#00A651,#007a3d)' : 'var(--bg)',
-                            border: step.done ? 'none' : '2px dashed var(--border)',
-                            marginBottom:6,
-                          }}>{step.icon}</div>
-                          <div style={{ fontSize:10, fontWeight:600, color: step.done ? '#00A651' : 'var(--muted)', textAlign:'center', lineHeight:1.3 }}>{step.label}</div>
-                        </div>
-                        {i < arr.length - 1 && (
-                          <div style={{ flex:1, height:2, background: step.done ? '#00A651' : 'var(--border)', margin:'0 2px', marginBottom:22, transition:'background .3s' }} />
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </div>
-                </div>
-
-                {/* ── LENDER RATE COMPARISON GRID ── */}
-                {qualData.lenderRates && (
-                  <div style={{ marginBottom:16 }}>
-                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
-                      <div style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>
-                        Top Lender Options
-                        <span style={{ fontSize:11, color:'var(--muted)', fontWeight:400, marginLeft:8 }}>
-                          {qualData.lenderRates.channel === 'banking' ? 'Banking Channel (UWM · PennyMac)' : `Brokered Network (${qualData.lenderRates.lenderCount} lenders)`}
-                        </span>
-                      </div>
-                      <span style={{ fontSize:10, color:'var(--muted)', fontWeight:600, padding:'3px 8px', borderRadius:4, border:'1px solid var(--border)', background:'var(--bg)' }}>
-                        Base rate: {qualData.lenderRates.baseRate}%
-                      </span>
-                    </div>
-
-                    {/* Rate cards row */}
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:10 }}>
-                      {qualData.lenderRates.top3.map((lender, idx) => {
-                        const isSelected = selectedLenderRate?.lenderName === lender.lenderName;
-                        const catColors = { 'Conventional':'#3b82f6','Non-QM':'#8b5cf6','Reverse':'#f59e0b','HELOC':'#10b981','FHA/VA':'#06b6d4','Banking':'#6366f1','Agency':'#84cc16' };
-                        const catColor = catColors[lender.category] || '#6b7280';
-                        return (
-                          <div
-                            key={lender.lenderName}
-                            onClick={() => setSelectedLenderRate(lender)}
-                            style={{
-                              background: isSelected ? 'linear-gradient(135deg,rgba(0,166,81,.12),rgba(0,166,81,.05))' : 'var(--card)',
-                              border: isSelected ? '2px solid #00A651' : '1px solid var(--border)',
-                              borderRadius:12,
-                              padding:'14px 16px',
-                              cursor:'pointer',
-                              transition:'all .15s',
-                              position:'relative',
-                            }}
-                          >
-                            {idx === 0 && (
-                              <div style={{ position:'absolute', top:-9, left:'50%', transform:'translateX(-50%)', background:'#00A651', color:'#fff', fontSize:9, fontWeight:800, padding:'2px 8px', borderRadius:10, letterSpacing:'.05em' }}>BEST OPTION</div>
-                            )}
-                            {/* Lender avatar + name */}
-                            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-                              <div style={{ width:28, height:28, borderRadius:7, background:catColor+'22', border:`1px solid ${catColor}44`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:800, color:catColor }}>
-                                {lender.lenderName.slice(0,2).toUpperCase()}
-                              </div>
-                              <div>
-                                <div style={{ fontSize:12, fontWeight:700, color:'var(--text)', lineHeight:1.2 }}>{lender.lenderName}</div>
-                                <span style={{ fontSize:10, color:catColor, fontWeight:600 }}>{lender.category}</span>
-                              </div>
-                              {isSelected && <span style={{ marginLeft:'auto', fontSize:14, color:'#00A651' }}>✓</span>}
-                            </div>
-
-                            {/* Rate big number */}
-                            <div style={{ textAlign:'center', padding:'8px 0', borderTop:'1px solid var(--border)', borderBottom:'1px solid var(--border)', marginBottom:10 }}>
-                              <div style={{ fontSize:28, fontWeight:800, color: isSelected ? '#00A651' : 'var(--text)', fontFamily:'JetBrains Mono,monospace', letterSpacing:'-1px', lineHeight:1 }}>{lender.rate}%</div>
-                              <div style={{ fontSize:10, color:'var(--muted)', marginTop:2 }}>APR {lender.apr}%</div>
-                            </div>
-
-                            {/* Stats grid */}
-                            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
-                              <div style={{ background:'var(--bg)', borderRadius:6, padding:'6px 8px', textAlign:'center' }}>
-                                <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600 }}>Mo. Payment</div>
-                                <div style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>${lender.monthly.toLocaleString()}</div>
-                              </div>
-                              <div style={{ background:'var(--bg)', borderRadius:6, padding:'6px 8px', textAlign:'center' }}>
-                                <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600 }}>Points</div>
-                                <div style={{ fontSize:13, fontWeight:700, color: parseFloat(lender.points) < 0 ? '#00A651' : parseFloat(lender.points) > 0 ? '#e05252' : 'var(--text)' }}>
-                                  {parseFloat(lender.points) === 0 ? 'Par' : parseFloat(lender.points) > 0 ? '+' + lender.points : lender.points}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Points dollar if non-zero */}
-                            {lender.pointsDollar !== 0 && (
-                              <div style={{ marginTop:6, textAlign:'center', fontSize:11, color: lender.pointsDollar < 0 ? '#00A651' : '#e05252', fontWeight:600 }}>
-                                {lender.pointsDollar < 0 ? `${(-lender.pointsDollar).toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0})} lender credit` : `+$${lender.pointsDollar.toLocaleString()} in points`}
-                              </div>
-                            )}
-
-                            {/* AE info if available */}
-                            {lender.ae && lender.ae !== '—' && (
-                              <div style={{ marginTop:8, fontSize:10, color:'var(--muted)', lineHeight:1.4, borderTop:'1px solid var(--border)', paddingTop:7 }}>
-                                <span style={{ fontWeight:600 }}>AE: </span>{lender.ae.split('|')[1]?.trim() || '—'}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Selected lender summary bar */}
-                    {selectedLenderRate && (
-                      <div style={{ background:'rgba(0,166,81,.08)', border:'1px solid rgba(0,166,81,.3)', borderRadius:10, padding:'10px 16px', display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
-                        <span style={{ fontSize:12, color:'#00A651', fontWeight:700 }}>✓ {selectedLenderRate.lenderName} Selected</span>
-                        <span style={{ fontSize:13, fontWeight:800, color:'var(--text)', fontFamily:'JetBrains Mono,monospace' }}>{selectedLenderRate.rate}%</span>
-                        <span style={{ fontSize:12, color:'var(--muted)' }}>·</span>
-                        <span style={{ fontSize:12, color:'var(--text)' }}>${selectedLenderRate.monthly.toLocaleString()}/mo</span>
-                        <span style={{ fontSize:12, color:'var(--muted)' }}>·</span>
-                        <span style={{ fontSize:12, color:'var(--text)' }}>APR {selectedLenderRate.apr}%</span>
-                        <button
-                          onClick={() => onOpenPricing && onOpenPricing({ ...qualData, selectedLender: selectedLenderRate })}
-                          style={{ marginLeft:'auto', fontSize:11, padding:'5px 12px', borderRadius:6, background:'linear-gradient(135deg,#1a56db,#0f1c3f)', color:'#fff', border:'none', cursor:'pointer', fontWeight:700, fontFamily:'inherit' }}
-                        >
-                          Open in Pricing Engine →
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Rate comparison visual bars */}
-                    <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 18px', marginTop:10 }}>
-                      <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:12 }}>Rate Comparison</div>
-                      {qualData.lenderRates.top3.map(l => {
-                        const minRate = parseFloat(qualData.lenderRates.top3[0].rate);
-                        const maxRate = parseFloat(qualData.lenderRates.top3[qualData.lenderRates.top3.length - 1].rate);
-                        const range = (maxRate - minRate) || 0.25;
-                        const pct = 100 - Math.round(((parseFloat(l.rate) - minRate) / range) * 80);
-                        const isSelected = selectedLenderRate?.lenderName === l.lenderName;
-                        return (
-                          <div key={l.lenderName} style={{ display:'flex', alignItems:'center', gap:12, marginBottom:8, cursor:'pointer' }} onClick={() => setSelectedLenderRate(l)}>
-                            <div style={{ width:90, fontSize:12, fontWeight: isSelected ? 700 : 400, color: isSelected ? '#00A651' : 'var(--text)', flexShrink:0 }}>{l.lenderName}</div>
-                            <div style={{ flex:1, height:8, background:'var(--bg)', borderRadius:4, overflow:'hidden' }}>
-                              <div style={{ height:'100%', width: pct + '%', background: isSelected ? '#00A651' : 'linear-gradient(90deg,#1a56db,#4d8ef0)', borderRadius:4, transition:'width .3s' }} />
-                            </div>
-                            <div style={{ width:52, fontSize:12, fontWeight:700, fontFamily:'JetBrains Mono,monospace', color: isSelected ? '#00A651' : 'var(--text)', textAlign:'right' }}>{l.rate}%</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Data summary grid */}
-                <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'20px 24px', marginBottom:20 }}>
-                  <div style={{ fontSize:12, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:14 }}>Qualification Summary</div>
-                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 }}>
-                    {[
-                      ['Borrower',       qualData.borrowerName],
-                      ['Phone',          qualData.phone || '—'],
-                      ['Channel',        qualAnswers.channel],
-                      ['Loan Purpose',   qualData.loanPurpose],
-                      ['Property Value', '$' + qualData.propertyValue.toLocaleString()],
-                      ['Loan Amount',    '$' + qualData.loanAmount.toLocaleString()],
-                      ['Credit Score',   qualAnswers.credit],
-                      ['Annual Income',  qualAnswers.income],
-                      ['Timeline',       qualAnswers.timeline],
-                    ].map(([label, val]) => (
-                      <div key={label} style={{ background:'var(--bg)', borderRadius:8, padding:'10px 12px' }}>
-                        <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em', marginBottom:4 }}>{label}</div>
-                        <div style={{ fontSize:13, fontWeight:700, color:'var(--text)' }}>{val}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Action buttons */}
-                <div style={{ display:'flex', gap:12 }}>
-                  <button
-                    onClick={() => {
-                      if (onGeneratePresentation) {
-                        onGeneratePresentation({
-                          ...qualData,
-                          selectedLender: selectedLenderRate,
-                        });
-                      } else {
-                        setShowPresentation(true);
-                        if (onOpenPricing) {
-                          onOpenPricing({
-                            ...qualData,
-                            selectedLender: selectedLenderRate,
-                          });
-                        }
-                      }
-                    }}
-                    style={{ flex:2, padding:'14px', background:'linear-gradient(135deg,#00A651,#007a3d)', color:'#fff', border:'none', borderRadius:10, fontWeight:700, fontSize:15, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:10 }}
-                  >
-                    🎯 Generate & Send Presentation
-                    {selectedLenderRate && <span style={{ fontSize:12, fontWeight:500, opacity:.8 }}>via {selectedLenderRate.lenderName}</span>}
-                  </button>
-                  <button
-                    onClick={resetQualification}
-                    style={{ flex:1, padding:'14px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:10, fontWeight:600, fontSize:13, cursor:'pointer', fontFamily:'inherit', color:'var(--text)' }}
-                  >
-                    Qualify Another Lead
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ── AI SCRIPT FLOW TAB ── */}
-        {tab === 'flow' && (
-          <div style={{ maxWidth:700 }}>
-            <div style={{ background:'rgba(77,142,240,.08)', border:'1px solid rgba(77,142,240,.2)', borderRadius:10, padding:'12px 18px', marginBottom:20, fontSize:13, color:'var(--accent)', lineHeight:1.6 }}>
-              This is the AI qualification script. Each response triggers the next message automatically. All conversations are handled by AI 24/7 — you only step in when a lead qualifies.
-            </div>
-            {AI_QUAL_QUESTIONS.map((q, i) => (
-              <div key={q.id} style={{ display:'flex', gap:14, marginBottom:16 }}>
-                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', flexShrink:0 }}>
-                  <div onClick={() => setPreviewStep(i)} style={{ width:34, height:34, borderRadius:'50%', background:previewStep===i?'linear-gradient(135deg,#0f1c3f,#1a56db)':'var(--card)', border:'2px solid var(--border)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:800, fontSize:13, color:previewStep===i?'#fff':'var(--muted)', cursor:'pointer' }}>{i+1}</div>
-                  {i < AI_QUAL_QUESTIONS.length - 1 && <div style={{ width:2, flex:1, minHeight:20, background:'var(--border)', margin:'4px 0' }} />}
-                </div>
-                <div onClick={() => setPreviewStep(i)} style={{ flex:1, background:'var(--card)', border:`1px solid ${previewStep===i?'var(--accent)':'var(--border)'}`, borderRadius:12, padding:'14px 18px', cursor:'pointer', transition:'border-color .15s' }}>
-                  <div style={{ fontSize:12, color:'var(--muted)', marginBottom:8, fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em' }}>Step {i+1} · Capture: {q.key}</div>
-                  <div style={{ fontSize:14, fontWeight:500, marginBottom:10, lineHeight:1.5, color:'var(--text)' }}>{q.text}</div>
-                  <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
-                    {q.opts.map(o => (
-                      <span key={o} style={{ fontSize:12, padding:'4px 12px', borderRadius:20, background:'var(--bg)', border:'1px solid var(--border)', color:'var(--text)', fontWeight:500 }}>{o}</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-            <div style={{ display:'flex', gap:14, marginBottom:14 }}>
-              <div style={{ width:34, height:34, borderRadius:'50%', background:'rgba(0,166,81,.15)', border:'2px solid #00A651', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>🎯</div>
-              <div style={{ flex:1, background:'rgba(0,166,81,.06)', border:'1px solid rgba(0,166,81,.2)', borderRadius:12, padding:'14px 18px' }}>
-                <div style={{ fontWeight:700, fontSize:14, color:'#00A651', marginBottom:6 }}>AI Generates &amp; Sends Presentation</div>
-                <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.6 }}>Using the collected data, the system automatically builds a personalized no-cost digital presentation with estimated rate, monthly payment, and loan options — then delivers it via the lead's preferred channel within 60 seconds.</div>
-              </div>
-            </div>
-            <div style={{ display:'flex', gap:14 }}>
-              <div style={{ width:34, height:34, borderRadius:'50%', background:'rgba(236,72,153,.15)', border:'2px solid #ec4899', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, flexShrink:0 }}>📋</div>
-              <div style={{ flex:1, background:'rgba(236,72,153,.06)', border:'1px solid rgba(236,72,153,.2)', borderRadius:12, padding:'14px 18px' }}>
-                <div style={{ fontWeight:700, fontSize:14, color:'#ec4899', marginBottom:6 }}>Directs to Online Application</div>
-                <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.6 }}>After viewing the presentation, leads receive an automated follow-up with a direct link to the online application. The CRM auto-advances their pipeline stage and notifies your team.</div>
-              </div>
+      {/* ── LIVE CONVERSATIONS TAB ── */}
+      {tab === 'responses' && (
+        <div>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+            <div style={{ fontSize:13, color:'var(--muted)' }}>{liveResponses.length} active AI conversations</div>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <div style={{ width:8, height:8, borderRadius:'50%', background:'#22c55e', animation:'pulse 2s infinite' }} />
+              <span style={{ fontSize:12, color:'#22c55e', fontWeight:600 }}>AI responding live</span>
             </div>
           </div>
-        )}
+          {liveResponses.length === 0 ? (
+            <div style={{ textAlign:'center', padding:40, color:'var(--muted)', fontSize:13 }}>
+              No active conversations yet. Launch a campaign to see leads here.
+            </div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {liveResponses.map(lead => {
+                const si = STEP_INFO_MAP[lead.status] || STEP_INFO_MAP.sent;
+                const contact = lead.contacts || {};
+                return (
+                  <div key={lead.id} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'14px 18px', display:'grid', gridTemplateColumns:'2fr 1fr 1fr 140px', alignItems:'center', gap:14 }}>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:14 }}>{contact.full_name || '—'}</div>
+                      <div style={{ fontSize:12, color:'var(--muted)', display:'flex', gap:8, marginTop:2 }}>
+                        <span>{contact.phone}</span>
+                        <span>•</span>
+                        <span>{lead.channel === 'sms' ? '📱 SMS' : '📧 Email'}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize:11, color:'var(--muted)', marginBottom:2 }}>Last message</div>
+                      <div style={{ fontSize:12, fontWeight:500, maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{lead.last_message || '—'}</div>
+                    </div>
+                    <div>
+                      <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:`${si.color}22`, color:si.color, fontWeight:600 }}>{si.label}</span>
+                    </div>
+                    <div style={{ display:'flex', gap:8' }}>
+                      <button onClick={() => openConversation(lead)} style={{ padding:'5px 12px', borderRadius:6, fontSize:12, background:'rgba(59,130,246,.15)', border:'1px solid rgba(59,130,246,.3)', color:'#3b82f6', cursor:'pointer' }}>View Chat</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
-        {/* ── CREATE CAMPAIGN MODAL ── */}
-        {showCreate && (
-          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }} onClick={() => setShowCreate(false)}>
-            <div onClick={e => e.stopPropagation()} style={{ width:'min(600px,95vw)', background:'var(--card)', borderRadius:20, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', overflow:'hidden', maxHeight:'90vh', display:'flex', flexDirection:'column' }}>
-              <div style={{ background:'linear-gradient(135deg,#0c1a35,#1a3a6e)', padding:'22px 28px', flexShrink:0 }}>
-                <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:22, fontWeight:700, color:'#fff', marginBottom:4 }}>Create Outreach Campaign</div>
-                <div style={{ fontSize:12, color:'rgba(255,255,255,.4)' }}>AI-powered qualification → presentation → application, fully automated</div>
+      {/* ── QUALIFY LEAD TAB ── */}
+      {tab === 'qualify' && (
+        <div style={{ maxWidth:600, margin:'0 auto' }}>
+          {qualMode === 'pick' && (
+            <div>
+              <div style={{ fontWeight:700, fontSize:16, marginBottom:16 }}>Choose a Contact to Qualify</div>
+              <input value={qualContactSearch} onChange={e=>setQualContactSearch(e.target.value)}
+                placeholder="Search by name or phone..."
+                style={{ marginBottom:12, width:'100%' }} />
+              <div style={{ maxHeight:300, overflowY:'auto', display:'flex', flexDirection:'column', gap:8, marginBottom:20 }}>
+                {filteredContacts.slice(0,20).map(c => (
+                  <div key={c.id} onClick={() => startQualification(c)}
+                    style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:10, cursor:'pointer' }}
+                    onMouseOver={e=>e.currentTarget.style.borderColor='var(--accent)'}
+                    onMouseOut={e=>e.currentTarget.style.borderColor='var(--border)'}>
+                    <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(c.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:13 }}>{initials(c.full_name||'?')}</div>
+                    <div>
+                      <div style={{ fontWeight:600, fontSize:14 }}>{c.full_name}</div>
+                      <div style={{ fontSize:12, color:'var(--muted)' }}>{c.phone || c.email || 'No contact info'}</div>
+                    </div>
+                    <div style={{ marginLeft:'auto', fontSize:12, color:'var(--accent)' }}>→ Qualify</div>
+                  </div>
+                ))}
               </div>
-              <div style={{ overflowY:'auto', flex:1, padding:'24px 28px', display:'flex', flexDirection:'column', gap:16 }}>
-                <div>
-                  <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:6 }}>Campaign Name</label>
-                  <input value={form.name} onChange={e => setF('name', e.target.value)} placeholder="e.g. March Purchase Leads — Bay Area"
-                    style={{ width:'100%', padding:'9px 12px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none', boxSizing:'border-box' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:8 }}>Lead List (CSV)</label>
-                  <div onClick={() => fileRef.current.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); handleCSV(e.dataTransfer.files[0]); }}
-                    style={{ border:`2px dashed ${uploadedLeads?'#22c55e':'var(--border)'}`, borderRadius:12, padding:'28px 18px', textAlign:'center', cursor:'pointer', background:uploadedLeads?'rgba(34,197,94,.05)':'var(--bg)' }}>
-                    {uploadedLeads ? (
-                      <div>
-                        <div style={{ fontSize:28, marginBottom:8 }}>✅</div>
-                        <div style={{ fontWeight:700, color:'#22c55e' }}>{uploadedLeads.count.toLocaleString()} leads loaded</div>
-                        <div style={{ fontSize:12, color:'var(--muted)', marginTop:3 }}>{uploadedLeads.file}</div>
-                        <div style={{ fontSize:12, color:'var(--muted)', marginTop:6 }}>At {form.batch}/day batch — ~{Math.ceil(uploadedLeads.count/form.batch)} days to complete</div>
-                      </div>
-                    ) : (
-                      <div>
-                        <div style={{ fontSize:36, marginBottom:8 }}>📂</div>
-                        <div style={{ fontWeight:600, fontSize:14, color:'var(--text)' }}>Drop CSV file here or click to browse</div>
-                        <div style={{ fontSize:12, color:'var(--muted)', marginTop:4 }}>10,000–30,000 leads · Columns: name, phone, email</div>
-                      </div>
-                    )}
-                    <input ref={fileRef} type="file" accept=".csv" style={{ display:'none' }} onChange={e => handleCSV(e.target.files[0])} />
-                  </div>
-                </div>
-                <div>
-                  <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:8 }}>Daily Batch Size</label>
-                  <div style={{ display:'flex', gap:8 }}>
-                    {[250, 500, 750, 1000, 1500, 2000].map(n => (
-                      <div key={n} onClick={() => setF('batch', n)} style={{ flex:1, textAlign:'center', padding:'10px 4px', borderRadius:9, border:`1px solid ${form.batch===n?'var(--accent)':'var(--border)'}`, background:form.batch===n?'rgba(77,142,240,.1)':'var(--bg)', cursor:'pointer', fontWeight:700, fontSize:13, color:form.batch===n?'var(--accent)':'var(--muted)', transition:'all .1s' }}>
-                        {n >= 1000 ? (n/1000)+'K' : n}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:8 }}>Outreach Channel</label>
-                  <div style={{ display:'flex', gap:10 }}>
-                    {[['sms','📱 SMS Only'],['email','📧 Email Only'],['both','✓ SMS + Email']].map(([val, lbl]) => (
-                      <div key={val} onClick={() => setF('channel', val)} style={{ flex:1, textAlign:'center', padding:'11px 8px', borderRadius:9, border:`1px solid ${form.channel===val?'var(--accent)':'var(--border)'}`, background:form.channel===val?'rgba(77,142,240,.1)':'var(--bg)', cursor:'pointer', fontWeight:form.channel===val?700:400, fontSize:13, color:form.channel===val?'var(--accent)':'var(--muted)', transition:'all .1s' }}>
-                        {lbl}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label style={{ fontSize:12, fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:6 }}>Lead Type / Campaign Tag</label>
-                  <select value={form.tag} onChange={e => setF('tag', e.target.value)} style={{ width:'100%', padding:'9px 12px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none' }}>
-                    {['Purchase','Refinance','Rate/Term Refi','Cash-Out Refi','HELOC','Reverse Mortgage','VA Loan','FHA Loan','Non-QM','Jumbo'].map(t => <option key={t}>{t}</option>)}
+              <div style={{ borderTop:'1px solid var(--border)', paddingTop:16 }}>
+                <div style={{ fontWeight:600, marginBottom:10 }}>Or qualify a new lead manually:</div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                  <input placeholder="Full name" value={qualManual.name} onChange={e=>setQualManual(m=>({...m,name:e.target.value}))} />
+                  <input placeholder="Phone" value={qualManual.phone} onChange={e=>setQualManual(m=>({...m,phone:e.target.value}))} />
+                  <input placeholder="Email (optional)" value={qualManual.email} onChange={e=>setQualManual(m=>({...m,email:e.target.value}))} />
+                  <select value={qualManual.channel} onChange={e=>setQualManual(m=>({...m,channel:e.target.value}))}>
+                    <option value="sms">SMS</option>
+                    <option value="email">Email</option>
                   </select>
                 </div>
-                <div style={{ background:'rgba(77,142,240,.06)', border:'1px solid rgba(77,142,240,.15)', borderRadius:10, padding:'12px 16px', fontSize:12, color:'var(--muted)', lineHeight:1.7 }}>
-                  <span style={{ fontWeight:700, color:'var(--accent)' }}>AI Flow:</span> Each lead gets a personalized greeting → AI asks 6 qualification questions → Builds a digital presentation → Delivers via preferred channel → Follows up with application link.
-                </div>
-              </div>
-              <div style={{ padding:'16px 28px', borderTop:'1px solid var(--border)', flexShrink:0, display:'flex', gap:10 }}>
-                <button onClick={() => setShowCreate(false)} style={{ flex:1, background:'none', border:'1px solid var(--border)', borderRadius:8, padding:11, cursor:'pointer', color:'var(--muted)', fontFamily:'inherit', fontWeight:600 }}>Cancel</button>
-                <button onClick={launchCampaign} disabled={creating || !form.name || !uploadedLeads} style={{ flex:3, background:creating?'var(--bg)':'linear-gradient(135deg,#0f1c3f,#1a56db)', color:creating?'var(--muted)':'#fff', border:'none', borderRadius:8, padding:11, fontWeight:700, fontSize:14, cursor:creating?'wait':'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
-                  {creating ? 'Launching...' : 'Launch Campaign'}
+                <button onClick={() => {
+                  if (!qualManual.name||!qualManual.phone){toast('Enter name and phone');return;}
+                  setQualContact({full_name:qualManual.name,phone:qualManual.phone,email:qualManual.email,id:null});
+                  setQualStep(0);setQualAnswers({});setQualMode('running');
+                }} style={{ marginTop:12, padding:'9px 20px', borderRadius:8, background:'var(--accent)', border:'none', color:'#fff', fontWeight:600, cursor:'pointer', width:'100%' }}>
+                  Start Qualification →
                 </button>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ── CONVERSATION MODAL ── */}
-        {viewConvo && (
-          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }} onClick={() => setViewConvo(null)}>
-            <div onClick={e => e.stopPropagation()} style={{ width:'min(520px,95vw)', background:'var(--card)', borderRadius:20, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', overflow:'hidden', height:'min(600px,90vh)', display:'flex', flexDirection:'column' }}>
-              {/* Header */}
-              <div style={{ background:'linear-gradient(135deg,#0c1a35,#1a3a6e)', padding:'16px 20px', display:'flex', alignItems:'center', gap:12, flexShrink:0 }}>
-                <div style={{ width:38, height:38, borderRadius:'50%', background:'rgba(255,255,255,.15)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, color:'#fff', fontSize:15 }}>
-                  {(viewConvo.contact||'?')[0].toUpperCase()}
-                </div>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontWeight:700, color:'#fff', fontSize:15 }}>{viewConvo.contact}</div>
-                  <div style={{ fontSize:11, color:'rgba(255,255,255,.5)' }}>{viewConvo.channel==='sms'?'📱':'📧'} {viewConvo.phone} · Step {viewConvo.step}/{AI_QUAL_QUESTIONS.length}</div>
-                </div>
-                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                  <div style={{ width:7, height:7, borderRadius:'50%', background:'#22c55e' }} />
-                  <span style={{ fontSize:11, color:'#22c55e', fontWeight:600 }}>AI live</span>
-                  <button onClick={() => setViewConvo(null)} style={{ width:28, height:28, borderRadius:'50%', background:'rgba(255,255,255,.1)', border:'none', color:'#fff', cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
+          {qualMode === 'running' && currentQ && (
+            <div>
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20 }}>
+                <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(qualContact?.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:13 }}>{initials(qualContact?.full_name||'?')}</div>
+                <div>
+                  <div style={{ fontWeight:600 }}>{qualContact?.full_name}</div>
+                  <div style={{ fontSize:12, color:'var(--muted)' }}>Step {qualStep+1} of {AI_QUAL_QUESTIONS_LOCAL.length}</div>
                 </div>
               </div>
-
-              {/* Thread */}
-              <div style={{ flex:1, overflowY:'auto', padding:'16px 20px', display:'flex', flexDirection:'column', gap:12 }}>
-                {(convoThread[viewConvo.id] || []).map((msg, i) => (
-                  <div key={i} style={{ display:'flex', justifyContent: msg.role === 'ai' ? 'flex-start' : 'flex-end' }}>
-                    {msg.role === 'ai' && (
-                      <div style={{ width:28, height:28, borderRadius:'50%', background:'linear-gradient(135deg,#0f1c3f,#1a56db)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, marginRight:8, flexShrink:0, alignSelf:'flex-end' }}>🤖</div>
-                    )}
-                    <div style={{
-                      maxWidth:'75%',
-                      padding:'10px 14px',
-                      borderRadius: msg.role === 'ai' ? '4px 14px 14px 14px' : '14px 4px 14px 14px',
-                      background: msg.role === 'ai' ? 'var(--bg)' : 'linear-gradient(135deg,#0f1c3f,#1a56db)',
-                      border: msg.role === 'ai' ? '1px solid var(--border)' : 'none',
-                      color: msg.role === 'ai' ? 'var(--text)' : '#fff',
-                      fontSize:13,
-                      lineHeight:1.5,
-                    }}>
-                      {msg.text}
-                    </div>
-                  </div>
+              <div style={{ background:'var(--surface2)', borderRadius:4, height:4, marginBottom:20, overflow:'hidden' }}>
+                <div style={{ height:'100%', background:'var(--accent)', width:`${((qualStep)/(AI_QUAL_QUESTIONS_LOCAL.length-1))*100}%`, transition:'width .4s' }} />
+              </div>
+              <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:14, padding:'20px 24px', marginBottom:20 }}>
+                <div style={{ fontSize:15, lineHeight:1.6 }}>
+                  {currentQ.text.replace('{name}', qualContact?.full_name?.split(' ')[0] || 'there').replace('{lo_name}', profile?.full_name || 'your loan officer')}
+                </div>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                {currentQ.opts.map(opt => (
+                  <button key={opt} onClick={() => handleQualAnswer(currentQ.key, opt)}
+                    disabled={qualAnimating}
+                    style={{ padding:'12px 16px', borderRadius:10, background:'var(--surface2)', border:'2px solid var(--border)', color:'var(--text)', fontSize:14, fontWeight:500, cursor:'pointer', transition:'all .15s' }}
+                    onMouseOver={e=>{ e.currentTarget.style.borderColor='var(--accent)'; e.currentTarget.style.background='rgba(59,130,246,.1)'; }}
+                    onMouseOut={e=>{ e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.background='var(--surface2)'; }}>
+                    {opt}
+                  </button>
                 ))}
-                {aiTyping && (
-                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                    <div style={{ width:28, height:28, borderRadius:'50%', background:'linear-gradient(135deg,#0f1c3f,#1a56db)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13 }}>🤖</div>
-                    <div style={{ padding:'10px 16px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:'4px 14px 14px 14px', fontSize:18, letterSpacing:2, color:'var(--muted)' }}>•••</div>
-                  </div>
-                )}
+              </div>
+              <button onClick={resetQualification} style={{ marginTop:16, width:'100%', padding:10, borderRadius:8, background:'transparent', border:'1px solid var(--border)', color:'var(--muted)', cursor:'pointer', fontSize:13 }}>
+                ← Back
+              </button>
+            </div>
+          )}
+
+          {qualMode === 'complete' && qualData && (
+            <div style={{ textAlign:'center' }}>
+              <div style={{ fontSize:48, marginBottom:12 }}>🎯</div>
+              <div style={{ fontSize:20, fontWeight:700, marginBottom:8 }}>{qualData.borrowerName} is qualified!</div>
+              <div style={{ fontSize:13, color:'var(--muted)', marginBottom:24 }}>
+                {qualData.intent} · ${(qualData.loanAmount||0).toLocaleString()} · {qualData.creditScore >= 740 ? 'Excellent' : qualData.creditScore >= 700 ? 'Good' : 'Fair'} credit · {qualData.timeline}
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:24 }}>
+                <button onClick={() => onGeneratePresentation && onGeneratePresentation(qualData)}
+                  style={{ padding:'12px 20px', borderRadius:10, background:'linear-gradient(135deg,#0f1c3f,#1a56db)', border:'none', color:'#fff', fontWeight:600, fontSize:14, cursor:'pointer' }}>
+                  📊 Build Presentation
+                </button>
+                <button onClick={() => onOpenPricing && onOpenPricing({ creditScore: qualData.creditScore, loanAmount: qualData.loanAmount, ltv: qualData.ltv })}
+                  style={{ padding:'12px 20px', borderRadius:10, background:'rgba(59,130,246,.15)', border:'1px solid rgba(59,130,246,.3)', color:'#3b82f6', fontWeight:600, fontSize:14, cursor:'pointer' }}>
+                  💰 Run Pricing
+                </button>
+              </div>
+              <button onClick={resetQualification} style={{ padding:'9px 24px', borderRadius:8, background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--muted)', cursor:'pointer' }}>
+                Qualify Another Lead
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── CREATE CAMPAIGN MODAL ── */}
+      {showCreate && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center' }}
+          onClick={() => setShowCreate(false)}>
+          <div style={{ width:560, background:'var(--surface)', borderRadius:16, padding:28, border:'1px solid var(--border)' }}
+            onClick={e => e.stopPropagation()}>
+            <h2 style={{ fontFamily:'Syne,sans-serif', fontWeight:700, marginBottom:20 }}>Launch New Campaign</h2>
+            <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+              <div className="form-group">
+                <label>Campaign Name</label>
+                <input value={form.name} onChange={e => setF('name', e.target.value)} placeholder="e.g. March Purchase Leads — Bay Area" />
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div className="form-group">
+                  <label>Channel</label>
+                  <select value={form.channel} onChange={e => setF('channel', e.target.value)}>
+                    <option value="both">Both (SMS + Email)</option>
+                    <option value="sms">SMS only</option>
+                    <option value="email">Email only</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Batch Size</label>
+                  <select value={form.batch} onChange={e => setF('batch', parseInt(e.target.value))}>
+                    {[100,250,500,1000,2500].map(n=><option key={n} value={n}>{n.toLocaleString()} leads</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Tag / Segment</label>
+                <select value={form.tag} onChange={e => setF('tag', e.target.value)}>
+                  {['Purchase','Refinance','HELOC','Reverse','Cash-Out','Non-QM','VA','FHA','New Lead','Re-engagement'].map(t=><option key={t}>{t}</option>)}
+                </select>
               </div>
 
-              {/* Input / actions */}
-              <div style={{ padding:'12px 16px', borderTop:'1px solid var(--border)', flexShrink:0 }}>
-                {viewConvo.status === 'presentation_sent' ? (
-                  <div style={{ textAlign:'center', padding:'12px', background:'rgba(0,166,81,.08)', border:'1px solid rgba(0,166,81,.2)', borderRadius:10 }}>
-                    <span style={{ fontSize:13, color:'#00A651', fontWeight:700 }}>✓ Presentation sent — lead moved to pipeline</span>
-                  </div>
-                ) : (
-                  <div>
-                    {viewConvo.step >= AI_QUAL_QUESTIONS.length ? (
-                      <button onClick={() => { toast && toast(`Generating presentation for ${viewConvo.contact}...`); setViewConvo(v => v ? {...v, status:'presentation_sent'} : v); }} style={{ width:'100%', padding:'12px', background:'linear-gradient(135deg,#00A651,#007a3d)', color:'#fff', border:'none', borderRadius:9, fontWeight:700, fontSize:14, cursor:'pointer', fontFamily:'inherit' }}>
-                        🎯 Generate & Send Presentation
-                      </button>
-                    ) : (
-                      <div style={{ display:'flex', gap:8 }}>
-                        <input
-                          value={convoMessage}
-                          onChange={e => setConvoMessage(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && sendConvoMessage(viewConvo)}
-                          placeholder="Type a response or override the AI..."
-                          style={{ flex:1, padding:'9px 13px', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, fontFamily:'inherit', outline:'none' }}
-                        />
-                        <button onClick={() => sendConvoMessage(viewConvo)} style={{ padding:'9px 16px', background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', borderRadius:8, cursor:'pointer', fontWeight:700, fontSize:13 }}>Send</button>
-                      </div>
-                    )}
-                  </div>
-                )}
+              <div className="form-group">
+                <label>Contact Selection ({selectedContactIds.length > 0 ? `${selectedContactIds.length} selected` : 'select below or upload CSV'})</label>
+                <div style={{ maxHeight:150, overflowY:'auto', border:'1px solid var(--border)', borderRadius:8, padding:8 }}>
+                  {contacts.slice(0,50).map(c => (
+                    <div key={c.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'4px 6px', borderRadius:4, cursor:'pointer' }}
+                      onClick={() => setSelectedContactIds(ids => ids.includes(c.id) ? ids.filter(i=>i!==c.id) : [...ids, c.id])}
+                      style={{ background: selectedContactIds.includes(c.id) ? 'rgba(59,130,246,.1)' : 'transparent' }}>
+                      <input type="checkbox" readOnly checked={selectedContactIds.includes(c.id)} style={{ cursor:'pointer' }} />
+                      <span style={{ fontSize:13 }}>{c.full_name}</span>
+                      <span style={{ fontSize:11, color:'var(--muted)' }}>{c.phone || c.email}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div onClick={() => fileRef.current?.click()}
+                style={{ border:'2px dashed var(--border)', borderRadius:10, padding:'20px', textAlign:'center', cursor:'pointer', color:'var(--muted)', fontSize:13 }}>
+                {uploadedLeads ? `✓ ${uploadedLeads.count} leads from ${uploadedLeads.file}` : '+ Upload CSV (name, phone, email)'}
+                <input ref={fileRef} type="file" accept=".csv" style={{ display:'none' }} onChange={e => handleCSV(e.target.files[0])} />
               </div>
             </div>
+            <div style={{ display:'flex', gap:10, marginTop:20 }}>
+              <button onClick={() => setShowCreate(false)} style={{ flex:1, padding:11, borderRadius:8, background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--muted)', cursor:'pointer' }}>Cancel</button>
+              <button onClick={launchCampaign} disabled={creating}
+                style={{ flex:2, padding:11, borderRadius:8, background:'linear-gradient(135deg,#22c55e,#16a34a)', border:'none', color:'#fff', fontWeight:700, fontSize:14, cursor:'pointer' }}>
+                {creating ? 'Launching...' : '🚀 Launch Campaign'}
+              </button>
+            </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* ── PRESENTATION BUILDER TRIGGER (from Qualify Lead) ── */}
-        {showPresentation && qualData && (
-          <PresentationBuilderModal
-            contact={{ full_name: qualData.borrowerName, phone: qualData.phone, email: qualData.email }}
-            profile={profile}
-            onClose={() => setShowPresentation(false)}
-            toast={toast}
-            onSent={() => {
-              setShowPresentation(false);
-              toast && toast('🎯 Presentation sent to ' + qualData.borrowerName + '!');
-              // ── Update funnel counters ──
-              setCampaigns(prev => prev.map((c, i) => i === 0 ? {...c, presentations: c.presentations + 1} : c));
-              setLiveResponses(prev => prev.map(r => r.contact === qualData.borrowerName ? {...r, status: 'presentation_sent', timestamp: 'Just now'} : r));
-              setQualMode('pick');
-            }}
-            pricingRate={{
-              rate:        qualData.estimatedRate,
-              term:        qualData.loanTerm || '30',
-              loan_amount: String(qualData.loanAmount),
-              loan_type:   qualData.loanPurpose,
-            }}
-            importedLoanData={{
-              loan_purpose:      qualData.loanPurpose,
-              loan_amount:       String(qualData.loanAmount),
-              mortgage_type:     qualData.loanPurpose,
-              loan_term:         qualData.loanTerm || '30',
-              note_rate:         qualData.estimatedRate,
-              property_value:    String(qualData.propertyValue),
-              down_payment:      String(qualData.downPayment || 0),
-              ltv:               String(qualData.ltv || 80),
-              credit_score:      String(qualData.creditScore),
-              annual_income:     String(qualData.annualIncome),
-              timeline:          qualData.timeline,
-              preferred_channel: qualData.preferredChannel,
-            }}
-          />
-        )}
-
-      </div>
+      {/* ── SMS CONVERSATION MODAL ── */}
+      {viewConvo && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center' }}
+          onClick={() => setViewConvo(null)}>
+          <div style={{ width:480, height:600, background:'var(--surface)', borderRadius:16, border:'1px solid var(--border)', display:'flex', flexDirection:'column', overflow:'hidden' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', gap:12 }}>
+              <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(viewConvo.contacts?.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700 }}>
+                {initials(viewConvo.contacts?.full_name||'?')}
+              </div>
+              <div>
+                <div style={{ fontWeight:700 }}>{viewConvo.contacts?.full_name}</div>
+                <div style={{ fontSize:12, color:'var(--muted)' }}>{viewConvo.contacts?.phone}</div>
+              </div>
+              <button onClick={() => setViewConvo(null)} style={{ marginLeft:'auto', background:'none', border:'none', color:'var(--muted)', fontSize:18, cursor:'pointer' }}>✕</button>
+            </div>
+            <div style={{ flex:1, overflowY:'auto', padding:'16px 20px', display:'flex', flexDirection:'column', gap:10 }}>
+              {smsThread.length === 0 ? (
+                <div style={{ textAlign:'center', color:'var(--muted)', fontSize:13, marginTop:40 }}>No messages yet</div>
+              ) : smsThread.map((msg, i) => (
+                <div key={i} style={{ display:'flex', justifyContent: msg.direction==='outbound' ? 'flex-end' : 'flex-start' }}>
+                  <div style={{
+                    maxWidth:'75%', padding:'10px 14px', borderRadius:14,
+                    background: msg.direction==='outbound' ? 'var(--accent)' : 'var(--surface2)',
+                    color: msg.direction==='outbound' ? '#fff' : 'var(--text)',
+                    fontSize:13, lineHeight:1.5,
+                    borderBottomRightRadius: msg.direction==='outbound' ? 4 : 14,
+                    borderBottomLeftRadius: msg.direction==='inbound' ? 4 : 14,
+                  }}>
+                    {msg.body}
+                    <div style={{ fontSize:10, opacity:.6, marginTop:4 }}>{new Date(msg.created_at).toLocaleTimeString()}</div>
+                  </div>
+                </div>
+              ))}
+              {aiTyping && (
+                <div style={{ display:'flex', justifyContent:'flex-end' }}>
+                  <div style={{ padding:'10px 14px', borderRadius:14, background:'var(--accent)', color:'#fff', fontSize:13 }}>
+                    Sending...
+                  </div>
+                </div>
+              )}
+            </div>
+            <div style={{ padding:'12px 16px', borderTop:'1px solid var(--border)', display:'flex', gap:8 }}>
+              <input value={convoMessage} onChange={e => setConvoMessage(e.target.value)}
+                placeholder="Type a reply..."
+                onKeyDown={e => e.key==='Enter' && sendManualReply()}
+                style={{ flex:1 }} />
+              <button onClick={sendManualReply} disabled={aiTyping || !convoMessage.trim()}
+                style={{ padding:'8px 16px', borderRadius:8, background:'var(--accent)', border:'none', color:'#fff', fontWeight:600, cursor:'pointer', fontSize:13 }}>
+                Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
 
 
 
@@ -10684,6 +10283,446 @@ Respond with well-structured answers using bullet points and headers. Be concise
   );
 }
 
+
+
+// ─── CONTENT HUB VIEW ────────────────────────────────────────────────────────
+function ContentHubView({ profile, toast }) {
+  const [tab, setTab]         = useState('library');
+  const [content, setContent] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
+  const [form, setForm]       = useState({ type:'blog', topic:'', keyword:'', audience:'homebuyers', length:'800', platform:'facebook', emailCount:5, segment:'purchase leads' });
+  const setF = (k,v) => setForm(f=>({...f,[k]:v}));
+  const companyId = profile?.company_name;
+
+  const loadContent = React.useCallback(async () => {
+    setLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`${process.env.REACT_APP_SUPABASE_URL}/functions/v1/content-generator`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+      body: JSON.stringify({ action: 'listContent', company_id: companyId }),
+    });
+    const data = await res.json();
+    setContent(data.result || []);
+    setLoading(false);
+  }, [companyId]);
+
+  useEffect(() => { loadContent(); }, [loadContent]);
+
+  const generate = async () => {
+    if (!form.topic && form.type !== 'email_sequence') { toast('Enter a topic'); return; }
+    setGenerating(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    let action = '';
+    let params = {};
+    if (form.type === 'blog')           { action = 'generateBlogPost'; params = { topic:form.topic, keyword:form.keyword, audience:form.audience, length:form.length }; }
+    else if (form.type === 'social')    { action = 'generateSocialPost'; params = { topic:form.topic, platforms:[form.platform] }; }
+    else if (form.type === 'email')     { action = 'generateEmailSequence'; params = { segment:form.segment, emailCount:parseInt(form.emailCount), goal:'schedule a consultation' }; }
+    else if (form.type === 'sms')       { action = 'generateSMSSequence'; params = { title:`SMS Qualification Sequence — ${form.topic}`, steps:6 }; }
+
+    const res = await fetch(`${process.env.REACT_APP_SUPABASE_URL}/functions/v1/content-generator`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+      body: JSON.stringify({ action, company_id: companyId, created_by: profile.id, requires_approval: true, ...params }),
+    });
+    const data = await res.json();
+    setGenerating(false);
+    if (data.success) {
+      toast('✓ Content generated! Pending approval.');
+      loadContent();
+      setTab('library');
+    } else {
+      toast('Error: ' + data.error);
+    }
+  };
+
+  const approve = async (id) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    await fetch(`${process.env.REACT_APP_SUPABASE_URL}/functions/v1/content-generator`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+      body: JSON.stringify({ action: 'approveContent', company_id: companyId, created_by: profile.id, content_id: id }),
+    });
+    toast('Content approved!');
+    loadContent();
+  };
+
+  const STATUS_COLORS = { draft:'#888', pending_approval:'#f59e0b', approved:'#22c55e', published:'#3b82f6', failed:'#ef4444' };
+  const TYPE_ICONS = { blog:'📝', social_facebook:'📘', social_instagram:'📸', social_linkedin:'💼', email_sequence:'📧', sms_sequence:'📱' };
+
+  return (
+    <div style={{ padding:24, maxWidth:1100, margin:'0 auto' }}>
+      <div style={{ marginBottom:24 }}>
+        <h1 style={{ fontFamily:"Cormorant Garamond, serif", fontSize:28, fontWeight:700, margin:0 }}>Content Hub</h1>
+        <p style={{ color:'var(--muted)', fontSize:13, margin:'4px 0 0' }}>AI-generated marketing content — blog posts, social media, email sequences, SMS campaigns</p>
+      </div>
+
+      <div style={{ display:'flex', gap:4, marginBottom:20, background:'var(--surface2)', padding:4, borderRadius:10, width:'fit-content' }}>
+        {[['library','📚 Library'],['generate','✨ Generate']].map(([t,l]) => (
+          <button key={t} onClick={() => setTab(t)} style={{ padding:'7px 18px', borderRadius:7, fontSize:13, fontWeight:500, border:'none', cursor:'pointer', background:tab===t?'var(--accent)':'transparent', color:tab===t?'#fff':'var(--muted)' }}>{l}</button>
+        ))}
+      </div>
+
+      {tab === 'generate' && (
+        <div style={{ maxWidth:560 }}>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <div className="form-group">
+              <label>Content Type</label>
+              <select value={form.type} onChange={e=>setF('type',e.target.value)}>
+                <option value="blog">Blog Post (SEO)</option>
+                <option value="social">Social Media Post</option>
+                <option value="email">Email Nurture Sequence</option>
+                <option value="sms">SMS Qualification Sequence</option>
+              </select>
+            </div>
+            {(form.type==='blog'||form.type==='social'||form.type==='sms') && (
+              <div className="form-group">
+                <label>Topic</label>
+                <input value={form.topic} onChange={e=>setF('topic',e.target.value)} placeholder={form.type==='blog'?"e.g. How to qualify for a home loan in 2026":form.type==='social'?"e.g. Today's mortgage rates":"e.g. First-time buyer outreach"} />
+              </div>
+            )}
+            {form.type==='blog' && (
+              <>
+                <div className="form-group"><label>Target Keyword</label><input value={form.keyword} onChange={e=>setF('keyword',e.target.value)} placeholder="e.g. mortgage rates California 2026" /></div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+                  <div className="form-group"><label>Audience</label><select value={form.audience} onChange={e=>setF('audience',e.target.value)}><option value="homebuyers">First-time Buyers</option><option value="investors">Investors</option><option value="seniors">Seniors (Reverse)</option><option value="veterans">Veterans (VA)</option></select></div>
+                  <div className="form-group"><label>Length</label><select value={form.length} onChange={e=>setF('length',e.target.value)}><option value="500">~500 words</option><option value="800">~800 words</option><option value="1200">~1200 words</option></select></div>
+                </div>
+              </>
+            )}
+            {form.type==='social' && (
+              <div className="form-group"><label>Platform</label><select value={form.platform} onChange={e=>setF('platform',e.target.value)}><option value="facebook">Facebook</option><option value="instagram">Instagram</option><option value="linkedin">LinkedIn</option></select></div>
+            )}
+            {form.type==='email' && (
+              <>
+                <div className="form-group"><label>Lead Segment</label><select value={form.segment} onChange={e=>setF('segment',e.target.value)}><option value="purchase leads">Purchase Leads</option><option value="refinance leads">Refinance Leads</option><option value="HELOC leads">HELOC Leads</option><option value="reverse mortgage leads">Reverse Mortgage Leads</option></select></div>
+                <div className="form-group"><label>Number of Emails</label><select value={form.emailCount} onChange={e=>setF('emailCount',e.target.value)}><option value="3">3 emails</option><option value="5">5 emails</option><option value="7">7 emails</option></select></div>
+              </>
+            )}
+            <button onClick={generate} disabled={generating}
+              style={{ padding:'12px', borderRadius:10, background:'linear-gradient(135deg,#8b5cf6,#6d28d9)', border:'none', color:'#fff', fontWeight:700, fontSize:14, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+              {generating ? <>Generating with Claude AI<span style={{ animation:'spin 1s linear infinite', display:'inline-block' }}>⟳</span></> : '✨ Generate Content'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {tab === 'library' && (
+        <div>
+          {loading ? (
+            <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loading...</div>
+          ) : content.length === 0 ? (
+            <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>✍️</div>
+              <div style={{ fontSize:16, marginBottom:8 }}>No content yet</div>
+              <button onClick={() => setTab('generate')} style={{ padding:'10px 24px', borderRadius:8, background:'var(--accent)', border:'none', color:'#fff', fontWeight:600, cursor:'pointer' }}>Generate First Piece</button>
+            </div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {content.map(item => {
+                const sc = STATUS_COLORS[item.status] || '#888';
+                const icon = TYPE_ICONS[item.content_type] || '📄';
+                return (
+                  <div key={item.id} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'16px 20px', display:'flex', alignItems:'center', gap:16 }}>
+                    <div style={{ fontSize:28 }}>{icon}</div>
+                    <div style={{ flex:1 }}>
+                      <div style={{ fontWeight:700, fontSize:14, marginBottom:4 }}>{item.title || item.content_type}</div>
+                      <div style={{ fontSize:12, color:'var(--muted)', display:'flex', gap:10 }}>
+                        <span style={{ textTransform:'capitalize' }}>{(item.content_type||'').replace('_',' ')}</span>
+                        <span>•</span>
+                        <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                    <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:`${sc}22`, color:sc, fontWeight:600, textTransform:'capitalize' }}>{item.status?.replace('_',' ')}</span>
+                    {item.status === 'pending_approval' && profile.role === 'admin' && (
+                      <button onClick={() => approve(item.id)} style={{ padding:'5px 14px', borderRadius:6, background:'rgba(34,197,94,.15)', border:'1px solid rgba(34,197,94,.3)', color:'#22c55e', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                        Approve
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// ─── LEAD SCORING VIEW ───────────────────────────────────────────────────────
+function LeadScoringView({ contacts, profile, toast }) {
+  const [scores, setScores]     = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [scoring, setScoring]   = useState(null);
+  const [filter, setFilter]     = useState('all');
+  const companyId = profile?.company_name;
+
+  const loadScores = React.useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase.from('lead_scores')
+      .select('*, contacts(full_name, email, phone, stage, lead_score)')
+      .eq('company_id', companyId)
+      .order('score', { ascending: false });
+    setScores(data || []);
+    setLoading(false);
+  }, [companyId]);
+
+  useEffect(() => { loadScores(); }, [loadScores]);
+
+  const scoreContact = async (contactId) => {
+    setScoring(contactId);
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`${process.env.REACT_APP_SUPABASE_URL}/functions/v1/automation-engine`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+      body: JSON.stringify({ action: 'scoreLead', contact_id: contactId }),
+    });
+    const data = await res.json();
+    setScoring(null);
+    if (data.success) { toast(`Score: ${data.result.score}/100 (${data.result.grade})`); loadScores(); }
+    else toast('Error: ' + data.error);
+  };
+
+  const scoreAll = async () => {
+    toast('Scoring all contacts... this may take a moment');
+    for (const contact of contacts.slice(0, 50)) {
+      await scoreContact(contact.id);
+    }
+    toast('All contacts scored!');
+  };
+
+  const GRADE_COLORS = { A:'#22c55e', B:'#3b82f6', C:'#f59e0b', D:'#ef4444' };
+  const ACTION_LABELS = {
+    immediate_outreach: { label:'🔥 Immediate Outreach', color:'#ef4444' },
+    nurture_sequence:   { label:'💧 Nurture Sequence',   color:'#f59e0b' },
+    long_term_followup: { label:'⏳ Long-term Follow-up', color:'#3b82f6' },
+    low_priority_queue: { label:'🗃️ Low Priority',        color:'#888' },
+  };
+
+  const unscoredContacts = contacts.filter(c => !scores.find(s => s.contact_id === c.id));
+  const filteredScores = filter === 'all' ? scores : scores.filter(s => s.grade === filter);
+
+  return (
+    <div style={{ padding:24, maxWidth:1100, margin:'0 auto' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:24 }}>
+        <div>
+          <h1 style={{ fontFamily:"Cormorant Garamond, serif", fontSize:28, fontWeight:700, margin:0 }}>Lead Scoring</h1>
+          <p style={{ color:'var(--muted)', fontSize:13, margin:'4px 0 0' }}>AI-computed scores from 0–100 based on stage, engagement, credit, loan amount, and timeline</p>
+        </div>
+        <div style={{ display:'flex', gap:10 }}>
+          <button onClick={scoreAll} style={{ padding:'8px 16px', borderRadius:8, background:'linear-gradient(135deg,#8b5cf6,#6d28d9)', border:'none', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+            ⚡ Score All Contacts
+          </button>
+        </div>
+      </div>
+
+      {/* Grade distribution */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:24 }}>
+        {['A','B','C','D'].map(grade => {
+          const count = scores.filter(s => s.grade === grade).length;
+          return (
+            <div key={grade} onClick={() => setFilter(filter===grade?'all':grade)}
+              style={{ background:'var(--card)', border:`2px solid ${filter===grade ? GRADE_COLORS[grade] : 'var(--border)'}`, borderRadius:12, padding:16, cursor:'pointer', textAlign:'center' }}>
+              <div style={{ fontSize:32, fontWeight:900, color:GRADE_COLORS[grade], fontFamily:'Syne,sans-serif' }}>{grade}</div>
+              <div style={{ fontSize:22, fontWeight:700 }}>{count}</div>
+              <div style={{ fontSize:11, color:'var(--muted)', textTransform:'uppercase', marginTop:2 }}>
+                {grade==='A'?'Hot Leads':grade==='B'?'Warm Leads':grade==='C'?'Nurture':' Low Priority'}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Unscored contacts */}
+      {unscoredContacts.length > 0 && (
+        <div style={{ background:'rgba(245,158,11,.1)', border:'1px solid rgba(245,158,11,.3)', borderRadius:10, padding:'12px 16px', marginBottom:16, display:'flex', alignItems:'center', gap:12 }}>
+          <span style={{ fontSize:13, color:'#f59e0b', fontWeight:600 }}>⚠️ {unscoredContacts.length} contacts have not been scored yet</span>
+          <button onClick={scoreAll} style={{ padding:'5px 14px', borderRadius:6, background:'rgba(245,158,11,.2)', border:'1px solid rgba(245,158,11,.4)', color:'#f59e0b', fontSize:12, fontWeight:600, cursor:'pointer', marginLeft:'auto' }}>
+            Score All
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ textAlign:'center', padding:40, color:'var(--muted)' }}>Loading scores...</div>
+      ) : filteredScores.length === 0 ? (
+        <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>
+          <div style={{ fontSize:40, marginBottom:12 }}>📊</div>
+          <div>No scored leads yet. Click "Score All Contacts" to get started.</div>
+        </div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          {filteredScores.map(s => {
+            const contact = s.contacts || {};
+            const gc = GRADE_COLORS[s.grade] || '#888';
+            const ai = ACTION_LABELS[s.auto_action] || ACTION_LABELS.long_term_followup;
+            const factors = s.factors || {};
+            return (
+              <div key={s.id} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:'14px 18px', display:'grid', gridTemplateColumns:'2fr 80px 1fr 1fr 120px', alignItems:'center', gap:14 }}>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:14 }}>{contact.full_name || '—'}</div>
+                  <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>
+                    {contact.stage} · {contact.phone || contact.email || 'no contact info'}
+                  </div>
+                </div>
+                <div style={{ textAlign:'center' }}>
+                  <div style={{ fontSize:28, fontWeight:900, color:gc, fontFamily:'Syne,sans-serif', lineHeight:1 }}>{s.score}</div>
+                  <div style={{ fontSize:11, color:gc, fontWeight:700 }}>Grade {s.grade}</div>
+                </div>
+                <div>
+                  {/* Score bar */}
+                  <div style={{ background:'var(--surface2)', borderRadius:4, height:6, overflow:'hidden', marginBottom:4 }}>
+                    <div style={{ height:'100%', background:`linear-gradient(90deg,${gc},${gc}88)`, width:`${s.score}%` }} />
+                  </div>
+                  <div style={{ fontSize:11, color:'var(--muted)', display:'flex', gap:8 }}>
+                    {Object.entries(factors).slice(0,3).map(([k,v]) => (
+                      <span key={k}>{k}: {v}</span>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <span style={{ fontSize:11, padding:'3px 8px', borderRadius:12, background:`${ai.color}22`, color:ai.color, fontWeight:600 }}>{ai.label}</span>
+                </div>
+                <div>
+                  <button onClick={() => scoreContact(s.contact_id)} disabled={scoring === s.contact_id}
+                    style={{ padding:'5px 12px', borderRadius:6, fontSize:12, background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--muted)', cursor:'pointer', width:'100%' }}>
+                    {scoring === s.contact_id ? '...' : '↻ Re-score'}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// ─── LIVE TRANSFER DASHBOARD ─────────────────────────────────────────────────
+function LiveTransferDashboard({ profile, toast }) {
+  const [queue, setQueue]       = useState([]);
+  const [history, setHistory]   = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const companyId = profile?.company_name;
+
+  const loadData = React.useCallback(async () => {
+    setLoading(true);
+    const [{ data: active }, { data: done }] = await Promise.all([
+      supabase.from('live_transfers').select('*, contacts(full_name, phone, stage)')
+        .eq('company_id', companyId).in('status', ['waiting','connecting']).order('created_at', { ascending: true }),
+      supabase.from('live_transfers').select('*, contacts(full_name, phone, stage)')
+        .eq('company_id', companyId).in('status', ['completed','abandoned']).order('ended_at', { ascending: false }).limit(20),
+    ]);
+    setQueue(active || []);
+    setHistory(done || []);
+    setLoading(false);
+  }, [companyId]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // Real-time
+  useEffect(() => {
+    const sub = supabase.channel('transfers_' + companyId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'live_transfers', filter: `company_id=eq.${companyId}` }, loadData)
+      .subscribe();
+    return () => supabase.removeChannel(sub);
+  }, [companyId, loadData]);
+
+  const endTransfer = async (transferId) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(`${process.env.REACT_APP_SUPABASE_URL}/functions/v1/live-transfer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
+      body: JSON.stringify({ action: 'endTransfer', transfer_id: transferId }),
+    });
+    const data = await res.json();
+    if (data.success) { toast('Transfer completed' + (data.summary ? ' — summary saved' : '')); loadData(); }
+    else toast('Error: ' + data.error);
+  };
+
+  const STATUS_COLORS = { waiting:'#f59e0b', connecting:'#3b82f6', connected:'#22c55e', completed:'#888', abandoned:'#ef4444' };
+
+  return (
+    <div style={{ padding:24, maxWidth:1100, margin:'0 auto' }}>
+      <div style={{ marginBottom:24 }}>
+        <h1 style={{ fontFamily:"Cormorant Garamond, serif", fontSize:28, fontWeight:700, margin:0 }}>Live Transfer Center</h1>
+        <p style={{ color:'var(--muted)', fontSize:13, margin:'4px 0 0' }}>Real-time agent queue for hot leads requiring human conversation</p>
+      </div>
+
+      {/* Twilio setup notice if not configured */}
+      <div style={{ background:'rgba(59,130,246,.1)', border:'1px solid rgba(59,130,246,.3)', borderRadius:10, padding:'12px 16px', marginBottom:20, fontSize:13 }}>
+        <strong style={{ color:'var(--accent)' }}>Setup Required:</strong> Add <code>TWILIO_ACCOUNT_SID</code>, <code>TWILIO_AUTH_TOKEN</code>, and <code>TWILIO_PHONE_NUMBER</code> to your{' '}
+        <a href="https://supabase.com/dashboard/project/tiwsuwbalvnrqsmudjfy/settings/vault" target="_blank" rel="noreferrer" style={{ color:'var(--accent)' }}>Supabase Vault secrets</a>{' '}
+        to enable SMS and live calling. All other automation features work without it.
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
+        {/* Active Queue */}
+        <div>
+          <div style={{ fontWeight:700, fontSize:16, marginBottom:12, display:'flex', alignItems:'center', gap:8 }}>
+            <div style={{ width:8, height:8, borderRadius:'50%', background: queue.length > 0 ? '#22c55e' : '#888', animation: queue.length > 0 ? 'pulse 2s infinite' : 'none' }} />
+            Transfer Queue ({queue.length})
+          </div>
+          {queue.length === 0 ? (
+            <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:32, textAlign:'center', color:'var(--muted)', fontSize:13 }}>
+              No leads waiting for transfer
+            </div>
+          ) : queue.map(t => (
+            <div key={t.id} style={{ background:'var(--card)', border:'2px solid #22c55e33', borderRadius:12, padding:'14px 16px', marginBottom:10 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
+                <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(t.contacts?.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700 }}>
+                  {initials(t.contacts?.full_name||'?')}
+                </div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontWeight:700 }}>{t.contacts?.full_name}</div>
+                  <div style={{ fontSize:12, color:'var(--muted)' }}>{t.contacts?.phone} · {t.contacts?.stage}</div>
+                </div>
+                <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(34,197,94,.15)', color:'#22c55e', fontWeight:600 }}>LIVE</span>
+              </div>
+              <div style={{ display:'flex', gap:8 }}>
+                <button onClick={() => endTransfer(t.id)} style={{ flex:1, padding:'7px', borderRadius:7, background:'rgba(239,68,68,.15)', border:'1px solid rgba(239,68,68,.3)', color:'#ef4444', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+                  End & Summarize
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Recent History */}
+        <div>
+          <div style={{ fontWeight:700, fontSize:16, marginBottom:12 }}>Recent Transfers</div>
+          {history.length === 0 ? (
+            <div style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:12, padding:32, textAlign:'center', color:'var(--muted)', fontSize:13 }}>No completed transfers yet</div>
+          ) : history.map(t => {
+            const sc = STATUS_COLORS[t.status] || '#888';
+            return (
+              <div key={t.id} style={{ background:'var(--card)', border:'1px solid var(--border)', borderRadius:10, padding:'12px 14px', marginBottom:8 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:6 }}>
+                  <div>
+                    <div style={{ fontWeight:600, fontSize:13 }}>{t.contacts?.full_name || '—'}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)' }}>{t.ended_at ? new Date(t.ended_at).toLocaleString() : 'In progress'}</div>
+                  </div>
+                  <span style={{ fontSize:11, padding:'2px 8px', borderRadius:20, background:`${sc}22`, color:sc, fontWeight:600, textTransform:'capitalize' }}>{t.status}</span>
+                </div>
+                {t.summary && (
+                  <div style={{ fontSize:12, color:'var(--muted)', background:'var(--surface2)', borderRadius:6, padding:'8px 10px', lineHeight:1.5 }}>
+                    {t.summary.substring(0, 150)}...
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -10803,6 +10842,9 @@ export default function App() {
     { id:'pipeline', label:'Lead Funnel', icon:Icons.pipeline },
     { id:'team', label:'Team', icon:Icons.team },
     { id:'automation', label:'AI Outreach', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 2 15 22 11 13 2 9 22 2"/></svg> },
+    { id:'content-hub', label:'Content Hub', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> },
+    { id:'lead-scoring', label:'Lead Scoring', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><polyline points="2 20 22 20"/></svg> },
+    { id:'live-transfers', label:'Live Transfers', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91A16 16 0 0 0 14.09 15.91l1.27-.87a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> },
     { id:'ratecompare', label:'PPE Search', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><polyline points="2 20 22 20"/></svg> },
     { id:'lenders', label:'Lender Portals', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="14" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><polyline points="8 21 12 17 16 21"/></svg> },
     { id:'hannah', label:'Ask Hannah', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
@@ -10900,6 +10942,9 @@ export default function App() {
         {view==='trash' && <TrashArchiveView profile={profile} workspaces={workspaces} toast={toast} />}
         {view==='hannah' && <HannahPage profile={profile} />}
         {view==='automation' && <AutomationView contacts={contacts} profile={profile} toast={toast} onOpenPricing={(qualData) => { setPricingPreset(qualData); setPricingOpen(true); }} onGeneratePresentation={(qualData) => { setPresGenData(qualData); setView('presentation-gen', null); }} />}
+        {view==='content-hub'    && <ContentHubView    profile={profile} toast={toast} />}
+        {view==='lead-scoring'   && <LeadScoringView   contacts={contacts} profile={profile} toast={toast} />}
+        {view==='live-transfers' && <LiveTransferDashboard profile={profile} toast={toast} />}
         {view==='ratecompare' && <RateCompareView toast={toast} onOpenPricing={(qualData)=>{ setPricingPreset(qualData); setPricingOpen(true); }} />}
         {view==='lenders' && <LenderPortalsView toast={toast} />}
         {view==='presentations' && <PresentationsPage profile={profile} toast={toast} />}
