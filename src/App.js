@@ -174,9 +174,11 @@ function getBaseFromCache(scenario, fredCache) {
 }
 
 // Fetch a single FRED series — returns { value, date } or null
+// Routes through /api/fred proxy to avoid CORS restrictions
 async function fetchOneFREDSeries(seriesId, apiKey) {
   try {
-    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=5`;
+    // Use local Vercel proxy to avoid CORS block
+    const url = `/api/fred?series_id=${seriesId}&api_key=${apiKey}`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
