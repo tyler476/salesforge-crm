@@ -2447,9 +2447,7 @@ function CSVImportModal({ onClose, onImport, toast }) {
   const FIELDS = ['name','status','lender','date','loan_officer','processor','loan_amount','priority','notes','(skip)'];
 
   const parseCSV = (text) => {
-    const lines = text.trim().split(/
-?
-/);
+    const lines = text.trim().split(/\r?\n/);
     const hdrs = lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim());
     const rows = lines.slice(1).map(line=>{
       const vals = line.split(',').map(v=>v.replace(/^"|"$/g,'').trim());
