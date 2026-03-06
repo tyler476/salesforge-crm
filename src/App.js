@@ -942,7 +942,9 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
 
   if (!contact) return null;
   return (
-    <div className={`drawer ${contact ? 'open' : ''}`}>
+    <>
+      {contact && <div onClick={onClose} style={{ position:'fixed', inset:0, zIndex:199, background:'transparent', cursor:'default' }} />}
+      <div className={`drawer ${contact ? 'open' : ''}`}>
       <div style={{ padding:24 }}>
         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:20 }}>
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
@@ -1049,6 +1051,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
         </div>
       </div>
     </div>
+    </>
   );
 }
 
@@ -3647,37 +3650,40 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
 function SubItemRow({ sub, statuses, teamMembers, updateCount, onOpenUpdates, onUpdate, onDelete }) {
   const [showStatusPicker, setShowStatusPicker] = React.useState(false);
   const [showOwnerPicker,  setShowOwnerPicker]  = React.useState(false);
-  const [editingName,      setEditingName]      = React.useState(false);
-  const [nameVal,          setNameVal]          = React.useState(sub.name);
-  const [hovered,          setHovered]          = React.useState(false);
-  const statusRef = React.useRef(null);
-  const ownerRef  = React.useRef(null);
+  const [editingName,  setEditingName] = React.useState(false);
+  const [nameVal,      setNameVal]     = React.useState(sub.name);
+  const [hovered,      setHovered]     = React.useState(false);
+  const [owners,       setOwners]      = React.useState(sub.assigned_officers || []);
+  const [ownerPos,     setOwnerPos]    = React.useState({top:0,left:0});
+  const [statusPos,    setStatusPos]   = React.useState({top:0,left:0});
+
+  React.useEffect(() => { setOwners(sub.assigned_officers || []); }, [sub.id]);
+
+  const ownerPickerRef  = React.useRef(null);
+  const statusPickerRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if(!showOwnerPicker && !showStatusPicker) return;
+    const close = (e) => {
+      if(ownerPickerRef.current  && ownerPickerRef.current.contains(e.target))  return;
+      if(statusPickerRef.current && statusPickerRef.current.contains(e.target)) return;
+      setShowOwnerPicker(false);
+      setShowStatusPicker(false);
+    };
+    const t = setTimeout(() => document.addEventListener('mousedown', close), 100);
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', close); };
+  }, [showOwnerPicker, showStatusPicker]);
 
   const avatarColor = (name) => {
     const colors = ['#4d8ef0','#2ecc8a','#9b59b6','#f0b429','#e05252','#00b8c4','#f97316','#06b6d4'];
     let h = 0; for(const c of (name||'')) h = (h*31+c.charCodeAt(0))&0xffff;
     return colors[h % colors.length];
   };
-  const initials = (name='') => name.split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2);
-
-  React.useEffect(() => {
-    if(!showStatusPicker && !showOwnerPicker) return;
-    const handler = (e) => {
-      if(statusRef.current && !statusRef.current.contains(e.target)) setShowStatusPicker(false);
-      if(ownerRef.current  && !ownerRef.current.contains(e.target))  setShowOwnerPicker(false);
-    };
-    const t = setTimeout(() => document.addEventListener('mousedown', handler), 50);
-    return () => { clearTimeout(t); document.removeEventListener('mousedown', handler); };
-  }, [showStatusPicker, showOwnerPicker]);
-
-  const owners = sub.assigned_officers || [];
+  const initials = (name) => (name||'').split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2);
 
   return (
-    <tr
-      onMouseEnter={()=>setHovered(true)}
-      onMouseLeave={()=>setHovered(false)}
-      style={{ background:hovered?'rgba(77,142,240,.04)':'rgba(0,0,0,.04)', borderBottom:'1px solid var(--border)', transition:'background .1s' }}
-    >
+    <tr onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)}
+      style={{ background:hovered?'rgba(77,142,240,.04)':'rgba(0,0,0,.04)', borderBottom:'1px solid var(--border)', transition:'background .1s' }}>
       <td style={{ padding:'5px 10px', paddingLeft:36, textAlign:'center', width:36 }}>
         <div style={{ width:7, height:7, borderRadius:'50%', background:'var(--border)', margin:'0 auto' }} />
       </td>
@@ -3689,7 +3695,7 @@ function SubItemRow({ sub, statuses, teamMembers, updateCount, onOpenUpdates, on
                 onBlur={()=>{ setEditingName(false); if(nameVal.trim()!==sub.name) onUpdate('name',nameVal.trim()); }}
                 onKeyDown={e=>{ if(e.key==='Enter'){ setEditingName(false); if(nameVal.trim()!==sub.name) onUpdate('name',nameVal.trim()); } if(e.key==='Escape'){ setEditingName(false); setNameVal(sub.name); } }}
                 style={{ flex:1, background:'var(--surface2)', border:'1px solid var(--accent)', borderRadius:4, padding:'2px 6px', fontSize:13, color:'var(--text)', outline:'none' }} />
-            : <span onDoubleClick={()=>setEditingName(true)} style={{ fontSize:13, flex:1, cursor:'text', color:'var(--text)' }} title="Double-click to rename">{sub.name}</span>
+            : <span onDoubleClick={()=>setEditingName(true)} style={{ fontSize:13, flex:1, cursor:'text', color:'var(--text)' }}>{sub.name}</span>
           }
           <button onClick={e=>{ e.stopPropagation(); onOpenUpdates(); }}
             style={{ background:'none', border:'none', color:updateCount>0?'var(--accent)':'var(--muted)', cursor:'pointer', padding:'2px 4px', display:'flex', alignItems:'center', gap:2, flexShrink:0 }}>
@@ -3698,72 +3704,80 @@ function SubItemRow({ sub, statuses, teamMembers, updateCount, onOpenUpdates, on
           </button>
         </div>
       </td>
-      <td style={{ padding:'5px 8px', position:'relative', width:80 }} onClick={e=>e.stopPropagation()}>
-        <div ref={ownerRef} style={{ position:'relative' }}>
-          <div onMouseDown={e=>{ e.stopPropagation(); setShowOwnerPicker(v=>!v); setShowStatusPicker(false); }}
-            style={{ display:'flex', alignItems:'center', gap:3, cursor:'pointer', minWidth:32 }}>
-            {owners.length===0
-              ? <div style={{ width:26, height:26, borderRadius:'50%', border:'2px dashed var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+
+      {/* Owner picker */}
+      <td style={{ padding:'5px 8px', width:90 }} onClick={e=>e.stopPropagation()}>
+        <div
+          onClick={e=>{ const r=e.currentTarget.getBoundingClientRect(); setOwnerPos({top:r.bottom+4,left:Math.max(8,r.left-40)}); setShowOwnerPicker(v=>!v); setShowStatusPicker(false); }}
+          style={{ display:'flex', alignItems:'center', gap:2, cursor:'pointer', minWidth:32, flexWrap:'wrap' }}>
+          {owners.length===0
+            ? <div style={{ width:26, height:26, borderRadius:'50%', border:'2px dashed var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+            : owners.map((name,i)=>(
+                <div key={i} title={name} style={{ width:26, height:26, borderRadius:'50%', background:avatarColor(name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', marginLeft:i>0?-8:0, border:'2px solid var(--surface)', zIndex:owners.length-i, position:'relative' }}>
+                  {initials(name)}
                 </div>
-              : owners.map((name,i)=>(
-                  <div key={i} title={name} style={{ width:26, height:26, borderRadius:'50%', background:avatarColor(name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', marginLeft:i>0?-8:0 }}>
-                    {initials(name)}
-                  </div>
-                ))
-            }
-          </div>
-          {showOwnerPicker && (
-            <div ref={el=>{ if(el&&ownerRef.current){ const r=ownerRef.current.getBoundingClientRect(); el.style.position='fixed'; el.style.top=(r.bottom+4)+'px'; el.style.left=Math.max(8,r.left-60)+'px'; el.style.zIndex='9999'; } }}
-              style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:10, width:220, boxShadow:'0 12px 32px rgba(0,0,0,.4)' }}>
-              <div style={{ fontSize:11, color:'var(--muted)', marginBottom:6, fontWeight:600 }}>Assign Owner</div>
-              {teamMembers.map(m=>{
-                const assigned=owners.includes(m.full_name);
-                return (
-                  <div key={m.id} onMouseDown={e=>{ e.stopPropagation(); const next=assigned?owners.filter(n=>n!==m.full_name):[...owners,m.full_name]; onUpdate('assigned_officers',next); }}
-                    style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:6, cursor:'pointer', background:assigned?'rgba(77,142,240,.12)':'transparent' }}>
-                    <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', flexShrink:0 }}>{initials(m.full_name)}</div>
-                    <span style={{ fontSize:12, flex:1, color:'var(--text)' }}>{m.full_name}</span>
-                    {assigned && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
-                  </div>
-                );
-              })}
-              {owners.length>0 && <div onMouseDown={e=>{ e.stopPropagation(); onUpdate('assigned_officers',[]); setShowOwnerPicker(false); }} style={{ marginTop:6, padding:'5px 8px', borderRadius:6, cursor:'pointer', fontSize:11, color:'var(--muted)', borderTop:'1px solid var(--border)', textAlign:'center' }}>Clear owners</div>}
-            </div>
-          )}
+              ))
+          }
         </div>
-      </td>
-      <td style={{ padding:'5px 8px', position:'relative', width:130 }} onClick={e=>e.stopPropagation()}>
-        <div ref={statusRef} style={{ position:'relative' }}>
-          <div onMouseDown={e=>{ e.stopPropagation(); setShowStatusPicker(v=>!v); setShowOwnerPicker(false); }}
-            style={{ display:'inline-flex', alignItems:'center', gap:5, background:sub.status_color||'rgba(77,142,240,.25)', padding:'3px 10px', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:700, color:'#fff', userSelect:'none', maxWidth:120, overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis' }}>
-            {sub.status || <span style={{ opacity:.6 }}>Set status</span>}
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" strokeWidth="3"><polyline points="6 9 12 15 18 9"/></svg>
-          </div>
-          {showStatusPicker && (
-            <div ref={el=>{ if(el&&statusRef.current){ const r=statusRef.current.getBoundingClientRect(); el.style.position='fixed'; el.style.top=(r.bottom+4)+'px'; el.style.left=Math.max(8,r.left-20)+'px'; el.style.zIndex='9999'; } }}
-              style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:6, width:200, boxShadow:'0 12px 32px rgba(0,0,0,.4)' }}>
-              <div style={{ fontSize:10, color:'var(--muted)', padding:'4px 8px', fontWeight:600, letterSpacing:'.05em', textTransform:'uppercase' }}>Status</div>
-              {statuses.map(s=>(
-                <div key={s.id} onMouseDown={e=>{ e.stopPropagation(); onUpdate('status',s.label); onUpdate('status_color',s.color); setShowStatusPicker(false); }}
-                  style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:6, cursor:'pointer', background:sub.status===s.label?'rgba(77,142,240,.1)':'transparent' }}>
-                  <div style={{ width:10, height:10, borderRadius:3, background:s.color, flexShrink:0 }} />
-                  <span style={{ fontSize:12, color:'var(--text)' }}>{s.label}</span>
-                  {sub.status===s.label && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="3" style={{ marginLeft:'auto' }}><polyline points="20 6 9 17 4 12"/></svg>}
+        {showOwnerPicker && (
+          <div ref={ownerPickerRef} style={{ position:'fixed', top:ownerPos.top, left:ownerPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:10, width:230, boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
+            <div style={{ fontSize:11, color:'var(--muted)', marginBottom:8, fontWeight:700, letterSpacing:'.04em', textTransform:'uppercase', display:'flex', alignItems:'center', gap:6 }}>
+              Assign Owners
+              {owners.length>0 && <span style={{ background:'var(--accent)', color:'#fff', borderRadius:8, padding:'1px 6px', fontSize:10 }}>{owners.length}</span>}
+            </div>
+            {teamMembers.map(m=>{
+              const assigned = owners.includes(m.full_name);
+              return (
+                <div key={m.id} onClick={()=>{
+                  const next = assigned ? owners.filter(n=>n!==m.full_name) : [...owners, m.full_name];
+                  setOwners(next);
+                  onUpdate('assigned_officers', next);
+                }} style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 8px', borderRadius:7, cursor:'pointer', background:assigned?'rgba(77,142,240,.12)':'transparent', marginBottom:2 }}>
+                  <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', flexShrink:0 }}>{initials(m.full_name)}</div>
+                  <span style={{ fontSize:13, flex:1, color:'var(--text)' }}>{m.full_name}</span>
+                  <div style={{ width:16, height:16, borderRadius:4, border:assigned?'none':'2px solid var(--border)', background:assigned?'var(--accent)':'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    {assigned && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
+                  </div>
                 </div>
-              ))}
-              {sub.status && <div onMouseDown={e=>{ e.stopPropagation(); onUpdate('status',''); onUpdate('status_color',''); setShowStatusPicker(false); }} style={{ padding:'5px 8px', borderRadius:6, cursor:'pointer', fontSize:11, color:'var(--muted)', borderTop:'1px solid var(--border)', marginTop:4, textAlign:'center' }}>Clear status</div>}
-            </div>
-          )}
-        </div>
+              );
+            })}
+            {owners.length>0 && <div onClick={()=>{ setOwners([]); onUpdate('assigned_officers',[]); setShowOwnerPicker(false); }} style={{ marginTop:8, padding:'6px 8px', borderRadius:7, cursor:'pointer', fontSize:12, color:'var(--muted)', borderTop:'1px solid var(--border)', textAlign:'center' }}>Clear all owners</div>}
+          </div>
+        )}
       </td>
+
+      {/* Status picker */}
+      <td style={{ padding:'5px 8px', width:130 }} onClick={e=>e.stopPropagation()}>
+        <div
+          onClick={e=>{ const r=e.currentTarget.getBoundingClientRect(); setStatusPos({top:r.bottom+4,left:Math.max(8,r.left)}); setShowStatusPicker(v=>!v); setShowOwnerPicker(false); }}
+          style={{ display:'inline-flex', alignItems:'center', gap:5, background:sub.status_color||'rgba(77,142,240,.25)', padding:'3px 10px', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:700, color:'#fff', userSelect:'none', maxWidth:120, overflow:'hidden', whiteSpace:'nowrap' }}>
+          {sub.status || <span style={{ opacity:.6 }}>Set status</span>}
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" strokeWidth="3"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        {showStatusPicker && (
+          <div ref={statusPickerRef} style={{ position:'fixed', top:statusPos.top, left:statusPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:6, width:200, boxShadow:'0 12px 32px rgba(0,0,0,.5)' }}>
+            <div style={{ fontSize:10, color:'var(--muted)', padding:'4px 8px', fontWeight:700, letterSpacing:'.05em', textTransform:'uppercase' }}>Status</div>
+            {statuses.map(s=>(
+              <div key={s.id} onClick={()=>{ onUpdate('status',s.label); onUpdate('status_color',s.color); setShowStatusPicker(false); }}
+                style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 8px', borderRadius:6, cursor:'pointer', background:sub.status===s.label?'rgba(77,142,240,.1)':'transparent' }}>
+                <div style={{ width:10, height:10, borderRadius:3, background:s.color, flexShrink:0 }} />
+                <span style={{ fontSize:12, color:'var(--text)', flex:1 }}>{s.label}</span>
+                {sub.status===s.label && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="3" style={{ marginLeft:'auto' }}><polyline points="20 6 9 17 4 12"/></svg>}
+              </div>
+            ))}
+            {sub.status && <div onClick={()=>{ onUpdate('status',''); onUpdate('status_color',''); setShowStatusPicker(false); }} style={{ padding:'5px 8px', borderRadius:6, cursor:'pointer', fontSize:11, color:'var(--muted)', borderTop:'1px solid var(--border)', marginTop:4, textAlign:'center' }}>Clear status</div>}
+          </div>
+        )}
+      </td>
+
       <td style={{ padding:'5px 8px', width:36 }}>
-        {hovered && <button onClick={e=>{ e.stopPropagation(); onDelete(); }} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:15, lineHeight:1, padding:'0 4px', opacity:.6 }} title="Delete">x</button>}
+        {hovered && <button onClick={e=>{ e.stopPropagation(); onDelete(); }} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:15, lineHeight:1, padding:'0 4px', opacity:.6 }}>x</button>}
       </td>
     </tr>
   );
 }
-
 
 function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdate, onDelete, onOpenUpdates, onAddSubItem, onToggleExpand, isExpanded, subItemCount, updateCount=0, updateCounts={}, selected, onSelect, PRIORITY_COLORS, hiddenCols=[], onDragStart, onDragOver, onDrop, isTrinidadWs=false }) {
   const [editing, setEditing] = useState(null);
@@ -8035,42 +8049,61 @@ ASK HANNAH (this feature)
 
 Respond with well-structured answers using bullet points and headers. Be concise but thorough. For the dedicated Hannah page, give more detailed answers. Never mention SalesForge.`
 
-  const HANNAH_TOOLS = [
-    { name:'navigate_to', description:'Navigate the CRM to a section', input_schema:{ type:'object', properties:{ view:{ type:'string', enum:['dashboard','contacts','pricing','automation','presentations','calendar','lenders','ratecompare','lead-scoring','content-hub','hannah'] } }, required:['view'] } },
-    { name:'run_pricing', description:'Open the pricing engine', input_schema:{ type:'object', properties:{ loan_amount:{ type:'number' }, fico:{ type:'number' }, ltv:{ type:'number' } }, required:[] } },
-    { name:'search_contacts', description:'Search contacts by name/phone/email', input_schema:{ type:'object', properties:{ query:{ type:'string' } }, required:['query'] } },
-    { name:'create_contact', description:'Create a new contact', input_schema:{ type:'object', properties:{ full_name:{ type:'string' }, phone:{ type:'string' }, email:{ type:'string' }, stage:{ type:'string' } }, required:['full_name'] } },
-    { name:'get_pipeline_summary', description:'Get pipeline counts by stage', input_schema:{ type:'object', properties:{}, required:[] } },
-  ];
+  // ── Tool executor (runs directly in client) ──────────────────────
+  const executeAction = async (action, args) => {
+    if(action === 'navigate') {
+      if(onNavigate) onNavigate(args.view);
+      return 'Navigated to ' + args.view + '.';
+    }
+    if(action === 'open_pricing') {
+      if(onOpenPricing) onOpenPricing({});
+      return 'Opened the Pricing Engine for you.';
+    }
+    if(action === 'search_contacts') {
+      const q = (args.query||'').toLowerCase();
+      const {data} = await supabase.from('contacts').select('full_name,phone,email,stage').eq('company_id', profile?.company_name);
+      const hits = (data||[]).filter(c=>c.full_name?.toLowerCase().includes(q)||c.phone?.includes(q)||c.email?.toLowerCase().includes(q)).slice(0,5);
+      if(!hits.length) return 'No contacts found matching "' + args.query + '".';
+      return 'Found ' + hits.length + ' contact(s):\n' + hits.map(c=>'• ' + c.full_name + ' — ' + (c.stage||'No stage') + ' — ' + (c.phone||c.email||'')).join('\n');
+    }
+    if(action === 'create_contact') {
+      const {data,error} = await supabase.from('contacts').insert([{full_name:args.name,phone:args.phone||'',email:args.email||'',stage:args.stage||'New Lead',company_id:profile?.company_name,source:'Hannah AI'}]).select().single();
+      if(error) return 'Error creating contact: ' + error.message;
+      return 'Created contact: ' + data.full_name + ' (' + data.stage + ')';
+    }
+    if(action === 'pipeline_summary') {
+      const {data} = await supabase.from('contacts').select('stage').eq('company_id', profile?.company_name);
+      const counts = {};
+      (data||[]).forEach(c=>{ counts[c.stage||'Unknown']=(counts[c.stage||'Unknown']||0)+1; });
+      return 'Pipeline (' + (data||[]).length + ' total):\n' + Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([s,n])=>'• ' + s + ': ' + n).join('\n');
+    }
+    return null;
+  };
 
-  const executeTool = async (toolName, toolInput) => {
-    if(toolName==='navigate_to') { if(onNavigate) onNavigate(toolInput.view); return 'Navigated to ' + toolInput.view; }
-    if(toolName==='run_pricing') { if(onOpenPricing) onOpenPricing(toolInput); return 'Opened Pricing Engine'; }
-    if(toolName==='search_contacts') {
-      try {
-        const q = (toolInput.query||'').toLowerCase();
-        const {data} = await supabase.from('contacts').select('full_name,phone,email,stage').eq('company_id', profile?.company_name);
-        const matches = (data||[]).filter(c=>c.full_name?.toLowerCase().includes(q)||c.phone?.includes(q)||c.email?.toLowerCase().includes(q)).slice(0,5);
-        if(!matches.length) return 'No contacts found matching "' + toolInput.query + '"';
-        return 'Found ' + matches.length + ' match(es):\n' + matches.map(c=>'- ' + c.full_name + ' (' + (c.stage||'No stage') + ') ' + (c.phone||c.email||'')).join('\n');
-      } catch(e) { return 'Could not search contacts'; }
+  // ── Detect action intent from user message ─────────────────────
+  const detectAction = (text) => {
+    const t = text.toLowerCase();
+    if(/(go to|open|navigate|take me to|show me)\s+(dashboard|contacts|pricing|calendar|presentations|automation|lenders|rate|content|scoring|hannah)/i.test(text)) {
+      const viewMap = {dashboard:'dashboard',contacts:'contacts',pricing:'pricing',calendar:'calendar',presentations:'presentations',automation:'automation',lenders:'lenders',rate:'ratecompare','rate compare':'ratecompare',scoring:'lead-scoring',content:'content-hub',hannah:'hannah'};
+      const match = text.match(/(dashboard|contacts|pricing|calendar|presentations|automation|lenders|rate compare|rate|content|scoring|hannah)/i);
+      if(match) return { action:'navigate', args:{ view: viewMap[match[1].toLowerCase()]||match[1].toLowerCase() } };
     }
-    if(toolName==='create_contact') {
-      try {
-        const {data,error} = await supabase.from('contacts').insert([{ full_name:toolInput.full_name, phone:toolInput.phone||'', email:toolInput.email||'', stage:toolInput.stage||'New Lead', company_id:profile?.company_name, source:'Hannah AI' }]).select().single();
-        if(error) return 'Error: ' + error.message;
-        return 'Created contact: ' + data.full_name + ' (' + data.stage + ')';
-      } catch(e) { return 'Could not create contact'; }
+    if(/(open|launch|run|start)\s+(pricing|price|pricer)/i.test(text) || /price (a |this |the )?loan/i.test(text)) {
+      return { action:'open_pricing', args:{} };
     }
-    if(toolName==='get_pipeline_summary') {
-      try {
-        const {data} = await supabase.from('contacts').select('stage').eq('company_id', profile?.company_name);
-        const counts = {};
-        (data||[]).forEach(c=>{ counts[c.stage||'Unknown']=(counts[c.stage||'Unknown']||0)+1; });
-        return 'Pipeline (' + (data||[]).length + ' total):\n' + Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([s,n])=>'- ' + s + ': ' + n).join('\n');
-      } catch(e) { return 'Could not fetch pipeline'; }
+    if(/(find|search|look up|look for|find me)\s+.{2,40}(contact|borrower|lead|client)/i.test(text) || /who is\s+\w/i.test(text)) {
+      const nameMatch = text.match(/(?:find|search|look up|who is)\s+([A-Z][a-z]+ [A-Z][a-z]+)/);
+      const query = nameMatch ? nameMatch[1] : text.replace(/find|search|look up|contact|borrower|lead|for|me/gi,'').trim();
+      return { action:'search_contacts', args:{ query } };
     }
-    return 'Tool ' + toolName + ' executed';
+    if(/(create|add|new)\s+(a\s+)?(contact|lead|borrower|client)/i.test(text)) {
+      const nameMatch = text.match(/(?:named?|for)\s+([A-Z][a-z]+(?: [A-Z][a-z]+)+)/);
+      return { action:'create_contact', args:{ name: nameMatch?nameMatch[1]:'New Lead' } };
+    }
+    if(/(pipeline|how many|summary|overview|leads|contacts).{0,30}(pipeline|summary|overview|stage|status)/i.test(text) || /pipeline summary/i.test(text)) {
+      return { action:'pipeline_summary', args:{} };
+    }
+    return null;
   };
 
   const send = async () => {
@@ -8080,42 +8113,37 @@ Respond with well-structured answers using bullet points and headers. Be concise
     setMessages(newMessages);
     setInput('');
     setLoading(true);
+
+    // Try client-side action detection first
+    const detected = detectAction(text);
+    if(detected) {
+      try {
+        const result = await executeAction(detected.action, detected.args);
+        if(result) {
+          setMessages(m=>[...m, { role:'assistant', content:result }]);
+          setLoading(false);
+          return;
+        }
+      } catch(e) {}
+    }
+
+    // Fall back to edge function for conversational response
     try {
-      const apiMessages = newMessages.filter(m=>m.role==='user'||m.role==='assistant').map(m=>({ role:m.role, content:m.content }));
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const conversationText = newMessages.map(m=>(m.role==='user'?'User':'Hannah') + ': ' + m.content).join('\n');
+      const prompt = SYSTEM + '\n\nConversation:\n' + conversationText + '\n\nRespond as Hannah:';
+      const res = await fetch('https://tiwsuwbalvnrqsmudjfy.supabase.co/functions/v1/generate-presentation', {
         method:'POST',
-        headers:{ 'Content-Type':'application/json', 'anthropic-version':'2023-06-01', 'x-api-key': process.env.REACT_APP_ANTHROPIC_KEY||'' },
-        body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1024, system:SYSTEM, tools:HANNAH_TOOLS, messages:apiMessages }),
+        headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+(process.env.REACT_APP_SUPABASE_ANON_KEY||'') },
+        body: JSON.stringify({ prompt }),
       });
       const data = await res.json();
-      if(data.stop_reason==='tool_use') {
-        const tb = data.content.find(b=>b.type==='tool_use');
-        const txt = data.content.find(b=>b.type==='text');
-        const result = await executeTool(tb.name, tb.input);
-        const msg = (txt?.text ? txt.text + '\n\n' : '') + 'Action: ' + tb.name + ' — ' + result;
-        setMessages(m=>[...m, { role:'assistant', content:msg }]);
-      } else {
-        const reply = data.content?.[0]?.text || 'Sorry, I had trouble responding.';
-        setMessages(m=>[...m, { role:'assistant', content:reply }]);
-      }
+      const reply = data.content?.[0]?.text || data.reply || 'Sorry, I had trouble responding.';
+      setMessages(m=>[...m, { role:'assistant', content:reply }]);
     } catch(e) {
-      try {
-        const conversationText = newMessages.map(m=>(m.role==='user'?'User':'Hannah') + ': ' + m.content).join('\n');
-        const prompt = SYSTEM + '\n\nConversation:\n' + conversationText + '\n\nRespond as Hannah:';
-        const res2 = await fetch('https://tiwsuwbalvnrqsmudjfy.supabase.co/functions/v1/generate-presentation', {
-          method:'POST',
-          headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+(process.env.REACT_APP_SUPABASE_ANON_KEY||'') },
-          body: JSON.stringify({ prompt }),
-        });
-        const data2 = await res2.json();
-        setMessages(m=>[...m, { role:'assistant', content:data2.content?.[0]?.text||data2.reply||'Sorry, I had trouble responding.' }]);
-      } catch {
-        setMessages(m=>[...m, { role:'assistant', content:'Connection error. Please try again.' }]);
-      }
+      setMessages(m=>[...m, { role:'assistant', content:'Connection error. Please try again.' }]);
     }
     setLoading(false);
   };
-
   const renderContent = (text) => text.split('\n').map((line,i)=>{
     if (line.startsWith('- ') || line.startsWith('• ')) {
       return <div key={i} style={{ display:'flex', gap:8, marginBottom:4 }}><span style={{ color:'#1a9a5c', fontWeight:700, flexShrink:0, marginTop:1 }}>•</span><span>{line.replace(/^[-•]\s*/,'').replace(/\*\*([^*]+)\*\*/g,(_,t)=>t)}</span></div>;
