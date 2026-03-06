@@ -3349,27 +3349,29 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                           onDragStart={e=>handleDragStart(e,group.id,item.id)}
                           onDragOver={e=>{ e.preventDefault(); setDragOverGroup(group.id); setDragOverIdx(idx); }}
                           onDrop={e=>handleDrop(e,group.id,idx)}
+                          updateCount={updateCounts[item.id]||0}
+                          updateCounts={updateCounts}
                         />
-                        {/* Sub-items — enhanced with status, owner, update count */}
+                        {/* Sub-items */}
                         {expandedItems[item.id] && (subItems[item.id]||[]).map(sub=>{
                           const subUpdCnt = updateCounts[sub.id]||0;
                           return (
-                          <SubItemRow
-                            key={sub.id}
-                            sub={sub}
-                            statuses={statuses}
-                            teamMembers={teamMembers}
-                            updateCount={subUpdCnt}
-                            onOpenUpdates={()=>setItemDetailPanel(sub)}
-                            onUpdate={async(field,val)=>{
-                              await supabase.from('workspace_items').update({[field]:val}).eq('id',sub.id);
-                              setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(s=>s.id===sub.id?{...s,[field]:val}:s)}));
-                            }}
-                            onDelete={async()=>{
-                              await supabase.from('workspace_items').delete().eq('id',sub.id);
-                              setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).filter(s=>s.id!==sub.id)}));
-                            }}
-                          />
+                            <SubItemRow
+                              key={sub.id}
+                              sub={sub}
+                              statuses={statuses}
+                              teamMembers={teamMembers}
+                              updateCount={subUpdCnt}
+                              onOpenUpdates={()=>setItemDetailPanel(sub)}
+                              onUpdate={async(field,val)=>{
+                                await supabase.from('workspace_items').update({[field]:val}).eq('id',sub.id);
+                                setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(s=>s.id===sub.id?{...s,[field]:val}:s)}));
+                              }}
+                              onDelete={async()=>{
+                                await supabase.from('workspace_items').delete().eq('id',sub.id);
+                                setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).filter(s=>s.id!==sub.id)}));
+                              }}
+                            />
                           );
                         })}
                         {expandedItems[item.id] && (
@@ -3379,6 +3381,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                             </td>
                           </tr>
                         )}
+                      </React.Fragment>
                     ))}
                     {groupItems.length===0 && <tr><td colSpan={COLUMNS.length+2} style={{ padding:'16px 10px', color:'var(--muted)', textAlign:'center', fontSize:13 }}>No items yet</td></tr>}
                   </tbody>
