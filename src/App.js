@@ -9389,28 +9389,21 @@ function AutomationView({ contacts, profile, toast, onOpenPricing, onGeneratePre
       : contacts.slice(0, form.batch).map(c => c.id);
 
     // Fire campaign via automation engine
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/automation-engine', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + session.access_token,
-      },
-      body: JSON.stringify({
+    const { data: result, error: launchErr } = await supabase.functions.invoke('automation-engine', {
+      body: {
         action: 'launchCampaign',
         campaign_id: camp.id,
         contact_ids: contactIds,
         company_id: companyId,
-      }),
+      },
     });
-    const result = await res.json();
 
     setCreating(false);
     setShowCreate(false);
     setSelectedContactIds([]);
     setUploadedLeads(null);
     setForm({ name:'', batch:500, channel:'both', tag:'Purchase' });
-    toast(result.success ? `Campaign launched! Sending to ${result.result?.sent || 0} leads...` : 'Error: ' + result.error);
+    toast(result?.success ? `Campaign launched! Sending to ${result.result?.sent || 0} leads...` : 'Error: ' + (result?.error || launchErr?.message || 'Launch failed'));
     loadData();
   };
 
@@ -9436,16 +9429,13 @@ function AutomationView({ contacts, profile, toast, onOpenPricing, onGeneratePre
     setAiTyping(true);
     const contact = contacts.find(c => c.id === viewConvo.contact_id);
     if (contact?.phone) {
-      const { data: { session } } = await supabase.auth.getSession();
-      await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/twilio-sms', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-        body: JSON.stringify({
+      await supabase.functions.invoke('twilio-sms', {
+        body: {
           contact_id: viewConvo.contact_id,
           company_id: companyId,
           to: contact.phone,
           body: convoMessage,
-        }),
+        },
       });
       setConvoMessage('');
       // Reload thread
@@ -9490,6 +9480,7 @@ function AutomationView({ contacts, profile, toast, onOpenPricing, onGeneratePre
         const propVal   = priceMap[newAnswers.price_range] || 500000;
         const loanAmt   = Math.round(propVal * 0.85);
         const data = {
+          contactId: qualContact?.id || null,
           borrowerName: qualContact?.full_name || qualManual.name,
           phone: qualContact?.phone, email: qualContact?.email,
           intent: newAnswers.intent, propertyValue: propVal,
@@ -9503,12 +9494,33 @@ function AutomationView({ contacts, profile, toast, onOpenPricing, onGeneratePre
 
         // Score this lead via automation engine
         if (qualContact?.id) {
-          const { data: { session } } = await supabase.auth.getSession();
-          await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/automation-engine', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-            body: JSON.stringify({ action: 'scoreLead', contact_id: qualContact.id, qualData: data }),
+          await supabase.functions.invoke('automation-engine', {
+            body: { action: 'scoreLead', contact_id: qualContact.id, qualData: data },
           });
+
+          // ── FIX: Save qual answers + update stage on the contact record ──
+          const stageByTimeline = {
+            'ASAP / Already looking': 'Qualified',
+            '1–3 months': 'Contacted',
+            '3–6 months': 'Contacted',
+            'Just researching': 'New Lead',
+          };
+          const newStage = stageByTimeline[newAnswers.timeline] || 'Contacted';
+          const preferredCh = newAnswers.channel?.includes('Text') ? 'sms'
+            : newAnswers.channel?.includes('Email') ? 'email' : 'both';
+
+          await supabase.from('contacts').update({
+            stage: newStage,
+            preferred_channel: preferredCh,
+            last_contacted_at: new Date().toISOString(),
+          }).eq('id', qualContact.id);
+
+          await supabase.from('activities').insert([{
+            contact_id: qualContact.id,
+            company_id: profile?.company_name,
+            type: 'note',
+            body: `Qualification completed — Intent: ${newAnswers.intent}, Range: ${newAnswers.price_range}, Credit: ${newAnswers.credit}, Timeline: ${newAnswers.timeline}, Channel: ${newAnswers.channel}`,
+          }]);
         }
 
         setQualData(data);
@@ -9788,7 +9800,7 @@ function AutomationView({ contacts, profile, toast, onOpenPricing, onGeneratePre
                   style={{ padding:'12px 20px', borderRadius:10, background:'linear-gradient(135deg,#0f1c3f,#1a56db)', border:'none', color:'#fff', fontWeight:600, fontSize:14, cursor:'pointer' }}>
                   📊 Build Presentation
                 </button>
-                <button onClick={() => onOpenPricing && onOpenPricing({ creditScore: qualData.creditScore, loanAmount: qualData.loanAmount, ltv: qualData.ltv })}
+                <button onClick={() => onOpenPricing && onOpenPricing({ creditScore: qualData.creditScore, loanAmount: qualData.loanAmount, ltv: qualData.ltv, contactId: qualData.contactId })}
                   style={{ padding:'12px 20px', borderRadius:10, background:'rgba(59,130,246,.15)', border:'1px solid rgba(59,130,246,.3)', color:'#3b82f6', fontWeight:600, fontSize:14, cursor:'pointer' }}>
                   💰 Run Pricing
                 </button>
@@ -10297,14 +10309,10 @@ function ContentHubView({ profile, toast }) {
 
   const loadContent = React.useCallback(async () => {
     setLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch(`${process.env.REACT_APP_SUPABASE_URL}/functions/v1/content-generator`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-      body: JSON.stringify({ action: 'listContent', company_id: companyId }),
+    const { data, error: listErr } = await supabase.functions.invoke('content-generator', {
+      body: { action: 'listContent', company_id: companyId },
     });
-    const data = await res.json();
-    setContent(data.result || []);
+    setContent(data?.result || []);
     setLoading(false);
   }, [companyId]);
 
@@ -10313,7 +10321,6 @@ function ContentHubView({ profile, toast }) {
   const generate = async () => {
     if (!form.topic && form.type !== 'email_sequence') { toast('Enter a topic'); return; }
     setGenerating(true);
-    const { data: { session } } = await supabase.auth.getSession();
     let action = '';
     let params = {};
     if (form.type === 'blog')           { action = 'generateBlogPost'; params = { topic:form.topic, keyword:form.keyword, audience:form.audience, length:form.length }; }
@@ -10321,28 +10328,22 @@ function ContentHubView({ profile, toast }) {
     else if (form.type === 'email')     { action = 'generateEmailSequence'; params = { segment:form.segment, emailCount:parseInt(form.emailCount), goal:'schedule a consultation' }; }
     else if (form.type === 'sms')       { action = 'generateSMSSequence'; params = { title:`SMS Qualification Sequence — ${form.topic}`, steps:6 }; }
 
-    const res = await fetch(`${process.env.REACT_APP_SUPABASE_URL}/functions/v1/content-generator`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-      body: JSON.stringify({ action, company_id: companyId, created_by: profile.id, requires_approval: true, ...params }),
+    const { data, error: genErr } = await supabase.functions.invoke('content-generator', {
+      body: { action, company_id: companyId, created_by: profile.id, requires_approval: true, ...params },
     });
-    const data = await res.json();
     setGenerating(false);
-    if (data.success) {
+    if (data?.success) {
       toast('✓ Content generated! Pending approval.');
       loadContent();
       setTab('library');
     } else {
-      toast('Error: ' + data.error);
+      toast('Error: ' + (data?.error || genErr?.message || 'Unknown error'));
     }
   };
 
   const approve = async (id) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    await fetch(`${process.env.REACT_APP_SUPABASE_URL}/functions/v1/content-generator`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-      body: JSON.stringify({ action: 'approveContent', company_id: companyId, created_by: profile.id, content_id: id }),
+    await supabase.functions.invoke('content-generator', {
+      body: { action: 'approveContent', company_id: companyId, created_by: profile.id, content_id: id },
     });
     toast('Content approved!');
     loadContent();
@@ -10474,16 +10475,12 @@ function LeadScoringView({ contacts, profile, toast }) {
 
   const scoreContact = async (contactId) => {
     setScoring(contactId);
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch(`${process.env.REACT_APP_SUPABASE_URL}/functions/v1/automation-engine`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-      body: JSON.stringify({ action: 'scoreLead', contact_id: contactId }),
+    const { data, error: scoreErr } = await supabase.functions.invoke('automation-engine', {
+      body: { action: 'scoreLead', contact_id: contactId },
     });
-    const data = await res.json();
     setScoring(null);
-    if (data.success) { toast(`Score: ${data.result.score}/100 (${data.result.grade})`); loadScores(); }
-    else toast('Error: ' + data.error);
+    if (data?.success) { toast(`Score: ${data.result.score}/100 (${data.result.grade})`); loadScores(); }
+    else toast('Error: ' + (data?.error || scoreErr?.message || 'Could not score lead'));
   };
 
   const scoreAll = async () => {
@@ -10633,15 +10630,11 @@ function LiveTransferDashboard({ profile, toast }) {
   }, [companyId, loadData]);
 
   const endTransfer = async (transferId) => {
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch(`${process.env.REACT_APP_SUPABASE_URL}/functions/v1/live-transfer`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-      body: JSON.stringify({ action: 'endTransfer', transfer_id: transferId }),
+    const { data, error: transferErr } = await supabase.functions.invoke('live-transfer', {
+      body: { action: 'endTransfer', transfer_id: transferId },
     });
-    const data = await res.json();
-    if (data.success) { toast('Transfer completed' + (data.summary ? ' — summary saved' : '')); loadData(); }
-    else toast('Error: ' + data.error);
+    if (data?.success) { toast('Transfer completed' + (data.summary ? ' — summary saved' : '')); loadData(); }
+    else toast('Error: ' + (data?.error || transferErr?.message || 'Could not end transfer'));
   };
 
   const STATUS_COLORS = { waiting:'#f59e0b', connecting:'#3b82f6', connected:'#22c55e', completed:'#888', abandoned:'#ef4444' };
@@ -10953,12 +10946,65 @@ export default function App() {
             qualData={presGenData}
             onBack={() => { setView('automation', null); }}
             toast={toast}
-            onSendToLead={({ lead, selectedOptions, lenderRates }) => {
-              // Also fire legacy PresentationBuilderModal via pricingPreset so email goes out
+            onSendToLead={async ({ lead, selectedOptions, lenderRates }) => {
               const bestOption = selectedOptions[0];
               if (bestOption) {
                 setPricingRate({ rate: bestOption.rate.toFixed(3), points:'0', monthly_payment: bestOption.pmt, loan_amount: String(bestOption.loanAmt), loan_type: bestOption.type, term:'30', loan_purpose: lead.loanPurpose });
               }
+
+              // ── FIX: Send real email if contact has one ──
+              if (lead.email) {
+                const rateRows = selectedOptions.map(o =>
+                  `<tr><td style="padding:8px;border-bottom:1px solid #eee">${o.type || o.loanType || ''}</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${Number(o.rate).toFixed(3)}%</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">$${(o.pmt||o.monthly_payment||0).toLocaleString()}/mo</td><td style="padding:8px;border-bottom:1px solid #eee;text-align:center">${(o.points||0) >= 0 ? '+' : ''}${o.points || '0'} pts</td></tr>`
+                ).join('');
+                const emailHtml = `<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#1a1a2e">
+                  <div style="background:linear-gradient(135deg,#1a1a2e,#2d1b69);padding:28px 32px;border-radius:12px 12px 0 0">
+                    <h1 style="color:#fff;margin:0;font-size:22px;font-weight:700">Citizens Financial Home Services</h1>
+                    <p style="color:rgba(255,255,255,.7);margin:4px 0 0;font-size:13px">Your Personalized Rate Presentation</p>
+                  </div>
+                  <div style="padding:28px 32px;background:#fff;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 12px 12px">
+                    <p style="font-size:15px">Hi <strong>${lead.borrowerName}</strong>,</p>
+                    <p>Based on your profile, here are your personalized mortgage options:</p>
+                    <table style="width:100%;border-collapse:collapse;margin:20px 0;font-size:14px">
+                      <thead><tr style="background:#f8f9fa"><th style="padding:10px 8px;text-align:left;border-bottom:2px solid #e5e7eb">Loan Type</th><th style="padding:10px 8px;text-align:center;border-bottom:2px solid #e5e7eb">Rate</th><th style="padding:10px 8px;text-align:center;border-bottom:2px solid #e5e7eb">Monthly Payment</th><th style="padding:10px 8px;text-align:center;border-bottom:2px solid #e5e7eb">Points</th></tr></thead>
+                      <tbody>${rateRows}</tbody>
+                    </table>
+                    <div style="background:#f8f9fa;border-radius:8px;padding:16px;margin:20px 0;font-size:13px">
+                      <strong>Loan Details:</strong><br/>
+                      Loan Amount: $${(lead.loanAmount||0).toLocaleString()} &nbsp;|&nbsp;
+                      Property Value: $${(lead.propertyValue||0).toLocaleString()} &nbsp;|&nbsp;
+                      Credit Score: ${lead.creditScore || 'N/A'} &nbsp;|&nbsp;
+                      LTV: ${lead.ltv || 85}%
+                    </div>
+                    <p>Ready to move forward? Reply to this email or call us — we'll lock your rate and get you pre-approved today.</p>
+                    <p style="color:#888;font-size:11px;margin-top:32px;border-top:1px solid #eee;padding-top:16px">Citizens Financial Home Services &nbsp;|&nbsp; This is not a loan commitment. Rates subject to change without notice.</p>
+                  </div>
+                </div>`;
+                try {
+                  await supabase.functions.invoke('send-email', {
+                    body: { to: lead.email, subject: `Your Mortgage Rate Presentation — Citizens Financial`, body: emailHtml },
+                  });
+                } catch (e) { console.error('Presentation email error:', e); }
+              }
+
+              // ── FIX: Update contact stage + log activity ──
+              const cId = lead.contactId || presGenData?.contactId;
+              if (cId) {
+                await supabase.from('contacts').update({
+                  stage: 'Presentation Sent',
+                  last_contacted_at: new Date().toISOString(),
+                }).eq('id', cId);
+                await supabase.from('activities').insert([{
+                  contact_id: cId,
+                  company_id: profile?.company_name,
+                  type: 'email',
+                  body: `Rate presentation sent to ${lead.email || lead.borrowerName} (${selectedOptions.length} option${selectedOptions.length !== 1 ? 's' : ''})`,
+                }]);
+                // Update campaign_leads if in a campaign
+                await supabase.from('campaign_leads').update({ status: 'presentation_sent' })
+                  .eq('contact_id', cId).eq('status', 'sent');
+              }
+
               toast('🎯 Presentation sent to ' + lead.borrowerName + '!');
             }}
           />
@@ -11045,7 +11091,20 @@ export default function App() {
       {/* Pricing Engine Panel */}
       {pricingOpen && <PricingEnginePanel
         onClose={()=>{ setPricingOpen(false); setPricingPreset(null); }}
-        onApplyRate={rateData=>{ setPricingRate(rateData); toast('Rate applied — open Build Presentation to use it'); }}
+        onApplyRate={async (rateData) => {
+          setPricingRate(rateData);
+          toast('Rate applied — open Build Presentation to use it');
+          // ── FIX: Persist rate selection to contact record ──
+          const contactId = pricingPreset?.contactId;
+          if (contactId) {
+            await supabase.from('contacts').update({
+              selected_rate: rateData.rate ? String(rateData.rate) : null,
+              loan_amount: parseFloat(rateData.loan_amount) || null,
+              loan_type: rateData.loan_type || null,
+              last_priced_at: new Date().toISOString(),
+            }).eq('id', contactId).catch(() => {});
+          }
+        }}
         preset={pricingPreset}
       />}
 
