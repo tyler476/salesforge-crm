@@ -8049,72 +8049,109 @@ ASK HANNAH (this feature)
 
 Respond with well-structured answers using bullet points and headers. Be concise but thorough. For the dedicated Hannah page, give more detailed answers. Never mention SalesForge.`
 
-  // ── Tool executor (runs directly in client) ──────────────────────
   const executeAction = async (action, args) => {
     if(action === 'navigate') {
       if(onNavigate) onNavigate(args.view);
-      return 'Navigated to ' + args.view + '.';
+      return 'Navigating to ' + args.view + ' now.';
     }
     if(action === 'open_pricing') {
       if(onOpenPricing) onOpenPricing({});
-      return 'Opened the Pricing Engine for you.';
+      return 'Opening the Pricing Engine now.';
     }
     if(action === 'search_contacts') {
       const q = (args.query||'').toLowerCase();
       const {data} = await supabase.from('contacts').select('full_name,phone,email,stage').eq('company_id', profile?.company_name);
-      const hits = (data||[]).filter(c=>c.full_name?.toLowerCase().includes(q)||c.phone?.includes(q)||c.email?.toLowerCase().includes(q)).slice(0,5);
+      const hits = (data||[]).filter(c=>
+        c.full_name?.toLowerCase().includes(q) ||
+        c.phone?.includes(q) ||
+        c.email?.toLowerCase().includes(q)
+      ).slice(0,5);
       if(!hits.length) return 'No contacts found matching "' + args.query + '".';
-      return 'Found ' + hits.length + ' contact(s):\n' + hits.map(c=>'• ' + c.full_name + ' — ' + (c.stage||'No stage') + ' — ' + (c.phone||c.email||'')).join('\n');
+      return 'Found ' + hits.length + ' contact(s):\n' + hits.map(c=>'• ' + c.full_name + ' — ' + (c.stage||'No stage') + (c.phone?' — '+c.phone:'')).join('\n');
     }
     if(action === 'create_contact') {
-      const {data,error} = await supabase.from('contacts').insert([{full_name:args.name,phone:args.phone||'',email:args.email||'',stage:args.stage||'New Lead',company_id:profile?.company_name,source:'Hannah AI'}]).select().single();
-      if(error) return 'Error creating contact: ' + error.message;
+      const {data,error} = await supabase.from('contacts').insert([{
+        full_name: args.name, phone: args.phone||'', email: args.email||'',
+        stage: args.stage||'New Lead', company_id: profile?.company_name, source:'Hannah AI'
+      }]).select().single();
+      if(error) return 'Error: ' + error.message;
       return 'Created contact: ' + data.full_name + ' (' + data.stage + ')';
     }
     if(action === 'pipeline_summary') {
       const {data} = await supabase.from('contacts').select('stage').eq('company_id', profile?.company_name);
       const counts = {};
-      (data||[]).forEach(c=>{ counts[c.stage||'Unknown']=(counts[c.stage||'Unknown']||0)+1; });
+      (data||[]).forEach(c=>{ const s=c.stage||'Unknown'; counts[s]=(counts[s]||0)+1; });
       return 'Pipeline (' + (data||[]).length + ' total):\n' + Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([s,n])=>'• ' + s + ': ' + n).join('\n');
     }
     return null;
   };
 
-  // ── Detect action intent from user message ─────────────────────
   const detectAction = (text) => {
-    const t = text.toLowerCase();
-    if(/(go to|open|navigate|take me to|show me)\s+(dashboard|contacts|pricing|calendar|presentations|automation|lenders|rate|content|scoring|hannah)/i.test(text)) {
-      const viewMap = {dashboard:'dashboard',contacts:'contacts',pricing:'pricing',calendar:'calendar',presentations:'presentations',automation:'automation',lenders:'lenders',rate:'ratecompare','rate compare':'ratecompare',scoring:'lead-scoring',content:'content-hub',hannah:'hannah'};
-      const match = text.match(/(dashboard|contacts|pricing|calendar|presentations|automation|lenders|rate compare|rate|content|scoring|hannah)/i);
-      if(match) return { action:'navigate', args:{ view: viewMap[match[1].toLowerCase()]||match[1].toLowerCase() } };
+    const t = text.toLowerCase().trim();
+
+    // Navigation — check for any view keyword anywhere in message
+    const viewMap = {
+      'dashboard': 'dashboard', 'home': 'dashboard',
+      'contacts': 'contacts', 'contact': 'contacts',
+      'pricing': 'pricing', 'pricer': 'pricing', 'price engine': 'pricing',
+      'calendar': 'calendar',
+      'presentations': 'presentations', 'presentation': 'presentations',
+      'automation': 'automation',
+      'lenders': 'lenders', 'lender': 'lenders',
+      'rate compare': 'ratecompare', 'ratecompare': 'ratecompare',
+      'lead scoring': 'lead-scoring', 'scoring': 'lead-scoring',
+      'content hub': 'content-hub', 'content': 'content-hub',
+      'hannah': 'hannah',
+    };
+    const navTriggers = ['go to','open','navigate to','take me to','show me','switch to','launch','go back to'];
+    for(const trigger of navTriggers) {
+      if(t.startsWith(trigger) || t.includes(' ' + trigger + ' ')) {
+        for(const [keyword, view] of Object.entries(viewMap)) {
+          if(t.includes(keyword)) return { action:'navigate', args:{ view } };
+        }
+      }
     }
-    if(/(open|launch|run|start)\s+(pricing|price|pricer)/i.test(text) || /price (a |this |the )?loan/i.test(text)) {
+    // Also match plain "open pricing" / "open contacts" without loop
+    for(const [keyword, view] of Object.entries(viewMap)) {
+      if(t === keyword || t === 'open ' + keyword || t === 'go to ' + keyword) {
+        return { action:'navigate', args:{ view } };
+      }
+    }
+
+    // Pricing specifically
+    if(/open.*pric|launch.*pric|run.*pric|price.*loan|get.*rate|show.*rate/i.test(t)) {
       return { action:'open_pricing', args:{} };
     }
-    if(/(find|search|look up|look for|find me)\s+.{2,40}(contact|borrower|lead|client)/i.test(text) || /who is\s+\w/i.test(text)) {
-      const nameMatch = text.match(/(?:find|search|look up|who is)\s+([A-Z][a-z]+ [A-Z][a-z]+)/);
-      const query = nameMatch ? nameMatch[1] : text.replace(/find|search|look up|contact|borrower|lead|for|me/gi,'').trim();
-      return { action:'search_contacts', args:{ query } };
-    }
-    if(/(create|add|new)\s+(a\s+)?(contact|lead|borrower|client)/i.test(text)) {
-      const nameMatch = text.match(/(?:named?|for)\s+([A-Z][a-z]+(?: [A-Z][a-z]+)+)/);
-      return { action:'create_contact', args:{ name: nameMatch?nameMatch[1]:'New Lead' } };
-    }
-    if(/(pipeline|how many|summary|overview|leads|contacts).{0,30}(pipeline|summary|overview|stage|status)/i.test(text) || /pipeline summary/i.test(text)) {
+
+    // Pipeline summary
+    if(/pipeline|how many (lead|contact|borrower)|summary of (lead|contact)|stage breakdown/i.test(t)) {
       return { action:'pipeline_summary', args:{} };
     }
+
+    // Search contacts
+    if(/find|search|look up|who is|lookup/i.test(t) && !/pipeline|summary/i.test(t)) {
+      const nameMatch = t.match(/(?:find|search|look up|who is|for)\s+([a-z]+(?: [a-z]+)+)/i);
+      const query = nameMatch ? nameMatch[1] : t.replace(/find|search|look up|who is|contact|for|me|a|the/gi,'').trim();
+      if(query.length > 1) return { action:'search_contacts', args:{ query } };
+    }
+
+    // Create contact
+    if(/create|add|new (contact|lead|borrower|client)/i.test(t)) {
+      const nameMatch = t.match(/(?:named?|called|for)\s+([a-z]+(?: [a-z]+)+)/i);
+      return { action:'create_contact', args:{ name: nameMatch ? nameMatch[1] : 'New Lead' } };
+    }
+
     return null;
   };
 
   const send = async () => {
     const text = input.trim();
     if(!text || loading) return;
-    const newMessages = [...messages, { role:'user', content:text }];
-    setMessages(newMessages);
+    const userMsg = { role:'user', content:text };
+    setMessages(m=>[...m, userMsg]);
     setInput('');
     setLoading(true);
 
-    // Try client-side action detection first
     const detected = detectAction(text);
     if(detected) {
       try {
@@ -8124,20 +8161,25 @@ Respond with well-structured answers using bullet points and headers. Be concise
           setLoading(false);
           return;
         }
-      } catch(e) {}
+      } catch(err) {
+        setMessages(m=>[...m, { role:'assistant', content:'Error: ' + (err.message||'Action failed') }]);
+        setLoading(false);
+        return;
+      }
     }
 
-    // Fall back to edge function for conversational response
+    // Conversational fallback via edge function
     try {
-      const conversationText = newMessages.map(m=>(m.role==='user'?'User':'Hannah') + ': ' + m.content).join('\n');
-      const prompt = SYSTEM + '\n\nConversation:\n' + conversationText + '\n\nRespond as Hannah:';
+      const history = [...messages, userMsg];
+      const conversationText = history.map(m=>(m.role==='user'?'User':'Hannah') + ': ' + m.content).join('\n');
+      const prompt = SYSTEM + '\n\nConversation:\n' + conversationText + '\n\nHannah:';
       const res = await fetch('https://tiwsuwbalvnrqsmudjfy.supabase.co/functions/v1/generate-presentation', {
         method:'POST',
         headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+(process.env.REACT_APP_SUPABASE_ANON_KEY||'') },
         body: JSON.stringify({ prompt }),
       });
       const data = await res.json();
-      const reply = data.content?.[0]?.text || data.reply || 'Sorry, I had trouble responding.';
+      const reply = data.content?.[0]?.text || data.reply || 'I had trouble responding. Please try again.';
       setMessages(m=>[...m, { role:'assistant', content:reply }]);
     } catch(e) {
       setMessages(m=>[...m, { role:'assistant', content:'Connection error. Please try again.' }]);
