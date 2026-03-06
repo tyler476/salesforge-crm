@@ -8235,9 +8235,7 @@ Respond with well-structured answers using bullet points and headers. Be concise
         const toolUseBlock = data.content.find(b=>b.type==='tool_use');
         const textBlock    = data.content.find(b=>b.type==='text');
         const toolResult   = await executeTool(toolUseBlock.name, toolUseBlock.input);
-        const confirmMsg   = (textBlock?.text ? textBlock.text + '
-
-' : '') + `🔧 **${toolUseBlock.name}** → ${toolResult}`;
+        const confirmMsg   = (textBlock?.text ? textBlock.text + '\n\n' : '') + `🔧 **${toolUseBlock.name}** → ${toolResult}`;
         setMessages(m=>[...m, { role:'assistant', content:confirmMsg }]);
       } else {
         const reply = data.content?.[0]?.text || 'Sorry, I had trouble responding.';
