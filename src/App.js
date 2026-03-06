@@ -386,23 +386,37 @@ function PricingProvider({ children }) {
   // Auto-fetch FRED rates on mount (and when API key changes)
   useEffect(() => {
     if (!fredApiKey) return;
-    // Only re-fetch if cache is missing or older than 12 hours
-    const cachedStr = localStorage.getItem('fred_rate_cache');
-    if (cachedStr) {
-      try {
-        const cached = JSON.parse(cachedStr);
-        const age = Date.now() - new Date(cached._fetchedAt).getTime();
-        if (age < 6 * 60 * 60 * 1000) { setFredCache(cached); return; }
-      } catch {}
-    }
-    setFredLoading(true);
-    fetchAllFREDRates(fredApiKey).then(cache => {
-      if (cache) {
-        setFredCache(cache);
-        try { localStorage.setItem('fred_rate_cache', JSON.stringify(cache)); } catch {}
+
+    const doFetch = () => {
+      const cachedStr = localStorage.getItem('fred_rate_cache');
+      if (cachedStr) {
+        try {
+          const cached = JSON.parse(cachedStr);
+          const age = Date.now() - new Date(cached._fetchedAt).getTime();
+          if (age < 6 * 60 * 60 * 1000) { setFredCache(cached); return; }
+        } catch {}
       }
-      setFredLoading(false);
-    });
+      setFredLoading(true);
+      fetchAllFREDRates(fredApiKey).then(cache => {
+        if (cache) {
+          setFredCache(cache);
+          try { localStorage.setItem('fred_rate_cache', JSON.stringify(cache)); } catch {}
+        }
+        setFredLoading(false);
+      });
+    };
+
+    doFetch();
+    // Check every hour normally; every 5 min between 8-11am ET (when FRED publishes)
+    const smartInterval = setInterval(() => {
+      const etHour = new Date(new Date().toLocaleString('en-US', { timeZone:'America/New_York' })).getHours();
+      const isFREDWindow = etHour >= 8 && etHour < 11;
+      const cachedStr = localStorage.getItem('fred_rate_cache');
+      const cacheAge = cachedStr ? Date.now() - new Date(JSON.parse(cachedStr)._fetchedAt).getTime() : Infinity;
+      const threshold = isFREDWindow ? 5 * 60 * 1000 : 60 * 60 * 1000;
+      if (cacheAge > threshold) doFetch();
+    }, 5 * 60 * 1000); // tick every 5 min, smart threshold decides whether to actually fetch
+    return () => clearInterval(smartInterval);
   }, [fredApiKey]);
 
   const saveFredApiKey = useCallback((key) => {
