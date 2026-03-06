@@ -8530,14 +8530,14 @@ function RateCompareView({ toast, onOpenPricing }) {
             borderRadius:7, padding:'7px 10px', fontSize:11 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
               <span style={{ color: isStale?'#f0b429':'#2ecc8a', fontWeight:700 }}>
-                {rateDate ? 'OBMMI as of ' + new Date(rateDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : (isStale ? '⚠ Rates may be stale' : '✓ Live FRED Rates')}
+                {rateDate ? 'OBMMI as of ' + new Date(rateDate + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : (isStale ? '⚠ Rates may be stale' : '✓ Live FRED Rates')}
               </span>
               <button onClick={refreshFRED} disabled={fredLoading}
                 style={{ fontSize:10, color:'var(--muted)', background:'none', border:'none', cursor:'pointer', padding:0 }}>
                 {fredLoading ? '⟳ fetching…' : '↺ refresh'}
               </button>
             </div>
-            {rateDate && <div style={{ color:'var(--muted)', marginTop:2 }}>OBMMI as of {new Date(rateDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>}
+            {rateDate && <div style={{ color:'var(--muted)', marginTop:2 }}>OBMMI as of {new Date(rateDate + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>}
           </div>
         ) : (
           <div style={{ background:'rgba(77,142,240,.07)', border:'1px solid rgba(77,142,240,.25)', borderRadius:7, padding:'7px 10px', fontSize:11 }}>
@@ -8718,7 +8718,7 @@ function RateCompareView({ toast, onOpenPricing }) {
             <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>
               Pricing across {ALL_LENDERS.length} lenders…
             </div>
-            {usingLive && <div style={{ fontSize:12, color:'#2ecc8a' }}>✓ Live OBMMI rates · {rateDate ? new Date(rateDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : ''}</div>}
+            {usingLive && <div style={{ fontSize:12, color:'#2ecc8a' }}>✓ Live OBMMI rates · {rateDate ? new Date(rateDate + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : ''}</div>}
           </div>
         )}
 
