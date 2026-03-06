@@ -8530,7 +8530,7 @@ function RateCompareView({ toast, onOpenPricing }) {
             borderRadius:7, padding:'7px 10px', fontSize:11 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
               <span style={{ color: isStale?'#f0b429':'#2ecc8a', fontWeight:700 }}>
-                {isStale ? '⚠ Rates may be stale' : '✓ Live FRED Rates'}{rateDate ? ' — data from ' + new Date(rateDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' (FRED publishes with ~2 business day lag)' : ''}
+                {rateDate ? 'OBMMI as of ' + new Date(rateDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : (isStale ? '⚠ Rates may be stale' : '✓ Live FRED Rates')}
               </span>
               <button onClick={refreshFRED} disabled={fredLoading}
                 style={{ fontSize:10, color:'var(--muted)', background:'none', border:'none', cursor:'pointer', padding:0 }}>
