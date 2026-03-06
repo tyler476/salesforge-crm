@@ -8537,7 +8537,7 @@ function RateCompareView({ toast, onOpenPricing }) {
                 {fredLoading ? '⟳ fetching…' : '↺ refresh'}
               </button>
             </div>
-            {rateDate && <div style={{ color:'var(--muted)', marginTop:2 }}>OBMMI as of {rateDate}</div>}
+            {rateDate && <div style={{ color:'var(--muted)', marginTop:2 }}>OBMMI as of {new Date(rateDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>}
           </div>
         ) : (
           <div style={{ background:'rgba(77,142,240,.07)', border:'1px solid rgba(77,142,240,.25)', borderRadius:7, padding:'7px 10px', fontSize:11 }}>
@@ -8718,7 +8718,7 @@ function RateCompareView({ toast, onOpenPricing }) {
             <div style={{ fontSize:15, fontWeight:600, color:'var(--text)' }}>
               Pricing across {ALL_LENDERS.length} lenders…
             </div>
-            {usingLive && <div style={{ fontSize:12, color:'#2ecc8a' }}>✓ Live OBMMI rates · {rateDate}</div>}
+            {usingLive && <div style={{ fontSize:12, color:'#2ecc8a' }}>✓ Live OBMMI rates · {rateDate ? new Date(rateDate).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : ''}</div>}
           </div>
         )}
 
