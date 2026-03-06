@@ -8052,8 +8052,7 @@ Respond with well-structured answers using bullet points and headers. Be concise
         const {data} = await supabase.from('contacts').select('full_name,phone,email,stage').eq('company_id', profile?.company_name);
         const matches = (data||[]).filter(c=>c.full_name?.toLowerCase().includes(q)||c.phone?.includes(q)||c.email?.toLowerCase().includes(q)).slice(0,5);
         if(!matches.length) return 'No contacts found matching "' + toolInput.query + '"';
-        return 'Found ' + matches.length + ' match(es):
-' + matches.map(c=>'- ' + c.full_name + ' (' + (c.stage||'No stage') + ') ' + (c.phone||c.email||'')).join('\n');
+        return 'Found ' + matches.length + ' match(es):\n' + matches.map(c=>'- ' + c.full_name + ' (' + (c.stage||'No stage') + ') ' + (c.phone||c.email||'')).join('\n');
       } catch(e) { return 'Could not search contacts'; }
     }
     if(toolName==='create_contact') {
@@ -8068,8 +8067,7 @@ Respond with well-structured answers using bullet points and headers. Be concise
         const {data} = await supabase.from('contacts').select('stage').eq('company_id', profile?.company_name);
         const counts = {};
         (data||[]).forEach(c=>{ counts[c.stage||'Unknown']=(counts[c.stage||'Unknown']||0)+1; });
-        return 'Pipeline (' + (data||[]).length + ' total):
-' + Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([s,n])=>'- ' + s + ': ' + n).join('\n');
+        return 'Pipeline (' + (data||[]).length + ' total):\n' + Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([s,n])=>'- ' + s + ': ' + n).join('\n');
       } catch(e) { return 'Could not fetch pipeline'; }
     }
     return 'Tool ' + toolName + ' executed';
@@ -8094,9 +8092,7 @@ Respond with well-structured answers using bullet points and headers. Be concise
         const tb = data.content.find(b=>b.type==='tool_use');
         const txt = data.content.find(b=>b.type==='text');
         const result = await executeTool(tb.name, tb.input);
-        const msg = (txt?.text ? txt.text + '
-
-' : '') + 'Action: ' + tb.name + ' — ' + result;
+        const msg = (txt?.text ? txt.text + '\n\n' : '') + 'Action: ' + tb.name + ' — ' + result;
         setMessages(m=>[...m, { role:'assistant', content:msg }]);
       } else {
         const reply = data.content?.[0]?.text || 'Sorry, I had trouble responding.';
