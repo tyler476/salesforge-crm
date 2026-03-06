@@ -8175,9 +8175,7 @@ Respond with well-structured answers using bullet points and headers. Be concise
           c.full_name?.toLowerCase().includes(q) || c.phone?.includes(q) || c.email?.toLowerCase().includes(q)
         ).slice(0,5);
         if (matches.length === 0) return `No contacts found matching "${toolInput.query}".`;
-        return `Found ${matches.length} match(es):
-` + matches.map(c=>`• ${c.full_name} — ${c.stage||'No stage'} — ${c.phone||c.email||''}`).join('
-');
+        return `Found ${matches.length} match(es):\n` + matches.map(c=>`• ${c.full_name} \u2014 ${c.stage||'No stage'} \u2014 ${c.phone||c.email||''}`).join('\n');
       } catch { return 'Could not search contacts.'; }
     }
     if (toolName === 'create_contact') {
@@ -8200,9 +8198,7 @@ Respond with well-structured answers using bullet points and headers. Be concise
         const counts = {};
         (data||[]).forEach(c=>{ counts[c.stage||'Unknown']=(counts[c.stage||'Unknown']||0)+1; });
         const lines = Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([s,n])=>`• ${s}: ${n}`);
-        return `Pipeline summary (${(data||[]).length} total):
-` + lines.join('
-');
+        return `Pipeline summary (${(data||[]).length} total):\n` + lines.join('\n');
       } catch { return 'Could not fetch pipeline.'; }
     }
     return `Tool ${toolName} executed.`;
