@@ -392,7 +392,7 @@ function PricingProvider({ children }) {
       try {
         const cached = JSON.parse(cachedStr);
         const age = Date.now() - new Date(cached._fetchedAt).getTime();
-        if (age < 12 * 60 * 60 * 1000) { setFredCache(cached); return; }
+        if (age < 6 * 60 * 60 * 1000) { setFredCache(cached); return; }
       } catch {}
     }
     setFredLoading(true);
@@ -8530,7 +8530,7 @@ function RateCompareView({ toast, onOpenPricing }) {
             borderRadius:7, padding:'7px 10px', fontSize:11 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
               <span style={{ color: isStale?'#f0b429':'#2ecc8a', fontWeight:700 }}>
-                {isStale ? '⚠ Rates may be stale' : '✓ Live FRED Rates'}
+                {isStale ? '⚠ Rates may be stale' : '✓ Live FRED Rates'}{rateDate ? ' — data from ' + new Date(rateDate).toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' (FRED publishes with ~2 business day lag)' : ''}
               </span>
               <button onClick={refreshFRED} disabled={fredLoading}
                 style={{ fontSize:10, color:'var(--muted)', background:'none', border:'none', cursor:'pointer', padding:0 }}>
