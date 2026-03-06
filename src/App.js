@@ -813,6 +813,11 @@ function ContactForm({ contact, onSave, onClose, companyId, toast }) {
     } else {
       const { error } = await supabase.from('contacts').insert([payload]);
       if (error) { console.error('Contact insert error:', error); toast && toast('Error: ' + error.message); return; }
+      if (data) {
+        supabase.functions.invoke('automation-engine', {
+          body: { action:'scoreLead', contact_id:data.id, qualData:{ borrowerName:data.full_name, phone:data.phone, email:data.email } }
+        }).catch(()=>{});
+      }
     }
     onSave();
   };
@@ -1695,7 +1700,11 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
                         <div style={{ width:36, height:36, borderRadius:9, background:color+'20', display:'flex', alignItems:'center', justifyContent:'center' }}>
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
                         </div>
-
+                        {stats.overdue>0 && (
+                          <span style={{ background:'rgba(224,82,82,.15)', color:'#e05252', fontSize:10, fontWeight:800, padding:'2px 7px', borderRadius:10 }}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> {stats.overdue} overdue
+                          </span>
+                        )}
                       </div>
                       {/* Name */}
                       <div style={{ fontWeight:700, fontSize:14, marginBottom:6 }}>{w.name}</div>
@@ -2430,19 +2439,19 @@ function BrandingView({ profile, onBrandUpdate, toast }) {
 
 
 // ─── INPUT MODAL ──────────────────────────────────────────────────────────────
-// ─── CSVImportModal — import items from Monday.com / CSV export ───────────────
 function CSVImportModal({ onClose, onImport, toast }) {
-  const [preview, setPreview]   = React.useState(null);
-  const [headers, setHeaders]   = React.useState([]);
-  const [mapping, setMapping]   = React.useState({});
-  const [loading, setLoading]   = React.useState(false);
-
-  const FIELD_OPTIONS = ['name','status','lender','date','loan_officer','processor','loan_amount','priority','notes','(skip)'];
+  const [preview, setPreview] = React.useState(null);
+  const [headers, setHeaders] = React.useState([]);
+  const [mapping, setMapping] = React.useState({});
+  const [loading, setLoading] = React.useState(false);
+  const FIELDS = ['name','status','lender','date','loan_officer','processor','loan_amount','priority','notes','(skip)'];
 
   const parseCSV = (text) => {
-    const lines = text.trim().split(/\r?\n/);
-    const hdrs  = lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim());
-    const rows  = lines.slice(1).map(line=>{
+    const lines = text.trim().split(/
+?
+/);
+    const hdrs = lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim());
+    const rows = lines.slice(1).map(line=>{
       const vals = line.split(',').map(v=>v.replace(/^"|"$/g,'').trim());
       const obj={};
       hdrs.forEach((h,i)=>{ obj[h]=vals[i]||''; });
@@ -2456,20 +2465,19 @@ function CSVImportModal({ onClose, onImport, toast }) {
     hdrs.forEach(h=>{
       const l=h.toLowerCase();
       if(l.includes('name')||l.includes('item')||l.includes('borrower')) map[h]='name';
-      else if(l.includes('status')||l.includes('stage')||l.includes('pipeline')) map[h]='status';
-      else if(l.includes('lender')||l.includes('loan type')||l.includes('product')) map[h]='lender';
-      else if(l.includes('date')||l.includes('close')||l.includes('due')||l.includes('lock')) map[h]='date';
-      else if(l.includes('officer')||l.includes('owner')||l.includes('assigned')||l.includes('lo ')) map[h]='loan_officer';
+      else if(l.includes('status')||l.includes('stage')) map[h]='status';
+      else if(l.includes('lender')||l.includes('product')) map[h]='lender';
+      else if(l.includes('date')||l.includes('close')||l.includes('due')) map[h]='date';
+      else if(l.includes('officer')||l.includes('owner')||l.includes('assigned')) map[h]='loan_officer';
       else if(l.includes('processor')) map[h]='processor';
-      else if(l.includes('amount')||l.includes('loan amount')) map[h]='loan_amount';
-      else if(l.includes('priority')||l.includes('urgency')) map[h]='priority';
+      else if(l.includes('amount')) map[h]='loan_amount';
       else map[h]='(skip)';
     });
     return map;
   };
 
   const handleFile = (e) => {
-    const file = e.target.files?.[0];
+    const file = e.target.files && e.target.files[0];
     if(!file) return;
     const reader = new FileReader();
     reader.onload = (ev) => {
@@ -2478,9 +2486,7 @@ function CSVImportModal({ onClose, onImport, toast }) {
         setHeaders(hdrs);
         setPreview(rows.slice(0,5));
         setMapping(autoMap(hdrs));
-      } catch(err) {
-        toast('Error parsing CSV: ' + err.message);
-      }
+      } catch(err) { toast && toast('Error parsing CSV: ' + err.message); }
     };
     reader.readAsText(file);
   };
@@ -2488,16 +2494,14 @@ function CSVImportModal({ onClose, onImport, toast }) {
   const handleImport = async () => {
     if(!preview) return;
     setLoading(true);
-    const { rows } = parseCSV('');
-    // Re-parse full file — use mapping to transform
     const fileInput = document.getElementById('csv-import-input');
-    const file = fileInput?.files?.[0];
+    const file = fileInput && fileInput.files && fileInput.files[0];
     if(!file) { setLoading(false); return; }
     const text = await file.text();
     const { hdrs, rows: allRows } = parseCSV(text);
     const mapped = allRows.map(r=>{
       const obj={};
-      hdrs.forEach(h=>{ const field=mapping[h]; if(field&&field!=='(skip)') obj[field]=(obj[field]?obj[field]+' ':'')+r[h]; });
+      hdrs.forEach(h=>{ const field=mapping[h]; if(field && field!=='(skip)') obj[field]=(obj[field]?obj[field]+' ':'')+r[h]; });
       return obj;
     }).filter(r=>r.name);
     await onImport(mapped);
@@ -2507,50 +2511,40 @@ function CSVImportModal({ onClose, onImport, toast }) {
   return (
     <div onClick={e=>e.target===e.currentTarget&&onClose()}
       style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:9995, display:'flex', alignItems:'center', justifyContent:'center' }}>
-      <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:28, width:680, maxHeight:'85vh', overflowY:'auto', boxShadow:'0 24px 64px rgba(0,0,0,.5)' }}>
+      <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, padding:28, width:660, maxHeight:'85vh', overflowY:'auto', boxShadow:'0 24px 64px rgba(0,0,0,.5)' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
           <div>
             <div style={{ fontWeight:700, fontSize:17 }}>Import from CSV / Monday.com</div>
-            <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>Upload a Monday.com board export or any CSV with loan data</div>
+            <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>Upload a Monday.com export or any CSV with loan data</div>
           </div>
-          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>×</button>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>x</button>
         </div>
-
-        {/* Upload zone */}
-        <label style={{ display:'block', border:'2px dashed var(--border)', borderRadius:10, padding:28, textAlign:'center', cursor:'pointer', marginBottom:16, background:'var(--surface2)', transition:'border-color .15s' }}
-          onDragOver={e=>{e.preventDefault();e.currentTarget.style.borderColor='var(--accent)'}}
-          onDragLeave={e=>{e.currentTarget.style.borderColor='var(--border)'}}
-          onDrop={e=>{ e.preventDefault(); e.currentTarget.style.borderColor='var(--border)'; const f=e.dataTransfer.files[0]; if(f){ const inp=document.getElementById('csv-import-input'); const dt=new DataTransfer(); dt.items.add(f); inp.files=dt.files; handleFile({target:{files:[f]}}); } }}>
+        <label style={{ display:'block', border:'2px dashed var(--border)', borderRadius:10, padding:28, textAlign:'center', cursor:'pointer', marginBottom:16, background:'var(--surface2)' }}>
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.5" style={{ marginBottom:8 }}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          <div style={{ fontSize:13, color:'var(--muted)' }}>Drop your CSV here or <span style={{ color:'var(--accent)', fontWeight:600 }}>click to browse</span></div>
-          <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>Supports Monday.com board exports, Excel CSV, or any column-based format</div>
+          <div style={{ fontSize:13, color:'var(--muted)' }}>Drop CSV here or <span style={{ color:'var(--accent)', fontWeight:600 }}>click to browse</span></div>
           <input id="csv-import-input" type="file" accept=".csv,.txt" onChange={handleFile} style={{ display:'none' }} />
         </label>
-
-        {/* Column mapping */}
-        {headers.length > 0 && (
+        {headers.length>0 && (
           <>
-            <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>Column Mapping <span style={{ fontSize:11, color:'var(--muted)', fontWeight:400 }}>— auto-detected, adjust if needed</span></div>
+            <div style={{ fontWeight:600, fontSize:13, marginBottom:10 }}>Column Mapping</div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:16 }}>
               {headers.map(h=>(
                 <div key={h} style={{ display:'flex', alignItems:'center', gap:8, background:'var(--surface2)', padding:'8px 10px', borderRadius:7 }}>
-                  <span style={{ fontSize:12, flex:1, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={h}>{h}</span>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  <span style={{ fontSize:12, flex:1, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{h}</span>
                   <select value={mapping[h]||'(skip)'} onChange={e=>setMapping(m=>({...m,[h]:e.target.value}))}
                     style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:5, padding:'3px 6px', fontSize:11, color:'var(--text)', outline:'none' }}>
-                    {FIELD_OPTIONS.map(f=><option key={f} value={f}>{f}</option>)}
+                    {FIELDS.map(f=><option key={f} value={f}>{f}</option>)}
                   </select>
                 </div>
               ))}
             </div>
-            {/* Preview */}
-            <div style={{ fontWeight:600, fontSize:13, marginBottom:8 }}>Preview <span style={{ fontWeight:400, color:'var(--muted)', fontSize:11 }}>— first 5 rows</span></div>
+            <div style={{ fontWeight:600, fontSize:13, marginBottom:8 }}>Preview (first 5 rows)</div>
             <div style={{ overflowX:'auto', borderRadius:8, border:'1px solid var(--border)', marginBottom:20 }}>
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                 <thead>
                   <tr style={{ background:'var(--surface2)' }}>
                     {Object.entries(mapping).filter(([,v])=>v!=='(skip)').map(([h,f])=>(
-                      <th key={h} style={{ padding:'6px 10px', textAlign:'left', color:'var(--muted)', fontWeight:600, whiteSpace:'nowrap', borderBottom:'1px solid var(--border)' }}>{f}</th>
+                      <th key={h} style={{ padding:'6px 10px', textAlign:'left', color:'var(--muted)', fontWeight:600, borderBottom:'1px solid var(--border)' }}>{f}</th>
                     ))}
                   </tr>
                 </thead>
@@ -2558,7 +2552,7 @@ function CSVImportModal({ onClose, onImport, toast }) {
                   {(preview||[]).map((row,i)=>(
                     <tr key={i} style={{ borderBottom:'1px solid var(--border)' }}>
                       {Object.entries(mapping).filter(([,v])=>v!=='(skip)').map(([h])=>(
-                        <td key={h} style={{ padding:'5px 10px', color:'var(--text)', whiteSpace:'nowrap', maxWidth:160, overflow:'hidden', textOverflow:'ellipsis' }}>{row[h]||''}</td>
+                        <td key={h} style={{ padding:'5px 10px', color:'var(--text)' }}>{row[h]||''}</td>
                       ))}
                     </tr>
                   ))}
@@ -2568,11 +2562,8 @@ function CSVImportModal({ onClose, onImport, toast }) {
             <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
               <button onClick={onClose} style={{ padding:'9px 20px', borderRadius:8, border:'1px solid var(--border)', background:'transparent', color:'var(--text)', cursor:'pointer', fontSize:13 }}>Cancel</button>
               <button onClick={handleImport} disabled={loading}
-                style={{ padding:'9px 24px', borderRadius:8, border:'none', background:'var(--accent)', color:'#fff', cursor:'pointer', fontSize:13, fontWeight:700, display:'flex', alignItems:'center', gap:7 }}>
-                {loading ? 'Importing…' : <>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                  Import {preview?.length > 0 ? 'Items' : ''}
-                </>}
+                style={{ padding:'9px 24px', borderRadius:8, border:'none', background:'var(--accent)', color:'#fff', cursor:'pointer', fontSize:13, fontWeight:700 }}>
+                {loading ? 'Importing...' : 'Import Items'}
               </button>
             </div>
           </>
@@ -2741,7 +2732,6 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   const [batchStatusOpen, setBatchStatusOpen] = useState(false);
   const [showNewItemDrop, setShowNewItemDrop] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
-  const [importPreview, setImportPreview]     = useState(null);
 
 
   useEffect(() => {
@@ -2780,7 +2770,6 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   const loadSubItems = async (parentId) => {
     const {data} = await supabase.from('workspace_items').select('*').eq('parent_id', parentId).order('position');
     setSubItems(prev => ({...prev, [parentId]: data||[]}));
-    // load update counts for subitems too
     if(data && data.length > 0) {
       const ids = data.map(s=>s.id);
       const {data:uc} = await supabase.from('workspace_updates').select('item_id').in('item_id', ids);
@@ -2809,7 +2798,6 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
     setStatuses(data||[]);
   };
 
-  // Load update counts for all items when items state changes
   useEffect(() => {
     const allIds = Object.values(items).flat().map(i=>i.id);
     if(allIds.length > 0) loadUpdateCounts(allIds);
@@ -2961,35 +2949,19 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   const totalSelected = Object.values(selected).reduce((sum,s)=>sum+(s.size||0),0);
 
   const updateItem = async (groupId, itemId, field, value) => {
-    // Get current item to detect status change
     const currentItem = (items[groupId]||[]).find(i=>i.id===itemId);
     await supabase.from('workspace_items').update({[field]:value}).eq('id',itemId);
     setItems(prev=>({...prev,[groupId]:(prev[groupId]||[]).map(i=>i.id===itemId?{...i,[field]:value}:i)}));
-
-    // Status-change automation trigger
-    if (field === 'status' && currentItem && currentItem.status !== value) {
-      const prevStatus = currentItem.status || '';
-      const newStatus  = value || '';
-      // Fire automation engine (non-blocking)
+    if(field==='status' && currentItem && currentItem.status !== value) {
       supabase.functions.invoke('automation-engine', {
-        body: {
-          action: 'statusChanged',
-          workspace_id: workspace.id,
-          item_id: itemId,
-          item_name: currentItem.name,
-          from_status: prevStatus,
-          to_status: newStatus,
-          company_id: profile?.company_name,
-          assigned_officers: currentItem.assigned_officers || [],
-        }
+        body: { action:'statusChanged', workspace_id:workspace.id, item_id:itemId,
+          item_name:currentItem.name, from_status:currentItem.status||'', to_status:value||'',
+          company_id:profile?.company_name, assigned_officers:currentItem.assigned_officers||[] }
       }).catch(()=>{});
-      // Log the status change as an activity
       supabase.from('workspace_updates').insert([{
-        item_id: itemId,
-        author_name: profile?.full_name || 'System',
-        author_id: profile?.id || null,
-        body: 'Status changed from "' + prevStatus + '" to "' + newStatus + '"',
-        is_system: true,
+        item_id:itemId, author_name:profile?.full_name||'System', author_id:profile?.id||null,
+        body:'Status changed from "' + (currentItem.status||'None') + '" to "' + (value||'None') + '"',
+        is_system:true,
       }]).catch(()=>{});
     }
   };
@@ -3250,7 +3222,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
           )}
         </div>
 
-        {/* Import CSV */}
+        {/* Import */}
         <button className="ws-toolbar-btn" onClick={()=>setShowImportModal(true)} style={{ marginLeft:'auto' }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           Import
@@ -3332,7 +3304,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                     {groupItems.map((item,idx)=>(
                       <React.Fragment key={item.id}>
                         {dragOverGroup===group.id && dragOverIdx===idx && <tr><td colSpan={COLUMNS.filter(c=>!hiddenCols.includes(c)).length+2} style={{ padding:0 }}><div style={{ height:3, background:'var(--accent)', borderRadius:2 }} /></td></tr>}
-                        <WorkspaceItemRow
+                         <WorkspaceItemRow
                           item={item} group={group} statuses={statuses} teamMembers={teamMembers} profile={profile}
                           selected={groupSelected.has(item.id)}
                           onSelect={()=>toggleSelect(group.id, item.id)}
@@ -3343,37 +3315,33 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                           onToggleExpand={()=>{ setExpandedItems(p=>({...p,[item.id]:!p[item.id]})); if(!expandedItems[item.id]) loadSubItems(item.id); }}
                           isExpanded={!!expandedItems[item.id]}
                           subItemCount={(subItems[item.id]||[]).length}
+                          updateCount={updateCounts[item.id]||0}
+                          updateCounts={updateCounts}
                           PRIORITY_COLORS={PRIORITY_COLORS}
                           hiddenCols={hiddenCols}
                           isTrinidadWs={isTrinidadWs}
                           onDragStart={e=>handleDragStart(e,group.id,item.id)}
                           onDragOver={e=>{ e.preventDefault(); setDragOverGroup(group.id); setDragOverIdx(idx); }}
                           onDrop={e=>handleDrop(e,group.id,idx)}
-                          updateCount={updateCounts[item.id]||0}
-                          updateCounts={updateCounts}
                         />
-                        {/* Sub-items */}
-                        {expandedItems[item.id] && (subItems[item.id]||[]).map(sub=>{
-                          const subUpdCnt = updateCounts[sub.id]||0;
-                          return (
-                            <SubItemRow
-                              key={sub.id}
-                              sub={sub}
-                              statuses={statuses}
-                              teamMembers={teamMembers}
-                              updateCount={subUpdCnt}
-                              onOpenUpdates={()=>setItemDetailPanel(sub)}
-                              onUpdate={async(field,val)=>{
-                                await supabase.from('workspace_items').update({[field]:val}).eq('id',sub.id);
-                                setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(s=>s.id===sub.id?{...s,[field]:val}:s)}));
-                              }}
-                              onDelete={async()=>{
-                                await supabase.from('workspace_items').delete().eq('id',sub.id);
-                                setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).filter(s=>s.id!==sub.id)}));
-                              }}
-                            />
-                          );
-                        })}
+                        {expandedItems[item.id] && (subItems[item.id]||[]).map(sub=>(
+                          <SubItemRow
+                            key={sub.id}
+                            sub={sub}
+                            statuses={statuses}
+                            teamMembers={teamMembers}
+                            updateCount={updateCounts[sub.id]||0}
+                            onOpenUpdates={()=>setItemDetailPanel(sub)}
+                            onUpdate={async(field,val)=>{
+                              await supabase.from('workspace_items').update({[field]:val}).eq('id',sub.id);
+                              setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(s=>s.id===sub.id?{...s,[field]:val}:s)}));
+                            }}
+                            onDelete={async()=>{
+                              await supabase.from('workspace_items').delete().eq('id',sub.id);
+                              setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).filter(s=>s.id!==sub.id)}));
+                            }}
+                          />
+                        ))}
                         {expandedItems[item.id] && (
                           <tr style={{ background:'rgba(0,0,0,.05)' }}>
                             <td colSpan={COLUMNS.length+2} style={{ padding:'6px 10px 6px 50px' }}>
@@ -3656,25 +3624,17 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
       {/* Input Modal */}
       {inputModal && <InputModal title={inputModal.title} placeholder={inputModal.placeholder} defaultValue={inputModal.defaultValue||''} onConfirm={inputModal.onConfirm} onClose={()=>setInputModal(null)} />}
       {showImportModal && <CSVImportModal
-        onClose={()=>{ setShowImportModal(false); setImportPreview(null); }}
+        onClose={()=>setShowImportModal(false)}
         onImport={async(rows)=>{
           const colors=['#4d8ef0','#2ecc8a','#9b59b6','#f0b429'];
           const color=colors[groups.length%colors.length];
-          const {data:grp} = await supabase.from('workspace_groups').insert([{workspace_id:workspace.id, name:'Imported Items', color, position:groups.length}]).select().single();
+          const {data:grp} = await supabase.from('workspace_groups').insert([{workspace_id:workspace.id,name:'Imported Items',color,position:groups.length}]).select().single();
           if(!grp) return;
           setGroups(g=>[...g,grp]);
-          const inserts = rows.map((r,i)=>({
-            group_id:grp.id, workspace_id:workspace.id, company_id:profile.company_name,
-            name:r.name||r.Name||r.Item||r.item||'Unnamed',
-            status:r.status||r.Status||r.Stage||'',
-            lender:r.lender||r.Lender||r['Loan Type']||'',
-            date:r.date||r.Date||r['Due Date']||r['Close Date']||'',
-            loan_officer:r.loan_officer||r['Loan Officer']||r.Owner||'',
-            position:i,
-          }));
+          const inserts=rows.map((r,i)=>({group_id:grp.id,workspace_id:workspace.id,company_id:profile.company_name,name:r.name||r.Name||r.Item||r.item||'Unnamed',status:r.status||r.Status||r.Stage||'',lender:r.lender||r.Lender||'',date:r.date||r.Date||r['Due Date']||'',loan_officer:r.loan_officer||r['Loan Officer']||r.Owner||'',position:i}));
           const {data:newItems} = await supabase.from('workspace_items').insert(inserts).select();
           if(newItems) setItems(prev=>({...prev,[grp.id]:newItems}));
-          toast('Imported '+rows.length+' items successfully!');
+          toast('Imported '+rows.length+' items!');
           setShowImportModal(false);
         }}
         toast={toast}
@@ -3686,7 +3646,6 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
 }
 
 // ─── WORKSPACE ITEM ROW ───────────────────────────────────────────────────────
-// ─── SubItemRow — enhanced sub-item with status, owner, update count ──────────
 function SubItemRow({ sub, statuses, teamMembers, updateCount, onOpenUpdates, onUpdate, onDelete }) {
   const [showStatusPicker, setShowStatusPicker] = React.useState(false);
   const [showOwnerPicker,  setShowOwnerPicker]  = React.useState(false);
@@ -3698,12 +3657,11 @@ function SubItemRow({ sub, statuses, teamMembers, updateCount, onOpenUpdates, on
 
   const avatarColor = (name) => {
     const colors = ['#4d8ef0','#2ecc8a','#9b59b6','#f0b429','#e05252','#00b8c4','#f97316','#06b6d4'];
-    let h = 0; for(let c of (name||'')) h = (h*31+c.charCodeAt(0))&0xffff;
+    let h = 0; for(const c of (name||'')) h = (h*31+c.charCodeAt(0))&0xffff;
     return colors[h % colors.length];
   };
   const initials = (name='') => name.split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2);
 
-  // Close pickers on outside click
   React.useEffect(() => {
     if(!showStatusPicker && !showOwnerPicker) return;
     const handler = (e) => {
@@ -3715,142 +3673,94 @@ function SubItemRow({ sub, statuses, teamMembers, updateCount, onOpenUpdates, on
   }, [showStatusPicker, showOwnerPicker]);
 
   const owners = sub.assigned_officers || [];
-  const statusColor = sub.status_color || 'rgba(77,142,240,.25)';
 
   return (
     <tr
       onMouseEnter={()=>setHovered(true)}
       onMouseLeave={()=>setHovered(false)}
-      style={{ background: hovered ? 'rgba(77,142,240,.04)' : 'rgba(0,0,0,.04)', borderBottom:'1px solid var(--border)', transition:'background .1s' }}
+      style={{ background:hovered?'rgba(77,142,240,.04)':'rgba(0,0,0,.04)', borderBottom:'1px solid var(--border)', transition:'background .1s' }}
     >
-      {/* Checkbox placeholder */}
       <td style={{ padding:'5px 10px', paddingLeft:36, textAlign:'center', width:36 }}>
         <div style={{ width:7, height:7, borderRadius:'50%', background:'var(--border)', margin:'0 auto' }} />
       </td>
-
-      {/* Name + action icons */}
       <td style={{ padding:'5px 10px', paddingLeft:28, minWidth:180 }}>
         <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-          <span style={{ fontSize:11, color:'var(--muted)', flexShrink:0 }}>↳</span>
+          <span style={{ fontSize:11, color:'var(--muted)', flexShrink:0 }}>&#x21B3;</span>
           {editingName
-            ? <input
-                autoFocus
-                value={nameVal}
-                onChange={e=>setNameVal(e.target.value)}
+            ? <input autoFocus value={nameVal} onChange={e=>setNameVal(e.target.value)}
                 onBlur={()=>{ setEditingName(false); if(nameVal.trim()!==sub.name) onUpdate('name',nameVal.trim()); }}
                 onKeyDown={e=>{ if(e.key==='Enter'){ setEditingName(false); if(nameVal.trim()!==sub.name) onUpdate('name',nameVal.trim()); } if(e.key==='Escape'){ setEditingName(false); setNameVal(sub.name); } }}
-                style={{ flex:1, background:'var(--surface2)', border:'1px solid var(--accent)', borderRadius:4, padding:'2px 6px', fontSize:13, color:'var(--text)', outline:'none' }}
-              />
-            : <span
-                onDoubleClick={()=>setEditingName(true)}
-                style={{ fontSize:13, flex:1, cursor:'text', color:'var(--text)' }}
-                title="Double-click to rename"
-              >{sub.name}</span>
+                style={{ flex:1, background:'var(--surface2)', border:'1px solid var(--accent)', borderRadius:4, padding:'2px 6px', fontSize:13, color:'var(--text)', outline:'none' }} />
+            : <span onDoubleClick={()=>setEditingName(true)} style={{ fontSize:13, flex:1, cursor:'text', color:'var(--text)' }} title="Double-click to rename">{sub.name}</span>
           }
-          {/* Open updates (comment icon + count) */}
           <button onClick={e=>{ e.stopPropagation(); onOpenUpdates(); }}
-            style={{ background:'none', border:'none', color: updateCount>0?'var(--accent)':'var(--muted)', cursor:'pointer', padding:'2px 4px', display:'flex', alignItems:'center', gap:2, flexShrink:0 }}>
+            style={{ background:'none', border:'none', color:updateCount>0?'var(--accent)':'var(--muted)', cursor:'pointer', padding:'2px 4px', display:'flex', alignItems:'center', gap:2, flexShrink:0 }}>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            {updateCount > 0 && <span style={{ fontSize:10, fontWeight:700, color:'var(--accent)' }}>{updateCount}</span>}
+            {updateCount>0 && <span style={{ fontSize:10, fontWeight:700, color:'var(--accent)' }}>{updateCount}</span>}
           </button>
         </div>
       </td>
-
-      {/* Owner picker */}
       <td style={{ padding:'5px 8px', position:'relative', width:80 }} onClick={e=>e.stopPropagation()}>
         <div ref={ownerRef} style={{ position:'relative' }}>
-          <div
-            onMouseDown={e=>{ e.stopPropagation(); setShowOwnerPicker(v=>!v); setShowStatusPicker(false); }}
-            style={{ display:'flex', alignItems:'center', gap:3, cursor:'pointer', minWidth:32 }}
-          >
-            {owners.length === 0
+          <div onMouseDown={e=>{ e.stopPropagation(); setShowOwnerPicker(v=>!v); setShowStatusPicker(false); }}
+            style={{ display:'flex', alignItems:'center', gap:3, cursor:'pointer', minWidth:32 }}>
+            {owners.length===0
               ? <div style={{ width:26, height:26, borderRadius:'50%', border:'2px dashed var(--border)', display:'flex', alignItems:'center', justifyContent:'center' }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 </div>
               : owners.map((name,i)=>(
-                  <div key={i} title={name} style={{ width:26, height:26, borderRadius:'50%', background:avatarColor(name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', marginLeft: i>0?-8:0, zIndex:10-i }}>
+                  <div key={i} title={name} style={{ width:26, height:26, borderRadius:'50%', background:avatarColor(name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', marginLeft:i>0?-8:0 }}>
                     {initials(name)}
                   </div>
                 ))
             }
           </div>
           {showOwnerPicker && (
-            <div style={{ position:'fixed', zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:10, width:220, boxShadow:'0 12px 32px rgba(0,0,0,.4)', marginTop:4 }}
-              ref={el=>{ if(el && ownerRef.current){ const r=ownerRef.current.getBoundingClientRect(); el.style.top=(r.bottom+4)+'px'; el.style.left=Math.max(8,r.left-60)+'px'; } }}
-            >
+            <div ref={el=>{ if(el&&ownerRef.current){ const r=ownerRef.current.getBoundingClientRect(); el.style.position='fixed'; el.style.top=(r.bottom+4)+'px'; el.style.left=Math.max(8,r.left-60)+'px'; el.style.zIndex='9999'; } }}
+              style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:10, width:220, boxShadow:'0 12px 32px rgba(0,0,0,.4)' }}>
               <div style={{ fontSize:11, color:'var(--muted)', marginBottom:6, fontWeight:600 }}>Assign Owner</div>
               {teamMembers.map(m=>{
-                const assigned = owners.includes(m.full_name);
+                const assigned=owners.includes(m.full_name);
                 return (
-                  <div key={m.id}
-                    onMouseDown={e=>{ e.stopPropagation();
-                      const next = assigned ? owners.filter(n=>n!==m.full_name) : [...owners, m.full_name];
-                      onUpdate('assigned_officers', next);
-                    }}
-                    style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:6, cursor:'pointer', background: assigned?'rgba(77,142,240,.12)':'transparent' }}
-                  >
+                  <div key={m.id} onMouseDown={e=>{ e.stopPropagation(); const next=assigned?owners.filter(n=>n!==m.full_name):[...owners,m.full_name]; onUpdate('assigned_officers',next); }}
+                    style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:6, cursor:'pointer', background:assigned?'rgba(77,142,240,.12)':'transparent' }}>
                     <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', flexShrink:0 }}>{initials(m.full_name)}</div>
                     <span style={{ fontSize:12, flex:1, color:'var(--text)' }}>{m.full_name}</span>
                     {assigned && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
                   </div>
                 );
               })}
-              {owners.length>0 && (
-                <div onMouseDown={e=>{ e.stopPropagation(); onUpdate('assigned_officers',[]); setShowOwnerPicker(false); }}
-                  style={{ marginTop:6, padding:'5px 8px', borderRadius:6, cursor:'pointer', fontSize:11, color:'var(--muted)', borderTop:'1px solid var(--border)', textAlign:'center' }}>
-                  Clear owners
-                </div>
-              )}
+              {owners.length>0 && <div onMouseDown={e=>{ e.stopPropagation(); onUpdate('assigned_officers',[]); setShowOwnerPicker(false); }} style={{ marginTop:6, padding:'5px 8px', borderRadius:6, cursor:'pointer', fontSize:11, color:'var(--muted)', borderTop:'1px solid var(--border)', textAlign:'center' }}>Clear owners</div>}
             </div>
           )}
         </div>
       </td>
-
-      {/* Status picker */}
       <td style={{ padding:'5px 8px', position:'relative', width:130 }} onClick={e=>e.stopPropagation()}>
         <div ref={statusRef} style={{ position:'relative' }}>
-          <div
-            onMouseDown={e=>{ e.stopPropagation(); setShowStatusPicker(v=>!v); setShowOwnerPicker(false); }}
-            style={{ display:'inline-flex', alignItems:'center', gap:5, background: statusColor, padding:'3px 10px', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:700, color:'#fff', userSelect:'none', maxWidth:120, overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis' }}
-          >
+          <div onMouseDown={e=>{ e.stopPropagation(); setShowStatusPicker(v=>!v); setShowOwnerPicker(false); }}
+            style={{ display:'inline-flex', alignItems:'center', gap:5, background:sub.status_color||'rgba(77,142,240,.25)', padding:'3px 10px', borderRadius:5, cursor:'pointer', fontSize:11, fontWeight:700, color:'#fff', userSelect:'none', maxWidth:120, overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis' }}>
             {sub.status || <span style={{ opacity:.6 }}>Set status</span>}
             <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" strokeWidth="3"><polyline points="6 9 12 15 18 9"/></svg>
           </div>
           {showStatusPicker && (
-            <div style={{ position:'fixed', zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:6, width:200, boxShadow:'0 12px 32px rgba(0,0,0,.4)' }}
-              ref={el=>{ if(el && statusRef.current){ const r=statusRef.current.getBoundingClientRect(); el.style.top=(r.bottom+4)+'px'; el.style.left=Math.max(8,r.left-20)+'px'; } }}
-            >
+            <div ref={el=>{ if(el&&statusRef.current){ const r=statusRef.current.getBoundingClientRect(); el.style.position='fixed'; el.style.top=(r.bottom+4)+'px'; el.style.left=Math.max(8,r.left-20)+'px'; el.style.zIndex='9999'; } }}
+              style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:6, width:200, boxShadow:'0 12px 32px rgba(0,0,0,.4)' }}>
               <div style={{ fontSize:10, color:'var(--muted)', padding:'4px 8px', fontWeight:600, letterSpacing:'.05em', textTransform:'uppercase' }}>Status</div>
               {statuses.map(s=>(
-                <div key={s.id}
-                  onMouseDown={e=>{ e.stopPropagation(); onUpdate('status',s.label); onUpdate('status_color',s.color); setShowStatusPicker(false); }}
-                  style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:6, cursor:'pointer', background: sub.status===s.label?'rgba(77,142,240,.1)':'transparent' }}
-                >
+                <div key={s.id} onMouseDown={e=>{ e.stopPropagation(); onUpdate('status',s.label); onUpdate('status_color',s.color); setShowStatusPicker(false); }}
+                  style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:6, cursor:'pointer', background:sub.status===s.label?'rgba(77,142,240,.1)':'transparent' }}>
                   <div style={{ width:10, height:10, borderRadius:3, background:s.color, flexShrink:0 }} />
                   <span style={{ fontSize:12, color:'var(--text)' }}>{s.label}</span>
                   {sub.status===s.label && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" strokeWidth="3" style={{ marginLeft:'auto' }}><polyline points="20 6 9 17 4 12"/></svg>}
                 </div>
               ))}
-              {sub.status && (
-                <div onMouseDown={e=>{ e.stopPropagation(); onUpdate('status',''); onUpdate('status_color',''); setShowStatusPicker(false); }}
-                  style={{ padding:'5px 8px', borderRadius:6, cursor:'pointer', fontSize:11, color:'var(--muted)', borderTop:'1px solid var(--border)', marginTop:4, textAlign:'center' }}>
-                  Clear status
-                </div>
-              )}
+              {sub.status && <div onMouseDown={e=>{ e.stopPropagation(); onUpdate('status',''); onUpdate('status_color',''); setShowStatusPicker(false); }} style={{ padding:'5px 8px', borderRadius:6, cursor:'pointer', fontSize:11, color:'var(--muted)', borderTop:'1px solid var(--border)', marginTop:4, textAlign:'center' }}>Clear status</div>}
             </div>
           )}
         </div>
       </td>
-
-      {/* Delete */}
       <td style={{ padding:'5px 8px', width:36 }}>
-        {hovered && (
-          <button
-            onClick={e=>{ e.stopPropagation(); onDelete(); }}
-            style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:15, lineHeight:1, padding:'0 4px', opacity:.6 }}
-            title="Delete sub-item"
-          >×</button>
-        )}
+        {hovered && <button onClick={e=>{ e.stopPropagation(); onDelete(); }} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:15, lineHeight:1, padding:'0 4px', opacity:.6 }} title="Delete">x</button>}
       </td>
     </tr>
   );
@@ -3911,9 +3821,9 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
       <td style={{ padding:'4px 10px', minWidth:200 }}>
         <div style={{ display:'flex', alignItems:'center', gap:6 }}>
           <div style={{ flex:1 }}><EditableCell field="name" style={{ fontWeight:500 }} /></div>
-          <button onClick={e=>{ e.stopPropagation(); onOpenUpdates(); }} style={{ background:'none', border:'none', color: updateCount>0 ? 'var(--accent)' : 'var(--muted)', cursor:'pointer', padding:'2px 4px', position:'relative', display:'flex', alignItems:'center', gap:3, flexShrink:0 }}>
+          <button onClick={e=>{ e.stopPropagation(); onOpenUpdates(); }} style={{ background:'none', border:'none', color:updateCount>0?'var(--accent)':'var(--muted)', cursor:'pointer', padding:'2px 4px', display:'flex', alignItems:'center', gap:3, flexShrink:0 }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-              {updateCount > 0 && <span style={{ fontSize:10, fontWeight:700, color:'var(--accent)', lineHeight:1 }}>{updateCount}</span>}
+              {updateCount>0 && <span style={{ fontSize:10, fontWeight:700, color:'var(--accent)' }}>{updateCount}</span>}
             </button>
           {hovered && subItemCount===0 && <button onClick={onAddSubItem} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:3, fontSize:10, flexShrink:0, opacity:.7 }} title="Add sub-item">⊕</button>}
         </div>
@@ -4168,13 +4078,12 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
             workspace_id:   group?.workspace_id||null,
             workspace_name: group?.workspace_name||'',
           });
-          // Also send email notification if member has email
           if(member.email) {
             supabase.functions.invoke('send-email', {
               body: {
                 to: member.email,
                 subject: `${profile.full_name} mentioned you in "${item.name}"`,
-                html: `<p>Hi ${member.full_name},</p><p><strong>${profile.full_name}</strong> mentioned you in <strong>${item.name}</strong>:</p><blockquote style="border-left:3px solid #4d8ef0;padding-left:12px;color:#555">${newUpdate.replace(/</g,'&lt;')}</blockquote><p><a href="${window.location.origin}">View in Citizens Financial CRM</a></p>`,
+                html: `<p>Hi ${member.full_name},</p><p><strong>${profile.full_name}</strong> mentioned you in <strong>${item.name}</strong>.</p><p><a href="${window.location.origin}">View in Citizens Financial CRM</a></p>`,
                 from_name: 'Citizens Financial CRM',
               }
             }).catch(()=>{});
@@ -8128,132 +8037,84 @@ ASK HANNAH (this feature)
 
 Respond with well-structured answers using bullet points and headers. Be concise but thorough. For the dedicated Hannah page, give more detailed answers. Never mention SalesForge.`
 
-  // ── Hannah tool definitions ──────────────────────────────────────
   const HANNAH_TOOLS = [
-    {
-      name: 'navigate_to',
-      description: 'Navigate the CRM to a specific section',
-      input_schema: { type:'object', properties:{ view:{ type:'string', enum:['dashboard','contacts','pricing','automation','presentations','calendar','lenders','ratecompare','lead-scoring','content-hub','hannah'], description:'Section to navigate to' } }, required:['view'] }
-    },
-    {
-      name: 'run_pricing',
-      description: 'Open the pricing engine with pre-filled parameters. Use when user wants to price a loan.',
-      input_schema: { type:'object', properties:{ loan_amount:{ type:'number' }, fico:{ type:'number' }, ltv:{ type:'number' }, loan_type:{ type:'string' }, purpose:{ type:'string' } }, required:[] }
-    },
-    {
-      name: 'search_contacts',
-      description: 'Search for a contact by name, phone, or email and return matches',
-      input_schema: { type:'object', properties:{ query:{ type:'string', description:'Name, phone, or email to search' } }, required:['query'] }
-    },
-    {
-      name: 'create_contact',
-      description: 'Create a new contact/lead in the CRM',
-      input_schema: { type:'object', properties:{ full_name:{ type:'string' }, phone:{ type:'string' }, email:{ type:'string' }, stage:{ type:'string', enum:['New Lead','Contacted','Qualified','Proposal','Converted'] } }, required:['full_name'] }
-    },
-    {
-      name: 'get_pipeline_summary',
-      description: 'Get a summary of the current pipeline — counts by stage, overdue items, recent activity',
-      input_schema: { type:'object', properties:{}, required:[] }
-    },
+    { name:'navigate_to', description:'Navigate the CRM to a section', input_schema:{ type:'object', properties:{ view:{ type:'string', enum:['dashboard','contacts','pricing','automation','presentations','calendar','lenders','ratecompare','lead-scoring','content-hub','hannah'] } }, required:['view'] } },
+    { name:'run_pricing', description:'Open the pricing engine', input_schema:{ type:'object', properties:{ loan_amount:{ type:'number' }, fico:{ type:'number' }, ltv:{ type:'number' } }, required:[] } },
+    { name:'search_contacts', description:'Search contacts by name/phone/email', input_schema:{ type:'object', properties:{ query:{ type:'string' } }, required:['query'] } },
+    { name:'create_contact', description:'Create a new contact', input_schema:{ type:'object', properties:{ full_name:{ type:'string' }, phone:{ type:'string' }, email:{ type:'string' }, stage:{ type:'string' } }, required:['full_name'] } },
+    { name:'get_pipeline_summary', description:'Get pipeline counts by stage', input_schema:{ type:'object', properties:{}, required:[] } },
   ];
 
-  // Execute tool calls Hannah requests
   const executeTool = async (toolName, toolInput) => {
-    if (toolName === 'navigate_to') {
-      if (onNavigate) onNavigate(toolInput.view);
-      return `Navigated to ${toolInput.view}.`;
-    }
-    if (toolName === 'run_pricing') {
-      if (onOpenPricing) onOpenPricing(toolInput);
-      return `Opened Pricing Engine${toolInput.loan_amount ? ` with $${toolInput.loan_amount.toLocaleString()}` : ''}.`;
-    }
-    if (toolName === 'search_contacts') {
+    if(toolName==='navigate_to') { if(onNavigate) onNavigate(toolInput.view); return 'Navigated to ' + toolInput.view; }
+    if(toolName==='run_pricing') { if(onOpenPricing) onOpenPricing(toolInput); return 'Opened Pricing Engine'; }
+    if(toolName==='search_contacts') {
       try {
-        const q = toolInput.query?.toLowerCase();
-        const { data } = await supabase.from('contacts').select('full_name,phone,email,stage').eq('company_id', profile?.company_name);
-        const matches = (data||[]).filter(c =>
-          c.full_name?.toLowerCase().includes(q) || c.phone?.includes(q) || c.email?.toLowerCase().includes(q)
-        ).slice(0,5);
-        if (matches.length === 0) return `No contacts found matching "${toolInput.query}".`;
-        return `Found ${matches.length} match(es):\n` + matches.map(c=>`• ${c.full_name} \u2014 ${c.stage||'No stage'} \u2014 ${c.phone||c.email||''}`).join('\n');
-      } catch { return 'Could not search contacts.'; }
+        const q = (toolInput.query||'').toLowerCase();
+        const {data} = await supabase.from('contacts').select('full_name,phone,email,stage').eq('company_id', profile?.company_name);
+        const matches = (data||[]).filter(c=>c.full_name?.toLowerCase().includes(q)||c.phone?.includes(q)||c.email?.toLowerCase().includes(q)).slice(0,5);
+        if(!matches.length) return 'No contacts found matching "' + toolInput.query + '"';
+        return 'Found ' + matches.length + ' match(es):
+' + matches.map(c=>'- ' + c.full_name + ' (' + (c.stage||'No stage') + ') ' + (c.phone||c.email||'')).join('\n');
+      } catch(e) { return 'Could not search contacts'; }
     }
-    if (toolName === 'create_contact') {
+    if(toolName==='create_contact') {
       try {
-        const { data, error } = await supabase.from('contacts').insert([{
-          full_name: toolInput.full_name,
-          phone: toolInput.phone || '',
-          email: toolInput.email || '',
-          stage: toolInput.stage || 'New Lead',
-          company_id: profile?.company_name,
-          source: 'Hannah AI',
-        }]).select().single();
-        if (error) return `Error creating contact: ${error.message}`;
-        return `✓ Created contact: ${data.full_name} (${data.stage})`;
-      } catch { return 'Could not create contact.'; }
+        const {data,error} = await supabase.from('contacts').insert([{ full_name:toolInput.full_name, phone:toolInput.phone||'', email:toolInput.email||'', stage:toolInput.stage||'New Lead', company_id:profile?.company_name, source:'Hannah AI' }]).select().single();
+        if(error) return 'Error: ' + error.message;
+        return 'Created contact: ' + data.full_name + ' (' + data.stage + ')';
+      } catch(e) { return 'Could not create contact'; }
     }
-    if (toolName === 'get_pipeline_summary') {
+    if(toolName==='get_pipeline_summary') {
       try {
-        const { data } = await supabase.from('contacts').select('stage').eq('company_id', profile?.company_name);
+        const {data} = await supabase.from('contacts').select('stage').eq('company_id', profile?.company_name);
         const counts = {};
         (data||[]).forEach(c=>{ counts[c.stage||'Unknown']=(counts[c.stage||'Unknown']||0)+1; });
-        const lines = Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([s,n])=>`• ${s}: ${n}`);
-        return `Pipeline summary (${(data||[]).length} total):\n` + lines.join('\n');
-      } catch { return 'Could not fetch pipeline.'; }
+        return 'Pipeline (' + (data||[]).length + ' total):
+' + Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([s,n])=>'- ' + s + ': ' + n).join('\n');
+      } catch(e) { return 'Could not fetch pipeline'; }
     }
-    return `Tool ${toolName} executed.`;
+    return 'Tool ' + toolName + ' executed';
   };
 
   const send = async () => {
     const text = input.trim();
-    if (!text || loading) return;
+    if(!text || loading) return;
     const newMessages = [...messages, { role:'user', content:text }];
     setMessages(newMessages);
     setInput('');
     setLoading(true);
     try {
-      // Build Anthropic-compatible messages (filter out tool result display messages)
-      const apiMessages = newMessages
-        .filter(m => m.role === 'user' || m.role === 'assistant')
-        .map(m => ({ role: m.role, content: m.content }));
-
+      const apiMessages = newMessages.filter(m=>m.role==='user'||m.role==='assistant').map(m=>({ role:m.role, content:m.content }));
       const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json', 'anthropic-version':'2023-06-01', 'x-api-key': process.env.REACT_APP_ANTHROPIC_KEY || '' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1024,
-          system: SYSTEM,
-          tools: HANNAH_TOOLS,
-          messages: apiMessages,
-        }),
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', 'anthropic-version':'2023-06-01', 'x-api-key': process.env.REACT_APP_ANTHROPIC_KEY||'' },
+        body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1024, system:SYSTEM, tools:HANNAH_TOOLS, messages:apiMessages }),
       });
       const data = await res.json();
+      if(data.stop_reason==='tool_use') {
+        const tb = data.content.find(b=>b.type==='tool_use');
+        const txt = data.content.find(b=>b.type==='text');
+        const result = await executeTool(tb.name, tb.input);
+        const msg = (txt?.text ? txt.text + '
 
-      // Handle tool use
-      if (data.stop_reason === 'tool_use') {
-        const toolUseBlock = data.content.find(b=>b.type==='tool_use');
-        const textBlock    = data.content.find(b=>b.type==='text');
-        const toolResult   = await executeTool(toolUseBlock.name, toolUseBlock.input);
-        const confirmMsg   = (textBlock?.text ? textBlock.text + '\n\n' : '') + `🔧 **${toolUseBlock.name}** → ${toolResult}`;
-        setMessages(m=>[...m, { role:'assistant', content:confirmMsg }]);
+' : '') + 'Action: ' + tb.name + ' — ' + result;
+        setMessages(m=>[...m, { role:'assistant', content:msg }]);
       } else {
         const reply = data.content?.[0]?.text || 'Sorry, I had trouble responding.';
         setMessages(m=>[...m, { role:'assistant', content:reply }]);
       }
     } catch(e) {
-      // Fallback: try the Supabase edge function if direct API unavailable
       try {
-        const conversationText = messages.map(m => `${m.role==='user'?'User':'Hannah'}: ${m.content}`).join('\n');
-        const prompt = `${SYSTEM}\n\nConversation:\n${conversationText}\n\nUser: ${text}\n\nRespond as Hannah:`;
+        const conversationText = newMessages.map(m=>(m.role==='user'?'User':'Hannah') + ': ' + m.content).join('\n');
+        const prompt = SYSTEM + '\n\nConversation:\n' + conversationText + '\n\nRespond as Hannah:';
         const res2 = await fetch('https://tiwsuwbalvnrqsmudjfy.supabase.co/functions/v1/generate-presentation', {
           method:'POST',
           headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+(process.env.REACT_APP_SUPABASE_ANON_KEY||'') },
           body: JSON.stringify({ prompt }),
         });
         const data2 = await res2.json();
-        const reply = data2.content?.[0]?.text || data2.reply || 'Sorry, I had trouble responding.';
-        setMessages(m=>[...m, { role:'assistant', content:reply }]);
+        setMessages(m=>[...m, { role:'assistant', content:data2.content?.[0]?.text||data2.reply||'Sorry, I had trouble responding.' }]);
       } catch {
         setMessages(m=>[...m, { role:'assistant', content:'Connection error. Please try again.' }]);
       }
@@ -11460,7 +11321,7 @@ export default function App() {
         {view==='team' && <TeamView profile={profile} toast={toast} />}
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
         {view==='trash' && <TrashArchiveView profile={profile} workspaces={workspaces} toast={toast} />}
-        {view==='hannah' && <HannahPage profile={profile} onNavigate={setView} onOpenPricing={(params)=>{ setPricingOpen(true); }} />}
+        {view==='hannah' && <HannahPage profile={profile} onNavigate={setView} onOpenPricing={()=>setPricingOpen(true)} />}
         {view==='automation' && <AutomationView contacts={contacts} profile={profile} toast={toast} onOpenPricing={(qualData) => { setPricingPreset(qualData); setPricingOpen(true); }} onGeneratePresentation={(qualData) => { setPresGenData(qualData); setView('presentation-gen', null); }} />}
         {view==='content-hub'    && <ContentHubView    profile={profile} toast={toast} />}
         {view==='lead-scoring'   && <LeadScoringView   contacts={contacts} profile={profile} toast={toast} />}
@@ -11620,7 +11481,6 @@ export default function App() {
         onClose={()=>{ setPricingOpen(false); setPricingPreset(null); }}
         onApplyRate={async (rateData) => {
           setPricingRate(rateData);
-          // Save pricing snapshot to Supabase for audit trail
           try {
             await supabase.from('pricing_snapshots').insert([{
               company_id: profile?.company_name,
@@ -11636,8 +11496,7 @@ export default function App() {
               created_by: profile?.full_name || '',
               created_at: new Date().toISOString(),
             }]);
-          } catch {}
-          // Also persist to contact record if we have one
+          } catch(e) {}
           const contactId = pricingPreset?.contactId;
           if (contactId) {
             await supabase.from('contacts').update({
@@ -11647,7 +11506,7 @@ export default function App() {
               last_priced_at: new Date().toISOString(),
             }).eq('id', contactId).catch(() => {});
           }
-          toast(\`✓ Rate locked: \${rateData.lender_name||''} \${rateData.rate}% — ready for presentation\`);
+          toast('Rate saved — open Build Presentation to use it');
           setPricingOpen(false);
         }}
         preset={pricingPreset}
