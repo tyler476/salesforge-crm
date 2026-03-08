@@ -11694,12 +11694,21 @@ export default function App() {
   }, []);
 
   const loadProfile = async (uid) => {
-    const { data } = await supabase.from('profiles').select('*').eq('id', uid).single();
+    console.log('[App] loadProfile called with uid:', uid);
+    const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).single();
+    console.log('[App] loadProfile result:', { data, error });
     if (data) {
       setProfile(data);
       setBrand({ company_name: data.company_name||'SalesForge', logo_url: data.logo_url||'', brand_color: data.brand_color||'#3b82f6' });
       loadContacts(data.company_name);
       loadWorkspaces(data.company_name);
+    } else {
+      console.error('[App] Profile not found or error:', error);
+      // If no profile exists, create a minimal one so the app doesn't get stuck
+      if (error?.code === 'PGRST116') {
+        console.log('[App] No profile row found — setting fallback profile');
+        setProfile({ id: uid, company_name: 'My Company', full_name: '' });
+      }
     }
   };
 
@@ -11721,7 +11730,7 @@ export default function App() {
 
   if (presentToken) return <><style>{css}</style><PublicPresentationViewer token={presentToken} /></>;
   if (!session) return <><style>{css}</style><AuthScreen onAuth={()=>{}} /></>;
-  if (!profile) return <><style>{css}</style><div style={{ padding:40, textAlign:'center', color:'var(--muted)' }}>Loading...</div></>;
+  if (!profile) return <><style>{css}</style><div style={{ padding:40, textAlign:'center', color:'var(--muted)' }}>Loading... <span style={{fontSize:11,display:'block',marginTop:8}}>If this persists, check browser console (F12) for errors.</span></div></>;
 
   const accentColor = brand.brand_color || '#3b82f6';
   const navItems = [
