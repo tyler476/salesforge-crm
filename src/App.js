@@ -2312,6 +2312,497 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
   );
 }
 
+
+// ─── LEADS VIEW ───────────────────────────────────────────────────────────────
+function LeadsView({ contacts, onAdd, onSelect, onRefresh, toast, profile }) {
+  const [search,       setSearch]      = useState('');
+  const [stageFilter,  setStageFilter] = useState('All');
+  const [sourceFilter, setSourceFilter]= useState('All');
+  const [sortCol,      setSortCol]     = useState('created_at');
+  const [sortDir,      setSortDir]     = useState('desc');
+  const [selected,     setSelected]    = useState([]);
+  const [showAdd,      setShowAdd]     = useState(false);
+  const [editLead,     setEditLead]    = useState(null);
+  const [showImport,   setShowImport]  = useState(false);
+  const [showMassEmail,setShowMassEmail]=useState(false);
+  const [showMassPres, setShowMassPres]=useState(false);
+  const [showGroupSend,setShowGroupSend]=useState(false);
+
+  const LEAD_SOURCES = ['All','Manual','CSV Import','Hannah AI','Live Transfer','Campaign','Referral','Web'];
+
+  const filtered = contacts.filter(c => {
+    const q = (search||'').toLowerCase();
+    const mq = !q || c.full_name?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q) || c.phone?.includes(q);
+    const ms = stageFilter==='All' || c.stage===stageFilter;
+    const mo = sourceFilter==='All' || c.source===sourceFilter;
+    return mq && ms && mo;
+  }).sort((a,b) => {
+    const av=a[sortCol]||'', bv=b[sortCol]||'';
+    return sortDir==='asc' ? (av>bv?1:-1) : (av<bv?1:-1);
+  });
+
+  const toggleSelect = (id,e) => { e.stopPropagation(); setSelected(s=>s.includes(id)?s.filter(x=>x!==id):[...s,id]); };
+  const toggleAll   = () => setSelected(s=>s.length===filtered.length?[]:filtered.map(c=>c.id));
+  const selectedLeads = contacts.filter(c=>selected.includes(c.id));
+
+  const sort = (col) => { if(sortCol===col) setSortDir(d=>d==='asc'?'desc':'asc'); else { setSortCol(col); setSortDir('asc'); } };
+  const Arr  = ({col}) => sortCol===col ? <span style={{marginLeft:3,opacity:.6}}>{sortDir==='asc'?'\u2191':'\u2193'}</span> : null;
+
+  const scoreColor = s => !s?'var(--muted)':s>=75?'#2ecc8a':s>=50?'#f0b429':'#e05252';
+
+  const thisWeek = contacts.filter(c=>c.created_at&&(Date.now()-new Date(c.created_at).getTime())<7*864e5).length;
+  const qualified = contacts.filter(c=>['Qualified','Proposal','Negotiation'].includes(c.stage)).length;
+  const hot       = contacts.filter(c=>c.lead_score>=75).length;
+
+  return (
+    <div style={{padding:32,height:'100%',overflowY:'auto'}}>
+
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:24}}>
+        <div>
+          <div style={{fontFamily:'Cormorant Garamond,Playfair Display,serif',fontSize:28,fontWeight:700,letterSpacing:'-.5px'}}>Leads</div>
+          <div style={{color:'var(--muted)',fontSize:13,marginTop:2}}>{contacts.length} total &middot; {filtered.length} shown</div>
+        </div>
+        <div style={{display:'flex',gap:8,flexWrap:'wrap',justifyContent:'flex-end'}}>
+          {selected.length>0 && <>
+            <button className="btn-secondary" onClick={()=>setShowMassEmail(true)} style={{display:'flex',alignItems:'center',gap:6}}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              Email {selected.length}
+            </button>
+            <button className="btn-secondary" onClick={()=>setShowMassPres(true)} style={{display:'flex',alignItems:'center',gap:6}}>
+              {React.cloneElement(Icons.file,{width:13,height:13})} Send Presentation ({selected.length})
+            </button>
+          </>}
+          <button className="btn-secondary" onClick={()=>setShowGroupSend(true)} style={{display:'flex',alignItems:'center',gap:6}}>
+            {React.cloneElement(Icons.users,{width:13,height:13})} Send by Group
+          </button>
+          <button className="btn-secondary" onClick={()=>setShowImport(true)} style={{display:'flex',alignItems:'center',gap:6}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Import Leads
+          </button>
+          <button className="btn-primary" onClick={()=>setShowAdd(true)} style={{display:'flex',alignItems:'center',gap:6}}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Lead
+          </button>
+        </div>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:24}}>
+        {[
+          {label:'Total Leads',   val:contacts.length, color:'#4d8ef0'},
+          {label:'New This Week', val:thisWeek,         color:'#2ecc8a'},
+          {label:'In Pipeline',   val:qualified,        color:'#f0b429'},
+          {label:'Hot (75+)',     val:hot,              color:'#e05252'},
+        ].map(s=>(
+          <div key={s.label} style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:'14px 18px'}}>
+            <div style={{fontSize:24,fontWeight:700,fontFamily:'Syne,sans-serif',color:s.color,lineHeight:1}}>{s.val}</div>
+            <div style={{fontSize:11,color:'var(--muted)',marginTop:4}}>{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{display:'flex',gap:10,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search leads..." style={{maxWidth:260}} />
+        <select value={stageFilter} onChange={e=>setStageFilter(e.target.value)} style={{width:'auto'}}>
+          <option value="All">All Stages</option>
+          {STAGES.map(s=><option key={s}>{s}</option>)}
+        </select>
+        <select value={sourceFilter} onChange={e=>setSourceFilter(e.target.value)} style={{width:'auto'}}>
+          {LEAD_SOURCES.map(s=><option key={s}>{s}</option>)}
+        </select>
+        {(search||stageFilter!=='All'||sourceFilter!=='All') && (
+          <button className="btn-secondary" style={{fontSize:12}} onClick={()=>{setSearch('');setStageFilter('All');setSourceFilter('All');}}>Clear</button>
+        )}
+        {selected.length>0 && <span style={{marginLeft:'auto',fontSize:12,color:'var(--muted)'}}>{selected.length} selected</span>}
+      </div>
+
+      <div style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:12,overflow:'hidden'}}>
+        <table className="table">
+          <thead><tr>
+            <th style={{width:40}}><input type="checkbox" checked={selected.length===filtered.length&&filtered.length>0} onChange={toggleAll} /></th>
+            <th style={{cursor:'pointer'}} onClick={()=>sort('full_name')}>Name <Arr col="full_name"/></th>
+            <th>Phone</th>
+            <th style={{cursor:'pointer'}} onClick={()=>sort('stage')}>Stage <Arr col="stage"/></th>
+            <th style={{cursor:'pointer'}} onClick={()=>sort('lead_score')}>Score <Arr col="lead_score"/></th>
+            <th style={{cursor:'pointer'}} onClick={()=>sort('source')}>Source <Arr col="source"/></th>
+            <th style={{cursor:'pointer'}} onClick={()=>sort('created_at')}>Added <Arr col="created_at"/></th>
+            <th>Actions</th>
+          </tr></thead>
+          <tbody>
+            {filtered.map(c=>(
+              <tr key={c.id} style={{cursor:'pointer'}} onClick={()=>onSelect(c)}>
+                <td onClick={e=>toggleSelect(c.id,e)}><input type="checkbox" checked={selected.includes(c.id)} onChange={()=>{}} /></td>
+                <td>
+                  <div style={{display:'flex',alignItems:'center',gap:10}}>
+                    <div style={{width:32,height:32,borderRadius:'50%',background:avatarColor(c.full_name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:'#fff',flexShrink:0}}>{initials(c.full_name)}</div>
+                    <div>
+                      <div style={{fontWeight:600,fontSize:13}}>{c.full_name}</div>
+                      <div style={{color:'var(--muted)',fontSize:11}}>{c.email||'\u2014'}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style={{color:'var(--muted)',fontSize:13}}>{c.phone||'\u2014'}</td>
+                <td><span className={'badge badge-'+(STAGE_COLORS[c.stage]||'blue')}>{c.stage||'New Lead'}</span></td>
+                <td>
+                  {c.lead_score
+                    ? <span style={{fontWeight:700,color:scoreColor(c.lead_score),fontSize:13}}>{c.lead_score}<span style={{fontWeight:400,fontSize:10,color:'var(--muted)'}}>/100</span></span>
+                    : <span style={{color:'var(--muted)',fontSize:12}}>\u2014</span>}
+                </td>
+                <td style={{color:'var(--muted)',fontSize:12}}>{c.source||'\u2014'}</td>
+                <td style={{color:'var(--muted)',fontSize:12}}>{c.created_at?new Date(c.created_at+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}):'\u2014'}</td>
+                <td onClick={e=>e.stopPropagation()}>
+                  <div style={{display:'flex',gap:4}}>
+                    <button title="Edit" onClick={()=>setEditLead(c)}
+                      style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'4px 8px',cursor:'pointer',color:'var(--muted)',fontSize:11,display:'flex',alignItems:'center',gap:3}}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                      Edit
+                    </button>
+                    <LeadRowActions contact={c} profile={profile} toast={toast} onRefresh={onRefresh} />
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length===0 && (
+          <div style={{padding:48,textAlign:'center',color:'var(--muted)'}}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{marginBottom:10,opacity:.4}}><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <div style={{fontSize:14,fontWeight:500}}>No leads found</div>
+            <div style={{fontSize:12,marginTop:4}}>Adjust your filters or add a new lead</div>
+          </div>
+        )}
+      </div>
+
+      {showAdd    && <LeadFormModal onClose={()=>setShowAdd(false)} onSave={()=>{setShowAdd(false);onRefresh&&onRefresh();toast('Lead added!');}} companyId={profile?.company_name} toast={toast} />}
+      {editLead   && <LeadFormModal contact={editLead} onClose={()=>setEditLead(null)} onSave={()=>{setEditLead(null);onRefresh&&onRefresh();toast('Lead updated!');}} companyId={profile?.company_name} toast={toast} />}
+      {showImport && <LeadImportModal onClose={()=>setShowImport(false)} companyId={profile?.company_name} toast={toast} onImported={(n)=>{setShowImport(false);onRefresh&&onRefresh();toast('Imported '+n+' leads!');}} />}
+      {showMassEmail && <MassEmailModal contacts={selectedLeads} onClose={()=>setShowMassEmail(false)} onSent={n=>{setShowMassEmail(false);setSelected([]);toast('Emailed '+n+' leads!');}} />}
+      {showMassPres  && <MassPresentationModal contacts={selectedLeads} profile={profile} onClose={()=>setShowMassPres(false)} toast={toast} onSent={n=>{setShowMassPres(false);setSelected([]);toast('Presentations sent to '+n+' leads!');}} />}
+      {showGroupSend && <GroupSendModal contacts={contacts} profile={profile} toast={toast} onClose={()=>setShowGroupSend(false)} onSent={n=>{setShowGroupSend(false);toast('Presentations sent to '+n+' leads!');}} />}
+    </div>
+  );
+}
+
+// ─── LEAD ROW ACTIONS ─────────────────────────────────────────────────────────
+function LeadRowActions({ contact, profile, toast, onRefresh }) {
+  const [open,      setOpen]     = useState(false);
+  const [showEmail, setShowEmail]= useState(false);
+  const [showPres,  setShowPres] = useState(false);
+  const [scoring,   setScoring]  = useState(false);
+  const ref = React.useRef(null);
+
+  React.useEffect(() => {
+    if(!open) return;
+    const h = e => { if(ref.current&&!ref.current.contains(e.target)) setOpen(false); };
+    const t = setTimeout(()=>document.addEventListener('mousedown',h), 50);
+    return ()=>{ clearTimeout(t); document.removeEventListener('mousedown',h); };
+  }, [open]);
+
+  const scoreNow = async () => {
+    setScoring(true); setOpen(false);
+    const {data} = await supabase.functions.invoke('automation-engine',{body:{action:'scoreLead',contact_id:contact.id}});
+    setScoring(false);
+    if(data?.success){toast('Score: '+data.result.score+'/100 ('+data.result.grade+')');onRefresh&&onRefresh();}
+    else toast('Could not score lead');
+  };
+
+  const items = [
+    {label:'Send Email', action:()=>{setOpen(false);setShowEmail(true);}},
+    {label:'Send Presentation', action:()=>{setOpen(false);setShowPres(true);}},
+    {label:scoring?'Scoring...':'Score Lead', action:scoreNow},
+  ];
+
+  return (
+    <div ref={ref} style={{position:'relative'}}>
+      <button onClick={()=>setOpen(v=>!v)}
+        style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'4px 8px',cursor:'pointer',color:'var(--muted)',fontSize:11,display:'flex',alignItems:'center',gap:3}}>
+        Send <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      {open && (
+        <div style={{position:'fixed',zIndex:9999,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:6,minWidth:180,boxShadow:'0 12px 32px rgba(0,0,0,.4)'}}
+          ref={el=>{if(el&&ref.current){const r=ref.current.getBoundingClientRect();el.style.top=(r.bottom+4)+'px';el.style.left=Math.max(8,r.right-180)+'px';}}}>
+          {items.map(item=>(
+            <div key={item.label} onClick={item.action}
+              style={{padding:'8px 10px',borderRadius:7,cursor:'pointer',color:'var(--text)',fontSize:13}}
+              onMouseEnter={e=>e.currentTarget.style.background='var(--surface2)'}
+              onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+              {item.label}
+            </div>
+          ))}
+        </div>
+      )}
+      {showEmail && <LeadEmailModal contact={contact} onClose={()=>setShowEmail(false)} toast={toast} />}
+      {showPres  && <LeadPresModal  contact={contact} profile={profile} onClose={()=>setShowPres(false)} toast={toast} />}
+    </div>
+  );
+}
+
+// ─── LEAD FORM MODAL ──────────────────────────────────────────────────────────
+function LeadFormModal({ contact, onSave, onClose, companyId, toast }) {
+  const SOURCES = ['Manual','CSV Import','Hannah AI','Live Transfer','Campaign','Referral','Web'];
+  const blank   = {full_name:'',email:'',phone:'',company:'',occupation:'',address:'',stage:'New Lead',source:'Manual',notes:''};
+  const [form, setForm] = useState(contact?{...blank,...contact}:blank);
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  const save = async () => {
+    if(!form.full_name.trim()){toast&&toast('Name is required');return;}
+    const payload = {
+      full_name:form.full_name, email:form.email||'', phone:form.phone||'',
+      company:form.company||'', occupation:form.occupation||'', address:form.address||'',
+      stage:form.stage||'New Lead', source:form.source||'Manual',
+      notes:form.notes||'', company_id:companyId,
+    };
+    if(contact?.id){
+      const {error}=await supabase.from('contacts').update(payload).eq('id',contact.id);
+      if(error){toast&&toast('Error: '+error.message);return;}
+    } else {
+      const {data,error}=await supabase.from('contacts').insert([payload]).select().single();
+      if(error){toast&&toast('Error: '+error.message);return;}
+      if(data) supabase.functions.invoke('automation-engine',{body:{action:'scoreLead',contact_id:data.id,qualData:{borrowerName:data.full_name,phone:data.phone,email:data.email}}}).catch(()=>{});
+    }
+    onSave();
+  };
+
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal">
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+          <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:700}}>{contact?'Edit Lead':'New Lead'}</h2>
+          <button onClick={onClose} style={{background:'none',color:'var(--muted)',fontSize:20}}>✕</button>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+          {[['full_name','Full Name'],['email','Email'],['phone','Phone'],['company','Company'],['occupation','Occupation'],['address','Address']].map(([k,l])=>(
+            <div className="form-group" key={k}><label>{l}</label><input value={form[k]||''} onChange={e=>set(k,e.target.value)} /></div>
+          ))}
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:4}}>
+          <div className="form-group"><label>Stage</label>
+            <select value={form.stage} onChange={e=>set('stage',e.target.value)}>{STAGES.map(s=><option key={s}>{s}</option>)}</select>
+          </div>
+          <div className="form-group"><label>Source</label>
+            <select value={form.source||'Manual'} onChange={e=>set('source',e.target.value)}>{SOURCES.map(s=><option key={s}>{s}</option>)}</select>
+          </div>
+        </div>
+        <div className="form-group"><label>Notes</label><textarea rows={3} value={form.notes||''} onChange={e=>set('notes',e.target.value)} /></div>
+        <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:8}}>
+          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-primary" onClick={save}>{contact?'Save Changes':'Add Lead'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── LEAD CSV IMPORT MODAL ────────────────────────────────────────────────────
+function LeadImportModal({ onClose, companyId, toast, onImported }) {
+  const [step,     setStep]    = useState('upload');
+  const [headers,  setHeaders] = useState([]);
+  const [rows,     setRows]    = useState([]);
+  const [mapping,  setMapping] = useState({});
+  const [progress, setProgress]= useState(0);
+  const FIELDS = ['full_name','email','phone','company','occupation','address','stage','source','notes','(skip)'];
+  const AUTO   = {name:'full_name',full_name:'full_name',email:'email',phone:'phone',mobile:'phone',cell:'phone',company:'company',employer:'company',occupation:'occupation',address:'address',stage:'stage',status:'stage',source:'source',notes:'notes',note:'notes'};
+
+  const parseCSV = text => {
+    const lines = text.trim().replace(/\r/g,'').split('\n');
+    const hdrs  = lines[0].split(',').map(h=>h.replace(/^"|"$/g,'').trim());
+    const data  = lines.slice(1).map(l=>{
+      const vals=l.split(',').map(v=>v.replace(/^"|"$/g,'').trim());
+      const obj={}; hdrs.forEach((h,i)=>{ obj[h]=vals[i]||''; }); return obj;
+    }).filter(r=>Object.values(r).some(v=>v));
+    return {hdrs,data};
+  };
+
+  const handleFile = e => {
+    const file=e.target.files&&e.target.files[0]; if(!file) return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const {hdrs,data}=parseCSV(ev.target.result);
+      const m={}; hdrs.forEach(h=>{ const k=h.toLowerCase().replace(/[^a-z]/g,''); m[h]=AUTO[k]||'(skip)'; });
+      setHeaders(hdrs); setRows(data); setMapping(m); setStep('map');
+    };
+    reader.readAsText(file);
+  };
+
+  const doImport = async () => {
+    setStep('importing');
+    const batch=rows.map(r=>{
+      const obj={company_id:companyId,stage:'New Lead',source:'CSV Import'};
+      headers.forEach(h=>{ if(mapping[h]&&mapping[h]!=='(skip)') obj[mapping[h]]=r[h]||''; });
+      return obj;
+    }).filter(r=>r.full_name);
+    const SIZE=50;
+    for(let i=0;i<batch.length;i+=SIZE){
+      await supabase.from('contacts').insert(batch.slice(i,i+SIZE));
+      setProgress(Math.round(Math.min(((i+SIZE)/batch.length)*100,100)));
+    }
+    onImported(batch.length);
+  };
+
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal" style={{maxWidth:680,width:'90vw'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+          <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:700}}>Import Leads</h2>
+          <button onClick={onClose} style={{background:'none',color:'var(--muted)',fontSize:20}}>✕</button>
+        </div>
+
+        {step==='upload' && (
+          <label style={{display:'block',border:'2px dashed var(--border)',borderRadius:12,padding:48,textAlign:'center',cursor:'pointer',background:'var(--surface2)'}}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.5" style={{marginBottom:12}}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <div style={{fontWeight:600,marginBottom:6,fontSize:15}}>Drop a CSV file here or click to browse</div>
+            <div style={{fontSize:12,color:'var(--muted)'}}>Supports any CSV with name, phone, email columns — auto-detected</div>
+            <input type="file" accept=".csv,.txt" onChange={handleFile} style={{display:'none'}} />
+          </label>
+        )}
+
+        {step==='map' && (<>
+          <div style={{fontWeight:600,marginBottom:12}}>Map CSV columns to lead fields</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:20,maxHeight:260,overflowY:'auto'}}>
+            {headers.map(h=>(
+              <div key={h} style={{display:'flex',alignItems:'center',gap:8,background:'var(--surface2)',padding:'8px 10px',borderRadius:8}}>
+                <span style={{fontSize:12,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{h}</span>
+                <select value={mapping[h]||'(skip)'} onChange={e=>setMapping(m=>({...m,[h]:e.target.value}))}
+                  style={{background:'var(--surface)',border:'1px solid var(--border)',borderRadius:5,padding:'3px 6px',fontSize:11,color:'var(--text)',outline:'none'}}>
+                  {FIELDS.map(f=><option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+            ))}
+          </div>
+          <div style={{fontWeight:600,marginBottom:8}}>Preview (first 3 rows)</div>
+          <div style={{overflowX:'auto',borderRadius:8,border:'1px solid var(--border)',marginBottom:16}}>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:12}}>
+              <thead><tr style={{background:'var(--surface2)'}}>
+                {headers.filter(h=>mapping[h]&&mapping[h]!=='(skip)').map(h=><th key={h} style={{padding:'6px 10px',textAlign:'left',color:'var(--muted)',borderBottom:'1px solid var(--border)'}}>{mapping[h]}</th>)}
+              </tr></thead>
+              <tbody>
+                {rows.slice(0,3).map((r,i)=>(
+                  <tr key={i} style={{borderBottom:'1px solid var(--border)'}}>
+                    {headers.filter(h=>mapping[h]&&mapping[h]!=='(skip)').map(h=><td key={h} style={{padding:'5px 10px'}}>{r[h]||''}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{color:'var(--muted)',fontSize:12,marginBottom:16}}>
+            {rows.filter(r=>headers.some(h=>mapping[h]==='full_name'&&r[h])).length} leads will be imported
+          </div>
+          <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+            <button className="btn-secondary" onClick={()=>setStep('upload')}>Back</button>
+            <button className="btn-primary" onClick={doImport}>Import Leads</button>
+          </div>
+        </>)}
+
+        {step==='importing' && (
+          <div style={{textAlign:'center',padding:48}}>
+            <div style={{fontSize:15,fontWeight:600,marginBottom:16}}>Importing leads...</div>
+            <div style={{background:'var(--surface2)',borderRadius:20,height:8,overflow:'hidden',marginBottom:8}}>
+              <div style={{height:'100%',background:'var(--accent)',borderRadius:20,width:progress+'%',transition:'width .3s'}} />
+            </div>
+            <div style={{color:'var(--muted)',fontSize:13}}>{progress}%</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── SINGLE EMAIL MODAL ───────────────────────────────────────────────────────
+function LeadEmailModal({ contact, onClose, toast }) {
+  const [subject, setSubject]=useState('');
+  const [body,    setBody]   =useState('');
+  const [sending, setSending]=useState(false);
+
+  const send = async () => {
+    if(!contact.email){toast('No email address on file');return;}
+    if(!subject||!body){toast('Subject and message are required');return;}
+    setSending(true);
+    try {
+      const res=await fetch(process.env.REACT_APP_SUPABASE_URL+'/functions/v1/send-email',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+process.env.REACT_APP_SUPABASE_ANON_KEY},
+        body:JSON.stringify({to:contact.email,subject,body}),
+      });
+      const d=await res.json();
+      if(d.id||d.success||res.ok){
+        await supabase.from('activities').insert([{contact_id:contact.id,company_id:contact.company_id,type:'email',body:'Subject: '+subject+'\n\n'+body}]);
+        toast('Email sent to '+contact.full_name+'!');
+        onClose();
+      } else toast('Error: '+(d.error||'Send failed'));
+    } catch(e){toast('Error: '+e.message);}
+    setSending(false);
+  };
+
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal" style={{maxWidth:540}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+          <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:700}}>Email {contact.full_name}</h3>
+          <button onClick={onClose} style={{background:'none',color:'var(--muted)',fontSize:20}}>✕</button>
+        </div>
+        <div style={{fontSize:12,color:'var(--muted)',marginBottom:16}}>
+          To: {contact.email||<span style={{color:'#e05252'}}>No email on file</span>}
+        </div>
+        <div style={{background:'rgba(46,204,138,.1)',border:'1px solid rgba(46,204,138,.25)',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:12,color:'#2ecc8a'}}>
+          Tip: Use {'{{name}}'} to personalize with the lead's first name
+        </div>
+        <div className="form-group"><label>Subject</label><input value={subject} onChange={e=>setSubject(e.target.value)} placeholder="Subject line..." /></div>
+        <div className="form-group"><label>Message</label><textarea rows={7} value={body} onChange={e=>setBody(e.target.value)} placeholder="Write your message..." /></div>
+        <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-primary" onClick={send} disabled={sending||!contact.email}>{sending?'Sending...':'Send Email'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SINGLE PRESENTATION MODAL ────────────────────────────────────────────────
+function LeadPresModal({ contact, profile, onClose, toast }) {
+  const [sending, setSending]=useState(false);
+
+  const send = async () => {
+    if(!contact.email){toast('No email address on file for this lead');return;}
+    setSending(true);
+    try {
+      const firstName=(contact.full_name||'').split(' ')[0];
+      const emailBody='Hi '+firstName+',\n\nPlease find your personalized mortgage rate presentation. I have put together loan options tailored to your situation.\n\nFeel free to reply with any questions.\n\nBest regards,\n'+(profile?.full_name||'Your Loan Officer');
+      await fetch(process.env.REACT_APP_SUPABASE_URL+'/functions/v1/send-email',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+process.env.REACT_APP_SUPABASE_ANON_KEY},
+        body:JSON.stringify({to:contact.email,subject:'Your Mortgage Rate Presentation — '+(profile?.company_name||'Citizens Financial'),body:emailBody}),
+      });
+      await supabase.from('contacts').update({stage:'Proposal'}).eq('id',contact.id);
+      await supabase.from('activities').insert([{contact_id:contact.id,company_id:contact.company_id||profile?.company_name,type:'presentation_sent',body:'Presentation sent via Leads tab',created_at:new Date().toISOString()}]);
+      toast('Presentation sent to '+contact.full_name+'!');
+      onClose();
+    } catch(e){toast('Error: '+e.message);}
+    setSending(false);
+  };
+
+  return (
+    <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div className="modal" style={{maxWidth:460}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+          <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:700}}>Send Presentation</h3>
+          <button onClick={onClose} style={{background:'none',color:'var(--muted)',fontSize:20}}>✕</button>
+        </div>
+        <div style={{background:'var(--surface2)',borderRadius:8,padding:'12px 16px',marginBottom:16}}>
+          <div style={{fontWeight:600}}>{contact.full_name}</div>
+          <div style={{fontSize:12,color:'var(--muted)',marginTop:3}}>{contact.email||<span style={{color:'#e05252'}}>No email on file</span>}</div>
+          {contact.stage&&<div style={{marginTop:8}}><span className={'badge badge-'+(STAGE_COLORS[contact.stage]||'blue')}>{contact.stage}</span></div>}
+        </div>
+        <div style={{fontSize:13,color:'var(--muted)',marginBottom:20,lineHeight:1.5}}>
+          Sends a personalized mortgage rate presentation email and moves the lead to <strong>Proposal</strong> stage.
+        </div>
+        <div style={{display:'flex',gap:10,justifyContent:'flex-end'}}>
+          <button className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn-primary" onClick={send} disabled={sending||!contact.email}>{sending?'Sending...':'Send Presentation'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── PIPELINE VIEW ────────────────────────────────────────────────────────────
 function PipelineView({ contacts, onSelect }) {
   const total = contacts.length || 1;
@@ -11296,6 +11787,7 @@ export default function App() {
     { id:'dashboard', label:'Dashboard', icon:Icons.dashboard },
     { id:'calendar', label:'Calendar', icon:Icons.calendar },
     { id:'contacts', label:'Contacts', icon:Icons.contacts },
+    { id:'leads', label:'Leads', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16.92z"/></svg> },
     { id:'presentations', label:'Presentations', icon:Icons.file },
     { id:'pricing', label:'Pricing Engine', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
     { id:'pipeline', label:'Lead Funnel', icon:Icons.pipeline },
@@ -11395,6 +11887,7 @@ export default function App() {
       <div className="main">
         {view==='dashboard' && <Dashboard contacts={contacts} workspaces={workspaces} onOpenWorkspace={w=>{ setView('workspace', w); }} profile={profile} onCreateWorkspace={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setView('workspace',data);}}} onNavigate={v=>setView(v,null)} />}
         {view==='contacts' && <ContactsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} toast={toast} profile={profile} />}
+        {view==='leads' && <LeadsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} onRefresh={loadContacts} toast={toast} profile={profile} />}
         {view==='pipeline' && <PipelineView contacts={contacts} onSelect={c=>setSelectedContact(c)} />}
         {view==='team' && <TeamView profile={profile} toast={toast} />}
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
