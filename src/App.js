@@ -806,9 +806,19 @@ function ContactForm({ contact, onSave, onClose, companyId, toast }) {
   const [form, setForm] = useState(contact ? {...contact, tags:(contact.tags||[]).join(',')} : blank);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
+  const [errors, setErrors] = useState({});
+
   const save = async () => {
+    const errs = {};
+    if (!form.full_name.trim()) errs.full_name = 'Name is required';
+    if (!form.email.trim() && !form.phone.trim()) {
+      errs.email = 'Email or phone required';
+      errs.phone = 'Email or phone required';
+    }
+    if (Object.keys(errs).length) { setErrors(errs); toast && toast('Please fill in the required fields'); return; }
+    setErrors({});
     const payload = {
-      full_name: form.full_name || '',
+      full_name: form.full_name.trim(),
       email: form.email || '',
       phone: form.phone || '',
       company: form.company || '',
@@ -824,10 +834,10 @@ function ContactForm({ contact, onSave, onClose, companyId, toast }) {
     };
     if (contact?.id) {
       const { error } = await supabase.from('contacts').update(payload).eq('id', contact.id);
-      if (error) { console.error('Contact update error:', error); toast && toast('Error: ' + error.message); return; }
+      if (error) { toast && toast('Error: ' + error.message); return; }
     } else {
-      const { error } = await supabase.from('contacts').insert([payload]);
-      if (error) { console.error('Contact insert error:', error); toast && toast('Error: ' + error.message); return; }
+      const { data, error } = await supabase.from('contacts').insert([payload]).select().single();
+      if (error) { toast && toast('Error: ' + error.message); return; }
       if (data) {
         supabase.functions.invoke('automation-engine', {
           body: { action:'scoreLead', contact_id:data.id, qualData:{ borrowerName:data.full_name, phone:data.phone, email:data.email } }
@@ -837,24 +847,62 @@ function ContactForm({ contact, onSave, onClose, companyId, toast }) {
     onSave();
   };
 
+  const reqStyle = { color:'#e05252', marginLeft:2 };
+  const optStyle = { color:'var(--muted)', fontSize:11, fontWeight:400, marginLeft:4 };
+  const fieldErr = k => errors[k] ? { border:'1px solid #e05252' } : {};
+
   return (
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal">
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4 }}>
           <h2 style={{ fontFamily:'Syne,sans-serif', fontWeight:700 }}>{contact ? 'Edit Contact' : 'New Contact'}</h2>
           <button onClick={onClose} style={{ background:'none', color:'var(--muted)', fontSize:20 }}>✕</button>
         </div>
+        <p style={{ color:'var(--muted)', fontSize:12, marginBottom:16 }}>Fields marked <span style={reqStyle}>*</span> are required. At least one of email or phone is needed.</p>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-          {[['full_name','Full Name','text'],['email','Email','email'],['phone','Phone','text'],['company','Company','text'],['occupation','Occupation','text'],['address','Address','text']].map(([k,l,t])=>(
-            <div className="form-group" key={k}><label>{l}</label><input type={t} value={form[k]||''} onChange={e=>set(k,e.target.value)} /></div>
-          ))}
+          <div className="form-group">
+            <label>Full Name<span style={reqStyle}>*</span></label>
+            <input value={form.full_name||''} onChange={e=>set('full_name',e.target.value)} style={fieldErr('full_name')} placeholder="Jane Smith" />
+            {errors.full_name && <div style={{color:'#e05252',fontSize:11,marginTop:3}}>{errors.full_name}</div>}
+          </div>
+          <div className="form-group">
+            <label>Email<span style={reqStyle}>*</span><span style={optStyle}>or phone</span></label>
+            <input type="email" value={form.email||''} onChange={e=>set('email',e.target.value)} style={fieldErr('email')} placeholder="jane@example.com" />
+          </div>
+          <div className="form-group">
+            <label>Phone<span style={reqStyle}>*</span><span style={optStyle}>or email</span></label>
+            <input value={form.phone||''} onChange={e=>set('phone',e.target.value)} style={fieldErr('phone')} placeholder="(555) 000-0000" />
+            {errors.phone && !errors.email && <div style={{color:'#e05252',fontSize:11,marginTop:3}}>{errors.phone}</div>}
+            {errors.email && <div style={{color:'#e05252',fontSize:11,marginTop:3}}>Provide at least email or phone</div>}
+          </div>
+          <div className="form-group">
+            <label>Company<span style={optStyle}>optional</span></label>
+            <input value={form.company||''} onChange={e=>set('company',e.target.value)} placeholder="Acme Corp" />
+          </div>
+          <div className="form-group">
+            <label>Occupation<span style={optStyle}>optional</span></label>
+            <input value={form.occupation||''} onChange={e=>set('occupation',e.target.value)} placeholder="Nurse, Teacher…" />
+          </div>
+          <div className="form-group">
+            <label>Address<span style={optStyle}>optional</span></label>
+            <input value={form.address||''} onChange={e=>set('address',e.target.value)} placeholder="123 Main St" />
+          </div>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-          <div className="form-group"><label>Stage</label><select value={form.stage} onChange={e=>set('stage',e.target.value)}>{STAGES.map(s=><option key={s}>{s}</option>)}</select></div>
-          <div className="form-group"><label>Contact Group</label><select value={form.contact_group||''} onChange={e=>set('contact_group',e.target.value)}><option value="">— No group —</option>{['CDCR','CHCF','CMF','FHA/VA Nor-Cal','FHA/VA So-Cal','SQ'].map(g=><option key={g} value={g}>{g}</option>)}</select></div>
+          <div className="form-group">
+            <label>Stage<span style={optStyle}>optional</span></label>
+            <select value={form.stage} onChange={e=>set('stage',e.target.value)}>{STAGES.map(s=><option key={s}>{s}</option>)}</select>
+          </div>
+          <div className="form-group">
+            <label>Contact Group<span style={optStyle}>optional</span></label>
+            <select value={form.contact_group||''} onChange={e=>set('contact_group',e.target.value)}>
+              <option value="">— No group —</option>
+              {['CDCR','CHCF','CMF','FHA/VA Nor-Cal','FHA/VA So-Cal','SQ'].map(g=><option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
         </div>
-        <div className="form-group"><label>Tags (comma separated)</label><input value={form.tags} onChange={e=>set('tags',e.target.value)} placeholder="hot lead, Q1, enterprise" /></div>
-        <div className="form-group"><label>Notes</label><textarea rows={3} value={form.notes} onChange={e=>set('notes',e.target.value)} /></div>
+        <div className="form-group"><label>Tags<span style={optStyle}>optional — comma separated</span></label><input value={form.tags} onChange={e=>set('tags',e.target.value)} placeholder="hot lead, Q1, enterprise" /></div>
+        <div className="form-group"><label>Notes<span style={optStyle}>optional</span></label><textarea rows={3} value={form.notes||''} onChange={e=>set('notes',e.target.value)} /></div>
         <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
           <button className="btn-primary" onClick={save}>Save Contact</button>
@@ -2539,11 +2587,19 @@ function LeadFormModal({ contact, onSave, onClose, companyId, toast }) {
   const SRCS = ['Manual','CSV Import','Hannah AI','Live Transfer','Campaign','Referral','Web'];
   const blank = {full_name:'',email:'',phone:'',company:'',occupation:'',address:'',stage:'New Lead',source:'Manual',notes:''};
   const [form, setForm] = useState(contact?{...blank,...contact}:blank);
+  const [errors, setErrors] = useState({});
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
   const save = async () => {
-    if(!form.full_name.trim()){toast&&toast('Name is required');return;}
-    const payload = {full_name:form.full_name,email:form.email||'',phone:form.phone||'',company:form.company||'',occupation:form.occupation||'',address:form.address||'',stage:form.stage||'New Lead',source:form.source||'Manual',notes:form.notes||'',company_id:companyId,record_type:'lead'};
+    const errs = {};
+    if (!form.full_name.trim()) errs.full_name = 'Name is required';
+    if (!form.email.trim() && !form.phone.trim()) {
+      errs.email = 'Email or phone required';
+      errs.phone = 'Email or phone required';
+    }
+    if (Object.keys(errs).length) { setErrors(errs); toast&&toast('Please fill in the required fields'); return; }
+    setErrors({});
+    const payload = {full_name:form.full_name.trim(),email:form.email||'',phone:form.phone||'',company:form.company||'',occupation:form.occupation||'',address:form.address||'',stage:form.stage||'New Lead',source:form.source||'Manual',notes:form.notes||'',company_id:companyId,record_type:'lead'};
     if(contact?.id){
       const {error}=await supabase.from('contacts').update(payload).eq('id',contact.id);
       if(error){toast&&toast('Error: '+error.message);return;}
@@ -2555,27 +2611,55 @@ function LeadFormModal({ contact, onSave, onClose, companyId, toast }) {
     onSave();
   };
 
+  const reqStyle = {color:'#e05252',marginLeft:2};
+  const optStyle = {color:'var(--muted)',fontSize:11,fontWeight:400,marginLeft:4};
+  const fieldErr = k => errors[k] ? {border:'1px solid #e05252'} : {};
+
   return (
     <div className="overlay" onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div className="modal">
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
           <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:700}}>{contact?'Edit Lead':'New Lead'}</h2>
           <button onClick={onClose} style={{background:'none',color:'var(--muted)',fontSize:20}}>✕</button>
         </div>
+        <p style={{color:'var(--muted)',fontSize:12,marginBottom:16}}>Fields marked <span style={reqStyle}>*</span> are required. At least one of email or phone is needed.</p>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
-          {[['full_name','Full Name'],['email','Email'],['phone','Phone'],['company','Company'],['occupation','Occupation'],['address','Address']].map(([k,l])=>(
-            <div className="form-group" key={k}><label>{l}</label><input value={form[k]||''} onChange={e=>set(k,e.target.value)} /></div>
-          ))}
+          <div className="form-group">
+            <label>Full Name<span style={reqStyle}>*</span></label>
+            <input value={form.full_name||''} onChange={e=>set('full_name',e.target.value)} style={fieldErr('full_name')} placeholder="Jane Smith" />
+            {errors.full_name && <div style={{color:'#e05252',fontSize:11,marginTop:3}}>{errors.full_name}</div>}
+          </div>
+          <div className="form-group">
+            <label>Email<span style={reqStyle}>*</span><span style={optStyle}>or phone</span></label>
+            <input type="email" value={form.email||''} onChange={e=>set('email',e.target.value)} style={fieldErr('email')} placeholder="jane@example.com" />
+          </div>
+          <div className="form-group">
+            <label>Phone<span style={reqStyle}>*</span><span style={optStyle}>or email</span></label>
+            <input value={form.phone||''} onChange={e=>set('phone',e.target.value)} style={fieldErr('phone')} placeholder="(555) 000-0000" />
+            {errors.phone && <div style={{color:'#e05252',fontSize:11,marginTop:3}}>Provide at least email or phone</div>}
+          </div>
+          <div className="form-group">
+            <label>Company<span style={optStyle}>optional</span></label>
+            <input value={form.company||''} onChange={e=>set('company',e.target.value)} placeholder="Acme Corp" />
+          </div>
+          <div className="form-group">
+            <label>Occupation<span style={optStyle}>optional</span></label>
+            <input value={form.occupation||''} onChange={e=>set('occupation',e.target.value)} placeholder="Nurse, Teacher…" />
+          </div>
+          <div className="form-group">
+            <label>Address<span style={optStyle}>optional</span></label>
+            <input value={form.address||''} onChange={e=>set('address',e.target.value)} placeholder="123 Main St" />
+          </div>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:4}}>
-          <div className="form-group"><label>Stage</label>
+          <div className="form-group"><label>Stage<span style={optStyle}>optional</span></label>
             <select value={form.stage} onChange={e=>set('stage',e.target.value)}>{STAGES.map(s=><option key={s}>{s}</option>)}</select>
           </div>
-          <div className="form-group"><label>Source</label>
+          <div className="form-group"><label>Source<span style={optStyle}>optional</span></label>
             <select value={form.source||'Manual'} onChange={e=>set('source',e.target.value)}>{SRCS.map(s=><option key={s}>{s}</option>)}</select>
           </div>
         </div>
-        <div className="form-group"><label>Notes</label><textarea rows={3} value={form.notes||''} onChange={e=>set('notes',e.target.value)} /></div>
+        <div className="form-group"><label>Notes<span style={optStyle}>optional</span></label><textarea rows={3} value={form.notes||''} onChange={e=>set('notes',e.target.value)} /></div>
         <div style={{display:'flex',gap:10,justifyContent:'flex-end',marginTop:8}}>
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
           <button className="btn-primary" onClick={save}>{contact?'Save Changes':'Add Lead'}</button>
