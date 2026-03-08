@@ -2744,7 +2744,7 @@ function LeadEmailModal({ contact, onClose, toast }) {
           To: {contact.email||<span style={{color:'#e05252'}}>No email on file</span>}
         </div>
         <div style={{background:'rgba(46,204,138,.1)',border:'1px solid rgba(46,204,138,.25)',borderRadius:8,padding:'8px 12px',marginBottom:12,fontSize:12,color:'#2ecc8a'}}>
-          Tip: Use {'{{name}}'} to personalize with the lead's first name
+          Tip: Use {'{{name}}'} to personalize with the lead&#39;s first name
         </div>
         <div className="form-group"><label>Subject</label><input value={subject} onChange={e=>setSubject(e.target.value)} placeholder="Subject line..." /></div>
         <div className="form-group"><label>Message</label><textarea rows={7} value={body} onChange={e=>setBody(e.target.value)} placeholder="Write your message..." /></div>
