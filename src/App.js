@@ -820,6 +820,7 @@ function ContactForm({ contact, onSave, onClose, companyId, toast }) {
       tags: form.tags ? form.tags.split(',').map(t=>t.trim()).filter(Boolean) : [],
       notes: form.notes || '',
       company_id: companyId,
+      record_type: 'contact',
     };
     if (contact?.id) {
       const { error } = await supabase.from('contacts').update(payload).eq('id', contact.id);
@@ -2146,7 +2147,7 @@ function GroupImportModal({ onClose, groups, profile, toast, onImported }) {
     if (!selectedGroup) { toast('Please select a group'); return; }
     if (preview.length === 0) { toast('No contacts to import'); return; }
     setImporting(true);
-    const batch = preview.map(c => ({ ...c, contact_group: selectedGroup }));
+    const batch = preview.map(c => ({ ...c, contact_group: selectedGroup, record_type: 'contact' }));
     const { error } = await supabase.from('contacts').insert(batch);
     if (error) { toast('Import failed: ' + error.message); setImporting(false); return; }
     onImported();
@@ -2231,6 +2232,7 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
   const CONTACT_GROUPS = ['All Groups','CDCR','CHCF','CMF','FHA/VA Nor-Cal','FHA/VA So-Cal','SQ'];
 
   const filtered = contacts.filter(c => {
+    if (c.record_type !== 'contact') return false;
     const q = (search||'').toLowerCase();
     const match = !q || c.full_name?.toLowerCase().includes(q) || c.company?.toLowerCase().includes(q) || c.email?.toLowerCase().includes(q);
     const stageMatch = stageFilter==='All' || c.stage===stageFilter;
@@ -2315,7 +2317,7 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
 
 // ─── LEADS VIEW ───────────────────────────────────────────────────────────────
 function LeadsView({ contacts: raw, onAdd, onSelect, onRefresh, toast, profile }) {
-  const contacts = raw || [];
+  const contacts = (raw || []).filter(c => c.record_type === 'lead' || !c.record_type);
   const [search,        setSearch]       = useState('');
   const [stageFilter,   setStageFilter]  = useState('All');
   const [sourceFilter,  setSourceFilter] = useState('All');
@@ -2328,8 +2330,19 @@ function LeadsView({ contacts: raw, onAdd, onSelect, onRefresh, toast, profile }
   const [showMassEmail, setShowMassEmail]= useState(false);
   const [showMassPres,  setShowMassPres] = useState(false);
   const [showGroupSend, setShowGroupSend]= useState(false);
+  const [converting,    setConverting]   = useState(false);
 
   const SOURCES = ['All','Manual','CSV Import','Hannah AI','Live Transfer','Campaign','Referral','Web'];
+
+  const convertToContacts = async (ids) => {
+    if (!ids.length) return;
+    setConverting(true);
+    await supabase.from('contacts').update({ record_type:'contact' }).in('id', ids);
+    setSelected([]);
+    setConverting(false);
+    onRefresh && onRefresh();
+    toast(ids.length === 1 ? 'Lead converted to contact!' : `${ids.length} leads converted to contacts!`);
+  };
 
   const filtered = contacts.filter(c => {
     const q = (search||'').toLowerCase();
@@ -2367,6 +2380,12 @@ function LeadsView({ contacts: raw, onAdd, onSelect, onRefresh, toast, profile }
           {selected.length>0 && (
             <button className="btn-secondary" onClick={()=>setShowMassPres(true)}>
               {React.cloneElement(Icons.file,{width:13,height:13})} Presentation ({selected.length})
+            </button>
+          )}
+          {selected.length>0 && (
+            <button onClick={()=>convertToContacts(selected)} disabled={converting}
+              style={{background:'rgba(26,154,92,.15)',border:'1px solid rgba(26,154,92,.4)',color:'#1a9a5c',borderRadius:8,padding:'7px 14px',cursor:'pointer',fontSize:13,fontWeight:600,display:'flex',alignItems:'center',gap:6}}>
+              {converting ? 'Converting...' : `→ Convert to Contact (${selected.length})`}
             </button>
           )}
           <button className="btn-secondary" onClick={()=>setShowGroupSend(true)}>
@@ -2444,6 +2463,10 @@ function LeadsView({ contacts: raw, onAdd, onSelect, onRefresh, toast, profile }
                 <td onClick={e=>e.stopPropagation()}>
                   <div style={{display:'flex',gap:4}}>
                     <button onClick={()=>setEditLead(c)} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'4px 8px',cursor:'pointer',color:'var(--muted)',fontSize:11}}>Edit</button>
+                    <button onClick={()=>convertToContacts([c.id])}
+                      style={{background:'rgba(26,154,92,.1)',border:'1px solid rgba(26,154,92,.35)',borderRadius:6,padding:'4px 8px',cursor:'pointer',color:'#1a9a5c',fontSize:11,fontWeight:600,whiteSpace:'nowrap'}}>
+                      → Contact
+                    </button>
                     <LeadRowActions contact={c} profile={profile} toast={toast} onRefresh={onRefresh} />
                   </div>
                 </td>
@@ -2520,7 +2543,7 @@ function LeadFormModal({ contact, onSave, onClose, companyId, toast }) {
 
   const save = async () => {
     if(!form.full_name.trim()){toast&&toast('Name is required');return;}
-    const payload = {full_name:form.full_name,email:form.email||'',phone:form.phone||'',company:form.company||'',occupation:form.occupation||'',address:form.address||'',stage:form.stage||'New Lead',source:form.source||'Manual',notes:form.notes||'',company_id:companyId};
+    const payload = {full_name:form.full_name,email:form.email||'',phone:form.phone||'',company:form.company||'',occupation:form.occupation||'',address:form.address||'',stage:form.stage||'New Lead',source:form.source||'Manual',notes:form.notes||'',company_id:companyId,record_type:'lead'};
     if(contact?.id){
       const {error}=await supabase.from('contacts').update(payload).eq('id',contact.id);
       if(error){toast&&toast('Error: '+error.message);return;}
@@ -2596,7 +2619,7 @@ function LeadImportModal({ onClose, companyId, toast, onImported }) {
   const doImport = async () => {
     setStep('importing');
     const batch=rows.map(r=>{
-      const obj={company_id:companyId,stage:'New Lead',source:'CSV Import'};
+      const obj={company_id:companyId,stage:'New Lead',source:'CSV Import',record_type:'lead'};
       headers.forEach(h=>{ if(mapping[h]&&mapping[h]!=='(skip)') obj[mapping[h]]=r[h]||''; });
       return obj;
     }).filter(r=>r.full_name);
@@ -2744,52 +2767,389 @@ function LeadPresModal({ contact, profile, onClose, toast }) {
   );
 }
 
-// ─── PIPELINE VIEW ────────────────────────────────────────────────────────────
-function PipelineView({ contacts, onSelect }) {
-  const total = contacts.length || 1;
-  const stageColors = {
-    'New Lead':'#4d8ef0','Contacted':'#7c5cbf','Qualified':'#f0b429',
-    'Proposal':'#4d8ef0','Negotiation':'#e07b2a','Converted':'#2ecc8a','Non-Conversion':'#e05252'
+// ─── AI PIPELINE COMMAND CENTER ──────────────────────────────────────────────
+function AIPipelineView({ contacts, onSelect, profile, toast }) {
+  const [tab, setTab]             = useState('queue');
+  const [scoring, setScoring]     = useState(null);
+  const [movingStage, setMovingStage] = useState(null);
+  const [localContacts, setLocalContacts] = useState(contacts);
+  const [presContact, setPresContact] = useState(null);
+
+  useEffect(() => { setLocalContacts(contacts); }, [contacts]);
+
+  const companyId = profile?.company_name;
+
+  // ── AI Priority Engine ────────────────────────────────────────────────────
+  const STAGE_WEIGHT = {
+    'New Lead':0.4, 'Contacted':0.6, 'Qualified':0.8,
+    'Proposal':0.9, 'Negotiation':1.0, 'Converted':0, 'Non-Conversion':0,
   };
+
+  const daysSince = (dateStr) => {
+    if (!dateStr) return 999;
+    return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
+  };
+
+  const recencyScore = (days) => {
+    if (days < 1)  return 1.0;
+    if (days < 3)  return 0.9;
+    if (days < 7)  return 0.8;
+    if (days < 14) return 0.6;
+    if (days < 30) return 0.3;
+    return 0.1;
+  };
+
+  const computePriority = (c) => {
+    const base = c.lead_score || 50;
+    const sw   = STAGE_WEIGHT[c.stage] || 0.5;
+    const days = daysSince(c.updated_at || c.created_at);
+    const rs   = recencyScore(days);
+    return Math.round(base * sw * (0.6 + rs * 0.4));
+  };
+
+  const getRiskLevel = (c) => {
+    const days = daysSince(c.updated_at || c.created_at);
+    if (['Converted','Non-Conversion'].includes(c.stage)) return 'closed';
+    if (days > 21) return 'high';
+    if (days > 10) return 'medium';
+    if (!c.lead_score) return 'unscored';
+    return 'low';
+  };
+
+  const getRecommendedAction = (c) => {
+    const score = c.lead_score || 0;
+    const days  = daysSince(c.updated_at || c.created_at);
+    if (!c.lead_score)                                    return { label:'Score Lead',           icon:'⚡', urgency:'warning' };
+    if (score >= 75 && c.stage === 'New Lead')            return { label:'Qualify Now',           icon:'🔥', urgency:'hot'     };
+    if (score >= 75 && c.stage === 'Contacted')           return { label:'Send Proposal',         icon:'📋', urgency:'hot'     };
+    if (score >= 75 && c.stage === 'Qualified')           return { label:'Advance to Proposal',   icon:'📈', urgency:'hot'     };
+    if (c.stage === 'Negotiation')                        return { label:'Close Deal',            icon:'🎯', urgency:'hot'     };
+    if (score >= 60 && days > 7)                          return { label:'Follow Up',             icon:'📞', urgency:'warning' };
+    if (c.stage === 'Proposal' && days > 5)               return { label:'Check In',              icon:'💬', urgency:'warning' };
+    return { label:'Nurture', icon:'💧', urgency:'low' };
+  };
+
+  const scoreContact = async (c) => {
+    setScoring(c.id);
+    const { data } = await supabase.functions.invoke('automation-engine', {
+      body: { action:'scoreLead', contact_id:c.id },
+    });
+    setScoring(null);
+    if (data?.success) {
+      toast(`${c.full_name}: ${data.result?.score}/100 (${data.result?.grade})`);
+      setLocalContacts(prev => prev.map(x => x.id === c.id ? {...x, lead_score: data.result?.score} : x));
+    } else {
+      toast('Score error — try again');
+    }
+  };
+
+  const moveToStage = async (c, stage) => {
+    setMovingStage(c.id);
+    await supabase.from('contacts').update({ stage, updated_at: new Date().toISOString() }).eq('id', c.id);
+    setLocalContacts(prev => prev.map(x => x.id === c.id ? {...x, stage, updated_at: new Date().toISOString()} : x));
+    setMovingStage(null);
+    toast(`${c.full_name} → ${stage}`);
+  };
+
+  const advanceStage = async (c) => {
+    const idx  = STAGES.indexOf(c.stage);
+    if (idx < 0 || idx >= 4) return;
+    await moveToStage(c, STAGES[idx + 1]);
+  };
+
+  // Convert a lead to a contact record
+  const convertToContact = async (c) => {
+    await supabase.from('contacts').update({ record_type:'contact' }).eq('id', c.id);
+    setLocalContacts(prev => prev.filter(x => x.id !== c.id));
+    toast(`${c.full_name} moved to Contacts`);
+  };
+
+  // Derived data — only show leads (record_type='lead') in the pipeline
+  const activeContacts = localContacts.filter(c => !['Converted','Non-Conversion'].includes(c.stage) && (c.record_type === 'lead' || !c.record_type));
+  const actionQueue    = [...activeContacts]
+    .map(c => ({ ...c, _priority:computePriority(c), _action:getRecommendedAction(c), _risk:getRiskLevel(c) }))
+    .sort((a,b) => b._priority - a._priority);
+
+  const hotLeads          = activeContacts.filter(c => (c.lead_score||0) >= 75).length;
+  const atRisk            = activeContacts.filter(c => daysSince(c.updated_at||c.created_at) > 10).length;
+  const unscored          = activeContacts.filter(c => !c.lead_score).length;
+  const thisWeekConverted = localContacts.filter(c => c.stage==='Converted' && daysSince(c.updated_at) < 7).length;
+
+  const scoreColor = s => !s ? 'var(--muted)' : s >= 75 ? '#2ecc8a' : s >= 50 ? '#f0b429' : '#e05252';
+
+  const URGENCY = {
+    hot:     { bg:'rgba(239,68,68,.15)',   color:'#ef4444', border:'rgba(239,68,68,.3)'   },
+    warning: { bg:'rgba(245,158,11,.15)', color:'#f59e0b', border:'rgba(245,158,11,.3)' },
+    low:     { bg:'rgba(59,130,246,.1)',  color:'#3b82f6', border:'rgba(59,130,246,.2)'  },
+  };
+
+  const STAGE_COLOR = {
+    'New Lead':'#4d8ef0','Contacted':'#7c5cbf','Qualified':'#f0b429',
+    'Proposal':'#4d8ef0','Negotiation':'#e07b2a',
+  };
+
   return (
-    <div style={{ padding:32, maxWidth:900, margin:'0 auto' }}>
-      <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700, marginBottom:28 }}>Lead Funnel</div>
-      <div style={{ display:'flex', flexDirection:'column', gap:8, alignItems:'center' }}>
-        {STAGES.map((stage, i) => {
-          const stageContacts = contacts.filter(c=>c.stage===stage);
-          const count = stageContacts.length;
-          const pct = Math.max(20, Math.round((count / total) * 100));
-          const maxWidth = 100 - (i * 6);
-          const width = Math.max(40, maxWidth) + '%';
-          const color = stageColors[stage] || '#4d8ef0';
-          return (
-            <div key={stage} style={{ width:'100%', display:'flex', flexDirection:'column', alignItems:'center' }}>
-              <div style={{ width, background:color, borderRadius:8, padding:'14px 20px', cursor:'pointer', transition:'all .2s', boxShadow:`0 2px 12px ${color}44`, position:'relative' }}
-                onClick={()=>{}}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: count>0?10:0 }}>
-                  <span style={{ fontWeight:700, fontSize:14, color:'#fff', letterSpacing:'.02em' }}>{stage}</span>
-                  <span style={{ background:'rgba(255,255,255,.25)', color:'#fff', borderRadius:20, padding:'2px 10px', fontSize:13, fontWeight:700 }}>{count}</span>
-                </div>
-                {count > 0 && (
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-                    {stageContacts.map(c=>(
-                      <div key={c.id} onClick={e=>{e.stopPropagation();onSelect(c);}} style={{ background:'rgba(255,255,255,.15)', borderRadius:6, padding:'5px 10px', cursor:'pointer', transition:'background .15s' }}
-                        onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.3)'}
-                        onMouseOut={e=>e.currentTarget.style.background='rgba(255,255,255,.15)'}>
-                        <div style={{ fontSize:12, fontWeight:600, color:'#fff' }}>{c.full_name}</div>
-                        {c.deal_value>0 && <div style={{ fontSize:11, color:'rgba(255,255,255,.8)' }}>{fmt(c.deal_value)}</div>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {i < STAGES.length - 1 && (
-                <div style={{ width:2, height:16, background:'var(--border)' }} />
-              )}
-            </div>
-          );
-        })}
+    <div style={{ padding:28, maxWidth:1200, margin:'0 auto' }}>
+
+      {/* Header */}
+      <div style={{ marginBottom:24 }}>
+        <h1 style={{ fontFamily:'Cormorant Garamond, serif', fontSize:30, fontWeight:700, margin:0 }}>AI Pipeline</h1>
+        <p style={{ color:'var(--muted)', fontSize:13, margin:'4px 0 0' }}>
+          AI-ranked leads with smart next-action recommendations and 1-click stage progression
+        </p>
       </div>
+
+      {/* KPI Row */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:24 }}>
+        {[
+          { label:'Hot Leads (75+)',    val:hotLeads,          color:'#ef4444', icon:'🔥' },
+          { label:'At Risk (10d+)',     val:atRisk,            color:'#f59e0b', icon:'⚠️' },
+          { label:'Unscored',          val:unscored,          color:'#888',    icon:'❓' },
+          { label:'Closed This Week',  val:thisWeekConverted, color:'#2ecc8a', icon:'✅' },
+        ].map(s => (
+          <div key={s.label} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:'14px 18px', display:'flex', alignItems:'center', gap:12 }}>
+            <span style={{ fontSize:26 }}>{s.icon}</span>
+            <div>
+              <div style={{ fontSize:26, fontWeight:700, color:s.color, lineHeight:1 }}>{s.val}</div>
+              <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{s.label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display:'flex', gap:4, marginBottom:20, borderBottom:'1px solid var(--border)' }}>
+        {[
+          { id:'queue',  label:'⚡ Action Queue',  count:actionQueue.filter(c=>c._action.urgency!=='low').length },
+          { id:'kanban', label:'📋 Pipeline Board', count:activeContacts.length },
+          { id:'risk',   label:'🚨 Risk Monitor',   count:atRisk+unscored },
+        ].map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            style={{ padding:'8px 16px', borderRadius:'6px 6px 0 0', border:'1px solid var(--border)', borderBottom: tab===t.id ? '2px solid var(--accent)' : '1px solid var(--border)', background: tab===t.id ? 'var(--surface)' : 'transparent', color: tab===t.id ? 'var(--accent)' : 'var(--muted)', cursor:'pointer', fontSize:13, fontWeight: tab===t.id ? 600 : 400, marginBottom:-1, display:'flex', alignItems:'center', gap:8 }}>
+            {t.label}
+            <span style={{ background: tab===t.id ? 'var(--accent)' : 'var(--border)', color: tab===t.id ? '#fff' : 'var(--muted)', borderRadius:10, padding:'1px 7px', fontSize:11, fontWeight:700 }}>{t.count}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ── ACTION QUEUE TAB ─────────────────────────────────────────────────── */}
+      {tab === 'queue' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          {actionQueue.length === 0 && (
+            <div style={{ textAlign:'center', padding:60, color:'var(--muted)' }}>No active leads in pipeline.</div>
+          )}
+          {actionQueue.map(c => {
+            const us   = URGENCY[c._action.urgency] || URGENCY.low;
+            const days = daysSince(c.updated_at || c.created_at);
+            return (
+              <div key={c.id} style={{ background:'var(--surface)', border:`1px solid ${us.border}`, borderRadius:10, padding:'14px 18px', display:'grid', gridTemplateColumns:'2fr 80px 1.1fr 1.4fr auto', alignItems:'center', gap:14 }}>
+
+                {/* Lead info */}
+                <div style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }} onClick={() => onSelect(c)}>
+                  <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(c.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:'#fff', flexShrink:0 }}>{initials(c.full_name)}</div>
+                  <div>
+                    <div style={{ fontWeight:600, fontSize:14 }}>{c.full_name}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)', display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
+                      <span className={'badge badge-'+(STAGE_COLORS[c.stage]||'blue')} style={{ fontSize:10, padding:'1px 6px' }}>{c.stage}</span>
+                      {days > 0 ? `${days}d ago` : 'Today'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Score */}
+                <div style={{ textAlign:'center' }}>
+                  {c.lead_score
+                    ? <div style={{ fontSize:22, fontWeight:800, color:scoreColor(c.lead_score), lineHeight:1 }}>{c.lead_score}<span style={{ fontSize:10, fontWeight:400, color:'var(--muted)' }}>/100</span></div>
+                    : <div style={{ fontSize:12, color:'var(--muted)' }}>—</div>}
+                  <div style={{ fontSize:9, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.04em', marginTop:2 }}>Score</div>
+                </div>
+
+                {/* AI Action badge */}
+                <div>
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:5, fontSize:12, padding:'5px 10px', borderRadius:20, background:us.bg, color:us.color, border:`1px solid ${us.border}`, fontWeight:600 }}>
+                    {c._action.icon} {c._action.label}
+                  </span>
+                </div>
+
+                {/* Priority bar */}
+                <div>
+                  <div style={{ fontSize:10, color:'var(--muted)', marginBottom:4 }}>AI Priority: {c._priority}</div>
+                  <div style={{ background:'var(--surface2)', borderRadius:4, height:5, overflow:'hidden' }}>
+                    <div style={{ height:'100%', width:`${Math.min(100, c._priority)}%`, background:`linear-gradient(90deg,${scoreColor(c._priority)},${scoreColor(c._priority)}88)` }} />
+                  </div>
+                </div>
+
+                {/* 1-click actions */}
+                <div style={{ display:'flex', gap:5, flexShrink:0 }}>
+                  <button onClick={() => scoreContact(c)} disabled={scoring===c.id}
+                    style={{ padding:'5px 10px', borderRadius:6, background:'rgba(139,92,246,.15)', border:'1px solid rgba(139,92,246,.3)', color:'#8b5cf6', cursor:'pointer', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
+                    {scoring===c.id ? '...' : '⚡ Score'}
+                  </button>
+                  {STAGES.indexOf(c.stage) >= 0 && STAGES.indexOf(c.stage) < 4 && (
+                    <button onClick={() => advanceStage(c)} disabled={movingStage===c.id}
+                      style={{ padding:'5px 10px', borderRadius:6, background:'rgba(46,204,138,.15)', border:'1px solid rgba(46,204,138,.3)', color:'#2ecc8a', cursor:'pointer', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
+                      {movingStage===c.id ? '...' : '→ Advance'}
+                    </button>
+                  )}
+                  <button onClick={() => setPresContact(c)}
+                    style={{ padding:'5px 10px', borderRadius:6, background:'rgba(26,86,219,.15)', border:'1px solid rgba(26,86,219,.3)', color:'#1a56db', cursor:'pointer', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
+                    📊 Pres
+                  </button>
+                  <button onClick={() => convertToContact(c)}
+                    style={{ padding:'5px 10px', borderRadius:6, background:'rgba(26,154,92,.12)', border:'1px solid rgba(26,154,92,.35)', color:'#1a9a5c', cursor:'pointer', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
+                    → Contact
+                  </button>
+                  <button onClick={() => onSelect(c)}
+                    style={{ padding:'5px 10px', borderRadius:6, background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--muted)', cursor:'pointer', fontSize:11, whiteSpace:'nowrap' }}>
+                    View
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── KANBAN BOARD TAB ─────────────────────────────────────────────────── */}
+      {tab === 'kanban' && (
+        <div style={{ overflowX:'auto', paddingBottom:16 }}>
+          <div style={{ display:'flex', gap:12, minWidth:'max-content' }}>
+            {STAGES.slice(0,5).map(stage => {
+              const cols  = localContacts.filter(c => c.stage===stage);
+              const color = STAGE_COLOR[stage] || '#4d8ef0';
+              const stageIdx = STAGES.indexOf(stage);
+              return (
+                <div key={stage} style={{ width:240, flexShrink:0 }}>
+                  {/* Column header */}
+                  <div style={{ background:`${color}22`, border:`1px solid ${color}44`, borderRadius:'8px 8px 0 0', padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                    <span style={{ fontWeight:700, fontSize:13, color }}>{stage}</span>
+                    <span style={{ background:`${color}33`, color, borderRadius:12, padding:'1px 8px', fontSize:12, fontWeight:700 }}>{cols.length}</span>
+                  </div>
+                  {/* Cards */}
+                  <div style={{ background:'var(--surface2)', border:`1px solid ${color}22`, borderTop:'none', borderRadius:'0 0 8px 8px', minHeight:120, padding:8, display:'flex', flexDirection:'column', gap:8 }}>
+                    {cols.map(c => {
+                      const action = getRecommendedAction(c);
+                      const us     = URGENCY[action.urgency] || URGENCY.low;
+                      const days   = daysSince(c.updated_at || c.created_at);
+                      return (
+                        <div key={c.id} onClick={() => onSelect(c)}
+                          style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, padding:'10px 12px', cursor:'pointer', transition:'all .15s' }}
+                          onMouseOver={e => { e.currentTarget.style.borderColor=color; e.currentTarget.style.transform='translateY(-1px)'; }}
+                          onMouseOut={e  => { e.currentTarget.style.borderColor='var(--border)'; e.currentTarget.style.transform=''; }}>
+                          <div style={{ fontWeight:600, fontSize:13, marginBottom:4 }}>{c.full_name}</div>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                            {c.lead_score
+                              ? <span style={{ fontSize:12, fontWeight:700, color:scoreColor(c.lead_score) }}>{c.lead_score}/100</span>
+                              : <span style={{ fontSize:11, color:'var(--muted)' }}>Unscored</span>}
+                            <span style={{ fontSize:10, color:'var(--muted)' }}>{days}d</span>
+                          </div>
+                          <div style={{ fontSize:11, color:us.color, background:us.bg, borderRadius:4, padding:'2px 7px', display:'inline-block', marginBottom:8 }}>
+                            {action.icon} {action.label}
+                          </div>
+                          {/* Stage advance / back buttons */}
+                          <div style={{ display:'flex', gap:4 }} onClick={e => e.stopPropagation()}>
+                            {stageIdx > 0 && (
+                              <button onClick={() => moveToStage(c, STAGES[stageIdx-1])} disabled={movingStage===c.id}
+                                style={{ flex:1, padding:'3px 0', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:4, color:'var(--muted)', cursor:'pointer', fontSize:10 }}>
+                                ← Back
+                              </button>
+                            )}
+                            {stageIdx < 4 && (
+                              <button onClick={() => moveToStage(c, STAGES[stageIdx+1])} disabled={movingStage===c.id}
+                                style={{ flex:1, padding:'3px 0', background:`${color}22`, border:`1px solid ${color}44`, borderRadius:4, color, cursor:'pointer', fontSize:10, fontWeight:600 }}>
+                                {movingStage===c.id ? '...' : 'Advance →'}
+                              </button>
+                            )}
+                            <button onClick={() => setPresContact(c)}
+                              style={{ flex:1, padding:'3px 0', background:'rgba(26,86,219,.15)', border:'1px solid rgba(26,86,219,.3)', borderRadius:4, color:'#1a56db', cursor:'pointer', fontSize:10, fontWeight:600 }}>
+                              📊 Pres
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {cols.length === 0 && (
+                      <div style={{ textAlign:'center', padding:'20px 0', color:'var(--muted)', fontSize:12 }}>No leads</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── RISK MONITOR TAB ─────────────────────────────────────────────────── */}
+      {tab === 'risk' && (
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          {[...activeContacts]
+            .map(c => ({ ...c, _days:daysSince(c.updated_at||c.created_at), _risk:getRiskLevel(c) }))
+            .filter(c => c._risk !== 'low' && c._risk !== 'closed')
+            .sort((a,b) => b._days - a._days)
+            .map(c => {
+              const RS = {
+                high:     { color:'#ef4444', bg:'rgba(239,68,68,.08)',   label:'🔴 High Risk', desc:`No activity for ${c._days} days` },
+                medium:   { color:'#f59e0b', bg:'rgba(245,158,11,.07)', label:'🟡 At Risk',    desc:`${c._days} days since last update` },
+                unscored: { color:'#888',    bg:'rgba(128,128,128,.07)', label:'❓ Unscored',  desc:'AI score not yet computed' },
+              };
+              const rs = RS[c._risk] || RS.medium;
+              return (
+                <div key={c.id} style={{ background:rs.bg, border:`1px solid ${rs.color}33`, borderRadius:10, padding:'12px 18px', display:'grid', gridTemplateColumns:'2fr 1.2fr 80px auto', alignItems:'center', gap:14 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }} onClick={() => onSelect(c)}>
+                    <div style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(c.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', flexShrink:0 }}>{initials(c.full_name)}</div>
+                    <div>
+                      <div style={{ fontWeight:600, fontSize:14 }}>{c.full_name}</div>
+                      <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{c.stage}</div>
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize:12, fontWeight:700, color:rs.color }}>{rs.label}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{rs.desc}</div>
+                  </div>
+                  <div style={{ textAlign:'center' }}>
+                    {c.lead_score
+                      ? <span style={{ fontSize:18, fontWeight:800, color:scoreColor(c.lead_score) }}>{c.lead_score}</span>
+                      : <span style={{ fontSize:12, color:'var(--muted)' }}>—</span>}
+                  </div>
+                  <div style={{ display:'flex', gap:5 }}>
+                    <button onClick={() => scoreContact(c)} disabled={scoring===c.id}
+                      style={{ padding:'5px 10px', borderRadius:6, background:'rgba(139,92,246,.15)', border:'1px solid rgba(139,92,246,.3)', color:'#8b5cf6', cursor:'pointer', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
+                      {scoring===c.id ? '...' : '⚡ Score'}
+                    </button>
+                    <button onClick={() => setPresContact(c)}
+                      style={{ padding:'5px 10px', borderRadius:6, background:'rgba(26,86,219,.15)', border:'1px solid rgba(26,86,219,.3)', color:'#1a56db', cursor:'pointer', fontSize:11, fontWeight:600, whiteSpace:'nowrap' }}>
+                      📊 Pres
+                    </button>
+                    <button onClick={() => onSelect(c)}
+                      style={{ padding:'5px 10px', borderRadius:6, background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--muted)', cursor:'pointer', fontSize:11, whiteSpace:'nowrap' }}>
+                      View
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          {activeContacts.filter(c => { const r=getRiskLevel(c); return r!=='low'&&r!=='closed'; }).length === 0 && (
+            <div style={{ textAlign:'center', padding:60, color:'#2ecc8a' }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>✅</div>
+              <div style={{ fontWeight:600, fontSize:15 }}>Pipeline is healthy — no at-risk leads detected</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Presentation modal — opens full Generate / From Template flow for a single contact */}
+      {presContact && (
+        <MassPresentationModal
+          contacts={[presContact]}
+          profile={profile}
+          toast={toast}
+          onClose={() => setPresContact(null)}
+          onSent={() => {
+            setPresContact(null);
+            toast(`Presentation sent to ${presContact.full_name}!`);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -8518,7 +8878,7 @@ Respond with well-structured answers using bullet points and headers. Be concise
     if(action === 'create_contact') {
       const {data,error} = await supabase.from('contacts').insert([{
         full_name: args.name, phone: args.phone||'', email: args.email||'',
-        stage: args.stage||'New Lead', company_id: profile?.company_name, source:'Hannah AI'
+        stage: args.stage||'New Lead', company_id: profile?.company_name, source:'Hannah AI', record_type:'lead'
       }]).select().single();
       if(error) return 'Error: ' + error.message;
       return 'Created contact: ' + data.full_name + ' (' + data.stage + ')';
@@ -11740,7 +12100,7 @@ export default function App() {
     { id:'leads', label:'Leads', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.91a16 16 0 0 0 6 6l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16.92z"/></svg> },
     { id:'presentations', label:'Presentations', icon:Icons.file },
     { id:'pricing', label:'Pricing Engine', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
-    { id:'pipeline', label:'Lead Funnel', icon:Icons.pipeline },
+    { id:'pipeline', label:'AI Pipeline', icon:Icons.pipeline },
     { id:'team', label:'Team', icon:Icons.team },
     { id:'automation', label:'AI Outreach', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 2 15 22 11 13 2 9 22 2"/></svg> },
     { id:'content-hub', label:'Content Hub', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> },
@@ -11838,7 +12198,7 @@ export default function App() {
         {view==='dashboard' && <Dashboard contacts={contacts} workspaces={workspaces} onOpenWorkspace={w=>{ setView('workspace', w); }} profile={profile} onCreateWorkspace={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setView('workspace',data);}}} onNavigate={v=>setView(v,null)} />}
         {view==='contacts' && <ContactsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} toast={toast} profile={profile} />}
         {view==='leads' && <LeadsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} onRefresh={()=>{ if(profile) loadContacts(profile.company_name); }} toast={toast} profile={profile} />}
-        {view==='pipeline' && <PipelineView contacts={contacts} onSelect={c=>setSelectedContact(c)} />}
+        {view==='pipeline' && <AIPipelineView contacts={contacts} onSelect={c=>setSelectedContact(c)} profile={profile} toast={toast} />}
         {view==='team' && <TeamView profile={profile} toast={toast} />}
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
         {view==='trash' && <TrashArchiveView profile={profile} workspaces={workspaces} toast={toast} />}
