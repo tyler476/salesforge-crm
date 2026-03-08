@@ -2314,7 +2314,8 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
 
 
 // ─── LEADS VIEW ───────────────────────────────────────────────────────────────
-function LeadsView({ contacts, onAdd, onSelect, onRefresh, toast, profile }) {
+function LeadsView({ contacts: contactsRaw, onAdd, onSelect, onRefresh, toast, profile }) {
+  const contacts = contactsRaw || [];
   const [search,       setSearch]      = useState('');
   const [stageFilter,  setStageFilter] = useState('All');
   const [sourceFilter, setSourceFilter]= useState('All');
@@ -11887,7 +11888,7 @@ export default function App() {
       <div className="main">
         {view==='dashboard' && <Dashboard contacts={contacts} workspaces={workspaces} onOpenWorkspace={w=>{ setView('workspace', w); }} profile={profile} onCreateWorkspace={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setView('workspace',data);}}} onNavigate={v=>setView(v,null)} />}
         {view==='contacts' && <ContactsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} toast={toast} profile={profile} />}
-        {view==='leads' && <LeadsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} onRefresh={loadContacts} toast={toast} profile={profile} />}
+        {view==='leads' && <LeadsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} onRefresh={()=>{ if(profile) loadContacts(profile.company_name); }} toast={toast} profile={profile} />}
         {view==='pipeline' && <PipelineView contacts={contacts} onSelect={c=>setSelectedContact(c)} />}
         {view==='team' && <TeamView profile={profile} toast={toast} />}
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
