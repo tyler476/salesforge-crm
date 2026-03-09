@@ -1463,7 +1463,21 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                   </div>
                   {/* Message */}
                   <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.45 }}>
-                    {n.message || (isSystem ? `A ${meta.label.toLowerCase()} event occurred` : 'No additional details')}
+                    {n.message || (()=>{
+                      const who = n.actor_name ? `${n.actor_name} ` : '';
+                      switch(n.type) {
+                        case 'status_change': return n.item_name ? `${who}changed the status on "${n.item_name}"` : `${who}changed a status`;
+                        case 'assignment':    return n.item_name ? `${who}assigned you to "${n.item_name}"` : `${who}assigned you to an item`;
+                        case 'mention':       return n.item_name ? `${who}mentioned you in "${n.item_name}"` : `${who}mentioned you in a comment`;
+                        case 'score':         return n.item_name ? `Lead "${n.item_name}" was scored` : 'A lead was scored';
+                        case 'campaign':      return n.item_name ? `Campaign update on "${n.item_name}"` : 'A campaign was updated';
+                        case 'presentation':  return n.item_name ? `"${n.item_name}" presentation was opened` : 'A presentation was opened';
+                        case 'email':         return n.item_name ? `Email sent for "${n.item_name}"` : 'An email was sent';
+                        case 'call':          return n.item_name ? `Call logged on "${n.item_name}"` : 'A call was logged';
+                        case 'overdue':       return n.item_name ? `"${n.item_name}" is overdue` : 'An item is overdue';
+                        default:              return n.item_name ? `Activity on "${n.item_name}"` : 'You have a new notification';
+                      }
+                    })()}
                   </div>
                   {/* Item + workspace */}
                   {n.item_name && (
