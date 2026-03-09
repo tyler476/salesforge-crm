@@ -1465,7 +1465,13 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                   </div>
                   {/* Message */}
                   <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.45 }}>
-                    {(n.message && n.message.trim()) ? n.message : (()=>{
+                    {(()=>{
+                      // Skip stored messages that are generic/useless
+                      const BAD = ['new activity','notification occurred','a notification occurred','activity occurred','you have a new notification','triggered','new notification'];
+                      const stored = (n.message||'').trim();
+                      const useStored = stored && !BAD.some(b => stored.toLowerCase().includes(b));
+                      if (useStored) return stored;
+                      return (()=>{
                       const who = n.actor_name ? `${n.actor_name} ` : '';
                       const item = n.item_name ? `"${n.item_name}"` : 'an item';
                       const t = (n.type||'').toLowerCase().replace(/[^a-z]/g,'');
@@ -1481,6 +1487,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                       if(t.includes('lock'))         return `Rate lock expiring on ${item}`;
                       if(t.includes('comment')||t.includes('update')) return `${who}commented on ${item}`;
                       return who ? `${who}updated ${item}` : `New activity on ${item}`;
+                    })();
                     })()}
                   </div>
                   {/* Item + workspace */}
