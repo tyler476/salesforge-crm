@@ -934,7 +934,7 @@ function AuthScreen({ onAuth }) {
             email: form.email, password: form.password
           });
           if (signInErr) {
-            setErr('This email exists but the password is incorrect. Please use your existing password or reset it.');
+            setErr('This email already exists in Supabase Auth with a different password. To re-register it fresh: go to your Supabase dashboard → Authentication → Users → find ' + form.email + ' → delete that user → then come back and sign up again.');
             setLoading(false);
             return;
           }
