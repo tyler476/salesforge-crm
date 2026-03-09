@@ -2367,7 +2367,7 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
 
 
 // ─── LEADS VIEW ───────────────────────────────────────────────────────────────
-function LeadsView({ contacts: raw, onAdd, onSelect, onRefresh, toast, profile }) {
+function LeadsView({ contacts: raw, onAdd, onSelect, onRefresh, toast, profile, onBuildPresentation }) {
   const contacts = (raw || []).filter(c => c.record_type === 'lead' || !c.record_type);
   const [search,        setSearch]       = useState('');
   const [stageFilter,   setStageFilter]  = useState('All');
@@ -2518,7 +2518,7 @@ function LeadsView({ contacts: raw, onAdd, onSelect, onRefresh, toast, profile }
                       style={{background:'rgba(26,154,92,.1)',border:'1px solid rgba(26,154,92,.35)',borderRadius:6,padding:'4px 8px',cursor:'pointer',color:'#1a9a5c',fontSize:11,fontWeight:600,whiteSpace:'nowrap'}}>
                       → Contact
                     </button>
-                    <LeadRowActions contact={c} profile={profile} toast={toast} onRefresh={onRefresh} />
+                    <LeadRowActions contact={c} profile={profile} toast={toast} onRefresh={onRefresh} onBuildPresentation={onBuildPresentation} />
                   </div>
                 </td>
               </tr>
@@ -2544,10 +2544,9 @@ function LeadsView({ contacts: raw, onAdd, onSelect, onRefresh, toast, profile }
 }
 
 // ─── LEAD ROW ACTIONS ─────────────────────────────────────────────────────────
-function LeadRowActions({ contact, profile, toast, onRefresh }) {
+function LeadRowActions({ contact, profile, toast, onRefresh, onBuildPresentation }) {
   const [open,      setOpen]     = useState(false);
   const [showEmail, setShowEmail]= useState(false);
-  const [showPres,  setShowPres] = useState(false);
   const [scoring,   setScoring]  = useState(false);
   const ref = React.useRef(null);
 
@@ -2575,12 +2574,11 @@ function LeadRowActions({ contact, profile, toast, onRefresh }) {
         <div style={{position:'fixed',zIndex:9999,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,padding:6,minWidth:180,boxShadow:'0 12px 32px rgba(0,0,0,.4)'}}
           ref={el=>{ if(el&&ref.current){const r=ref.current.getBoundingClientRect();el.style.top=(r.bottom+4)+'px';el.style.left=Math.max(8,r.right-180)+'px';} }}>
           <div onClick={()=>{setOpen(false);setShowEmail(true);}} style={{padding:'8px 10px',borderRadius:7,cursor:'pointer',color:'var(--text)',fontSize:13}} onMouseEnter={e=>e.currentTarget.style.background='var(--surface2)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>Send Email</div>
-          <div onClick={()=>{setOpen(false);setShowPres(true);}} style={{padding:'8px 10px',borderRadius:7,cursor:'pointer',color:'var(--text)',fontSize:13}} onMouseEnter={e=>e.currentTarget.style.background='var(--surface2)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>Send Presentation</div>
+          <div onClick={()=>{setOpen(false);onBuildPresentation&&onBuildPresentation(contact);}} style={{padding:'8px 10px',borderRadius:7,cursor:'pointer',color:'var(--text)',fontSize:13}} onMouseEnter={e=>e.currentTarget.style.background='var(--surface2)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>Build Presentation</div>
           <div onClick={scoreNow} style={{padding:'8px 10px',borderRadius:7,cursor:'pointer',color:'var(--text)',fontSize:13}} onMouseEnter={e=>e.currentTarget.style.background='var(--surface2)'} onMouseLeave={e=>e.currentTarget.style.background='transparent'}>{scoring?'Scoring...':'Score Lead'}</div>
         </div>
       )}
       {showEmail && <LeadEmailModal contact={contact} onClose={()=>setShowEmail(false)} toast={toast} />}
-      {showPres  && <LeadPresModal  contact={contact} profile={profile} onClose={()=>setShowPres(false)} toast={toast} />}
     </div>
   );
 }
@@ -12282,7 +12280,7 @@ export default function App() {
       <div className="main">
         {view==='dashboard' && <Dashboard contacts={contacts} workspaces={workspaces} onOpenWorkspace={w=>{ setView('workspace', w); }} profile={profile} onCreateWorkspace={async(name)=>{ const {data}=await supabase.from('workspaces').insert([{company_id:profile.company_name,name}]).select().single(); if(data){setWorkspaces(w=>[...w,data]); setView('workspace',data);}}} onNavigate={v=>setView(v,null)} />}
         {view==='contacts' && <ContactsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} toast={toast} profile={profile} />}
-        {view==='leads' && <LeadsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} onRefresh={()=>{ if(profile) loadContacts(profile.company_name); }} toast={toast} profile={profile} />}
+        {view==='leads' && <LeadsView contacts={contacts} onAdd={()=>setShowForm(true)} onSelect={c=>setSelectedContact(c)} onRefresh={()=>{ if(profile) loadContacts(profile.company_name); }} toast={toast} profile={profile} onBuildPresentation={c=>setPresContact(c)} />}
         {view==='pipeline' && <AIPipelineView contacts={contacts} onSelect={c=>setSelectedContact(c)} profile={profile} toast={toast} />}
         {view==='team' && <TeamView profile={profile} toast={toast} />}
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
