@@ -4079,6 +4079,25 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
     await supabase.from('workspace_items').update({[field]:value}).eq('id',itemId);
     setItems(prev=>({...prev,[groupId]:(prev[groupId]||[]).map(i=>i.id===itemId?{...i,[field]:value}:i)}));
     if(field==='status' && currentItem && currentItem.status !== value) {
+      // Notify assigned officers of status change
+      for(const name of (currentItem.assigned_officers||[])) {
+        const member = teamMembers.find(m=>m.full_name===name||m.email===name);
+        if(member && member.id !== profile?.id) {
+          createNotification({
+            company_id:    profile.company_name,
+            recipient_id:  member.id,
+            recipient_name:member.full_name,
+            actor_id:      profile.id,
+            actor_name:    profile.full_name,
+            type:          'status_change',
+            message:       `${profile.full_name} changed status of "${currentItem.name}" to "${value}"`,
+            item_id:       itemId,
+            item_name:     currentItem.name,
+            workspace_id:  workspace.id,
+            workspace_name:workspace.name||'',
+          }).catch(()=>{});
+        }
+      }
       supabase.functions.invoke('automation-engine', {
         body: { action:'statusChanged', workspace_id:workspace.id, item_id:itemId,
           item_name:currentItem.name, from_status:currentItem.status||'', to_status:value||'',
@@ -4089,6 +4108,29 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
         body:'Status changed from "' + (currentItem.status||'None') + '" to "' + (value||'None') + '"',
         is_system:true,
       }]).catch(()=>{});
+    }
+    // Notify on assignment changes too
+    if(field==='assigned_officers' && Array.isArray(value)) {
+      const prev = currentItem?.assigned_officers||[];
+      const newlyAdded = value.filter(n=>!prev.includes(n));
+      for(const name of newlyAdded) {
+        const member = teamMembers.find(m=>m.full_name===name||m.email===name);
+        if(member && member.id !== profile?.id) {
+          createNotification({
+            company_id:    profile.company_name,
+            recipient_id:  member.id,
+            recipient_name:member.full_name,
+            actor_id:      profile.id,
+            actor_name:    profile.full_name,
+            type:          'assignment',
+            message:       `${profile.full_name} assigned you to "${currentItem.name}"`,
+            item_id:       itemId,
+            item_name:     currentItem.name,
+            workspace_id:  workspace.id,
+            workspace_name:workspace.name||'',
+          }).catch(()=>{});
+        }
+      }
     }
   };
 
