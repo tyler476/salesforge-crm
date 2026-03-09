@@ -7711,7 +7711,8 @@ function MassPresentationModal({ contacts, profile, onClose, toast, onSent }) {
             style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'#fff', padding:'6px 10px', borderRadius:7, fontSize:12, cursor:'pointer' }}>
             {withEmail.map(c=><option key={c.id} value={c.id} style={{ background:'#0c1a35' }}>{c.full_name}</option>)}
           </select>
-          <button onClick={sendAll} style={{ flexShrink:0, whiteSpace:'nowrap', background:'#1a9a5c', color:'#fff', border:'none', borderRadius:8, padding:'9px 18px', fontWeight:700, fontSize:13, cursor:'pointer' }}>
+          <button onClick={sendAll} style={{ flexShrink:0, whiteSpace:'nowrap', background:'#1a9a5c', color:'#fff', border:'none', borderRadius:8, padding:'9px 18px', fontWeight:700, fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', gap:7 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             Send to {withEmail.length} Contact{withEmail.length!==1?'s':''} →
           </button>
         </div>
@@ -7869,12 +7870,9 @@ function MassPresentationModal({ contacts, profile, onClose, toast, onSent }) {
         <div style={{ padding:'16px 32px', borderTop:'1px solid var(--border)', display:'flex', gap:10, flexShrink:0 }}>
           <button onClick={onClose} style={{ flex:1, background:'none', border:'1px solid var(--border)', color:'var(--muted)', padding:'10px', borderRadius:8, cursor:'pointer', fontSize:13, fontWeight:600 }}>Cancel</button>
           <button onClick={goToPreview} disabled={withEmail.length===0||(mode==='template'&&!selectedTemplate)}
-            style={{ flex:1, background:'rgba(255,255,255,.07)', border:'1px solid var(--border)', color:'var(--text)', padding:'10px', borderRadius:8, cursor:'pointer', fontSize:13, fontWeight:600, opacity:withEmail.length===0||(mode==='template'&&!selectedTemplate)?.4:1 }}>
-            Preview First
-          </button>
-          <button onClick={sendAll} disabled={withEmail.length===0||(mode==='template'&&!selectedTemplate)}
-            style={{ flex:2, background:'#1a9a5c', color:'#fff', border:'none', padding:'10px', borderRadius:8, cursor:'pointer', fontSize:13, fontWeight:700, opacity:withEmail.length===0||(mode==='template'&&!selectedTemplate)?.4:1 }}>
-            Send to {withEmail.length} Contact{withEmail.length!==1?'s':''}
+            style={{ flex:2, background:'#1a9a5c', color:'#fff', border:'none', padding:'10px', borderRadius:8, cursor:'pointer', fontSize:13, fontWeight:700, opacity:withEmail.length===0||(mode==='template'&&!selectedTemplate)?.4:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+            Preview Presentation →
           </button>
         </div>
       </div>
