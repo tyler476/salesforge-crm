@@ -679,9 +679,9 @@ const avatarColor = (name='') => { const colors=['#3b82f6','#06b6d4','#10b981','
 async function createNotification(opts) {
   console.log('[NOTIF] createNotification called', { type: opts.type, recipient_id: opts.recipient_id, actor_id: opts.actor_id, message: opts.message, item_name: opts.item_name });
   if(!opts.recipient_id) { console.warn('[NOTIF] SKIPPED: no recipient_id'); return; }
-  // Allow self-notifications for status changes and mentions so you see activity on your own items
-  const ALLOW_SELF = ['assignment','status_change','mention','comment','update'];
-  if(opts.recipient_id === opts.actor_id && !ALLOW_SELF.includes(opts.type)) { console.warn('[NOTIF] SKIPPED: self-notification for type', opts.type); return; }
+  // Allow self-notifications for key types (status changes on your items, being assigned, mentions)
+  const ALLOW_SELF_TYPES = ['assignment','status_change','mention','comment','update'];
+  if(opts.recipient_id === opts.actor_id && !ALLOW_SELF_TYPES.includes(opts.type)) { console.warn('[NOTIF] SKIPPED: self-notification for type', opts.type); return; }
   try {
     const { error } = await supabase.from('notifications').insert([{
       company_id:    opts.company_id,
@@ -1181,15 +1181,15 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({ full_name: profile?.full_name||'', phone: profile?.phone||'', title: profile?.title||'', avatar_url: profile?.avatar_url||'' });
-  // Keep profileForm in sync when profile prop updates (e.g. after auth reload)
+  // Re-sync form whenever profile prop refreshes (auth reload, etc.)
   React.useEffect(() => {
     if (profile) {
-      setProfileForm({
-        full_name:  profile.full_name  || '',
-        phone:      profile.phone      || '',
-        title:      profile.title      || '',
-        avatar_url: profile.avatar_url || '',
-      });
+      setProfileForm(f => ({
+        full_name:  profile.full_name  || f.full_name  || '',
+        phone:      profile.phone      || f.phone      || '',
+        title:      profile.title      || f.title      || '',
+        avatar_url: profile.avatar_url || f.avatar_url || '',
+      }));
     }
   }, [profile?.id, profile?.full_name, profile?.title, profile?.avatar_url, profile?.phone]);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -1486,14 +1486,14 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                       const BAD = ['new activity','notification occurred','a notification occurred','activity occurred','you have a new notification','triggered','new notification'];
                       const stored = (n.message||'').trim();
                       const useStored = stored && !BAD.some(b => stored.toLowerCase().includes(b));
-                      // Use stored message if it's descriptive; if it looks like a partial message
-                      // (e.g. "mentioned you in...") prepend the actor name
                       if (useStored) {
-                        const alreadyHasActor = !n.actor_name || stored.toLowerCase().startsWith(n.actor_name.toLowerCase());
-                        if (!alreadyHasActor) return `${n.actor_name} ${stored}`;
+                        // Prepend actor name if the stored message doesn't already start with it
+                        if (n.actor_name && !stored.toLowerCase().startsWith(n.actor_name.toLowerCase())) {
+                          return `${n.actor_name} ${stored}`;
+                        }
                         return stored;
                       }
-                      // Fallback: build from type + actor_name + item_name
+                      return (()=>{
                       const who = n.actor_name ? `${n.actor_name} ` : '';
                       const item = n.item_name ? `"${n.item_name}"` : 'an item';
                       const t = (n.type||'').toLowerCase().replace(/[^a-z]/g,'');
@@ -1509,6 +1509,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                       if(t.includes('lock'))         return `Rate lock expiring on ${item}`;
                       if(t.includes('comment')||t.includes('update')) return `${who}commented on ${item}`;
                       return who ? `${who}updated ${item}` : `New activity on ${item}`;
+                    })();
                     })()}
                   </div>
                   {/* Item + workspace */}
@@ -1788,13 +1789,17 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
               disabled={profileSaving}
               onClick={async ()=>{
                 setProfileSaving(true);
-                const updates = { full_name: profileForm.full_name, phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url };
-                const { error: saveErr } = await supabase.from('profiles').update(updates).eq('id', profile.id);
+                // Save text fields to DB — avatar_url stored in localStorage
+                // (add avatar_url column to your profiles table to persist to DB)
+                const dbUpdates = { full_name: profileForm.full_name, phone: profileForm.phone, title: profileForm.title };
+                const { error: saveErr } = await supabase.from('profiles').update(dbUpdates).eq('id', profile.id);
                 setProfileSaving(false);
-                if (saveErr) {
-                  alert('Could not save profile: ' + saveErr.message);
-                  return;
+                if (saveErr) { alert('Could not save profile: ' + saveErr.message); return; }
+                // Store avatar in localStorage so it survives refreshes
+                if (profileForm.avatar_url) {
+                  try { localStorage.setItem('avatar_url_' + profile.id, profileForm.avatar_url); } catch(e) {}
                 }
+                const updates = { ...dbUpdates, avatar_url: profileForm.avatar_url };
                 setProfileModalOpen(false);
                 onProfileUpdate && onProfileUpdate({ ...profile, ...updates });
               }}
@@ -12452,6 +12457,11 @@ export default function App() {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).single();
     console.log('[App] loadProfile result:', { data, error });
     if (data) {
+      // Merge locally-stored avatar (since avatar_url column may not exist in DB)
+      try {
+        const localAvatar = localStorage.getItem('avatar_url_' + uid);
+        if (localAvatar && !data.avatar_url) data = { ...data, avatar_url: localAvatar };
+      } catch(e) {}
       setProfile(data);
       setBrand({ company_name: data.company_name||'Citizens Financial', logo_url: data.logo_url||'', brand_color: data.brand_color||'#3b82f6' });
       loadContacts(data.company_name);
