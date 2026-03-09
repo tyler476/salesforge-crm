@@ -855,8 +855,8 @@ function SetPasswordScreen({ onDone }) {
               <label>Confirm Password</label>
               <input type="password" value={confirm} onChange={e=>setConfirm(e.target.value)} placeholder="Re-enter password" onKeyDown={e=>e.key==='Enter'&&handleSubmit()} />
             </div>
-            <button className=\"btn-primary\" style={{ width:'100%', marginTop:8 }} onClick={handleSubmit} disabled={loading}>
-              {loading ? 'Setting password\u2026' : 'Set Password & Continue'}
+            <button className="btn-primary" style={{ width:'100%', marginTop:8 }} onClick={handleSubmit} disabled={loading}>
+              {loading ? 'Setting password...' : 'Set Password & Continue'}
             </button>
           </>
         )}
