@@ -1367,26 +1367,9 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
 
 
 // ─── TOP BAR ─────────────────────────────────────────────────────────────────
-function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout, onGetResults, workspaces, onOpenWorkspace, onProfileUpdate, toast }) {
+function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout, onGetResults, workspaces, onOpenWorkspace, onProfileUpdate, toast, onOpenProfileModal }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const [profileForm, setProfileForm] = useState({ full_name: profile?.full_name||'', phone: profile?.phone||'', title: profile?.title||'', avatar_url: profile?.avatar_url||'' });
-  // Re-sync form whenever profile prop refreshes (auth reload, etc.)
-  React.useEffect(() => {
-    if (profile) {
-      // Also pull from localStorage in case DB columns don't exist
-      let extra = {};
-      try { extra = JSON.parse(localStorage.getItem('profile_extra_' + profile.id) || 'null') || {}; } catch(e) {}
-      setProfileForm(f => ({
-        full_name:  profile.full_name  || f.full_name  || '',
-        phone:      profile.phone      || extra.phone      || f.phone      || '',
-        title:      profile.title      || extra.title      || f.title      || '',
-        avatar_url: profile.avatar_url || extra.avatar_url || f.avatar_url || '',
-      }));
-    }
-  }, [profile?.id, profile?.full_name, profile?.title, profile?.avatar_url, profile?.phone]);
-  const [profileSaving, setProfileSaving] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -1869,8 +1852,8 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
         </div>
         {/* User info */}
         <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0, overflow:'hidden', border:'2px solid var(--border)' }}>
-            {profile?.avatar_url ? <img src={profile.avatar_url} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>e.target.style.display='none'} /> : <div style={{ width:'100%', height:'100%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700 }}>{initials(profile.full_name||'?')}</div>}
+          <div style={{ flexShrink:0 }}>
+            <Avatar name={profile.full_name||profile.email||''} url={profile.avatar_url||''} size={36} />
           </div>
           <div>
             <div style={{ fontWeight:600, fontSize:13 }}>{profile.full_name || profile.email || 'My Account'}</div>
@@ -1879,7 +1862,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
         </div>
         {/* Menu items */}
         {[
-          { icon:Icons.user, label:'My Profile', action:()=>{ setProfileModalOpen(true); setProfileOpen(false); } },
+          { icon:Icons.user, label:'My Profile', action:()=>{ if(onOpenProfileModal) onOpenProfileModal(); setProfileOpen(false); } },
           ...(profile?.role==='admin' ? [
             { icon:Icons.users, label:'Team', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
             { icon:Icons.settings, label:'Branding & Settings', action:()=>{ onNavigate('branding'); setProfileOpen(false); } },
@@ -1906,131 +1889,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
         </div>
       </div>
     )}
-    {/* ── MY PROFILE MODAL ── */}
-    {profileModalOpen && (
-      <div onClick={()=>setProfileModalOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.55)', zIndex:10000, display:'flex', alignItems:'center', justifyContent:'center' }}>
-        <div onClick={e=>e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, width:420, boxShadow:'0 24px 60px rgba(0,0,0,.5)', overflow:'hidden' }}>
-          {/* Header */}
-          <div style={{ padding:'18px 20px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <span style={{ fontWeight:700, fontSize:16 }}>My Profile</span>
-            <button onClick={()=>setProfileModalOpen(false)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:20, lineHeight:1 }}>×</button>
-          </div>
-          {!profile.full_name && (
-            <div style={{ margin:'12px 20px 0', padding:'10px 14px', background:'rgba(77,142,240,.12)', border:'1px solid rgba(77,142,240,.3)', borderRadius:8, fontSize:12, color:'var(--accent)' }}>
-              👋 Welcome! Please fill in your name and photo to complete your profile.
-            </div>
-          )}
-          {/* Avatar section */}
-          <div style={{ padding:'20px 20px 0', display:'flex', alignItems:'center', gap:16 }}>
-            <div style={{ position:'relative' }}>
-              {profileForm.avatar_url ? (
-                <img src={profileForm.avatar_url} alt="avatar" style={{ width:60, height:60, borderRadius:'50%', objectFit:'cover', border:'2px solid var(--border)' }} onError={e=>e.target.style.display='none'} />
-              ) : (
-                <Avatar name={profile.full_name||''} size={60} url={profile.avatar_url} />
-              )}
-            </div>
-            <div style={{ flex:1 }}>
-              <div style={{ fontWeight:700, fontSize:14 }}>{profileForm.full_name || profile.full_name}</div>
-              <div style={{ fontSize:12, color:'var(--muted)', marginBottom:6 }}>{profileForm.title || profile.title || displayRole(profile.role)} · {profile.company_name}</div>
-              <div style={{ fontSize:11, color:'var(--muted)' }}>{profile.email}</div>
-            </div>
-          </div>
-          {/* Form fields */}
-          <div style={{ padding:'16px 20px', display:'flex', flexDirection:'column', gap:12 }}>
-            {/* Photo upload */}
-            <div>
-              <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:8 }}>Profile Photo</label>
-              <div style={{ display:'flex', alignItems:'center', gap:14 }}>
-                <div style={{ width:64, height:64, borderRadius:'50%', overflow:'hidden', flexShrink:0, border:'2px solid var(--border)', background:'var(--surface2)' }}>
-                  {profileForm.avatar_url
-                    ? <img src={profileForm.avatar_url} alt="preview" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>e.target.style.display='none'} />
-                    : <Avatar name={profile.full_name||''} size={60} />
-                  }
-                </div>
-                <div style={{ flex:1 }}>
-                  <input type="file" accept="image/*" id="profile-photo-upload" style={{ display:'none' }}
-                    onChange={async e => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      if (file.size > 2 * 1024 * 1024) { alert('Photo must be under 2MB'); return; }
-                      setProfileSaving(true);
-                      // Convert to base64 data URL — no storage bucket needed
-                      const reader = new FileReader();
-                      reader.onload = ev => {
-                        setProfileForm(f => ({ ...f, avatar_url: ev.target.result }));
-                        setProfileSaving(false);
-                      };
-                      reader.onerror = () => { alert('Could not read file'); setProfileSaving(false); };
-                      reader.readAsDataURL(file);
-                    }}
-                  />
-                  <label htmlFor="profile-photo-upload"
-                    style={{ display:'inline-block', padding:'7px 14px', background:'var(--accent)', color:'#fff', borderRadius:7, fontSize:12, fontWeight:600, cursor:profileSaving?'wait':'pointer', marginBottom:6, opacity:profileSaving?0.7:1 }}>
-                    {profileSaving ? 'Processing…' : '📷 Upload Photo'}
-                  </label>
-                  <div style={{ fontSize:10, color:'var(--muted)', marginBottom:6 }}>JPG or PNG · Max 2MB · No storage setup needed</div>
-                  <input value={(profileForm.avatar_url||'').startsWith('data:') ? '' : (profileForm.avatar_url||'')} onChange={e=>setProfileForm(f=>({...f,avatar_url:e.target.value}))}
-                    placeholder="Or paste a photo URL instead"
-                    style={{ width:'100%', padding:'5px 8px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:11, boxSizing:'border-box' }} />
-                </div>
-              </div>
-            </div>
-            <div>
-              <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>Display Name</label>
-              <input value={profileForm.full_name} onChange={e=>setProfileForm(f=>({...f,full_name:e.target.value}))}
-                style={{ width:'100%', padding:'8px 10px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, boxSizing:'border-box' }} />
-            </div>
-            <div>
-              <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>Title / Role</label>
-              <input value={profileForm.title} onChange={e=>setProfileForm(f=>({...f,title:e.target.value}))}
-                placeholder="e.g. Senior Loan Officer"
-                style={{ width:'100%', padding:'8px 10px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, boxSizing:'border-box' }} />
-            </div>
-            <div>
-              <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>Phone</label>
-              <input value={profileForm.phone} onChange={e=>setProfileForm(f=>({...f,phone:e.target.value}))}
-                placeholder="(555) 000-0000"
-                style={{ width:'100%', padding:'8px 10px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, boxSizing:'border-box' }} />
-            </div>
-            <div>
-              <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>Address</label>
-              <input value={profileForm.address||''} onChange={e=>setProfileForm(f=>({...f,address:e.target.value}))}
-                placeholder="123 Main St, City, State"
-                style={{ width:'100%', padding:'8px 10px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, boxSizing:'border-box' }} />
-            </div>
-          </div>
-          {/* Footer */}
-          <div style={{ padding:'12px 20px 18px', display:'flex', justifyContent:'flex-end', gap:10 }}>
-            <button onClick={()=>setProfileModalOpen(false)}
-              style={{ padding:'8px 16px', borderRadius:7, background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', fontSize:13, cursor:'pointer' }}>
-              Cancel
-            </button>
-            <button
-              disabled={profileSaving}
-              onClick={async ()=>{
-                setProfileSaving(true);
-                try {
-                  // Always save full_name — column is guaranteed
-                  const { error: nameErr } = await supabase.from('profiles').update({ full_name: profileForm.full_name }).eq('id', profile.id);
-                  if (nameErr) { alert('Save failed: ' + nameErr.message); return; }
-                  // Try phone + title — silently skip if columns don't exist
-                  try { await supabase.from('profiles').update({ phone: profileForm.phone, title: profileForm.title, address: profileForm.address }).eq('id', profile.id); } catch(e) {}
-                  // Always persist everything to localStorage — works regardless of DB schema
-                  try { localStorage.setItem('profile_extra_' + profile.id, JSON.stringify({ phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url, address: profileForm.address })); } catch(e) {}
-                  const updates = { full_name: profileForm.full_name, phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url, address: profileForm.address };
-                  setProfileModalOpen(false);
-                  onProfileUpdate && onProfileUpdate({ ...profile, ...updates });
-                } finally {
-                  setProfileSaving(false); // always reset — no more stuck "Processing…"
-                }
-              }}
-              style={{ padding:'8px 20px', borderRadius:7, background:'var(--accent)', border:'none', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', opacity: profileSaving ? 0.6 : 1 }}>
-              {profileSaving ? 'Saving…' : 'Save Changes'}
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
+
     </>
   );
 }
@@ -12759,6 +12618,7 @@ export default function App() {
   const [brand, setBrand] = useState({ company_name:'Citizens Financial', logo_url:'', brand_color:'#3b82f6' });
   const [workspaces, setWorkspaces] = useState([]);
   const [memberOwnedItems, setMemberOwnedItems] = useState([]);
+  const [appProfileModalOpen, setAppProfileModalOpen] = useState(false);
   const memberWorkspaceIds = React.useMemo(() => {
     if(!profile || profile.role === 'admin') return new Set();
     return new Set(memberOwnedItems.map(i => i._wsId).filter(Boolean));
@@ -12872,10 +12732,40 @@ export default function App() {
       loadMemberOwnedItems(data.company_name, data);
     } else {
       console.error('[App] Profile not found or error:', error);
-      // If no profile exists, create a minimal one so the app doesn't get stuck
       if (error?.code === 'PGRST116') {
-        console.log('[App] No profile row found — setting fallback profile');
-        setProfile({ id: uid, company_name: 'My Company', full_name: '', role: 'member' });
+        // No profile row — this is a newly invited user. Build one from auth data.
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const meta = authUser?.user_metadata || {};
+        const email = authUser?.email || '';
+        const fullName = meta.full_name || meta.name || '';
+        // Get the correct company name: try metadata first, then look up any existing admin
+        let companyName = meta.company_name || '';
+        if (!companyName) {
+          const { data: anyAdmin } = await supabase.from('profiles')
+            .select('company_name').eq('role', 'admin').limit(1).maybeSingle();
+          companyName = anyAdmin?.company_name || '';
+        }
+        if (!companyName) {
+          // Last resort — look up any profile
+          const { data: anyProfile } = await supabase.from('profiles')
+            .select('company_name').not('company_name', 'is', null).limit(1).maybeSingle();
+          companyName = anyProfile?.company_name || 'Citizens Financial';
+        }
+        // Create the profile row so it exists for future loads
+        const newProfile = {
+          id: uid,
+          email,
+          full_name: fullName,
+          company_name: companyName,
+          role: 'member',
+        };
+        await supabase.from('profiles').upsert(newProfile, { onConflict: 'id' });
+        setProfile(newProfile);
+        registerAvatars([newProfile]);
+        setBrand({ company_name: companyName || 'Citizens Financial', logo_url: '', brand_color: '#3b82f6' });
+        loadContacts(companyName);
+        loadWorkspaces(companyName);
+        loadMemberOwnedItems(companyName, newProfile);
       }
     }
   };
@@ -12941,6 +12831,52 @@ export default function App() {
     { id:'hannah', label:'Ask Hannah', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
   ];
 
+  // ── App-level profile modal state ──────────────────────────────────────────
+  const [profileForm, setProfileForm] = React.useState({
+    full_name: '', phone: '', title: '', avatar_url: '', address: ''
+  });
+  // Sync form whenever profile changes
+  React.useEffect(() => {
+    if (!profile) return;
+    let extra = {};
+    try { extra = JSON.parse(localStorage.getItem('profile_extra_' + profile.id) || 'null') || {}; } catch(e) {}
+    setProfileForm({
+      full_name:  profile.full_name  || '',
+      phone:      profile.phone      || extra.phone      || '',
+      title:      profile.title      || extra.title      || '',
+      avatar_url: profile.avatar_url || extra.avatar_url || '',
+      address:    profile.address    || extra.address    || '',
+    });
+  }, [profile?.id, profile?.full_name, profile?.title, profile?.avatar_url, profile?.phone, profile?.address]);
+
+  const [profileSavingApp, setProfileSavingApp] = React.useState(false);
+  const handleSaveProfile = async () => {
+    setProfileSavingApp(true);
+    try {
+      // UPSERT — works whether or not the row exists
+      const { error } = await supabase.from('profiles').upsert({
+        id: profile.id,
+        full_name: profileForm.full_name,
+        email: profile.email || '',
+        company_name: profile.company_name,
+        role: profile.role || 'member',
+        phone: profileForm.phone,
+        title: profileForm.title,
+        address: profileForm.address,
+        avatar_url: profileForm.avatar_url,
+      }, { onConflict: 'id' });
+      if (error) { alert('Save failed: ' + error.message); return; }
+      // Persist extras to localStorage as backup
+      try { localStorage.setItem('profile_extra_' + profile.id, JSON.stringify({ phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url, address: profileForm.address })); } catch(e) {}
+      const updated = { ...profile, full_name: profileForm.full_name, phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url, address: profileForm.address };
+      setProfile(updated);
+      setAppProfileModalOpen(false);
+      toast && toast('Profile saved!');
+    } finally {
+      setProfileSavingApp(false);
+    }
+  };
+
   return (
     <PricingProvider>
     <>
@@ -12995,32 +12931,33 @@ export default function App() {
                     <span className="nav-label">{w.name}</span>
                   </div>
                 ))}
-                {profile.role==='admin' && (
-                  <div onClick={()=>setSidebarNewWs(true)} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 16px 6px 40px', cursor:'pointer', color:'rgba(255,255,255,.3)', fontSize:12, borderRadius:6, margin:'0 8px' }}
-                    onMouseOver={e=>e.currentTarget.style.color='rgba(255,255,255,.6)'}
-                    onMouseOut={e=>e.currentTarget.style.color='rgba(255,255,255,.3)'}>
-                    <span style={{ display:'flex' }}>{Icons.plus}</span>
-                    <span className="nav-label">Add Workspace</span>
-                  </div>
-                )}
+                <div onClick={()=>setSidebarNewWs(true)} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 16px 6px 40px', cursor:'pointer', color:'rgba(255,255,255,.3)', fontSize:12, borderRadius:6, margin:'0 8px' }}
+                  onMouseOver={e=>e.currentTarget.style.color='rgba(255,255,255,.6)'}
+                  onMouseOut={e=>e.currentTarget.style.color='rgba(255,255,255,.3)'}>
+                  <span style={{ display:'flex' }}>{Icons.plus}</span>
+                  <span className="nav-label">New Workspace</span>
+                </div>
               </div>
             )}
           </div>
         </nav>
         <div style={{ padding:16, borderTop:'1px solid rgba(255,255,255,.1)' }}>
-          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+          <div onClick={()=>setAppProfileModalOpen(true)} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, cursor:'pointer', borderRadius:8, padding:'6px', margin:'-6px -6px 4px', transition:'background .15s' }}
+            onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.07)'}
+            onMouseOut={e=>e.currentTarget.style.background=''}>
             <Avatar name={profile.full_name||profile.email||''} size={30} url={profile.avatar_url} />
-            <div className="nav-label" style={{ fontSize:13 }}>
-              <div style={{ fontWeight:600, color:'#fff' }}>{profile.full_name || profile.email || 'My Account'}</div>
+            <div className="nav-label" style={{ fontSize:13, flex:1, minWidth:0 }}>
+              <div style={{ fontWeight:600, color:'#fff', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{profile.full_name || profile.email || 'Set up profile'}</div>
               <div style={{ color:'var(--sidebar-text)', fontSize:11 }}>{profile.title || displayRole(profile.role)}</div>
             </div>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.35)" strokeWidth="2" style={{ flexShrink:0 }}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </div>
           <button style={{ width:'100%', padding:'8px', borderRadius:6, background:'rgba(255,255,255,.1)', color:'#c9d3e8', border:'1px solid rgba(255,255,255,.15)', fontSize:13, cursor:'pointer', fontWeight:500 }} onClick={logout}>Sign Out</button>
         </div>
       </div>
 
       {/* Top Bar */}
-      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>setView(v,null)} onLogout={logout} workspaces={workspaces} onOpenWorkspace={w=>setView('workspace',w)} onProfileUpdate={updated=>setProfile(updated)} toast={toast}
+      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>setView(v,null)} onLogout={logout} workspaces={workspaces} onOpenWorkspace={w=>setView('workspace',w)} onProfileUpdate={updated=>setProfile(updated)} toast={toast} onOpenProfileModal={()=>setAppProfileModalOpen(true)}
         onGetResults={(q)=>{
           const r = [];
           const ql = q.toLowerCase();
@@ -13033,6 +12970,99 @@ export default function App() {
           return r;
         }}
       />
+
+      {/* ── APP-LEVEL PROFILE MODAL ── */}
+      {appProfileModalOpen && (
+        <div onClick={()=>setAppProfileModalOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.6)', zIndex:99999, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, width:460, maxHeight:'90vh', overflowY:'auto', boxShadow:'0 32px 80px rgba(0,0,0,.6)' }}>
+            {/* Header */}
+            <div style={{ padding:'18px 24px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, background:'var(--surface)', zIndex:1 }}>
+              <span style={{ fontWeight:700, fontSize:16 }}>My Profile</span>
+              <button onClick={()=>setAppProfileModalOpen(false)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:22, lineHeight:1, padding:'0 4px' }}>×</button>
+            </div>
+            {!profile.full_name && (
+              <div style={{ margin:'14px 24px 0', padding:'10px 14px', background:'rgba(77,142,240,.12)', border:'1px solid rgba(77,142,240,.3)', borderRadius:8, fontSize:12, color:'var(--accent)' }}>
+                👋 Welcome! Fill in your name and photo to complete your profile.
+              </div>
+            )}
+            {/* Preview row */}
+            <div style={{ padding:'20px 24px 0', display:'flex', alignItems:'center', gap:16 }}>
+              <div style={{ width:62, height:62, borderRadius:'50%', overflow:'hidden', flexShrink:0, border:'2px solid var(--border)', background:'var(--surface2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                {profileForm.avatar_url
+                  ? <img src={profileForm.avatar_url} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>e.target.style.display='none'} />
+                  : <Avatar name={profileForm.full_name || profile.email || ''} size={60} />
+                }
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:700, fontSize:15 }}>{profileForm.full_name || profile.email || 'Your Name'}</div>
+                <div style={{ fontSize:12, color:'var(--muted)', marginTop:2 }}>{profileForm.title || displayRole(profile.role)} · {profile.company_name}</div>
+                <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{profile.email}</div>
+              </div>
+            </div>
+            {/* Fields */}
+            <div style={{ padding:'16px 24px', display:'flex', flexDirection:'column', gap:14 }}>
+              {/* Photo upload */}
+              <div>
+                <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:8 }}>Profile Photo</label>
+                <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+                  <div style={{ width:64, height:64, borderRadius:'50%', overflow:'hidden', flexShrink:0, border:'2px solid var(--border)', background:'var(--surface2)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    {profileForm.avatar_url
+                      ? <img src={profileForm.avatar_url} alt="preview" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>e.target.style.display='none'} />
+                      : <Avatar name={profileForm.full_name || profile.email || ''} size={60} />
+                    }
+                  </div>
+                  <div style={{ flex:1 }}>
+                    <input type="file" accept="image/*" id="app-profile-photo-upload" style={{ display:'none' }}
+                      onChange={async e => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        if (file.size > 2 * 1024 * 1024) { toast('Photo must be under 2MB'); return; }
+                        const reader = new FileReader();
+                        reader.onload = ev => setProfileForm(f => ({ ...f, avatar_url: ev.target.result }));
+                        reader.onerror = () => toast('Could not read file');
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                    <label htmlFor="app-profile-photo-upload"
+                      style={{ display:'inline-block', padding:'7px 16px', background:'var(--accent)', color:'#fff', borderRadius:7, fontSize:12, fontWeight:600, cursor:'pointer', marginBottom:6 }}>
+                      📷 Upload Photo
+                    </label>
+                    <div style={{ fontSize:10, color:'var(--muted)', marginBottom:6 }}>JPG or PNG · Max 2MB</div>
+                    <input value={(profileForm.avatar_url||'').startsWith('data:') ? '' : (profileForm.avatar_url||'')}
+                      onChange={e=>setProfileForm(f=>({...f,avatar_url:e.target.value}))}
+                      placeholder="Or paste a photo URL"
+                      style={{ width:'100%', padding:'5px 8px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:11, boxSizing:'border-box' }} />
+                  </div>
+                </div>
+              </div>
+              {[
+                { label:'Full Name', key:'full_name', placeholder:'Jane Smith' },
+                { label:'Job Title', key:'title', placeholder:'Loan Officer' },
+                { label:'Phone', key:'phone', placeholder:'(555) 000-0000' },
+                { label:'Address', key:'address', placeholder:'123 Main St, City, State' },
+              ].map(({ label, key, placeholder }) => (
+                <div key={key}>
+                  <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>{label}</label>
+                  <input value={profileForm[key]||''} onChange={e=>setProfileForm(f=>({...f,[key]:e.target.value}))}
+                    placeholder={placeholder}
+                    style={{ width:'100%', padding:'9px 12px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, boxSizing:'border-box' }} />
+                </div>
+              ))}
+            </div>
+            {/* Footer */}
+            <div style={{ padding:'12px 24px 20px', display:'flex', justifyContent:'flex-end', gap:10, borderTop:'1px solid var(--border)' }}>
+              <button onClick={()=>setAppProfileModalOpen(false)}
+                style={{ padding:'9px 18px', borderRadius:7, background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', fontSize:13, cursor:'pointer' }}>
+                Cancel
+              </button>
+              <button disabled={profileSavingApp} onClick={handleSaveProfile}
+                style={{ padding:'9px 22px', borderRadius:7, background:'var(--accent)', border:'none', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', opacity: profileSavingApp ? 0.6 : 1 }}>
+                {profileSavingApp ? 'Saving…' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main */}
       <div className="main">
