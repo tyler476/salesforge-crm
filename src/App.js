@@ -677,12 +677,11 @@ const avatarColor = (name='') => { const colors=['#3b82f6','#06b6d4','#10b981','
 
 // ─── NOTIFICATIONS UTILITY ───────────────────────────────────────────────────
 async function createNotification(opts) {
-  // opts: { company_id, recipient_id, recipient_name, actor_id, actor_name, type, message, item_id, item_name, workspace_id, workspace_name }
-  if(!opts.recipient_id) return;
-  // Allow self-notifications for assignments so you see your own assignments; skip for other types
-  if(opts.recipient_id === opts.actor_id && opts.type !== 'assignment') return;
+  console.log('[NOTIF] createNotification called', { type: opts.type, recipient_id: opts.recipient_id, actor_id: opts.actor_id, message: opts.message, item_name: opts.item_name });
+  if(!opts.recipient_id) { console.warn('[NOTIF] SKIPPED: no recipient_id'); return; }
+  if(opts.recipient_id === opts.actor_id && opts.type !== 'assignment') { console.warn('[NOTIF] SKIPPED: self-notification for type', opts.type); return; }
   try {
-    await supabase.from('notifications').insert([{
+    const { error } = await supabase.from('notifications').insert([{
       company_id:    opts.company_id,
       recipient_id:  opts.recipient_id,
       recipient_name:opts.recipient_name||'',
@@ -695,7 +694,9 @@ async function createNotification(opts) {
       workspace_name:opts.workspace_name||'',
       is_read:       false,
     }]);
-  } catch(e) { console.warn('createNotification failed:', e); }
+    if(error) console.error('[NOTIF] INSERT FAILED:', error);
+    else console.log('[NOTIF] INSERT SUCCESS');
+  } catch(e) { console.error('[NOTIF] EXCEPTION:', e); }
 }
 
 function timeAgo(dateStr) {
@@ -4101,9 +4102,11 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
     if(field==='assigned_officers' && Array.isArray(value)) {
       const prev = currentItem?.assigned_officers||[];
       const newlyAdded = value.filter(n=>!prev.includes(n));
+      console.log('[NOTIF] Assignment change - newlyAdded:', newlyAdded, 'teamMembers loaded:', teamMembers.length);
       for(const name of newlyAdded) {
         const member = teamMembers.find(m=>m.full_name===name||m.email===name) 
                       || (name===profile.full_name||name===profile.email ? profile : null);
+        console.log('[NOTIF] Looking up member for:', name, '->', member?.id, member?.full_name);
         if(member?.id) {
           createNotification({
             company_id:    profile.company_name,
@@ -4492,6 +4495,15 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                             onUpdate={async(field,val)=>{
                               await supabase.from('workspace_items').update({[field]:val}).eq('id',sub.id);
                               setSubItems(p=>({...p,[item.id]:(p[item.id]||[]).map(s=>s.id===sub.id?{...s,[field]:val}:s)}));
+                              // Fire assignment notifications for sub-items
+                              if(field==='assigned_officers' && Array.isArray(val)) {
+                                const prevOwners = sub.assigned_officers||[];
+                                const newlyAdded = val.filter(n=>!prevOwners.includes(n));
+                                for(const name of newlyAdded) {
+                                  const m = teamMembers.find(tm=>tm.full_name===name||tm.email===name)||(name===profile.full_name||name===profile.email?profile:null);
+                                  if(m?.id) createNotification({ company_id:profile.company_name, recipient_id:m.id, recipient_name:m.full_name, actor_id:profile.id, actor_name:profile.full_name, type:'assignment', message:`${profile.full_name} assigned you to "${sub.name}"`, item_id:sub.id, item_name:sub.name, workspace_id:workspace.id, workspace_name:workspace.name||'' }).catch(()=>{});
+                                }
+                              }
                             }}
                             onDelete={async()=>{
                               await supabase.from('workspace_items').delete().eq('id',sub.id);
