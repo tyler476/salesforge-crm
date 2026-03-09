@@ -174,14 +174,14 @@ function getBaseFromCache(scenario, fredCache) {
 }
 
 // Fetch a single FRED series — returns { value, date } or null
-// Routes through /api/fred proxy to avoid CORS restrictions
+// Calls FRED API directly (CORS is supported)
 async function fetchOneFREDSeries(seriesId, apiKey) {
   try {
-    // Use local Vercel proxy to avoid CORS block
-    const url = `/api/fred?series_id=${seriesId}&api_key=${apiKey}`;
+    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&sort_order=desc&limit=10&file_type=json`;
     const res = await fetch(url);
     if (!res.ok) return null;
     const data = await res.json();
+    // FRED uses '.' for missing values — find the most recent real observation
     const obs = (data.observations || []).find(o => o.value && o.value !== '.');
     return obs ? { value: parseFloat(obs.value), date: obs.date } : null;
   } catch { return null; }
@@ -422,15 +422,25 @@ function PricingProvider({ children }) {
   const saveFredApiKey = useCallback((key) => {
     setFredApiKey(key);
     try { localStorage.setItem('fred_api_key', key); } catch {}
-    // Force re-fetch with new key
+    // Clear stale cache then immediately fetch with the new key
     try { localStorage.removeItem('fred_rate_cache'); } catch {}
+    if (!key) return;
+    setFredLoading(true);
+    fetchAllFREDRates(key).then(cache => {
+      if (cache) {
+        setFredCache(cache);
+        try { localStorage.setItem('fred_rate_cache', JSON.stringify(cache)); } catch {}
+      }
+      setFredLoading(false);
+    });
   }, []);
 
   const refreshFREDRates = useCallback(() => {
-    if (!fredApiKey) return;
+    const key = localStorage.getItem('fred_api_key') || fredApiKey;
+    if (!key) return;
     setFredLoading(true);
     try { localStorage.removeItem('fred_rate_cache'); } catch {}
-    fetchAllFREDRates(fredApiKey).then(cache => {
+    fetchAllFREDRates(key).then(cache => {
       if (cache) {
         setFredCache(cache);
         try { localStorage.setItem('fred_rate_cache', JSON.stringify(cache)); } catch {}
