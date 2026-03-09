@@ -4102,8 +4102,9 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
       const prev = currentItem?.assigned_officers||[];
       const newlyAdded = value.filter(n=>!prev.includes(n));
       for(const name of newlyAdded) {
-        const member = teamMembers.find(m=>m.full_name===name||m.email===name);
-        if(member && member.id !== profile?.id) {
+        const member = teamMembers.find(m=>m.full_name===name||m.email===name) 
+                      || (name===profile.full_name||name===profile.email ? profile : null);
+        if(member?.id) {
           createNotification({
             company_id:    profile.company_name,
             recipient_id:  member.id,
@@ -5150,7 +5151,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
             actor_id:      profile.id,
             actor_name:    profile.full_name,
             type:          'status_change',
-            message:       `changed status of "${item.name}" to ${value}`,
+            message:       `${profile.full_name} changed status of "${item.name}" to "${value}"`,
             item_id:       item.id,
             item_name:     item.name,
             workspace_id:  group?.workspace_id||null,
@@ -5173,7 +5174,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
             actor_id:      profile.id,
             actor_name:    profile.full_name,
             type:          'assignment',
-            message:       `assigned you to "${item.name}"`,
+            message:       `${profile.full_name} assigned you to "${item.name}"`,
             item_id:       item.id,
             item_name:     item.name,
             workspace_id:  group?.workspace_id||null,
