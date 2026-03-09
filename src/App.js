@@ -1402,38 +1402,59 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
               <div style={{ fontSize:12 }}>We'll notify you when something needs your attention</div>
             </div>
           ) : notifications.map(n=>{
-            const ICONS = { mention:Icons.messageSquare, assignment:Icons.user, status_change:Icons.refresh, overdue:Icons.alert, file:Icons.paperclip };
-            const TYPE_LABELS = { mention:'Mention', assignment:'Assignment', status_change:'Status Update', overdue:'Overdue', file:'File Shared', score:'Lead Scored', campaign:'Campaign', presentation:'Presentation', email:'Email', call:'Call' };
+            const TYPE_META = {
+              mention:       { label:'Mention',        emoji:'💬', color:'#e05252' },
+              assignment:    { label:'Assigned to you', emoji:'👤', color:'#4d8ef0' },
+              status_change: { label:'Status Changed',  emoji:'🔄', color:'#f59e0b' },
+              overdue:       { label:'Overdue',         emoji:'⚠️', color:'#ef4444' },
+              file:          { label:'File Shared',     emoji:'📎', color:'#06b6d4' },
+              score:         { label:'Lead Scored',     emoji:'⚡', color:'#8b5cf6' },
+              campaign:      { label:'Campaign Update', emoji:'📣', color:'#22c55e' },
+              presentation:  { label:'Presentation Opened', emoji:'📊', color:'#3b82f6' },
+              email:         { label:'Email',           emoji:'✉️', color:'#06b6d4' },
+              call:          { label:'Call',            emoji:'📞', color:'#f59e0b' },
+            };
+            const meta = TYPE_META[n.type] || { label:'Notification', emoji:'🔔', color:'#4d8ef0' };
             const ws = workspaces?.find(w=>w.id===n.workspace_id);
             const isSystem = !n.actor_name;
-            const displayName = n.actor_name || TYPE_LABELS[n.type] || 'System';
-            const systemColors = { score:'#8b5cf6', campaign:'#22c55e', presentation:'#3b82f6', email:'#06b6d4', call:'#f59e0b', mention:'#e05252', overdue:'#e05252' };
-            const avatarBg = isSystem ? (systemColors[n.type] || '#4d8ef0') : avatarColor(n.actor_name);
+            const avatarBg = isSystem ? meta.color : avatarColor(n.actor_name);
+            const isClickable = !!ws;
             return (
               <div key={n.id}
-                onClick={()=>{ if(ws){ onOpenWorkspace&&onOpenWorkspace(ws); setNotifOpen(false); } }}
-                style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', gap:12, alignItems:'flex-start', cursor: ws?'pointer':'default', background: n.is_read?'transparent':'rgba(77,142,240,.05)', transition:'background .15s', position:'relative' }}
+                onClick={()=>{ if(isClickable){ onOpenWorkspace&&onOpenWorkspace(ws); setNotifOpen(false); } }}
+                style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', gap:12, alignItems:'flex-start', cursor: isClickable?'pointer':'default', background: n.is_read?'transparent':'rgba(77,142,240,.05)', transition:'background .15s', position:'relative' }}
                 onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
                 onMouseOut={e=>e.currentTarget.style.background=n.is_read?'transparent':'rgba(77,142,240,.05)'}>
                 {/* Unread dot */}
                 {!n.is_read && <div style={{ position:'absolute', left:6, top:'50%', transform:'translateY(-50%)', width:6, height:6, borderRadius:'50%', background:'var(--accent)' }} />}
-                {/* Avatar / System icon */}
-                <div style={{ width:34, height:34, borderRadius:'50%', background:avatarBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:isSystem?16:11, fontWeight:700, flexShrink:0, position:'relative' }}>
-                  {isSystem
-                    ? ({ score:'⚡', campaign:'📣', presentation:'📊', email:'✉️', call:'📞', mention:'@', overdue:'⚠️', file:'📎', assignment:'👤', status_change:'🔄' }[n.type] || '🔔')
-                    : initials(n.actor_name)}
-                  {!isSystem && <span style={{ position:'absolute', bottom:-2, right:-2, width:14, height:14, borderRadius:'50%', background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--muted)' }}>{ICONS[n.type]||Icons.bell}</span>}
+                {/* Avatar */}
+                <div style={{ width:36, height:36, borderRadius:'50%', background:avatarBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:isSystem?15:12, fontWeight:700, flexShrink:0 }}>
+                  {isSystem ? meta.emoji : initials(n.actor_name)}
                 </div>
                 {/* Content */}
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:13, lineHeight:1.5 }}>
-                    <span style={{ fontWeight:700, color: isSystem ? avatarBg : 'var(--text)' }}>{displayName}</span>
-                    {n.message && <span style={{ color:'var(--muted)' }}> {n.message}</span>}
-                    {!n.message && !n.actor_name && <span style={{ color:'var(--muted)' }}> sent a notification</span>}
+                  {/* Type badge + name row */}
+                  <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
+                    <span style={{ fontSize:10, fontWeight:700, padding:'1px 7px', borderRadius:10, background:`${meta.color}22`, color:meta.color, letterSpacing:'.03em', textTransform:'uppercase' }}>{meta.label}</span>
+                    {!isSystem && <span style={{ fontSize:12, fontWeight:700, color:'var(--text)' }}>{n.actor_name}</span>}
                   </div>
-                  {n.item_name && <div style={{ fontSize:12, color:'var(--accent)', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:4 }}>{Icons.clipboard} {n.item_name}</div>}
-                  {n.workspace_name && <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>in {n.workspace_name}</div>}
-                  <div style={{ fontSize:11, color:'var(--muted)', marginTop:4 }}>{timeAgo(n.created_at)}</div>
+                  {/* Message */}
+                  <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.45 }}>
+                    {n.message || (isSystem ? `${meta.label} triggered` : 'No details')}
+                  </div>
+                  {/* Item + workspace */}
+                  {n.item_name && (
+                    <div style={{ fontSize:11, color:'var(--accent)', marginTop:3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                      📋 {n.item_name}{n.workspace_name ? ` · ${n.workspace_name}` : ''}
+                    </div>
+                  )}
+                  {!n.item_name && n.workspace_name && (
+                    <div style={{ fontSize:11, color:'var(--muted)', marginTop:3 }}>in {n.workspace_name}</div>
+                  )}
+                  <div style={{ fontSize:11, color:'var(--muted)', marginTop:4, display:'flex', alignItems:'center', gap:6 }}>
+                    {timeAgo(n.created_at)}
+                    {isClickable && <span style={{ color:'var(--accent)' }}>→ Open workspace</span>}
+                  </div>
                 </div>
               </div>
             );
