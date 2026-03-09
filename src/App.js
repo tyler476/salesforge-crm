@@ -675,19 +675,40 @@ const fmt = (n) => n >= 1000000 ? `$${(n/1000000).toFixed(1)}M` : n >= 1000 ? `$
 const initials = (name='') => name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
 const avatarColor = (name='') => { const colors=['#3b82f6','#06b6d4','#10b981','#8b5cf6','#f59e0b','#ef4444']; return colors[name.charCodeAt(0)%colors.length]; };
 
+// ─── AVATAR MAP (name → avatar_url, populated whenever teamMembers loads) ────
+const _avatarMap = {};
+function registerAvatars(members) {
+  if (!Array.isArray(members)) return;
+  members.forEach(m => {
+    if (m && m.full_name) {
+      // pull from DB column OR from localStorage (profile_extra_<id>)
+      let url = m.avatar_url || '';
+      if (!url && m.id) {
+        try {
+          const ex = JSON.parse(localStorage.getItem('profile_extra_' + m.id) || 'null');
+          if (ex && ex.avatar_url) url = ex.avatar_url;
+        } catch(e) {}
+      }
+      if (url) _avatarMap[m.full_name] = url;
+    }
+  });
+}
+
 // ─── AVATAR COMPONENT ────────────────────────────────────────────────────────
 function Avatar({ name='', url='', size=32, fontSize:fsProp, style={} }) {
   const fs = fsProp || Math.max(9, Math.round(size * 0.38));
   const bg = avatarColor(name);
+  // If no url passed directly, check the global name→url map
+  const resolvedUrl = url || _avatarMap[name] || '';
   const fallback = (
     <div style={{ width:size, height:size, borderRadius:'50%', background:bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:fs, fontWeight:700, color:'#fff', flexShrink:0, ...style }}>
       {initials(name)}
     </div>
   );
-  if (!url) return fallback;
+  if (!resolvedUrl) return fallback;
   return (
     <div style={{ width:size, height:size, borderRadius:'50%', overflow:'hidden', flexShrink:0, background:bg, display:'flex', alignItems:'center', justifyContent:'center', ...style }}>
-      <img src={url} alt={name} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+      <img src={resolvedUrl} alt={name} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
         onError={e=>{ e.target.style.display='none'; }} />
     </div>
   );
@@ -1885,7 +1906,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
       });
       setMyItems(mine);
       setActivityFeed(updates.data||[]);
-      setTeamMembers(members.data||[]);
+      setTeamMembers(members.data||[]); registerAvatars(members.data||[]);
       setLoading(false);
     });
   },[profile?.company_name, profile?.full_name, profile?.email]);
@@ -3985,7 +4006,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
   useEffect(() => {
     loadGroups();
     loadStatuses();
-    supabase.from('profiles').select('*').eq('company_name', profile.company_name).then(({data})=>setTeamMembers(data||[]));
+    supabase.from('profiles').select('*').eq('company_name', profile.company_name).then(({data})=>{ setTeamMembers(data||[]); registerAvatars(data||[]); });
   }, [workspace.id]);
 
   const addGroup = () => {
@@ -5735,7 +5756,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
 
   useEffect(() => {
     loadUpdates(); loadFiles(); buildActivityLog();
-    supabase.from('profiles').select('*').eq('company_name', profile.company_name).then(({data})=>setTeamMembers(data||[]));
+    supabase.from('profiles').select('*').eq('company_name', profile.company_name).then(({data})=>{ setTeamMembers(data||[]); registerAvatars(data||[]); });
   }, [item.id]);
 
   const handleTextChange = (e) => {
@@ -6418,7 +6439,7 @@ function CalendarView({ profile, workspaces, toast }) {
 
   const loadTeam = async () => {
     const { data } = await supabase.from('profiles').select('id,full_name,role').eq('company_name', profile.company_name);
-    setTeamMembers(data||[]);
+    setTeamMembers(data||[]); registerAvatars(data||[]);
   };
 
   const pushToGoogleCalendar = async (payload) => {
@@ -12499,7 +12520,7 @@ export default function App() {
           };
         }
       } catch(e) { console.warn('[App] localStorage merge failed:', e); }
-      setProfile(data);
+      setProfile(data); registerAvatars([data]);
       setBrand({ company_name: data.company_name||'Citizens Financial', logo_url: data.logo_url||'', brand_color: data.brand_color||'#3b82f6' });
       loadContacts(data.company_name);
       loadWorkspaces(data.company_name);
