@@ -903,11 +903,15 @@ function AuthScreen({ onAuth }) {
       });
       if (error) { setErr(error.message); setLoading(false); return; }
       if (data.user) {
+        // First user for this company becomes admin; everyone else is a member
+        const { data: existing } = await supabase.from('profiles')
+          .select('id').eq('company_name', form.company).limit(1);
+        const isFirstUser = !existing || existing.length === 0;
         await supabase.from('profiles').upsert({
           id: data.user.id,
           full_name: form.name,
           company_name: form.company,
-          role: 'admin'
+          role: isFirstUser ? 'admin' : 'member'
         }, { onConflict: 'id' });
       }
     } catch(e) {
@@ -4606,8 +4610,8 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
         const groupSelected = selected[group.id]||new Set();
         const allGroupSelected = groupItems.length>0 && groupItems.every(i=>groupSelected.has(i.id));
 
-        // Non-admins: skip groups that have no items they own
-        if(profile.role !== 'admin' && groupItems.length === 0) return null;
+        // Non-admins: if no owned items in this group, show a subtle empty-state row
+        // (don't return null — hiding all groups makes the workspace look broken/invisible)
 
         return (
           <div key={group.id} style={{ marginBottom:28 }}>
@@ -4715,7 +4719,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                         )}
                       </React.Fragment>
                     ))}
-                    {groupItems.length===0 && <tr><td colSpan={COLUMNS.length+2} style={{ padding:'16px 10px', color:'var(--muted)', textAlign:'center', fontSize:13 }}>No items yet</td></tr>}
+                    {groupItems.length===0 && <tr><td colSpan={COLUMNS.length+2} style={{ padding:'16px 10px', color:'var(--muted)', textAlign:'center', fontSize:13 }}>{profile.role==='admin' ? 'No items yet' : 'No items assigned to you in this group'}</td></tr>}
                   </tbody>
                 </table>
               </div>{/* end overflowX wrapper */}
@@ -12766,7 +12770,7 @@ export default function App() {
       // If no profile exists, create a minimal one so the app doesn't get stuck
       if (error?.code === 'PGRST116') {
         console.log('[App] No profile row found — setting fallback profile');
-        setProfile({ id: uid, company_name: 'My Company', full_name: '' });
+        setProfile({ id: uid, company_name: 'My Company', full_name: '', role: 'member' });
       }
     }
   };
