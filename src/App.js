@@ -1403,7 +1403,12 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
             </div>
           ) : notifications.map(n=>{
             const ICONS = { mention:Icons.messageSquare, assignment:Icons.user, status_change:Icons.refresh, overdue:Icons.alert, file:Icons.paperclip };
+            const TYPE_LABELS = { mention:'Mention', assignment:'Assignment', status_change:'Status Update', overdue:'Overdue', file:'File Shared', score:'Lead Scored', campaign:'Campaign', presentation:'Presentation', email:'Email', call:'Call' };
             const ws = workspaces?.find(w=>w.id===n.workspace_id);
+            const isSystem = !n.actor_name;
+            const displayName = n.actor_name || TYPE_LABELS[n.type] || 'System';
+            const systemColors = { score:'#8b5cf6', campaign:'#22c55e', presentation:'#3b82f6', email:'#06b6d4', call:'#f59e0b', mention:'#e05252', overdue:'#e05252' };
+            const avatarBg = isSystem ? (systemColors[n.type] || '#4d8ef0') : avatarColor(n.actor_name);
             return (
               <div key={n.id}
                 onClick={()=>{ if(ws){ onOpenWorkspace&&onOpenWorkspace(ws); setNotifOpen(false); } }}
@@ -1412,16 +1417,19 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                 onMouseOut={e=>e.currentTarget.style.background=n.is_read?'transparent':'rgba(77,142,240,.05)'}>
                 {/* Unread dot */}
                 {!n.is_read && <div style={{ position:'absolute', left:6, top:'50%', transform:'translateY(-50%)', width:6, height:6, borderRadius:'50%', background:'var(--accent)' }} />}
-                {/* Avatar */}
-                <div style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(n.actor_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0, position:'relative' }}>
-                  {initials(n.actor_name||'?')}
-                  <span style={{ position:'absolute', bottom:-2, right:-2, width:14, height:14, borderRadius:'50%', background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--muted)' }}>{ICONS[n.type]||Icons.bell}</span>
+                {/* Avatar / System icon */}
+                <div style={{ width:34, height:34, borderRadius:'50%', background:avatarBg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:isSystem?16:11, fontWeight:700, flexShrink:0, position:'relative' }}>
+                  {isSystem
+                    ? ({ score:'⚡', campaign:'📣', presentation:'📊', email:'✉️', call:'📞', mention:'@', overdue:'⚠️', file:'📎', assignment:'👤', status_change:'🔄' }[n.type] || '🔔')
+                    : initials(n.actor_name)}
+                  {!isSystem && <span style={{ position:'absolute', bottom:-2, right:-2, width:14, height:14, borderRadius:'50%', background:'var(--surface)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--muted)' }}>{ICONS[n.type]||Icons.bell}</span>}
                 </div>
                 {/* Content */}
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontSize:13, lineHeight:1.5 }}>
-                    <span style={{ fontWeight:700 }}>{n.actor_name}</span>
-                    {' '}<span style={{ color:'var(--muted)' }}>{n.message}</span>
+                    <span style={{ fontWeight:700, color: isSystem ? avatarBg : 'var(--text)' }}>{displayName}</span>
+                    {n.message && <span style={{ color:'var(--muted)' }}> {n.message}</span>}
+                    {!n.message && !n.actor_name && <span style={{ color:'var(--muted)' }}> sent a notification</span>}
                   </div>
                   {n.item_name && <div style={{ fontSize:12, color:'var(--accent)', marginTop:2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:4 }}>{Icons.clipboard} {n.item_name}</div>}
                   {n.workspace_name && <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>in {n.workspace_name}</div>}
