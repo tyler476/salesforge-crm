@@ -897,22 +897,58 @@ function AuthScreen({ onAuth }) {
     setErr(''); setLoading(true);
     if (!form.name || !form.company || !form.email || !form.password) { setErr('All fields required'); setLoading(false); return; }
     try {
+      // Check if this email already has a profile in this specific company
+      const { data: existingProfile } = await supabase.from('profiles')
+        .select('id').eq('email', form.email).eq('company_name', form.company).limit(1);
+      if (existingProfile && existingProfile.length > 0) {
+        setErr('This email is already a member of this company. Please sign in instead.');
+        setLoading(false);
+        return;
+      }
+
+      const createProfile = async (userId) => {
+        const { data: companyMembers } = await supabase.from('profiles')
+          .select('id').eq('company_name', form.company).limit(1);
+        const isFirstUser = !companyMembers || companyMembers.length === 0;
+        await supabase.from('profiles').upsert({
+          id: userId,
+          full_name: form.name,
+          email: form.email,
+          company_name: form.company,
+          role: isFirstUser ? 'admin' : 'member'
+        }, { onConflict: 'id' });
+      };
+
       const { data, error } = await supabase.auth.signUp({
         email: form.email, password: form.password,
         options: { data: { full_name: form.name, company_name: form.company } }
       });
-      if (error) { setErr(error.message); setLoading(false); return; }
-      if (data.user) {
-        // First user for this company becomes admin; everyone else is a member
-        const { data: existing } = await supabase.from('profiles')
-          .select('id').eq('company_name', form.company).limit(1);
-        const isFirstUser = !existing || existing.length === 0;
-        await supabase.from('profiles').upsert({
-          id: data.user.id,
-          full_name: form.name,
-          company_name: form.company,
-          role: isFirstUser ? 'admin' : 'member'
-        }, { onConflict: 'id' });
+
+      if (error) {
+        // "User already registered" means the email exists in Supabase Auth but
+        // NOT in this company's profiles (we checked above). Re-register them
+        // into this company by signing in with their existing credentials.
+        if (error.message.toLowerCase().includes('already registered') ||
+            error.message.toLowerCase().includes('already been registered')) {
+          const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+            email: form.email, password: form.password
+          });
+          if (signInErr) {
+            setErr('This email exists but the password is incorrect. Please use your existing password or reset it.');
+            setLoading(false);
+            return;
+          }
+          if (signInData?.user) {
+            await createProfile(signInData.user.id);
+            // Profile created — they are now signed in automatically
+          }
+        } else {
+          setErr(error.message);
+          setLoading(false);
+          return;
+        }
+      } else if (data.user) {
+        await createProfile(data.user.id);
       }
     } catch(e) {
       setErr('Signup failed: ' + e.message);
