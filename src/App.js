@@ -12694,7 +12694,7 @@ export default function App() {
     window.history.pushState(state, '', `#${newView}${workspace?'-'+workspace.id:''}`);
     setViewRaw(newView);
     if(workspace !== undefined) setActiveWorkspace(workspace);
-  }, []);
+  }, [profile]);
 
   useEffect(() => {
     const handlePop = (e) => {
