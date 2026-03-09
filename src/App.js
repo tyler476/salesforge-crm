@@ -3667,10 +3667,19 @@ function TeamView({ profile, toast }) {
     navigator.clipboard.writeText(link).then(() => toast('Invite link copied!')).catch(() => setInviteLink(link));
   };
 
+  const [confirmRemove, setConfirmRemove] = useState(null);
+
   const changeRole = async (id, role) => {
     await supabase.from('profiles').update({ role }).eq('id', id);
     setMembers(m => m.map(p => p.id===id ? {...p, role} : p));
     toast('Role updated');
+  };
+
+  const removeMember = async (member) => {
+    await supabase.from('profiles').delete().eq('id', member.id);
+    setMembers(m => m.filter(p => p.id !== member.id));
+    setConfirmRemove(null);
+    toast(member.full_name + ' removed from team');
   };
 
   return (
@@ -3696,17 +3705,38 @@ function TeamView({ profile, toast }) {
               <div style={{ color:'var(--muted)', fontSize:12 }}>{m.email||'—'}</div>
             </div>
             {profile.role==='admin' && m.id!==profile.id ? (
-              <select value={m.role||'member'} onChange={e=>changeRole(m.id,e.target.value)} style={{ width:'auto', padding:'5px 10px', fontSize:13 }}>
-                <option value="admin">Admin</option>
-                <option value="manager">Manager</option>
-                <option value="member">Member</option>
-              </select>
+              <>
+                <select value={m.role||'member'} onChange={e=>changeRole(m.id,e.target.value)} style={{ width:'auto', padding:'5px 10px', fontSize:13 }}>
+                  <option value="admin">Admin</option>
+                  <option value="manager">Manager</option>
+                  <option value="member">Member</option>
+                </select>
+                <button onClick={()=>setConfirmRemove(m)} title="Remove member"
+                  style={{ background:'none', border:'1px solid var(--danger)', color:'var(--danger)', borderRadius:6, padding:'5px 10px', cursor:'pointer', fontSize:12, fontWeight:600, whiteSpace:'nowrap' }}>
+                  Remove
+                </button>
+              </>
             ) : (
               <span className={`badge ${m.role==='admin'?'badge-blue':m.role==='manager'?'badge-yellow':'badge-green'}`}>{m.role||'member'}</span>
             )}
           </div>
         ))}
       </div>
+
+      {confirmRemove && (
+        <div onClick={()=>setConfirmRemove(null)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.55)', zIndex:10000, display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:28, width:360, boxShadow:'0 24px 60px rgba(0,0,0,.5)' }}>
+            <div style={{ fontWeight:700, fontSize:16, marginBottom:10 }}>Remove team member?</div>
+            <div style={{ color:'var(--muted)', fontSize:13, marginBottom:24, lineHeight:1.6 }}>
+              This will remove <strong style={{ color:'var(--text)' }}>{confirmRemove.full_name}</strong> from your team. They will lose access to the CRM immediately. This cannot be undone.
+            </div>
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+              <button onClick={()=>setConfirmRemove(null)} style={{ padding:'8px 18px', borderRadius:7, background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', fontSize:13, cursor:'pointer' }}>Cancel</button>
+              <button onClick={()=>removeMember(confirmRemove)} style={{ padding:'8px 18px', borderRadius:7, background:'var(--danger)', border:'none', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>Remove</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
