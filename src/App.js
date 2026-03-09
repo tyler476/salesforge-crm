@@ -807,44 +807,57 @@ function ContactForm({ contact, onSave, onClose, companyId, toast }) {
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
   const [errors, setErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const save = async () => {
     const errs = {};
-    if (!form.full_name.trim()) errs.full_name = 'Name is required';
-    if (!form.email.trim() && !form.phone.trim()) {
+    if (!(form.full_name||'').trim()) errs.full_name = 'Name is required';
+    if (!(form.email||'').trim() && !(form.phone||'').trim()) {
       errs.email = 'Email or phone required';
       errs.phone = 'Email or phone required';
     }
     if (Object.keys(errs).length) { setErrors(errs); toast && toast('Please fill in the required fields'); return; }
     setErrors({});
-    const payload = {
-      full_name: form.full_name.trim(),
-      email: form.email || '',
-      phone: form.phone || '',
-      company: form.company || '',
-      title: form.title || '',
-      address: form.address || '',
-      occupation: form.occupation || '',
-      stage: form.stage || 'New Lead',
-      contact_group: form.contact_group || '',
-      tags: form.tags ? form.tags.split(',').map(t=>t.trim()).filter(Boolean) : [],
-      notes: form.notes || '',
-      company_id: companyId,
-      record_type: 'contact',
-    };
-    if (contact?.id) {
-      const { error } = await supabase.from('contacts').update(payload).eq('id', contact.id);
-      if (error) { toast && toast('Error: ' + error.message); return; }
-    } else {
-      const { data, error } = await supabase.from('contacts').insert([payload]).select().single();
-      if (error) { toast && toast('Error: ' + error.message); return; }
-      if (data) {
-        supabase.functions.invoke('automation-engine', {
-          body: { action:'scoreLead', contact_id:data.id, qualData:{ borrowerName:data.full_name, phone:data.phone, email:data.email } }
-        }).catch(()=>{});
+    setSaveError('');
+    setSaving(true);
+    try {
+      const payload = {
+        full_name: (form.full_name||'').trim(),
+        email: form.email || '',
+        phone: form.phone || '',
+        company: form.company || '',
+        title: form.title || '',
+        address: form.address || '',
+        occupation: form.occupation || '',
+        stage: form.stage || 'New Lead',
+        contact_group: form.contact_group || '',
+        tags: form.tags ? form.tags.split(',').map(t=>t.trim()).filter(Boolean) : [],
+        notes: form.notes || '',
+        company_id: companyId,
+        record_type: 'contact',
+      };
+      if (contact?.id) {
+        const { error } = await supabase.from('contacts').update(payload).eq('id', contact.id);
+        if (error) { setSaveError('Save failed: ' + error.message); toast && toast('Error: ' + error.message); setSaving(false); return; }
+      } else {
+        const { data, error } = await supabase.from('contacts').insert([payload]).select().single();
+        if (error) { setSaveError('Save failed: ' + error.message); toast && toast('Error: ' + error.message); setSaving(false); return; }
+        if (data) {
+          supabase.functions.invoke('automation-engine', {
+            body: { action:'scoreLead', contact_id:data.id, qualData:{ borrowerName:data.full_name, phone:data.phone, email:data.email } }
+          }).catch(()=>{});
+        }
       }
+      onSave();
+    } catch(err) {
+      const msg = err?.message || String(err);
+      setSaveError('Unexpected error: ' + msg);
+      toast && toast('Error saving contact: ' + msg);
+      console.error('[ContactForm] save error:', err);
+    } finally {
+      setSaving(false);
     }
-    onSave();
   };
 
   const reqStyle = { color:'#e05252', marginLeft:2 };
@@ -903,9 +916,16 @@ function ContactForm({ contact, onSave, onClose, companyId, toast }) {
         </div>
         <div className="form-group"><label>Tags<span style={optStyle}>optional — comma separated</span></label><input value={form.tags} onChange={e=>set('tags',e.target.value)} placeholder="hot lead, Q1, enterprise" /></div>
         <div className="form-group"><label>Notes<span style={optStyle}>optional</span></label><textarea rows={3} value={form.notes||''} onChange={e=>set('notes',e.target.value)} /></div>
+        {saveError && (
+          <div style={{ background:'rgba(224,82,82,.1)', border:'1px solid rgba(224,82,82,.4)', borderRadius:8, padding:'10px 14px', marginBottom:12, color:'#e05252', fontSize:13 }}>
+            ⚠️ {saveError}
+          </div>
+        )}
         <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn-primary" onClick={save}>Save Contact</button>
+          <button className="btn-primary" onClick={save} disabled={saving} style={{ opacity: saving ? 0.7 : 1 }}>
+            {saving ? 'Saving…' : 'Save Contact'}
+          </button>
         </div>
       </div>
     </div>
@@ -2357,7 +2377,6 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
       {showMassEmail && <MassEmailModal contacts={selectedContacts} onClose={()=>setShowMassEmail(false)} onSent={(n)=>{ setShowMassEmail(false); setSelected([]); toast('Sent to ' + n + ' contacts!'); }} />}
       {showMassPresentation && <MassPresentationModal contacts={selectedContacts} profile={profile} onClose={()=>setShowMassPresentation(false)} toast={toast} onSent={(n)=>{ setShowMassPresentation(false); setSelected([]); toast('Presentations sent to '+n+' contacts!'); }} />}
       {showGroupSend && <GroupSendModal contacts={contacts} profile={profile} toast={toast} onClose={()=>setShowGroupSend(false)} onSent={(n)=>{ setShowGroupSend(false); toast('Presentations sent to '+n+' contacts!'); }} />}
-      {showGroupSend && <GroupSendModal contacts={contacts} profile={profile} toast={toast} onClose={()=>setShowGroupSend(false)} onSent={(n)=>{ setShowGroupSend(false); toast('Presentations sent to '+n+' contacts!'); }} />}
     </div>
   );
 }
@@ -2511,9 +2530,9 @@ function LeadsView({ contacts: raw, onAdd, onSelect, onRefresh, toast, profile }
                 <td onClick={e=>e.stopPropagation()}>
                   <div style={{display:'flex',gap:4}}>
                     <button onClick={()=>setEditLead(c)} style={{background:'none',border:'1px solid var(--border)',borderRadius:6,padding:'4px 8px',cursor:'pointer',color:'var(--muted)',fontSize:11}}>Edit</button>
-                    <button onClick={()=>convertToContacts([c.id])}
-                      style={{background:'rgba(26,154,92,.1)',border:'1px solid rgba(26,154,92,.35)',borderRadius:6,padding:'4px 8px',cursor:'pointer',color:'#1a9a5c',fontSize:11,fontWeight:600,whiteSpace:'nowrap'}}>
-                      → Contact
+                    <button onClick={()=>convertToContacts([c.id])} disabled={converting}
+                      style={{background:'rgba(26,154,92,.1)',border:'1px solid rgba(26,154,92,.35)',borderRadius:6,padding:'4px 8px',cursor: converting?'not-allowed':'pointer',color:'#1a9a5c',fontSize:11,fontWeight:600,whiteSpace:'nowrap',opacity:converting?0.5:1}}>
+                      {converting ? '…' : '→ Contact'}
                     </button>
                     <LeadRowActions contact={c} profile={profile} toast={toast} onRefresh={onRefresh} />
                   </div>
