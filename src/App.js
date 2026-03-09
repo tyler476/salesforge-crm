@@ -1753,13 +1753,13 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
   // Load everything in parallel
   React.useEffect(()=>{
     if(!profile?.company_name) return;
+    // Load items and groups separately — groups gives us the groupId→workspaceId map
     Promise.all([
-      supabase.from('workspace_items').select('id,name,date,status,group_id,workspace_id,assigned_officers,lock_expiration,archived,trashed,company_id').eq('company_id', profile.company_name).eq('archived', false).neq('trashed', true),
+      supabase.from('workspace_items').select('*').eq('company_id', profile.company_name).eq('archived', false).neq('trashed', true),
       supabase.from('workspace_updates').select('*').eq('company_id', profile.company_name).order('created_at',{ascending:false}).limit(30),
       supabase.from('profiles').select('*').eq('company_name', profile.company_name),
-      supabase.from('workspace_groups').select('id,workspace_id').in('workspace_id', workspaces.map(w=>w.id)),
+      supabase.from('workspace_groups').select('id,workspace_id'),
     ]).then(([items, updates, members, groups])=>{
-      // Build groupId → workspaceId map for reliable counting
       const groupMap = {};
       (groups.data||[]).forEach(g=>{ groupMap[g.id] = g.workspace_id; });
       const data = (items.data||[]).map(i=>({ ...i, _wsId: i.workspace_id || groupMap[i.group_id] || null }));
