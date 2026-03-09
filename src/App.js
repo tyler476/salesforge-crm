@@ -1313,7 +1313,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
 
 
 // ─── TOP BAR ─────────────────────────────────────────────────────────────────
-function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout, onGetResults, workspaces, onOpenWorkspace, onProfileUpdate }) {
+function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout, onGetResults, workspaces, onOpenWorkspace, onProfileUpdate, toast }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -12882,7 +12882,7 @@ export default function App() {
       </div>
 
       {/* Top Bar */}
-      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>setView(v,null)} onLogout={logout} workspaces={workspaces} onOpenWorkspace={w=>setView('workspace',w)} onProfileUpdate={updated=>setProfile(updated)}
+      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>setView(v,null)} onLogout={logout} workspaces={workspaces} onOpenWorkspace={w=>setView('workspace',w)} onProfileUpdate={updated=>setProfile(updated)} toast={toast}
         onGetResults={(q)=>{
           const r = [];
           const ql = q.toLowerCase();
