@@ -832,19 +832,23 @@ function ContactForm({ contact, onSave, onClose, companyId, toast }) {
       company_id: companyId,
       record_type: 'contact',
     };
-    if (contact?.id) {
-      const { error } = await supabase.from('contacts').update(payload).eq('id', contact.id);
-      if (error) { toast && toast('Error: ' + error.message); return; }
-    } else {
-      const { data, error } = await supabase.from('contacts').insert([payload]).select().single();
-      if (error) { toast && toast('Error: ' + error.message); return; }
-      if (data) {
-        supabase.functions.invoke('automation-engine', {
-          body: { action:'scoreLead', contact_id:data.id, qualData:{ borrowerName:data.full_name, phone:data.phone, email:data.email } }
-        }).catch(()=>{});
+    try {
+      if (contact?.id) {
+        const { error } = await supabase.from('contacts').update(payload).eq('id', contact.id);
+        if (error) { toast && toast('Error saving contact: ' + error.message); return; }
+      } else {
+        const { data, error } = await supabase.from('contacts').insert([payload]).select().single();
+        if (error) { toast && toast('Error saving contact: ' + error.message); return; }
+        if (data) {
+          supabase.functions.invoke('automation-engine', {
+            body: { action:'scoreLead', contact_id:data.id, qualData:{ borrowerName:data.full_name, phone:data.phone, email:data.email } }
+          }).catch(()=>{});
+        }
       }
+      onSave();
+    } catch (e) {
+      toast && toast('Unexpected error: ' + (e?.message || 'Could not save contact'));
     }
-    onSave();
   };
 
   const reqStyle = { color:'#e05252', marginLeft:2 };
@@ -2357,7 +2361,6 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
       {showMassEmail && <MassEmailModal contacts={selectedContacts} onClose={()=>setShowMassEmail(false)} onSent={(n)=>{ setShowMassEmail(false); setSelected([]); toast('Sent to ' + n + ' contacts!'); }} />}
       {showMassPresentation && <MassPresentationModal contacts={selectedContacts} profile={profile} onClose={()=>setShowMassPresentation(false)} toast={toast} onSent={(n)=>{ setShowMassPresentation(false); setSelected([]); toast('Presentations sent to '+n+' contacts!'); }} />}
       {showGroupSend && <GroupSendModal contacts={contacts} profile={profile} toast={toast} onClose={()=>setShowGroupSend(false)} onSent={(n)=>{ setShowGroupSend(false); toast('Presentations sent to '+n+' contacts!'); }} />}
-      {showGroupSend && <GroupSendModal contacts={contacts} profile={profile} toast={toast} onClose={()=>setShowGroupSend(false)} onSent={(n)=>{ setShowGroupSend(false); toast('Presentations sent to '+n+' contacts!'); }} />}
     </div>
   );
 }
@@ -3099,7 +3102,7 @@ function AIPipelineView({ contacts, onSelect, profile, toast }) {
         <div style={{ overflowX:'auto', paddingBottom:16 }}>
           <div style={{ display:'flex', gap:12, minWidth:'max-content' }}>
             {STAGES.slice(0,5).map(stage => {
-              const cols  = localContacts.filter(c => c.stage===stage);
+              const cols  = activeContacts.filter(c => c.stage===stage);
               const color = STAGE_COLOR[stage] || '#4d8ef0';
               const stageIdx = STAGES.indexOf(stage);
               return (
