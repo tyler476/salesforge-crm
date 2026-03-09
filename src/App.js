@@ -1402,15 +1402,14 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
         body: { email: inviteEmail.trim(), role: inviteRole },
       });
       if (error) {
-        // supabase.functions.invoke wraps non-2xx as FunctionsHttpError
-        // The real message is in the response body, not error.message
-        let msg = 'Failed to send invite. Please try again.';
-        try { const body = await error.context?.json(); if (body?.error) msg = body.error; } catch(_) {}
-        toast(msg);
+        toast('Failed to send invite. Please try again.');
         return;
       }
-      if (data?.error) { toast(data.error); return; }
-      toast(data?.resent ? `Re-invite sent to ${inviteEmail}!` : `Invite sent to ${inviteEmail}!`);
+      if (!data?.success) {
+        toast(data?.error || 'Failed to send invite. Please try again.');
+        return;
+      }
+      toast(data?.resent ? `Re-invite sent to ${inviteEmail.trim()}!` : `Invite sent to ${inviteEmail.trim()}!`);
       setInviteEmail('');
       setInviteOpen(false);
     } catch(e) {
