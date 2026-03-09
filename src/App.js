@@ -677,12 +677,12 @@ const avatarColor = (name='') => { const colors=['#3b82f6','#06b6d4','#10b981','
 
 // ─── NOTIFICATIONS UTILITY ───────────────────────────────────────────────────
 async function createNotification(opts) {
-  if(!opts.recipient_id) { console.warn('[NOTIF] SKIPPED: no recipient_id', opts); return; }
-  // Allow self-notifications for key types (status changes on your items, being assigned, mentions)
+  if(!opts.recipient_id) return;
   const ALLOW_SELF_TYPES = ['assignment','status_change','mention','comment','update'];
-  if(opts.recipient_id === opts.actor_id && !ALLOW_SELF_TYPES.includes(opts.type)) { return; }
-  // Try with full payload first; if unknown column error, retry with minimal payload
-  const fullPayload = {
+  if(opts.recipient_id === opts.actor_id && !ALLOW_SELF_TYPES.includes(opts.type)) return;
+
+  // Build payload with all desired fields
+  let payload = {
     recipient_id:  opts.recipient_id,
     recipient_name:opts.recipient_name||'',
     actor_name:    opts.actor_name||'',
@@ -694,16 +694,21 @@ async function createNotification(opts) {
     workspace_name:opts.workspace_name||'',
     is_read:       false,
   };
-  // Include company_id if available
-  if (opts.company_id) fullPayload.company_id = opts.company_id;
-  const { error } = await supabase.from('notifications').insert([fullPayload]);
-  if (error) {
-    // If company_id column doesn't exist, retry without it
-    if (error.message?.includes('company_id')) {
-      const { error: e2 } = await supabase.from('notifications').insert([{ ...fullPayload, company_id: undefined }]);
-      if (e2) console.error('[NOTIF] INSERT FAILED (retry):', e2.message);
+  if (opts.company_id) payload.company_id = opts.company_id;
+
+  // Retry loop — strips unknown columns one at a time until insert succeeds
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const { error } = await supabase.from('notifications').insert([payload]);
+    if (!error) return; // success
+    // Extract the offending column name from the error message
+    const m = error.message.match(/column[s]? ["‘’]([a-z_]+)["‘’]/i)
+           || error.message.match(/["‘’]([a-z_]+)["‘’] column/i);
+    const col = m?.[1];
+    if (col && col in payload) {
+      delete payload[col]; // remove and retry
     } else {
       console.error('[NOTIF] INSERT FAILED:', error.message);
+      return;
     }
   }
 }
@@ -1802,20 +1807,20 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
               disabled={profileSaving}
               onClick={async ()=>{
                 setProfileSaving(true);
-                // Step 1: save full_name — this column is guaranteed to exist
-                const { error: nameErr } = await supabase.from('profiles').update({ full_name: profileForm.full_name }).eq('id', profile.id);
-                if (nameErr) { setProfileSaving(false); alert('Save failed: ' + nameErr.message); return; }
-                // Step 2: try phone + title — ignore if columns don't exist yet
-                await supabase.from('profiles').update({ phone: profileForm.phone, title: profileForm.title }).eq('id', profile.id).catch(()=>{});
-                // Step 3: store phone/title/avatar in localStorage as guaranteed fallback
                 try {
-                  const key = 'profile_extra_' + profile.id;
-                  localStorage.setItem(key, JSON.stringify({ phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url }));
-                } catch(e) {}
-                setProfileSaving(false);
-                const updates = { full_name: profileForm.full_name, phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url };
-                setProfileModalOpen(false);
-                onProfileUpdate && onProfileUpdate({ ...profile, ...updates });
+                  // Always save full_name — column is guaranteed
+                  const { error: nameErr } = await supabase.from('profiles').update({ full_name: profileForm.full_name }).eq('id', profile.id);
+                  if (nameErr) { alert('Save failed: ' + nameErr.message); return; }
+                  // Try phone + title — silently skip if columns don't exist
+                  try { await supabase.from('profiles').update({ phone: profileForm.phone, title: profileForm.title }).eq('id', profile.id); } catch(e) {}
+                  // Always persist everything to localStorage — works regardless of DB schema
+                  try { localStorage.setItem('profile_extra_' + profile.id, JSON.stringify({ phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url })); } catch(e) {}
+                  const updates = { full_name: profileForm.full_name, phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url };
+                  setProfileModalOpen(false);
+                  onProfileUpdate && onProfileUpdate({ ...profile, ...updates });
+                } finally {
+                  setProfileSaving(false); // always reset — no more stuck "Processing…"
+                }
               }}
               style={{ padding:'8px 20px', borderRadius:7, background:'var(--accent)', border:'none', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', opacity: profileSaving ? 0.6 : 1 }}>
               {profileSaving ? 'Saving…' : 'Save Changes'}
