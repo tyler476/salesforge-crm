@@ -12807,7 +12807,49 @@ export default function App() {
 
   const logout = async () => { await supabase.auth.signOut(); };
 
-  if (presentToken) return <><style>{css}</style><PublicPresentationViewer token={presentToken} /></>;
+  // ── Profile modal form state (must be before early returns — Rules of Hooks) ──
+  const [profileForm, setProfileForm] = React.useState({
+    full_name: '', phone: '', title: '', avatar_url: '', address: ''
+  });
+  React.useEffect(() => {
+    if (!profile) return;
+    let extra = {};
+    try { extra = JSON.parse(localStorage.getItem('profile_extra_' + profile.id) || 'null') || {}; } catch(e) {}
+    setProfileForm({
+      full_name:  profile.full_name  || '',
+      phone:      profile.phone      || extra.phone      || '',
+      title:      profile.title      || extra.title      || '',
+      avatar_url: profile.avatar_url || extra.avatar_url || '',
+      address:    profile.address    || extra.address    || '',
+    });
+  }, [profile?.id, profile?.full_name, profile?.title, profile?.avatar_url, profile?.phone, profile?.address]);
+  const [profileSavingApp, setProfileSavingApp] = React.useState(false);
+  const handleSaveProfile = async () => {
+    setProfileSavingApp(true);
+    try {
+      const { error } = await supabase.from('profiles').upsert({
+        id: profile.id,
+        full_name: profileForm.full_name,
+        email: profile.email || '',
+        company_name: profile.company_name,
+        role: profile.role || 'member',
+        phone: profileForm.phone,
+        title: profileForm.title,
+        address: profileForm.address,
+        avatar_url: profileForm.avatar_url,
+      }, { onConflict: 'id' });
+      if (error) { alert('Save failed: ' + error.message); return; }
+      try { localStorage.setItem('profile_extra_' + profile.id, JSON.stringify({ phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url, address: profileForm.address })); } catch(e) {}
+      const updated = { ...profile, full_name: profileForm.full_name, phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url, address: profileForm.address };
+      setProfile(updated);
+      setAppProfileModalOpen(false);
+      toast && toast('Profile saved!');
+    } finally {
+      setProfileSavingApp(false);
+    }
+  };
+
+    if (presentToken) return <><style>{css}</style><PublicPresentationViewer token={presentToken} /></>;
   if (!session) return <><style>{css}</style><AuthScreen onAuth={()=>{}} /></>;
   if (needsPassword) return <><style>{css}</style><SetPasswordScreen onDone={() => { setNeedsPassword(false); loadProfile(session.user.id); }} /></>;
   if (!profile) return <><style>{css}</style><div style={{ padding:40, textAlign:'center', color:'var(--muted)' }}>Loading... <span style={{fontSize:11,display:'block',marginTop:8}}>If this persists, check browser console (F12) for errors.</span></div></>;
@@ -12830,52 +12872,6 @@ export default function App() {
     { id:'lenders', label:'Lender Portals', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="14" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><polyline points="8 21 12 17 16 21"/></svg> },
     { id:'hannah', label:'Ask Hannah', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
   ];
-
-  // ── App-level profile modal state ──────────────────────────────────────────
-  const [profileForm, setProfileForm] = React.useState({
-    full_name: '', phone: '', title: '', avatar_url: '', address: ''
-  });
-  // Sync form whenever profile changes
-  React.useEffect(() => {
-    if (!profile) return;
-    let extra = {};
-    try { extra = JSON.parse(localStorage.getItem('profile_extra_' + profile.id) || 'null') || {}; } catch(e) {}
-    setProfileForm({
-      full_name:  profile.full_name  || '',
-      phone:      profile.phone      || extra.phone      || '',
-      title:      profile.title      || extra.title      || '',
-      avatar_url: profile.avatar_url || extra.avatar_url || '',
-      address:    profile.address    || extra.address    || '',
-    });
-  }, [profile?.id, profile?.full_name, profile?.title, profile?.avatar_url, profile?.phone, profile?.address]);
-
-  const [profileSavingApp, setProfileSavingApp] = React.useState(false);
-  const handleSaveProfile = async () => {
-    setProfileSavingApp(true);
-    try {
-      // UPSERT — works whether or not the row exists
-      const { error } = await supabase.from('profiles').upsert({
-        id: profile.id,
-        full_name: profileForm.full_name,
-        email: profile.email || '',
-        company_name: profile.company_name,
-        role: profile.role || 'member',
-        phone: profileForm.phone,
-        title: profileForm.title,
-        address: profileForm.address,
-        avatar_url: profileForm.avatar_url,
-      }, { onConflict: 'id' });
-      if (error) { alert('Save failed: ' + error.message); return; }
-      // Persist extras to localStorage as backup
-      try { localStorage.setItem('profile_extra_' + profile.id, JSON.stringify({ phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url, address: profileForm.address })); } catch(e) {}
-      const updated = { ...profile, full_name: profileForm.full_name, phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url, address: profileForm.address };
-      setProfile(updated);
-      setAppProfileModalOpen(false);
-      toast && toast('Profile saved!');
-    } finally {
-      setProfileSavingApp(false);
-    }
-  };
 
   return (
     <PricingProvider>
