@@ -2803,7 +2803,7 @@ function LeadsView({ contacts: raw, onAdd, onSelect, onRefresh, toast, profile, 
                 <td onClick={e=>toggleSelect(c.id,e)}><input type="checkbox" checked={selected.includes(c.id)} onChange={()=>{}} /></td>
                 <td>
                   <div style={{display:'flex',alignItems:'center',gap:10}}>
-                    <Avatarname={c.full_name} size={32} />
+                    <Avatar name={c.full_name} size={32} />
                     <div>
                       <div style={{fontWeight:600,fontSize:13}}>{c.full_name}</div>
                       <div style={{color:'var(--muted)',fontSize:11}}>{c.email||'—'}</div>
