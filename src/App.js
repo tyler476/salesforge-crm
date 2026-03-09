@@ -174,35 +174,42 @@ function getBaseFromCache(scenario, fredCache) {
 }
 
 // Fetch a single FRED series — returns { value, date } or null
-// Calls FRED API directly (CORS is supported)
 async function fetchOneFREDSeries(seriesId, apiKey) {
-  try {
-    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&sort_order=desc&limit=10&file_type=json`;
-    const res = await fetch(url);
-    if (!res.ok) return null;
-    const data = await res.json();
-    // FRED uses '.' for missing values — find the most recent real observation
-    const obs = (data.observations || []).find(o => o.value && o.value !== '.');
-    return obs ? { value: parseFloat(obs.value), date: obs.date } : null;
-  } catch { return null; }
+  const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${seriesId}&api_key=${apiKey}&sort_order=desc&limit=10&file_type=json`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const text = await res.text().catch(()=>'');
+    throw new Error(`HTTP ${res.status}: ${text.slice(0,120)}`);
+  }
+  const data = await res.json();
+  if (data.error_message) throw new Error(data.error_message);
+  const obs = (data.observations || []).find(o => o.value && o.value !== '.');
+  return obs ? { value: parseFloat(obs.value), date: obs.date } : null;
 }
 
 // Fetch all FRED rate series in parallel — call once per day
+// Returns { cache, error } — error is a string if something went wrong
 async function fetchAllFREDRates(fredApiKey) {
-  if (!fredApiKey) return null;
+  if (!fredApiKey) return { cache: null, error: 'No API key provided' };
   const results = {};
+  let firstError = null;
   await Promise.allSettled(
     Object.entries(FRED_SERIES).map(async ([key, seriesId]) => {
-      const obs = await fetchOneFREDSeries(seriesId, fredApiKey);
-      if (obs) results[key] = obs;
+      try {
+        const obs = await fetchOneFREDSeries(seriesId, fredApiKey);
+        if (obs) results[key] = obs;
+      } catch(e) {
+        if (!firstError) firstError = e.message;
+      }
     })
   );
-  if (Object.keys(results).length === 0) return null;
+  if (Object.keys(results).length === 0) {
+    return { cache: null, error: firstError || 'All series returned no data' };
+  }
   results._fetchedAt = new Date().toISOString();
-  // Use the most recent date across all fetched series as the "as of" date
   const dates = Object.values(results).filter(v => v?.date).map(v => v.date);
   results._rateDate = dates.sort().pop() || null;
-  return results;
+  return { cache: results, error: null };
 }
 
 // Master LLPA compute function — sums all applicable adjustments
@@ -379,6 +386,7 @@ function PricingProvider({ children }) {
   const [searching, setSearching]             = useState(false);
   const [fredCache, setFredCache]             = useState(null);
   const [fredLoading, setFredLoading]         = useState(false);
+  const [fredError, setFredError]             = useState(null);
   const [fredApiKey, setFredApiKey]           = useState(
     () => localStorage.getItem('fred_api_key') || ''
   );
@@ -397,10 +405,14 @@ function PricingProvider({ children }) {
         } catch {}
       }
       setFredLoading(true);
-      fetchAllFREDRates(fredApiKey).then(cache => {
+      setFredError(null);
+      fetchAllFREDRates(fredApiKey).then(({ cache, error }) => {
         if (cache) {
           setFredCache(cache);
+          setFredError(null);
           try { localStorage.setItem('fred_rate_cache', JSON.stringify(cache)); } catch {}
+        } else {
+          setFredError(error || 'Failed to fetch rates');
         }
         setFredLoading(false);
       });
@@ -426,10 +438,14 @@ function PricingProvider({ children }) {
     try { localStorage.removeItem('fred_rate_cache'); } catch {}
     if (!key) return;
     setFredLoading(true);
-    fetchAllFREDRates(key).then(cache => {
+    setFredError(null);
+    fetchAllFREDRates(key).then(({ cache, error }) => {
       if (cache) {
         setFredCache(cache);
+        setFredError(null);
         try { localStorage.setItem('fred_rate_cache', JSON.stringify(cache)); } catch {}
+      } else {
+        setFredError(error || 'Failed to fetch rates');
       }
       setFredLoading(false);
     });
@@ -439,11 +455,15 @@ function PricingProvider({ children }) {
     const key = localStorage.getItem('fred_api_key') || fredApiKey;
     if (!key) return;
     setFredLoading(true);
+    setFredError(null);
     try { localStorage.removeItem('fred_rate_cache'); } catch {}
-    fetchAllFREDRates(key).then(cache => {
+    fetchAllFREDRates(key).then(({ cache, error }) => {
       if (cache) {
         setFredCache(cache);
+        setFredError(null);
         try { localStorage.setItem('fred_rate_cache', JSON.stringify(cache)); } catch {}
+      } else {
+        setFredError(error || 'Failed to fetch rates');
       }
       setFredLoading(false);
     });
@@ -480,7 +500,7 @@ function PricingProvider({ children }) {
       selectedContact, linkContact,
       rateSheetDate, setRateSheetDate,
       setPpeResults,
-      fredCache, fredLoading, fredApiKey,
+      fredCache, fredLoading, fredApiKey, fredError,
       saveFredApiKey, refreshFREDRates,
     }}>
       {children}
@@ -9310,6 +9330,7 @@ function RateCompareView({ toast, onOpenPricing }) {
   const fredCache    = pricingCtx?.fredCache    || null;
   const fredLoading  = pricingCtx?.fredLoading  || false;
   const fredApiKey   = pricingCtx?.fredApiKey   || '';
+  const fredError    = pricingCtx?.fredError     || null;
   const saveFredKey  = pricingCtx?.saveFredApiKey || (() => {});
   const refreshFRED  = pricingCtx?.refreshFREDRates || (() => {});
 
@@ -9427,7 +9448,7 @@ function RateCompareView({ toast, onOpenPricing }) {
             <span style={{ fontWeight:700, color: usingLive ? (isStale?'#f0b429':'#2ecc8a') : 'rgba(255,255,255,.5)' }}>
               {fredLoading ? '⟳ Fetching rates…' : usingLive ? (rateDate ? '✓ OBMMI ' + new Date(rateDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '✓ Live Rates') : '⚠ Static rates'}
             </span>
-            {usingLive && (
+            {fredApiKey && (
               <button onClick={refreshFRED} disabled={fredLoading}
                 style={{ fontSize:10, color:'var(--muted)', background:'none', border:'none', cursor:'pointer', padding:0 }}>
                 {fredLoading ? '' : '↺ refresh'}
@@ -9463,6 +9484,17 @@ function RateCompareView({ toast, onOpenPricing }) {
               Save
             </button>
           </div>
+          {fredError && (
+            <div style={{ marginTop:6, padding:'5px 7px', background:'rgba(239,68,68,.12)',
+              border:'1px solid rgba(239,68,68,.3)', borderRadius:5, color:'#f87171', fontSize:10, wordBreak:'break-all' }}>
+              ✗ {fredError}
+            </div>
+          )}
+          {fredApiKey && !fredError && !usingLive && !fredLoading && (
+            <div style={{ marginTop:5, fontSize:10, color:'var(--muted)' }}>
+              Key saved — click ↺ refresh or reload to fetch rates
+            </div>
+          )}
         </div>
 
         {/* ── LOAN SECTION ── */}
