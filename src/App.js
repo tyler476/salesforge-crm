@@ -672,6 +672,12 @@ const Icons = {
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 const fmt = (n) => n >= 1000000 ? `$${(n/1000000).toFixed(1)}M` : n >= 1000 ? `$${(n/1000).toFixed(0)}K` : `$${n}`;
+const displayRole = (role) => {
+  if(role === 'admin') return 'Admin';
+  if(role === 'manager') return 'Manager';
+  if(role === 'member' || !role) return 'Loan Officer';
+  return role;
+};
 const initials = (name='', email='') => {
   const n = (name||'').trim();
   if(n) return n.split(' ').map(w=>w[0]).filter(Boolean).join('').slice(0,2).toUpperCase();
@@ -1614,7 +1620,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
       </button>
 
       {/* Avatar */}
-      <div onClick={e=>{ stop(e); setProfileOpen(o=>!o); setHelpOpen(false); setAppsOpen(false); setNotifOpen(false); }}
+      <div id="topbar-profile-avatar" onClick={e=>{ stop(e); setProfileOpen(o=>!o); setHelpOpen(false); setAppsOpen(false); setNotifOpen(false); }}
         style={{ cursor:'pointer', marginLeft:4, flexShrink:0 }}>
         <Avatar name={profile.full_name||profile.email||''} url={profile.avatar_url||''} size={34} style={{ border:'2px solid rgba(255,255,255,.2)' }} />
       </div>
@@ -1868,7 +1874,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
           </div>
           <div>
             <div style={{ fontWeight:600, fontSize:13 }}>{profile.full_name || profile.email || 'My Account'}</div>
-            <div style={{ fontSize:11, color:'var(--muted)' }}>{profile.title || profile.role}</div>
+            <div style={{ fontSize:11, color:'var(--muted)' }}>{profile.title || displayRole(profile.role)}</div>
           </div>
         </div>
         {/* Menu items */}
@@ -1909,6 +1915,11 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
             <span style={{ fontWeight:700, fontSize:16 }}>My Profile</span>
             <button onClick={()=>setProfileModalOpen(false)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:20, lineHeight:1 }}>×</button>
           </div>
+          {!profile.full_name && (
+            <div style={{ margin:'12px 20px 0', padding:'10px 14px', background:'rgba(77,142,240,.12)', border:'1px solid rgba(77,142,240,.3)', borderRadius:8, fontSize:12, color:'var(--accent)' }}>
+              👋 Welcome! Please fill in your name and photo to complete your profile.
+            </div>
+          )}
           {/* Avatar section */}
           <div style={{ padding:'20px 20px 0', display:'flex', alignItems:'center', gap:16 }}>
             <div style={{ position:'relative' }}>
@@ -1920,7 +1931,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
             </div>
             <div style={{ flex:1 }}>
               <div style={{ fontWeight:700, fontSize:14 }}>{profileForm.full_name || profile.full_name}</div>
-              <div style={{ fontSize:12, color:'var(--muted)', marginBottom:6 }}>{profileForm.title || profile.title || profile.role} · {profile.company_name}</div>
+              <div style={{ fontSize:12, color:'var(--muted)', marginBottom:6 }}>{profileForm.title || profile.title || displayRole(profile.role)} · {profile.company_name}</div>
               <div style={{ fontSize:11, color:'var(--muted)' }}>{profile.email}</div>
             </div>
           </div>
@@ -1981,6 +1992,12 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                 placeholder="(555) 000-0000"
                 style={{ width:'100%', padding:'8px 10px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, boxSizing:'border-box' }} />
             </div>
+            <div>
+              <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>Address</label>
+              <input value={profileForm.address||''} onChange={e=>setProfileForm(f=>({...f,address:e.target.value}))}
+                placeholder="123 Main St, City, State"
+                style={{ width:'100%', padding:'8px 10px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, boxSizing:'border-box' }} />
+            </div>
           </div>
           {/* Footer */}
           <div style={{ padding:'12px 20px 18px', display:'flex', justifyContent:'flex-end', gap:10 }}>
@@ -1997,10 +2014,10 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                   const { error: nameErr } = await supabase.from('profiles').update({ full_name: profileForm.full_name }).eq('id', profile.id);
                   if (nameErr) { alert('Save failed: ' + nameErr.message); return; }
                   // Try phone + title — silently skip if columns don't exist
-                  try { await supabase.from('profiles').update({ phone: profileForm.phone, title: profileForm.title }).eq('id', profile.id); } catch(e) {}
+                  try { await supabase.from('profiles').update({ phone: profileForm.phone, title: profileForm.title, address: profileForm.address }).eq('id', profile.id); } catch(e) {}
                   // Always persist everything to localStorage — works regardless of DB schema
-                  try { localStorage.setItem('profile_extra_' + profile.id, JSON.stringify({ phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url })); } catch(e) {}
-                  const updates = { full_name: profileForm.full_name, phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url };
+                  try { localStorage.setItem('profile_extra_' + profile.id, JSON.stringify({ phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url, address: profileForm.address })); } catch(e) {}
+                  const updates = { full_name: profileForm.full_name, phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url, address: profileForm.address };
                   setProfileModalOpen(false);
                   onProfileUpdate && onProfileUpdate({ ...profile, ...updates });
                 } finally {
@@ -12847,6 +12864,8 @@ export default function App() {
         }
       } catch(e) { console.warn('[App] localStorage merge failed:', e); }
       setProfile(data); registerAvatars([data]);
+      // Flag new users with no name to complete their profile
+      if(!data.full_name) { try { if(!sessionStorage.getItem('profile_prompt_shown_'+data.id)) { sessionStorage.setItem('profile_prompt_shown_'+data.id,'1'); setTimeout(()=>{ const btn = document.getElementById('topbar-profile-avatar'); if(btn) btn.click(); }, 1200); } } catch(e){} }
       setBrand({ company_name: data.company_name||'Citizens Financial', logo_url: data.logo_url||'', brand_color: data.brand_color||'#3b82f6' });
       loadContacts(data.company_name);
       loadWorkspaces(data.company_name);
@@ -12964,12 +12983,10 @@ export default function App() {
                 {workspaces.filter(w=>{
                   if(profile?.role==='admin') return true;
                   const n = (w.name||'').toLowerCase();
-                  // Always block admin-only workspaces
+                  // Block admin-only workspaces for non-admins
                   if(['team tasks','first funding','trinadad leads','trinidad leads','trinidad','first fund'].some(r=>n.includes(r))) return false;
-                  // Always show LO Resources
-                  if(n.includes('lo resource') || n.includes('lo resources') || n === 'lo resources') return true;
-                  // Show workspaces the user has been added to as owner on any item
-                  return memberWorkspaceIds.has(w.id);
+                  // All other workspaces are visible — item-level filtering controls what they see inside
+                  return true;
                 }).map(w=>(
                   <div key={w.id} className={`nav-item ${activeWorkspace?.id===w.id?'active':''}`}
                     onClick={()=>{ setView('workspace', w); }}
@@ -12995,7 +13012,7 @@ export default function App() {
             <Avatar name={profile.full_name||profile.email||''} size={30} url={profile.avatar_url} />
             <div className="nav-label" style={{ fontSize:13 }}>
               <div style={{ fontWeight:600, color:'#fff' }}>{profile.full_name || profile.email || 'My Account'}</div>
-              <div style={{ color:'var(--sidebar-text)', fontSize:11 }}>{profile.title || profile.role}</div>
+              <div style={{ color:'var(--sidebar-text)', fontSize:11 }}>{profile.title || displayRole(profile.role)}</div>
             </div>
           </div>
           <button style={{ width:'100%', padding:'8px', borderRadius:6, background:'rgba(255,255,255,.1)', color:'#c9d3e8', border:'1px solid rgba(255,255,255,.15)', fontSize:13, cursor:'pointer', fontWeight:500 }} onClick={logout}>Sign Out</button>
