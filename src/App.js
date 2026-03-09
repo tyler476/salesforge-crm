@@ -677,28 +677,35 @@ const avatarColor = (name='') => { const colors=['#3b82f6','#06b6d4','#10b981','
 
 // ─── NOTIFICATIONS UTILITY ───────────────────────────────────────────────────
 async function createNotification(opts) {
-  console.log('[NOTIF] createNotification called', { type: opts.type, recipient_id: opts.recipient_id, actor_id: opts.actor_id, message: opts.message, item_name: opts.item_name });
-  if(!opts.recipient_id) { console.warn('[NOTIF] SKIPPED: no recipient_id'); return; }
+  if(!opts.recipient_id) { console.warn('[NOTIF] SKIPPED: no recipient_id', opts); return; }
   // Allow self-notifications for key types (status changes on your items, being assigned, mentions)
   const ALLOW_SELF_TYPES = ['assignment','status_change','mention','comment','update'];
-  if(opts.recipient_id === opts.actor_id && !ALLOW_SELF_TYPES.includes(opts.type)) { console.warn('[NOTIF] SKIPPED: self-notification for type', opts.type); return; }
-  try {
-    const { error } = await supabase.from('notifications').insert([{
-      company_id:    opts.company_id,
-      recipient_id:  opts.recipient_id,
-      recipient_name:opts.recipient_name||'',
-      actor_name:    opts.actor_name||'',
-      type:          opts.type||'mention',
-      message:       opts.message||'',
-      item_id:       opts.item_id||null,
-      item_name:     opts.item_name||'',
-      workspace_id:  opts.workspace_id||null,
-      workspace_name:opts.workspace_name||'',
-      is_read:       false,
-    }]);
-    if(error) console.error('[NOTIF] INSERT FAILED:', error);
-    else console.log('[NOTIF] INSERT SUCCESS');
-  } catch(e) { console.error('[NOTIF] EXCEPTION:', e); }
+  if(opts.recipient_id === opts.actor_id && !ALLOW_SELF_TYPES.includes(opts.type)) { return; }
+  // Try with full payload first; if unknown column error, retry with minimal payload
+  const fullPayload = {
+    recipient_id:  opts.recipient_id,
+    recipient_name:opts.recipient_name||'',
+    actor_name:    opts.actor_name||'',
+    type:          opts.type||'activity',
+    message:       opts.message||'',
+    item_id:       opts.item_id||null,
+    item_name:     opts.item_name||'',
+    workspace_id:  opts.workspace_id||null,
+    workspace_name:opts.workspace_name||'',
+    is_read:       false,
+  };
+  // Include company_id if available
+  if (opts.company_id) fullPayload.company_id = opts.company_id;
+  const { error } = await supabase.from('notifications').insert([fullPayload]);
+  if (error) {
+    // If company_id column doesn't exist, retry without it
+    if (error.message?.includes('company_id')) {
+      const { error: e2 } = await supabase.from('notifications').insert([{ ...fullPayload, company_id: undefined }]);
+      if (e2) console.error('[NOTIF] INSERT FAILED (retry):', e2.message);
+    } else {
+      console.error('[NOTIF] INSERT FAILED:', error.message);
+    }
+  }
 }
 
 function timeAgo(dateStr) {
@@ -1184,11 +1191,14 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
   // Re-sync form whenever profile prop refreshes (auth reload, etc.)
   React.useEffect(() => {
     if (profile) {
+      // Also pull from localStorage in case DB columns don't exist
+      let extra = {};
+      try { extra = JSON.parse(localStorage.getItem('profile_extra_' + profile.id) || 'null') || {}; } catch(e) {}
       setProfileForm(f => ({
         full_name:  profile.full_name  || f.full_name  || '',
-        phone:      profile.phone      || f.phone      || '',
-        title:      profile.title      || f.title      || '',
-        avatar_url: profile.avatar_url || f.avatar_url || '',
+        phone:      profile.phone      || extra.phone      || f.phone      || '',
+        title:      profile.title      || extra.title      || f.title      || '',
+        avatar_url: profile.avatar_url || extra.avatar_url || f.avatar_url || '',
       }));
     }
   }, [profile?.id, profile?.full_name, profile?.title, profile?.avatar_url, profile?.phone]);
@@ -1211,7 +1221,10 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
     loadNotifs();
     const sub = supabase.channel('notifs_'+profile?.id)
       .on('postgres_changes',{event:'INSERT',schema:'public',table:'notifications',filter:`recipient_id=eq.${profile?.id}`},
-        (p)=>{ setNotifications(n=>[p.new,...n]); setUnreadCount(c=>c+1); })
+        (p)=>{
+          // Re-fetch to get the full notification row (real-time payloads can be partial)
+          loadNotifs();
+        })
       .subscribe();
     return ()=>supabase.removeChannel(sub);
   },[profile?.id, loadNotifs]);
@@ -1373,7 +1386,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
 
       {/* Notification bell */}
       <button className="topbar-btn" title="Notifications" style={{ position:'relative' }}
-        onClick={e=>{ stop(e); setNotifOpen(o=>{ if(!o) markAllRead(); return !o; }); setProfileOpen(false); setHelpOpen(false); setAppsOpen(false); }}>
+        onClick={e=>{ stop(e); setNotifOpen(o=>{ if(!o){ loadNotifs(); markAllRead(); } return !o; }); setProfileOpen(false); setHelpOpen(false); setAppsOpen(false); }}>
         <div style={{ position:'relative' }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           {unreadCount>0 && (
@@ -1789,17 +1802,18 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
               disabled={profileSaving}
               onClick={async ()=>{
                 setProfileSaving(true);
-                // Save text fields to DB — avatar_url stored in localStorage
-                // (add avatar_url column to your profiles table to persist to DB)
-                const dbUpdates = { full_name: profileForm.full_name, phone: profileForm.phone, title: profileForm.title };
-                const { error: saveErr } = await supabase.from('profiles').update(dbUpdates).eq('id', profile.id);
+                // Step 1: save full_name — this column is guaranteed to exist
+                const { error: nameErr } = await supabase.from('profiles').update({ full_name: profileForm.full_name }).eq('id', profile.id);
+                if (nameErr) { setProfileSaving(false); alert('Save failed: ' + nameErr.message); return; }
+                // Step 2: try phone + title — ignore if columns don't exist yet
+                await supabase.from('profiles').update({ phone: profileForm.phone, title: profileForm.title }).eq('id', profile.id).catch(()=>{});
+                // Step 3: store phone/title/avatar in localStorage as guaranteed fallback
+                try {
+                  const key = 'profile_extra_' + profile.id;
+                  localStorage.setItem(key, JSON.stringify({ phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url }));
+                } catch(e) {}
                 setProfileSaving(false);
-                if (saveErr) { alert('Could not save profile: ' + saveErr.message); return; }
-                // Store avatar in localStorage so it survives refreshes
-                if (profileForm.avatar_url) {
-                  try { localStorage.setItem('avatar_url_' + profile.id, profileForm.avatar_url); } catch(e) {}
-                }
-                const updates = { ...dbUpdates, avatar_url: profileForm.avatar_url };
+                const updates = { full_name: profileForm.full_name, phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url };
                 setProfileModalOpen(false);
                 onProfileUpdate && onProfileUpdate({ ...profile, ...updates });
               }}
@@ -12457,10 +12471,17 @@ export default function App() {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).single();
     console.log('[App] loadProfile result:', { data, error });
     if (data) {
-      // Merge locally-stored avatar (since avatar_url column may not exist in DB)
+      // Merge localStorage extras (phone/title/avatar may not be DB columns yet)
       try {
-        const localAvatar = localStorage.getItem('avatar_url_' + uid);
-        if (localAvatar && !data.avatar_url) data = { ...data, avatar_url: localAvatar };
+        const extra = JSON.parse(localStorage.getItem('profile_extra_' + uid) || 'null');
+        if (extra) {
+          data = {
+            ...data,
+            phone:      data.phone      || extra.phone      || '',
+            title:      data.title      || extra.title      || '',
+            avatar_url: data.avatar_url || extra.avatar_url || '',
+          };
+        }
       } catch(e) {}
       setProfile(data);
       setBrand({ company_name: data.company_name||'Citizens Financial', logo_url: data.logo_url||'', brand_color: data.brand_color||'#3b82f6' });
