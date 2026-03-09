@@ -5199,20 +5199,283 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
 
 // ─── UPDATES PANEL ────────────────────────────────────────────────────────────
 // ─── ITEM DETAIL PANEL ───────────────────────────────────────────────────────
+// ─── RICH TEXT EDITOR ─────────────────────────────────────────────────────────
+function RichTextEditor({ onPost, posting, placeholder, profile, teamMembers, buttonLabel='Post Update', compact=false }) {
+  const editorRef = React.useRef();
+  const [isEmpty, setIsEmpty] = React.useState(true);
+  const [showLinkModal, setShowLinkModal] = React.useState(false);
+  const [linkText, setLinkText] = React.useState('');
+  const [linkUrl, setLinkUrl] = React.useState('');
+  const [savedRange, setSavedRange] = React.useState(null);
+  const [mentionOpen, setMentionOpen] = React.useState(false);
+  const [mentionSearch, setMentionSearch] = React.useState('');
+  const [mentionPos, setMentionPos] = React.useState({top:0,left:0});
+  const [mentionStart, setMentionStart] = React.useState(null);
+
+  const filteredMembers = (teamMembers||[]).filter(m=>
+    m.full_name?.toLowerCase().includes(mentionSearch.toLowerCase())
+  ).slice(0,6);
+
+  const exec = (cmd, val=null) => { document.execCommand(cmd, false, val); editorRef.current?.focus(); };
+
+  const checkEmpty = () => {
+    const text = editorRef.current?.innerText||'';
+    setIsEmpty(!text.trim());
+  };
+
+  const getHtml = () => editorRef.current?.innerHTML||'';
+
+  const handlePost = () => {
+    const html = getHtml();
+    if(!html || editorRef.current?.innerText?.trim()==='') return;
+    onPost(html);
+    editorRef.current.innerHTML = '';
+    setIsEmpty(true);
+  };
+
+  const saveRange = () => {
+    const sel = window.getSelection();
+    if(sel && sel.rangeCount>0) setSavedRange(sel.getRangeAt(0).cloneRange());
+  };
+
+  const restoreRange = () => {
+    if(!savedRange) return;
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(savedRange);
+  };
+
+  const openLinkModal = () => {
+    saveRange();
+    const sel = window.getSelection();
+    const selected = sel?.toString()||'';
+    setLinkText(selected);
+    setLinkUrl('');
+    setShowLinkModal(true);
+  };
+
+  const insertLink = () => {
+    if(!linkUrl) { setShowLinkModal(false); return; }
+    restoreRange();
+    const url = linkUrl.startsWith('http')?linkUrl:'https://'+linkUrl;
+    const display = linkText||url;
+    // Remove selected text and insert link
+    const sel = window.getSelection();
+    if(sel && sel.rangeCount>0) {
+      const range = sel.getRangeAt(0);
+      range.deleteContents();
+      const a = document.createElement('a');
+      a.href = url;
+      a.textContent = display;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.style.color = 'var(--accent)';
+      a.style.textDecoration = 'underline';
+      range.insertNode(a);
+      // Move cursor after link
+      range.setStartAfter(a);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    }
+    setShowLinkModal(false);
+    editorRef.current?.focus();
+    checkEmpty();
+  };
+
+  const handleKeyDown = (e) => {
+    if(mentionOpen) {
+      if(e.key==='Escape') { setMentionOpen(false); return; }
+      if(e.key==='Enter' && filteredMembers.length>0) { e.preventDefault(); insertMention(filteredMembers[0]); return; }
+    }
+    if(e.key==='Enter' && (e.ctrlKey||e.metaKey)) { e.preventDefault(); handlePost(); }
+  };
+
+  const handleInput = (e) => {
+    checkEmpty();
+    // Detect @ for mentions
+    const sel = window.getSelection();
+    if(!sel || !sel.anchorNode) return;
+    const text = sel.anchorNode.textContent||'';
+    const offset = sel.anchorOffset;
+    const atIdx = text.lastIndexOf('@', offset-1);
+    if(atIdx>=0 && (atIdx===0||/\s/.test(text[atIdx-1]))) {
+      const search = text.slice(atIdx+1, offset);
+      if(!/\s/.test(search)) {
+        setMentionSearch(search);
+        setMentionStart(atIdx);
+        // Get position for dropdown
+        const range = sel.getRangeAt(0).cloneRange();
+        range.collapse(true);
+        const rect = range.getBoundingClientRect();
+        setMentionPos({top:rect.top+window.scrollY, left:rect.left+window.scrollX});
+        setMentionOpen(true);
+        return;
+      }
+    }
+    setMentionOpen(false);
+  };
+
+  const insertMention = (member) => {
+    const sel = window.getSelection();
+    if(!sel || !sel.anchorNode) return;
+    const node = sel.anchorNode;
+    const offset = sel.anchorOffset;
+    const text = node.textContent||'';
+    const atIdx = text.lastIndexOf('@', offset-1);
+    // Delete the @search text
+    const range = document.createRange();
+    range.setStart(node, atIdx);
+    range.setEnd(node, offset);
+    range.deleteContents();
+    // Insert styled mention span
+    const span = document.createElement('span');
+    span.contentEditable = 'false';
+    span.style.color = 'var(--accent)';
+    span.style.fontWeight = '600';
+    span.style.userSelect = 'none';
+    span.textContent = '@'+member.full_name;
+    range.insertNode(span);
+    // Move cursor after mention
+    const after = document.createTextNode(' ');
+    span.after(after);
+    const newRange = document.createRange();
+    newRange.setStartAfter(after);
+    newRange.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(newRange);
+    setMentionOpen(false);
+    checkEmpty();
+  };
+
+  const ToolBtn = ({cmd, val, title, children, onClick}) => (
+    <button
+      onMouseDown={e=>{ e.preventDefault(); onClick ? onClick() : exec(cmd,val); }}
+      title={title}
+      style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', padding:'4px 6px', borderRadius:4, display:'flex', alignItems:'center', justifyContent:'center', fontSize:13 }}
+      onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.1)'}
+      onMouseOut={e=>e.currentTarget.style.background='none'}>
+      {children}
+    </button>
+  );
+
+  return (
+    <div style={{ background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:10, overflow:'hidden', position:'relative' }}>
+      {/* Toolbar */}
+      <div style={{ display:'flex', alignItems:'center', gap:2, padding:'6px 10px', borderBottom:'1px solid var(--border)', flexWrap:'wrap' }}>
+        <ToolBtn cmd="bold" title="Bold"><b style={{fontSize:13}}>B</b></ToolBtn>
+        <ToolBtn cmd="italic" title="Italic"><i style={{fontSize:13}}>I</i></ToolBtn>
+        <ToolBtn cmd="underline" title="Underline"><u style={{fontSize:13}}>U</u></ToolBtn>
+        <ToolBtn cmd="strikeThrough" title="Strikethrough"><s style={{fontSize:13}}>S</s></ToolBtn>
+        <div style={{ width:1, height:16, background:'var(--border)', margin:'0 4px' }} />
+        <ToolBtn cmd="insertUnorderedList" title="Bullet list">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        </ToolBtn>
+        <ToolBtn cmd="insertOrderedList" title="Numbered list">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
+        </ToolBtn>
+        <div style={{ width:1, height:16, background:'var(--border)', margin:'0 4px' }} />
+        <ToolBtn title="Insert link" onClick={openLinkModal}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        </ToolBtn>
+      </div>
+
+      {/* Editor area */}
+      <div style={{ display:'flex', gap:10, padding:'10px 12px' }}>
+        {!compact && <Avatar name={profile?.full_name||''} size={32} url={profile?.avatar_url} />}
+        <div
+          ref={editorRef}
+          contentEditable
+          suppressContentEditableWarning
+          onInput={handleInput}
+          onKeyDown={handleKeyDown}
+          data-placeholder={placeholder||'Write an update... type @ to mention'}
+          style={{ flex:1, minHeight: compact?40:72, outline:'none', fontSize:13, lineHeight:1.65, color:'var(--text)', wordBreak:'break-word' }}
+        />
+      </div>
+
+      {/* Footer */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'8px 12px', borderTop:'1px solid var(--border)' }}>
+        <span style={{ fontSize:11, color:'var(--muted)' }}>
+          <kbd style={{ background:'rgba(255,255,255,.08)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>@</kbd> mention &nbsp;·&nbsp;
+          <kbd style={{ background:'rgba(255,255,255,.08)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>Ctrl+Enter</kbd> to {compact?'reply':'post'}
+        </span>
+        <button
+          onClick={handlePost}
+          disabled={posting||isEmpty}
+          style={{ padding:'6px 18px', borderRadius:7, background: isEmpty||posting ? 'rgba(77,142,240,.4)' : 'var(--accent)', border:'none', color:'#fff', fontSize:13, fontWeight:600, cursor: isEmpty||posting ?'not-allowed':'pointer', transition:'all .15s' }}>
+          {posting ? 'Posting…' : buttonLabel}
+        </button>
+      </div>
+
+      {/* Mention dropdown */}
+      {mentionOpen && filteredMembers.length>0 && (
+        <div style={{ position:'fixed', top:mentionPos.top, left:mentionPos.left, transform:'translateY(-100%) translateY(-4px)', zIndex:9999, background:'var(--surface)', border:'1px solid var(--accent)', borderRadius:8, width:240, boxShadow:'0 8px 32px rgba(0,0,0,.5)', overflow:'hidden' }}>
+          <div style={{ padding:'6px 10px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--border)', background:'var(--surface2)' }}>Team Members</div>
+          {filteredMembers.map(m=>(
+            <div key={m.id} onMouseDown={e=>{ e.preventDefault(); insertMention(m); }}
+              style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', cursor:'pointer' }}
+              onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.15)'}
+              onMouseOut={e=>e.currentTarget.style.background=''}>
+              <Avatar name={m.full_name} size={28} url={m.avatar_url} />
+              <div>
+                <div style={{ fontSize:13, fontWeight:600 }}>{m.full_name}</div>
+                <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Link modal */}
+      {showLinkModal && (
+        <div onClick={()=>setShowLinkModal(false)} style={{ position:'fixed', inset:0, zIndex:10001, background:'rgba(0,0,0,.5)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:24, width:360, boxShadow:'0 24px 60px rgba(0,0,0,.5)' }}>
+            <div style={{ fontWeight:700, fontSize:15, marginBottom:16 }}>Insert Link</div>
+            <div style={{ marginBottom:12 }}>
+              <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', display:'block', marginBottom:5 }}>Display Text</label>
+              <input value={linkText} onChange={e=>setLinkText(e.target.value)}
+                placeholder="e.g. Register Here"
+                style={{ width:'100%', padding:'8px 10px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, boxSizing:'border-box' }} />
+            </div>
+            <div style={{ marginBottom:20 }}>
+              <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', display:'block', marginBottom:5 }}>URL</label>
+              <input value={linkUrl} onChange={e=>setLinkUrl(e.target.value)}
+                placeholder="https://example.com"
+                onKeyDown={e=>{ if(e.key==='Enter') insertLink(); }}
+                style={{ width:'100%', padding:'8px 10px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, boxSizing:'border-box' }} />
+            </div>
+            <div style={{ display:'flex', gap:10, justifyContent:'flex-end' }}>
+              <button onClick={()=>setShowLinkModal(false)} style={{ padding:'7px 16px', borderRadius:7, background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', fontSize:13, cursor:'pointer' }}>Cancel</button>
+              <button onClick={insertLink} style={{ padding:'7px 18px', borderRadius:7, background:'var(--accent)', border:'none', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>Insert Link</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Placeholder style */}
+      <style>{`
+        [contenteditable][data-placeholder]:empty:before {
+          content: attr(data-placeholder);
+          color: var(--muted);
+          pointer-events: none;
+        }
+      `}</style>
+    </div>
+  );
+}
+
 function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, profile, onClose, onUpdate, toast, allGroups }) {
   const [item, setItem] = useState(initialItem);
   const [tab, setTab] = useState('updates');
   const [updates, setUpdates] = useState([]);
-  const [newUpdate, setNewUpdate] = useState('');
   const [posting, setPosting] = useState(false);
   const [files, setFiles] = useState([]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [driveAttachments, setDriveAttachments] = useState([]);
   const { pickFile } = useGoogleDrivePicker();
   const [attachingDrive, setAttachingDrive] = useState(false);
-  const [mentionSearch, setMentionSearch] = useState('');
-  const [mentionOpen, setMentionOpen] = useState(false);
-  const [mentionStart, setMentionStart] = useState(0);
+
   const [mentionPos, setMentionPos] = useState({top:0,left:0});
   const [editingField, setEditingField] = useState(null);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
@@ -5404,6 +5667,11 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   const filteredMembers = teamMembers.filter(m=> m.id !== profile.id && (mentionSearch==='' || m.full_name.toLowerCase().includes(mentionSearch)));
 
   const renderBody = (body) => {
+    // If it looks like HTML (contains tags), render it safely
+    if(/<[a-z][\s\S]*>/i.test(body)) {
+      return <div dangerouslySetInnerHTML={{ __html: body }} style={{ lineHeight:1.65 }} />;
+    }
+    // Plain text: highlight @mentions
     const parts = body.split(/(@[a-zA-Z][a-zA-Z0-9 ]*)/g);
     return parts.map((part,i)=>{ if(part.startsWith('@')) return <span key={i} style={{ color:'var(--accent)', fontWeight:600 }}>{part}</span>; return part; });
   };
@@ -5579,38 +5847,34 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
         {/* UPDATES TAB */}
         {tab==='updates' && (
           <div>
-            <div style={{ background:'var(--surface2)', borderRadius:10, padding:14, marginBottom:20, border:'1px solid var(--border)', position:'relative' }}>
-              <div style={{ display:'flex', gap:10, marginBottom:8 }}>
-                <Avatar name={profile.full_name} size={32} url={profile.avatar_url} />
-                <textarea ref={textareaRef} rows={3} value={newUpdate} onChange={handleTextChange}
-                  placeholder="Write an update... type @ to mention a teammate"
-                  onKeyDown={e=>{
-                    if(mentionOpen){ if(e.key==='Escape'){setMentionOpen(false);return;} if(e.key==='Enter'&&filteredMembers.length>0){e.preventDefault();insertMention(filteredMembers[0]);return;} }
-                    if(e.key==='Enter'&&e.ctrlKey) postUpdate();
-                  }}
-                  style={{ flex:1, resize:'vertical', background:'transparent', border:'none', outline:'none', fontSize:13, color:'var(--text)', lineHeight:1.6 }} />
-              </div>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:11, color:'var(--muted)' }}>Type <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>@</kbd> to mention · <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>Ctrl+Enter</kbd> to post</span>
-                <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Post Update'}</button>
-              </div>
-              {mentionOpen && filteredMembers.length>0 && (
-                <div style={{ position:'fixed', top:mentionPos.top, left:mentionPos.left, transform:'translateY(-100%)', zIndex:9999, background:'var(--surface)', border:'1px solid var(--accent)', borderRadius:8, width:240, boxShadow:'0 8px 32px rgba(0,0,0,.5)', overflow:'hidden' }}>
-                  <div style={{ padding:'6px 10px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--border)', background:'var(--surface2)' }}>Team Members</div>
-                  {filteredMembers.slice(0,6).map(m=>(
-                    <div key={m.id} onMouseDown={e=>{ e.preventDefault(); insertMention(m); }}
-                      style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', cursor:'pointer' }}
-                      onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.15)'}
-                      onMouseOut={e=>e.currentTarget.style.background=''}>
-                      <Avatar name={m.full_name} size={28} url={m.avatar_url} />
-                      <div>
-                        <div style={{ fontSize:13, fontWeight:600 }}>{m.full_name}</div>
-                        <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div style={{ marginBottom:20 }}>
+              <RichTextEditor
+                profile={profile}
+                teamMembers={teamMembers}
+                posting={posting}
+                placeholder="Write an update... type @ to mention a teammate"
+                buttonLabel="Post Update"
+                onPost={async(html)=>{
+                  setPosting(true);
+                  const { data } = await supabase.from('workspace_updates').insert([{ item_id: item.id, author_name: profile.full_name, author_id: profile.id, body: html }]).select().single();
+                  if(data) {
+                    setUpdates(u=>[data,...u]);
+                    // Fire @mention notifications
+                    const div = document.createElement('div');
+                    div.innerHTML = html;
+                    const text = div.innerText||'';
+                    const mentioned = (text.match(/@([A-Za-z ]+?)(?=\s|$|@)/g)||[]).map(m=>m.slice(1).trim());
+                    for(const name of mentioned) {
+                      const member = teamMembers.find(m=>m.full_name===name||m.full_name?.startsWith(name));
+                      if(member) {
+                        await createNotification({ company_id:profile.company_name, recipient_id:member.id, recipient_name:member.full_name, actor_id:profile.id, actor_name:profile.full_name, type:'mention', message:`${profile.full_name} mentioned you in "${item.name}"`, item_id:item.id, item_name:item.name, workspace_id:group?.workspace_id||null, workspace_name:group?.workspace_name||'' });
+                        if(member.email) supabase.functions.invoke('send-email',{body:{to:member.email,subject:`${profile.full_name} mentioned you in "${item.name}"`,html:`<p>Hi ${member.full_name},</p><p><strong>${profile.full_name}</strong> mentioned you in <strong>${item.name}</strong>.</p><p><a href="${window.location.origin}">View in Citizens Financial CRM</a></p>`,from_name:'Citizens Financial CRM'}}).catch(()=>{});
+                      }
+                    }
+                  }
+                  setPosting(false);
+                }}
+              />
             </div>
             {updates.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No updates yet — be the first to post!</div>}
             {/* Group updates: top-level first, replies nested under their parent */}
@@ -5656,9 +5920,20 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                       </div>
                     ))}
                     {replyTo===u.id && (
-                      <div style={{ display:'flex', gap:8, paddingLeft:8 }}>
-                        <input placeholder='Write a reply...' style={{ flex:1, padding:'7px 12px', borderRadius:8, border:'1px solid var(--border)', background:'var(--surface2)', color:'var(--text)', fontSize:13 }}
-                          onKeyDown={async e=>{ if(e.key==='Enter'&&e.target.value.trim()){ const body=e.target.value.trim(); e.target.value=''; setReplyTo(null); const {data}=await supabase.from('workspace_updates').insert([{item_id:item.id,author_name:profile.full_name,author_id:profile.id,body:'↩ '+body,likes_count:0}]).select().single(); if(data) setUpdates(prev=>[...prev,data]); } }} />
+                      <div style={{ paddingLeft:8, marginTop:6 }}>
+                        <RichTextEditor
+                          profile={profile}
+                          teamMembers={teamMembers}
+                          posting={false}
+                          compact={true}
+                          placeholder="Write a reply..."
+                          buttonLabel="Reply"
+                          onPost={async(html)=>{
+                            const {data}=await supabase.from('workspace_updates').insert([{item_id:item.id,author_name:profile.full_name,author_id:profile.id,body:'↩ '+html,likes_count:0}]).select().single();
+                            if(data) setUpdates(prev=>[...prev,data]);
+                            setReplyTo(null);
+                          }}
+                        />
                       </div>
                     )}
                   </div>
@@ -5801,15 +6076,10 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
     (mentionSearch==='' || m.full_name.toLowerCase().includes(mentionSearch))
   );
 
-  // Render update body with highlighted @mentions
   const renderBody = (body) => {
+    if(/<[a-z][\s\S]*>/i.test(body)) return <div dangerouslySetInnerHTML={{ __html: body }} style={{ lineHeight:1.65 }} />;
     const parts = body.split(/(@[a-zA-Z][a-zA-Z0-9 ]*)/g);
-    return parts.map((part,i)=>{
-      if(part.startsWith('@') && teamMembers.some(m=>'@'+m.full_name===part.trim()||body.includes(part))) {
-        return <span key={i} style={{ color:'var(--accent)', fontWeight:600 }}>{part}</span>;
-      }
-      return part;
-    });
+    return parts.map((part,i)=>{ if(part.startsWith('@')) return <span key={i} style={{ color:'var(--accent)', fontWeight:600 }}>{part}</span>; return part; });
   };
 
   const loadUpdates = async () => {
@@ -5904,46 +6174,20 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
         {tab==='updates' && (
           <div>
             {/* Post box */}
-            <div style={{ background:'var(--surface2)', borderRadius:10, padding:14, marginBottom:20, border:'1px solid var(--border)', position:'relative' }}>
-              <div style={{ display:'flex', gap:10, marginBottom:8 }}>
-                <Avatar name={profile.full_name} size={32} url={profile.avatar_url} />
-                <textarea ref={textareaRef} rows={3} value={newUpdate} onChange={handleTextChange}
-                  placeholder="Write an update... type @ to mention a teammate"
-                  onKeyDown={e=>{
-                    if(mentionOpen) {
-                      if(e.key==='Escape') { setMentionOpen(false); return; }
-                      if(e.key==='ArrowDown'||e.key==='ArrowUp') { e.preventDefault(); return; }
-                      if(e.key==='Enter' && filteredMembers.length>0) { e.preventDefault(); insertMention(filteredMembers[0]); return; }
-                    }
-                    if(e.key==='Enter'&&e.ctrlKey) postUpdate();
-                  }}
-                  style={{ flex:1, resize:'vertical', background:'transparent', border:'none', outline:'none', fontSize:13, color:'var(--text)', lineHeight:1.6 }} />
-              </div>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:11, color:'var(--muted)' }}>Type <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>@</kbd> to mention · <kbd style={{ background:'rgba(255,255,255,.1)', padding:'1px 5px', borderRadius:3, fontSize:10 }}>Ctrl+Enter</kbd> to post</span>
-                <button className="btn-primary btn-sm" onClick={postUpdate} disabled={posting||!newUpdate.trim()}>{posting?'Posting...':'Post Update'}</button>
-              </div>
-
-              {/* @ Mention dropdown */}
-              {mentionOpen && filteredMembers.length>0 && (
-                <div style={{ position:'fixed', bottom: window.innerHeight - mentionPos.top + 8, left: mentionPos.left, zIndex:9999, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:8, width:240, boxShadow:'0 8px 24px rgba(0,0,0,.4)', overflow:'hidden' }}>
-                  <div style={{ padding:'6px 10px', fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.05em', borderBottom:'1px solid var(--border)', background:'var(--surface2)' }}>
-                    Team Members
-                  </div>
-                  {filteredMembers.slice(0,6).map(m=>(
-                    <div key={m.id} onMouseDown={e=>{ e.preventDefault(); insertMention(m); }}
-                      style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', cursor:'pointer' }}
-                      onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.15)'}
-                      onMouseOut={e=>e.currentTarget.style.background=''}>
-                      <Avatar name={m.full_name} size={28} url={m.avatar_url} />
-                      <div>
-                        <div style={{ fontSize:13, fontWeight:600 }}>{m.full_name}</div>
-                        <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div style={{ marginBottom:20 }}>
+              <RichTextEditor
+                profile={profile}
+                teamMembers={teamMembers}
+                posting={posting}
+                placeholder="Write an update... type @ to mention a teammate"
+                buttonLabel="Post Update"
+                onPost={async(html)=>{
+                  setPosting(true);
+                  const {data} = await supabase.from('workspace_updates').insert([{ item_id:item.id, author_name:profile.full_name, author_id:profile.id, body:html }]).select().single();
+                  if(data) { setUpdates(u=>[...u, data]); toast('Update posted!'); }
+                  setPosting(false);
+                }}
+              />
             </div>
 
             {updates.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No updates yet — be the first to post!</div>}
