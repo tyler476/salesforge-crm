@@ -678,7 +678,9 @@ const avatarColor = (name='') => { const colors=['#3b82f6','#06b6d4','#10b981','
 // ─── NOTIFICATIONS UTILITY ───────────────────────────────────────────────────
 async function createNotification(opts) {
   // opts: { company_id, recipient_id, recipient_name, actor_id, actor_name, type, message, item_id, item_name, workspace_id, workspace_name }
-  if(!opts.recipient_id || opts.recipient_id === opts.actor_id) return; // don't notify yourself
+  if(!opts.recipient_id) return;
+  // Allow self-notifications for assignments so you see your own assignments; skip for other types
+  if(opts.recipient_id === opts.actor_id && opts.type !== 'assignment') return;
   try {
     await supabase.from('notifications').insert([{
       company_id:    opts.company_id,
@@ -1716,39 +1718,25 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                     onChange={async e => {
                       const file = e.target.files?.[0];
                       if (!file) return;
-                      if (file.size > 5 * 1024 * 1024) { alert('Photo must be under 5MB'); return; }
+                      if (file.size > 2 * 1024 * 1024) { alert('Photo must be under 2MB'); return; }
                       setProfileSaving(true);
-                      const ext = file.name.split('.').pop();
-                      const path = `${profile.id}.${ext}`;
-                      // Try 'avatars' bucket first, fall back to 'workspace-files'
-                      let publicUrl = null;
-                      for (const bucket of ['avatars', 'workspace-files', 'presentation-pdfs']) {
-                        const { error } = await supabase.storage.from(bucket).upload(
-                          bucket === 'avatars' ? path : `avatars/${path}`, file, { upsert: true, contentType: file.type }
-                        );
-                        if (!error) {
-                          const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(
-                            bucket === 'avatars' ? path : `avatars/${path}`
-                          );
-                          publicUrl = urlData?.publicUrl;
-                          break;
-                        }
-                      }
-                      if (publicUrl) {
-                        setProfileForm(f => ({ ...f, avatar_url: publicUrl }));
-                      } else {
-                        alert('Upload failed. Please create a public "avatars" bucket in your Supabase Storage, or paste a photo URL below.');
-                      }
-                      setProfileSaving(false);
+                      // Convert to base64 data URL — no storage bucket needed
+                      const reader = new FileReader();
+                      reader.onload = ev => {
+                        setProfileForm(f => ({ ...f, avatar_url: ev.target.result }));
+                        setProfileSaving(false);
+                      };
+                      reader.onerror = () => { alert('Could not read file'); setProfileSaving(false); };
+                      reader.readAsDataURL(file);
                     }}
                   />
                   <label htmlFor="profile-photo-upload"
                     style={{ display:'inline-block', padding:'7px 14px', background:'var(--accent)', color:'#fff', borderRadius:7, fontSize:12, fontWeight:600, cursor:profileSaving?'wait':'pointer', marginBottom:6, opacity:profileSaving?0.7:1 }}>
-                    {profileSaving ? 'Uploading…' : '📷 Upload Photo'}
+                    {profileSaving ? 'Processing…' : '📷 Upload Photo'}
                   </label>
-                  <div style={{ fontSize:10, color:'var(--muted)', marginBottom:6 }}>JPG or PNG · Max 5MB</div>
-                  <input value={profileForm.avatar_url||''} onChange={e=>setProfileForm(f=>({...f,avatar_url:e.target.value}))}
-                    placeholder="Or paste a photo URL"
+                  <div style={{ fontSize:10, color:'var(--muted)', marginBottom:6 }}>JPG or PNG · Max 2MB · No storage setup needed</div>
+                  <input value={(profileForm.avatar_url||'').startsWith('data:') ? '' : (profileForm.avatar_url||'')} onChange={e=>setProfileForm(f=>({...f,avatar_url:e.target.value}))}
+                    placeholder="Or paste a photo URL instead"
                     style={{ width:'100%', padding:'5px 8px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:11, boxSizing:'border-box' }} />
                 </div>
               </div>
