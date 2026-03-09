@@ -9336,7 +9336,6 @@ function RateCompareView({ toast, onOpenPricing }) {
   const [compareSet,   setCompareSet]   = useState(new Set());
   const [showCompare,  setShowCompare]  = useState(false);
   const [fredKeyInput, setFredKeyInput] = useState(fredApiKey);
-  const [showFredSetup, setShowFredSetup] = useState(false);
 
   const buildScenario = () => ({
     loanAmount: parseFloat(loanAmount) || 500000,
@@ -9422,48 +9421,49 @@ function RateCompareView({ toast, onOpenPricing }) {
           </div>
         </div>
 
-        {/* ── FRED Rate Status Banner ── */}
-        {usingLive ? (
-          <div style={{ background: isStale ? 'rgba(240,180,41,.08)' : 'rgba(46,204,138,.08)',
-            border:`1px solid ${isStale?'rgba(240,180,41,.3)':'rgba(46,204,138,.3)'}`,
-            borderRadius:7, padding:'7px 10px', fontSize:11 }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-              <span style={{ color: isStale?'#f0b429':'#2ecc8a', fontWeight:700 }}>
-                {rateDate ? 'OBMMI as of ' + new Date(rateDate + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : (isStale ? '⚠ Rates may be stale' : '✓ Live FRED Rates')}
-              </span>
+        {/* ── FRED Rate Status + API Key ── */}
+        <div style={{ background:'rgba(77,142,240,.07)', border:'1px solid rgba(77,142,240,.2)', borderRadius:8, padding:'10px 12px', fontSize:11 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+            <span style={{ fontWeight:700, color: usingLive ? (isStale?'#f0b429':'#2ecc8a') : 'rgba(255,255,255,.5)' }}>
+              {fredLoading ? '⟳ Fetching rates…' : usingLive ? (rateDate ? '✓ OBMMI ' + new Date(rateDate+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '✓ Live Rates') : '⚠ Static rates'}
+            </span>
+            {usingLive && (
               <button onClick={refreshFRED} disabled={fredLoading}
                 style={{ fontSize:10, color:'var(--muted)', background:'none', border:'none', cursor:'pointer', padding:0 }}>
-                {fredLoading ? '⟳ fetching…' : '↺ refresh'}
+                {fredLoading ? '' : '↺ refresh'}
               </button>
-            </div>
-            {rateDate && <div style={{ color:'var(--muted)', marginTop:2 }}>OBMMI as of {new Date(rateDate + 'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>}
-          </div>
-        ) : (
-          <div style={{ background:'rgba(77,142,240,.07)', border:'1px solid rgba(77,142,240,.25)', borderRadius:7, padding:'7px 10px', fontSize:11 }}>
-            {fredLoading ? (
-              <span style={{ color:'var(--accent)' }}>⟳ Fetching live rates from FRED…</span>
-            ) : (
-              <>
-                <div style={{ color:'var(--warning)', fontWeight:700, marginBottom:4 }}>⚠ Using static baseline rates</div>
-                <div style={{ color:'var(--muted)', marginBottom:6 }}>Add a free FRED API key for daily live rates from Optimal Blue.</div>
-                {showFredSetup ? (
-                  <div style={{ display:'flex', gap:4 }}>
-                    <input value={fredKeyInput} onChange={e=>setFredKeyInput(e.target.value)}
-                      placeholder="Paste FRED API key…"
-                      style={{ flex:1, padding:'5px 8px', fontSize:11, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:5, color:'var(--text)' }}/>
-                    <button onClick={()=>{ saveFredKey(fredKeyInput); setShowFredSetup(false); }}
-                      style={{ padding:'5px 8px', fontSize:11, background:'var(--accent)', border:'none', borderRadius:5, color:'#fff', cursor:'pointer', fontWeight:700 }}>Save</button>
-                  </div>
-                ) : (
-                  <button onClick={()=>setShowFredSetup(true)}
-                    style={{ fontSize:11, color:'var(--accent)', background:'none', border:'none', cursor:'pointer', padding:0, fontWeight:700 }}>
-                    + Add FRED API key →
-                  </button>
-                )}
-              </>
             )}
           </div>
-        )}
+          <div style={{ fontSize:10, color:'var(--muted)', marginBottom:4 }}>
+            FRED API Key <span style={{ opacity:.6 }}>(free at fred.stlouisfed.org)</span>
+          </div>
+          <div style={{ display:'flex', gap:5 }}>
+            <input
+              value={fredKeyInput}
+              onChange={e => setFredKeyInput(e.target.value)}
+              onKeyDown={e => e.stopPropagation()}
+              placeholder={fredApiKey ? '••••' + fredApiKey.slice(-4) : 'Paste key here…'}
+              style={{ flex:1, padding:'6px 8px', fontSize:11, background:'var(--surface)',
+                border:'1px solid var(--border)', borderRadius:5, color:'var(--text)',
+                outline:'none', minWidth:0 }}
+            />
+            <button
+              onClick={() => {
+                const key = fredKeyInput.trim();
+                if (!key) return;
+                try { localStorage.setItem('fred_api_key', key); } catch {}
+                try { localStorage.removeItem('fred_rate_cache'); } catch {}
+                saveFredKey(key);
+                setFredKeyInput('');
+              }}
+              disabled={!fredKeyInput.trim() || fredLoading}
+              style={{ padding:'6px 10px', fontSize:11, background:'var(--accent)', border:'none',
+                borderRadius:5, color:'#fff', cursor: fredKeyInput.trim() ? 'pointer' : 'default',
+                fontWeight:700, opacity: fredKeyInput.trim() ? 1 : 0.4, flexShrink:0 }}>
+              Save
+            </button>
+          </div>
+        </div>
 
         {/* ── LOAN SECTION ── */}
         <div style={{ fontSize:10, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.06em', paddingBottom:4, borderBottom:'1px solid var(--border)' }}>Loan</div>
