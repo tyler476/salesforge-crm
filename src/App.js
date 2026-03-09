@@ -698,25 +698,25 @@ async function createNotification(opts) {
 
   // Retry loop — strips unknown columns one at a time until insert succeeds
   for (let attempt = 0; attempt < 10; attempt++) {
-    const { data: inserted, error } = await supabase.from(‘notifications’).insert([payload]).select();
+    const { data: inserted, error } = await supabase.from('notifications').insert([payload]).select();
     if (!error) {
-      console.log(‘[NOTIF] Insert succeeded on attempt’, attempt+1, ‘→’, inserted);
+      console.log('[NOTIF] Insert succeeded on attempt', attempt+1, '->', inserted);
       return; // success
     }
-    console.warn(‘[NOTIF] Attempt’, attempt+1, ‘failed:’, error.message, ‘| payload keys:’, Object.keys(payload));
+    console.warn('[NOTIF] Attempt', attempt+1, 'failed:', error.message, '| payload keys:', Object.keys(payload));
     // Extract the offending column name from the error message
-    const m = error.message.match(/column[s]? ["’’\u2018\u2019]([a-z_]+)["’’\u2018\u2019]/i)
-           || error.message.match(/["’’\u2018\u2019]([a-z_]+)["’’\u2018\u2019] column/i);
+    const m = error.message.match(/column[s]? [\x22\x27]([a-z_]+)[\x22\x27]/)
+           || error.message.match(/[\x22\x27]([a-z_]+)[\x22\x27] column/);
     const col = m?.[1];
     if (col && col in payload) {
-      console.warn(‘[NOTIF] Stripping unknown column:’, col);
+      console.warn('[NOTIF] Stripping unknown column:', col);
       delete payload[col]; // remove and retry
     } else {
-      console.error(‘[NOTIF] INSERT FAILED (non-column error):’, error.message, error);
+      console.error('[NOTIF] INSERT FAILED (non-column error):', error.message, error);
       return;
     }
   }
-  console.error(‘[NOTIF] INSERT FAILED after 10 attempts — notifications table may be missing required columns’);
+  console.error('[NOTIF] INSERT FAILED after 10 attempts - notifications table may be missing required columns');
 }
 
 function timeAgo(dateStr) {
