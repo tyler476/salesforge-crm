@@ -1468,18 +1468,19 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                     {(n.message && n.message.trim()) ? n.message : (()=>{
                       const who = n.actor_name ? `${n.actor_name} ` : '';
                       const item = n.item_name ? `"${n.item_name}"` : 'an item';
-                      switch((n.type||'').toLowerCase().trim()) {
-                        case 'status_change': return `${who}changed the status on ${item}`;
-                        case 'assignment':    return `${who}assigned you to ${item}`;
-                        case 'mention':       return `${who}mentioned you in ${item}`;
-                        case 'score':         return `Lead ${item} was scored`;
-                        case 'campaign':      return `Campaign update on ${item}`;
-                        case 'presentation':  return `${item} presentation was opened`;
-                        case 'email':         return `Email sent for ${item}`;
-                        case 'call':          return `Call logged on ${item}`;
-                        case 'overdue':       return `${item} is overdue`;
-                        default:              return who ? `${who}performed an action on ${item}` : `New ${meta.label.toLowerCase()} on ${item}`;
-                      }
+                      const t = (n.type||'').toLowerCase().replace(/[^a-z]/g,'');
+                      if(t.includes('status'))       return `${who}changed the status on ${item}`;
+                      if(t.includes('assign'))       return `${who}assigned you to ${item}`;
+                      if(t.includes('mention'))      return `${who}mentioned you in ${item}`;
+                      if(t.includes('score'))        return `Lead ${item} was scored`;
+                      if(t.includes('campaign'))     return `Campaign update on ${item}`;
+                      if(t.includes('present'))      return `${item} presentation was opened`;
+                      if(t.includes('email'))        return `Email activity on ${item}`;
+                      if(t.includes('call'))         return `Call logged on ${item}`;
+                      if(t.includes('overdue'))      return `${item} is overdue`;
+                      if(t.includes('lock'))         return `Rate lock expiring on ${item}`;
+                      if(t.includes('comment')||t.includes('update')) return `${who}commented on ${item}`;
+                      return who ? `${who}updated ${item}` : `New activity on ${item}`;
                     })()}
                   </div>
                   {/* Item + workspace */}
@@ -1711,20 +1712,37 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                       if (file.size > 5 * 1024 * 1024) { alert('Photo must be under 5MB'); return; }
                       setProfileSaving(true);
                       const ext = file.name.split('.').pop();
-                      const path = `avatars/${profile.id}.${ext}`;
-                      const { error } = await supabase.storage.from('workspace-files').upload(path, file, { upsert: true, contentType: file.type });
-                      if (error) { alert('Upload failed: ' + error.message); setProfileSaving(false); return; }
-                      const { data: urlData } = supabase.storage.from('workspace-files').getPublicUrl(path);
-                      const url = urlData?.publicUrl;
-                      if (url) setProfileForm(f => ({ ...f, avatar_url: url }));
+                      const path = `${profile.id}.${ext}`;
+                      // Try 'avatars' bucket first, fall back to 'workspace-files'
+                      let publicUrl = null;
+                      for (const bucket of ['avatars', 'workspace-files', 'presentation-pdfs']) {
+                        const { error } = await supabase.storage.from(bucket).upload(
+                          bucket === 'avatars' ? path : `avatars/${path}`, file, { upsert: true, contentType: file.type }
+                        );
+                        if (!error) {
+                          const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(
+                            bucket === 'avatars' ? path : `avatars/${path}`
+                          );
+                          publicUrl = urlData?.publicUrl;
+                          break;
+                        }
+                      }
+                      if (publicUrl) {
+                        setProfileForm(f => ({ ...f, avatar_url: publicUrl }));
+                      } else {
+                        alert('Upload failed. Please create a public "avatars" bucket in your Supabase Storage, or paste a photo URL below.');
+                      }
                       setProfileSaving(false);
                     }}
                   />
                   <label htmlFor="profile-photo-upload"
-                    style={{ display:'inline-block', padding:'7px 14px', background:'var(--accent)', color:'#fff', borderRadius:7, fontSize:12, fontWeight:600, cursor:'pointer', marginBottom:6 }}>
+                    style={{ display:'inline-block', padding:'7px 14px', background:'var(--accent)', color:'#fff', borderRadius:7, fontSize:12, fontWeight:600, cursor:profileSaving?'wait':'pointer', marginBottom:6, opacity:profileSaving?0.7:1 }}>
                     {profileSaving ? 'Uploading…' : '📷 Upload Photo'}
                   </label>
-                  <div style={{ fontSize:10, color:'var(--muted)' }}>JPG or PNG · Max 5MB</div>
+                  <div style={{ fontSize:10, color:'var(--muted)', marginBottom:6 }}>JPG or PNG · Max 5MB</div>
+                  <input value={profileForm.avatar_url||''} onChange={e=>setProfileForm(f=>({...f,avatar_url:e.target.value}))}
+                    placeholder="Or paste a photo URL"
+                    style={{ width:'100%', padding:'5px 8px', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:6, color:'var(--text)', fontSize:11, boxSizing:'border-box' }} />
                 </div>
               </div>
             </div>
