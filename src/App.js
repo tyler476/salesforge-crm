@@ -4101,27 +4101,27 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
     // Notify on assignment changes too
     if(field==='assigned_officers' && Array.isArray(value)) {
       const prev = currentItem?.assigned_officers||[];
-      const newlyAdded = value.filter(n=>!prev.includes(n));
-      console.log('[NOTIF] Assignment change - newlyAdded:', newlyAdded, 'teamMembers loaded:', teamMembers.length);
-      for(const name of newlyAdded) {
-        const member = teamMembers.find(m=>m.full_name===name||m.email===name) 
-                      || (name===profile.full_name||name===profile.email ? profile : null);
-        console.log('[NOTIF] Looking up member for:', name, '->', member?.id, member?.full_name);
-        if(member?.id) {
-          createNotification({
-            company_id:    profile.company_name,
-            recipient_id:  member.id,
-            recipient_name:member.full_name,
-            actor_id:      profile.id,
-            actor_name:    profile.full_name,
-            type:          'assignment',
-            message:       `${profile.full_name} assigned you to "${currentItem.name}"`,
-            item_id:       itemId,
-            item_name:     currentItem.name,
-            workspace_id:  workspace.id,
-            workspace_name:workspace.name||'',
-          }).catch(()=>{});
-        }
+      // Resolve every identifier (could be full_name OR email) to a member object
+      const resolveToMember = (identifier) =>
+        teamMembers.find(m=>m.full_name===identifier||m.email===identifier)
+        || (identifier===profile.full_name||identifier===profile.email ? profile : null);
+      // Find newly added by resolving both old and new arrays to IDs for comparison
+      const prevIds  = new Set(prev.map(n=>resolveToMember(n)?.id).filter(Boolean));
+      const newMembers = value.map(resolveToMember).filter(m=>m?.id && !prevIds.has(m.id));
+      for(const member of newMembers) {
+        createNotification({
+          company_id:    profile.company_name,
+          recipient_id:  member.id,
+          recipient_name:member.full_name,
+          actor_id:      profile.id,
+          actor_name:    profile.full_name,
+          type:          'assignment',
+          message:       `${profile.full_name} assigned you to "${currentItem.name}"`,
+          item_id:       itemId,
+          item_name:     currentItem.name,
+          workspace_id:  workspace.id,
+          workspace_name:workspace.name||'',
+        }).catch(()=>{});
       }
     }
   };
@@ -5173,26 +5173,26 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
       }
     }
     if(field === 'assigned_officers' && Array.isArray(value)) {
-      // Notify newly assigned members
       const prev = item.assigned_officers||[];
-      const newlyAdded = value.filter(n=>!prev.includes(n));
-      for(const name of newlyAdded) {
-        const member = teamMembers.find(m=>m.full_name===name||m.email===name);
-        if(member) {
-          await createNotification({
-            company_id:    profile.company_name,
-            recipient_id:  member.id,
-            recipient_name:member.full_name,
-            actor_id:      profile.id,
-            actor_name:    profile.full_name,
-            type:          'assignment',
-            message:       `${profile.full_name} assigned you to "${item.name}"`,
-            item_id:       item.id,
-            item_name:     item.name,
-            workspace_id:  group?.workspace_id||null,
-            workspace_name:group?.workspace_name||'',
-          });
-        }
+      const resolveToMember = (identifier) =>
+        teamMembers.find(m=>m.full_name===identifier||m.email===identifier)
+        || (identifier===profile.full_name||identifier===profile.email ? profile : null);
+      const prevIds  = new Set(prev.map(n=>resolveToMember(n)?.id).filter(Boolean));
+      const newMembers = value.map(resolveToMember).filter(m=>m?.id && !prevIds.has(m.id));
+      for(const member of newMembers) {
+        await createNotification({
+          company_id:    profile.company_name,
+          recipient_id:  member.id,
+          recipient_name:member.full_name,
+          actor_id:      profile.id,
+          actor_name:    profile.full_name,
+          type:          'assignment',
+          message:       `${profile.full_name} assigned you to "${item.name}"`,
+          item_id:       item.id,
+          item_name:     item.name,
+          workspace_id:  group?.workspace_id||null,
+          workspace_name:group?.workspace_name||'',
+        });
       }
     }
   };
