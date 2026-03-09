@@ -1158,6 +1158,9 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
 function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout, onGetResults, workspaces, onOpenWorkspace }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [profileForm, setProfileForm] = useState({ full_name: profile?.full_name||'', phone: profile?.phone||'', title: profile?.title||'', avatar_url: profile?.avatar_url||'' });
+  const [profileSaving, setProfileSaving] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -1373,8 +1376,12 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
 
       {/* Avatar */}
       <div onClick={e=>{ stop(e); setProfileOpen(o=>!o); setHelpOpen(false); setAppsOpen(false); setNotifOpen(false); }}
-        style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700, cursor:'pointer', marginLeft:4, border:'2px solid rgba(255,255,255,.2)' }}>
-        {initials(profile.full_name||'?')}
+        style={{ width:34, height:34, borderRadius:'50%', cursor:'pointer', marginLeft:4, border:'2px solid rgba(255,255,255,.2)', overflow:'hidden', flexShrink:0 }}>
+        {profile?.avatar_url ? (
+          <img src={profile.avatar_url} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>{ e.target.style.display='none'; e.target.parentNode.style.background=avatarColor(profile.full_name||''); e.target.parentNode.innerHTML='<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:13px;font-weight:700">'+initials(profile.full_name||'?')+'</span>'; }} />
+        ) : (
+          <div style={{ width:'100%', height:'100%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700 }}>{initials(profile.full_name||'?')}</div>
+        )}
       </div>
       </div>{/* end right actions */}
     </div>
@@ -1440,7 +1447,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                   </div>
                   {/* Message */}
                   <div style={{ fontSize:13, color:'var(--text)', lineHeight:1.45 }}>
-                    {n.message || (isSystem ? `${meta.label} triggered` : 'No details')}
+                    {n.message || (isSystem ? `A ${meta.label.toLowerCase()} event occurred` : 'No additional details')}
                   </div>
                   {/* Item + workspace */}
                   {n.item_name && (
@@ -1590,7 +1597,9 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
         </div>
         {/* User info */}
         <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', gap:10 }}>
-          <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700, flexShrink:0 }}>{initials(profile.full_name||'?')}</div>
+          <div style={{ width:36, height:36, borderRadius:'50%', flexShrink:0, overflow:'hidden', border:'2px solid var(--border)' }}>
+            {profile?.avatar_url ? <img src={profile.avatar_url} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>e.target.style.display='none'} /> : <div style={{ width:'100%', height:'100%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700 }}>{initials(profile.full_name||'?')}</div>}
+          </div>
           <div>
             <div style={{ fontWeight:600, fontSize:13 }}>{profile.full_name}</div>
             <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{profile.role}</div>
@@ -1598,12 +1607,11 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
         </div>
         {/* Menu items */}
         {[
-          { icon:Icons.user, label:'My Profile', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
-          { icon:Icons.users, label:'Teams', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
+          { icon:Icons.user, label:'My Profile', action:()=>{ setProfileModalOpen(true); setProfileOpen(false); } },
+          ...(profile?.role==='admin' ? [{ icon:Icons.users, label:'Team', action:()=>{ onNavigate('team'); setProfileOpen(false); } }] : []),
           { icon:Icons.settings, label:'Branding & Settings', action:()=>{ onNavigate('branding'); setProfileOpen(false); } },
           { icon:Icons.workspace, label:'Workspaces', action:()=>{ onNavigate('dashboard'); setProfileOpen(false); } },
           { icon:Icons.trash, label:'Trash / Archive', action:()=>{ onNavigate('trash'); setProfileOpen(false); } },
-          { icon:Icons.settings, label:'Administration', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
         ].map(item=>(
           <div key={item.label} onClick={item.action}
             style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 16px', cursor:'pointer', fontSize:13 }}
@@ -1620,6 +1628,108 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
             onMouseOut={e=>e.currentTarget.style.background=''}>
             <span style={{ width:20, display:'flex', color:'var(--danger)' }}>{Icons.logOut}</span>
             <span>Log out</span>
+          </div>
+        </div>
+      </div>
+    )}
+    {/* ── MY PROFILE MODAL ── */}
+    {profileModalOpen && (
+      <div onClick={()=>setProfileModalOpen(false)} style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.55)', zIndex:10000, display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <div onClick={e=>e.stopPropagation()} style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:14, width:420, boxShadow:'0 24px 60px rgba(0,0,0,.5)', overflow:'hidden' }}>
+          {/* Header */}
+          <div style={{ padding:'18px 20px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <span style={{ fontWeight:700, fontSize:16 }}>My Profile</span>
+            <button onClick={()=>setProfileModalOpen(false)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:20, lineHeight:1 }}>×</button>
+          </div>
+          {/* Avatar section */}
+          <div style={{ padding:'20px 20px 0', display:'flex', alignItems:'center', gap:16 }}>
+            <div style={{ position:'relative' }}>
+              {profileForm.avatar_url ? (
+                <img src={profileForm.avatar_url} alt="avatar" style={{ width:60, height:60, borderRadius:'50%', objectFit:'cover', border:'2px solid var(--border)' }} onError={e=>e.target.style.display='none'} />
+              ) : (
+                <div style={{ width:60, height:60, borderRadius:'50%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, fontWeight:700 }}>
+                  {initials(profile.full_name||'?')}
+                </div>
+              )}
+            </div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontWeight:700, fontSize:14 }}>{profile.full_name}</div>
+              <div style={{ fontSize:12, color:'var(--muted)', textTransform:'capitalize', marginBottom:6 }}>{profile.role} · {profile.company_name}</div>
+              <div style={{ fontSize:11, color:'var(--muted)' }}>{profile.email}</div>
+            </div>
+          </div>
+          {/* Form fields */}
+          <div style={{ padding:'16px 20px', display:'flex', flexDirection:'column', gap:12 }}>
+            {/* Photo upload */}
+            <div>
+              <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:8 }}>Profile Photo</label>
+              <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+                <div style={{ width:64, height:64, borderRadius:'50%', overflow:'hidden', flexShrink:0, border:'2px solid var(--border)', background:'var(--surface2)' }}>
+                  {profileForm.avatar_url
+                    ? <img src={profileForm.avatar_url} alt="preview" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>e.target.style.display='none'} />
+                    : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, fontWeight:700, background:avatarColor(profile.full_name||''), color:'#fff' }}>{initials(profile.full_name||'?')}</div>
+                  }
+                </div>
+                <div style={{ flex:1 }}>
+                  <input type="file" accept="image/*" id="profile-photo-upload" style={{ display:'none' }}
+                    onChange={async e => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) { alert('Photo must be under 5MB'); return; }
+                      setProfileSaving(true);
+                      const ext = file.name.split('.').pop();
+                      const path = `avatars/${profile.id}.${ext}`;
+                      const { error } = await supabase.storage.from('workspace-files').upload(path, file, { upsert: true, contentType: file.type });
+                      if (error) { alert('Upload failed: ' + error.message); setProfileSaving(false); return; }
+                      const { data: urlData } = supabase.storage.from('workspace-files').getPublicUrl(path);
+                      const url = urlData?.publicUrl;
+                      if (url) setProfileForm(f => ({ ...f, avatar_url: url }));
+                      setProfileSaving(false);
+                    }}
+                  />
+                  <label htmlFor="profile-photo-upload"
+                    style={{ display:'inline-block', padding:'7px 14px', background:'var(--accent)', color:'#fff', borderRadius:7, fontSize:12, fontWeight:600, cursor:'pointer', marginBottom:6 }}>
+                    {profileSaving ? 'Uploading…' : '📷 Upload Photo'}
+                  </label>
+                  <div style={{ fontSize:10, color:'var(--muted)' }}>JPG or PNG · Max 5MB</div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>Display Name</label>
+              <input value={profileForm.full_name} onChange={e=>setProfileForm(f=>({...f,full_name:e.target.value}))}
+                style={{ width:'100%', padding:'8px 10px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, boxSizing:'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>Title / Role</label>
+              <input value={profileForm.title} onChange={e=>setProfileForm(f=>({...f,title:e.target.value}))}
+                placeholder="e.g. Senior Loan Officer"
+                style={{ width:'100%', padding:'8px 10px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, boxSizing:'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>Phone</label>
+              <input value={profileForm.phone} onChange={e=>setProfileForm(f=>({...f,phone:e.target.value}))}
+                placeholder="(555) 000-0000"
+                style={{ width:'100%', padding:'8px 10px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, boxSizing:'border-box' }} />
+            </div>
+          </div>
+          {/* Footer */}
+          <div style={{ padding:'12px 20px 18px', display:'flex', justifyContent:'flex-end', gap:10 }}>
+            <button onClick={()=>setProfileModalOpen(false)}
+              style={{ padding:'8px 16px', borderRadius:7, background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', fontSize:13, cursor:'pointer' }}>
+              Cancel
+            </button>
+            <button
+              disabled={profileSaving}
+              onClick={async ()=>{
+                setProfileSaving(true);
+                await supabase.from('profiles').update({ full_name: profileForm.full_name, phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url }).eq('id', profile.id);
+                setProfileSaving(false);
+                setProfileModalOpen(false);
+              }}
+              style={{ padding:'8px 20px', borderRadius:7, background:'var(--accent)', border:'none', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', opacity: profileSaving ? 0.6 : 1 }}>
+              {profileSaving ? 'Saving…' : 'Save Changes'}
+            </button>
           </div>
         </div>
       </div>
@@ -1642,7 +1752,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
   React.useEffect(()=>{
     if(!profile?.company_name) return;
     Promise.all([
-      supabase.from('workspace_items').select('*, workspaces(name,id)').eq('company_id', profile.company_name).eq('archived', false).neq('trashed', true),
+      supabase.from('workspace_items').select('*, workspace_groups!group_id(workspace_id)').eq('company_id', profile.company_name).eq('archived', false).neq('trashed', true),
       supabase.from('workspace_updates').select('*').eq('company_id', profile.company_name).order('created_at',{ascending:false}).limit(30),
       supabase.from('profiles').select('*').eq('company_name', profile.company_name),
     ]).then(([items, updates, members])=>{
@@ -1693,8 +1803,8 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
     const map = {};
     workspaces.forEach(w=>{ map[w.id]={total:0,overdue:0,done:0,statuses:{}}; });
     allItems.forEach(i=>{
-      const wsId = i.workspaces?.id||i.workspace_id;
-      if(!map[wsId]) return;
+      const wsId = i.workspace_groups?.workspace_id || i.workspace_id;
+      if(!wsId || !map[wsId]) return;
       map[wsId].total++;
       if(dueDateStatus(i.date)?.label==='Overdue') map[wsId].overdue++;
       if(i.status) map[wsId].statuses[i.status]=(map[wsId].statuses[i.status]||0)+1;
@@ -1819,7 +1929,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
                   const color  = WS_COLORS[i%WS_COLORS.length];
                   const stats  = wsStats[w.id]||{total:0,overdue:0,statuses:{}}; 
                   const statusEntries = Object.entries(stats.statuses).sort((a,b)=>b[1]-a[1]).slice(0,4);
-                  const lastActivity = activityFeed.find(a=>a.workspace_id===w.id||allItems.some(it=>it.workspaces?.id===w.id&&it.id===a.item_id));
+                  const lastActivity = activityFeed.find(a=>a.workspace_id===w.id||allItems.some(it=>(it.workspace_groups?.workspace_id||it.workspace_id)===w.id&&it.id===a.item_id));
                   return (
                     <div key={w.id} onClick={()=>onOpenWorkspace(w)}
                       style={{ cursor:'pointer', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:'18px 16px', transition:'all .2s', borderTop:`3px solid ${color}`, position:'relative' }}
