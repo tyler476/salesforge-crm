@@ -1401,8 +1401,15 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
       const { data, error } = await supabase.functions.invoke('invite-user', {
         body: { email: inviteEmail.trim(), role: inviteRole },
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error) {
+        // supabase.functions.invoke wraps non-2xx as FunctionsHttpError
+        // The real message is in the response body, not error.message
+        let msg = 'Failed to send invite. Please try again.';
+        try { const body = await error.context?.json(); if (body?.error) msg = body.error; } catch(_) {}
+        toast(msg);
+        return;
+      }
+      if (data?.error) { toast(data.error); return; }
       toast(data?.resent ? `Re-invite sent to ${inviteEmail}!` : `Invite sent to ${inviteEmail}!`);
       setInviteEmail('');
       setInviteOpen(false);
