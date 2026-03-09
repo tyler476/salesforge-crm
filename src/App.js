@@ -672,7 +672,12 @@ const Icons = {
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 const fmt = (n) => n >= 1000000 ? `$${(n/1000000).toFixed(1)}M` : n >= 1000 ? `$${(n/1000).toFixed(0)}K` : `$${n}`;
-const initials = (name='') => name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+const initials = (name='', email='') => {
+  const n = (name||'').trim();
+  if(n) return n.split(' ').map(w=>w[0]).filter(Boolean).join('').slice(0,2).toUpperCase();
+  if(email) return email[0].toUpperCase();
+  return '?';
+};
 const avatarColor = (name='') => { const colors=['#3b82f6','#06b6d4','#10b981','#8b5cf6','#f59e0b','#ef4444']; return colors[name.charCodeAt(0)%colors.length]; };
 
 // ─── AVATAR MAP (name → avatar_url, populated whenever teamMembers loads) ────
@@ -700,9 +705,12 @@ function Avatar({ name='', url='', size=32, fontSize:fsProp, style={} }) {
   const bg = avatarColor(name);
   // If no url passed directly, check the global name→url map
   const resolvedUrl = url || _avatarMap[name] || '';
+  const displayInitials = initials(name);
   const fallback = (
-    <div style={{ width:size, height:size, borderRadius:'50%', background:bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:fs, fontWeight:700, color:'#fff', flexShrink:0, ...style }}>
-      {initials(name)}
+    <div style={{ width:size, height:size, borderRadius:'50%', background: name ? bg : 'rgba(255,255,255,.15)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:fs, fontWeight:700, color:'#fff', flexShrink:0, ...style }}>
+      {displayInitials !== '?' ? displayInitials : (
+        <svg width={Math.round(size*0.52)} height={Math.round(size*0.52)} viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      )}
     </div>
   );
   if (!resolvedUrl) return fallback;
@@ -1586,10 +1594,12 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </button>
 
-      {/* Invite */}
+      {/* Invite — admin only */}
+      {profile?.role==='admin' && (
       <button className="topbar-btn" title="Invite people" onClick={e=>{ stop(e); setInviteOpen(o=>!o); setProfileOpen(false); setHelpOpen(false); }}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
       </button>
+      )}
 
       {/* Help */}
       <button className="topbar-btn" title="Help & Documentation" onClick={e=>{ stop(e); setHelpOpen(o=>!o); setProfileOpen(false); setAppsOpen(false); }}>
@@ -1864,10 +1874,12 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
         {/* Menu items */}
         {[
           { icon:Icons.user, label:'My Profile', action:()=>{ setProfileModalOpen(true); setProfileOpen(false); } },
-          ...(profile?.role==='admin' ? [{ icon:Icons.users, label:'Team', action:()=>{ onNavigate('team'); setProfileOpen(false); } }] : []),
-          { icon:Icons.settings, label:'Branding & Settings', action:()=>{ onNavigate('branding'); setProfileOpen(false); } },
+          ...(profile?.role==='admin' ? [
+            { icon:Icons.users, label:'Team', action:()=>{ onNavigate('team'); setProfileOpen(false); } },
+            { icon:Icons.settings, label:'Branding & Settings', action:()=>{ onNavigate('branding'); setProfileOpen(false); } },
+            { icon:Icons.trash, label:'Trash / Archive', action:()=>{ onNavigate('trash'); setProfileOpen(false); } },
+          ] : []),
           { icon:Icons.workspace, label:'Workspaces', action:()=>{ onNavigate('dashboard'); setProfileOpen(false); } },
-          { icon:Icons.trash, label:'Trash / Archive', action:()=>{ onNavigate('trash'); setProfileOpen(false); } },
         ].map(item=>(
           <div key={item.label} onClick={item.action}
             style={{ display:'flex', alignItems:'center', gap:12, padding:'11px 16px', cursor:'pointer', fontSize:13 }}
@@ -12729,6 +12741,11 @@ export default function App() {
   const [toastMsg, setToastMsg] = useState('');
   const [brand, setBrand] = useState({ company_name:'Citizens Financial', logo_url:'', brand_color:'#3b82f6' });
   const [workspaces, setWorkspaces] = useState([]);
+  const [memberOwnedItems, setMemberOwnedItems] = useState([]);
+  const memberWorkspaceIds = React.useMemo(() => {
+    if(!profile || profile.role === 'admin') return new Set();
+    return new Set(memberOwnedItems.map(i => i._wsId).filter(Boolean));
+  }, [memberOwnedItems, profile]);
   const [workspacesOpen, setWorkspacesOpen] = useState(true);
   const [activeWorkspace, setActiveWorkspace] = useState(null);
   const [sidebarNewWs, setSidebarNewWs] = useState(false);
@@ -12752,8 +12769,8 @@ export default function App() {
 
   // Browser history navigation
   const setView = useCallback((newView, workspace=null) => {
-    // Permission guard — non-admins cannot access team or lender portals
-    if(profile?.role !== 'admin' && ['team','lenders'].includes(newView)) {
+    // Permission guard — non-admins cannot access restricted views
+    if(profile?.role !== 'admin' && ['team','lenders','content-hub','live-transfers'].includes(newView)) {
       newView = 'dashboard'; workspace = null;
     }
     const state = { view: newView, workspaceId: workspace?.id||null, workspaceName: workspace?.name||null };
@@ -12831,6 +12848,7 @@ export default function App() {
       setBrand({ company_name: data.company_name||'Citizens Financial', logo_url: data.logo_url||'', brand_color: data.brand_color||'#3b82f6' });
       loadContacts(data.company_name);
       loadWorkspaces(data.company_name);
+      loadMemberOwnedItems(data.company_name, data);
     } else {
       console.error('[App] Profile not found or error:', error);
       // If no profile exists, create a minimal one so the app doesn't get stuck
@@ -12851,6 +12869,27 @@ export default function App() {
   const loadWorkspaces = useCallback(async (company) => {
     const { data } = await supabase.from('workspaces').select('*').eq('company_id', company).order('created_at', { ascending:true });
     setWorkspaces(data||[]);
+  }, []);
+
+  // For non-admins: load all items they own so we know which workspaces to show them
+  const loadMemberOwnedItems = useCallback(async (company, prof) => {
+    if(!prof || prof.role === 'admin') return;
+    const { data: grpData } = await supabase.from('workspace_groups').select('id,workspace_id').eq('company_id', company);
+    if(!grpData) return;
+    const groupMap = {};
+    grpData.forEach(g => { groupMap[g.id] = g.workspace_id; });
+    const { data: items } = await supabase.from('workspace_items')
+      .select('id,group_id,workspace_id,assigned_officers')
+      .eq('company_id', company);
+    if(!items) return;
+    const mine = items
+      .map(i => ({ ...i, _wsId: i.workspace_id || groupMap[i.group_id] || null }))
+      .filter(i => (i.assigned_officers||[]).some(o =>
+        o === prof.full_name || o === prof.email ||
+        o?.toLowerCase() === prof.full_name?.toLowerCase() ||
+        o?.toLowerCase() === prof.email?.toLowerCase()
+      ));
+    setMemberOwnedItems(mine);
   }, []);
 
   const refresh = () => { if(profile) { loadContacts(profile.company_name); loadWorkspaces(profile.company_name); } };
@@ -12898,8 +12937,8 @@ export default function App() {
         <nav style={{ flex:1, padding:'12px 0', overflowY:'auto' }}>
           {navItems.filter(n=>{
             if(profile?.role==='admin') return true;
-            // Non-admins: hide Team and Lender Portals
-            return !['team','lenders'].includes(n.id);
+            // Non-admins: hide restricted pages
+            return !['team','lenders','content-hub','live-transfers'].includes(n.id);
           }).map(n=>(
             <div key={n.id} className={`nav-item ${(n.id==='pricing'?pricingOpen:view===n.id&&!activeWorkspace)?'active':''}`} onClick={()=>{ if(n.id==='pricing'){setPricingOpen(o=>!o);}else{setPricingOpen(false);setView(n.id,null);} }}>
               <span>{n.icon}</span><span className="nav-label">{n.label}</span>
@@ -12922,9 +12961,13 @@ export default function App() {
               <div style={{ marginLeft:8 }}>
                 {workspaces.filter(w=>{
                   if(profile?.role==='admin') return true;
-                  // Non-admins: hide restricted workspaces
                   const n = (w.name||'').toLowerCase();
-                  return !['team tasks','first funding','trinadad leads','trinidad leads','trinidad','first fund'].some(r=>n.includes(r));
+                  // Always block admin-only workspaces
+                  if(['team tasks','first funding','trinadad leads','trinidad leads','trinidad','first fund'].some(r=>n.includes(r))) return false;
+                  // Always show LO Resources
+                  if(n.includes('lo resource') || n.includes('lo resource')) return true;
+                  // Show workspaces the user has been added to as owner on any item
+                  return memberWorkspaceIds.has(w.id);
                 }).map(w=>(
                   <div key={w.id} className={`nav-item ${activeWorkspace?.id===w.id?'active':''}`}
                     onClick={()=>{ setView('workspace', w); }}
