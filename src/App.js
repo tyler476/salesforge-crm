@@ -813,6 +813,58 @@ function Toast({ msg, onClose }) {
 }
 
 // ─── AUTH SCREEN ─────────────────────────────────────────────────────────────
+
+// ─── SET PASSWORD SCREEN (invite acceptance) ────────────────────
+function SetPasswordScreen({ onDone }) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const handleSubmit = async () => {
+    setErr('');
+    if (password.length < 8) { setErr('Password must be at least 8 characters'); return; }
+    if (password !== confirm) { setErr('Passwords do not match'); return; }
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password, data: { password_set: true } });
+    setLoading(false);
+    if (error) { setErr(error.message); return; }
+    setDone(true);
+    setTimeout(() => onDone(), 1500);
+  };
+
+  return (
+    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg)' }}>
+      <div style={{ background:'var(--surface)', borderRadius:12, padding:'40px 36px', width:380, boxShadow:'0 8px 32px rgba(0,0,0,0.18)' }}>
+        <div style={{ textAlign:'center', marginBottom:24 }}>
+          <div style={{ fontSize:28, fontWeight:700, color:'var(--accent)', marginBottom:6 }}>Citizens Financial</div>
+          <div style={{ fontSize:18, fontWeight:600, marginBottom:4 }}>Welcome! Set your password</div>
+          <div style={{ fontSize:13, color:'var(--muted)' }}>Create a password to complete your account setup.</div>
+        </div>
+        {done ? (
+          <div style={{ textAlign:'center', color:'#4ade80', fontWeight:600, fontSize:15 }}>\u2713 Password set! Logging you in\u2026</div>
+        ) : (
+          <>
+            {err && <div style={{ background:'#7f1d1d', color:'#fca5a5', borderRadius:6, padding:'8px 12px', marginBottom:12, fontSize:13 }}>{err}</div>}
+            <div className="form-group">
+              <label>New Password</label>
+              <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Min 8 characters" autoFocus />
+            </div>
+            <div className="form-group">
+              <label>Confirm Password</label>
+              <input type="password" value={confirm} onChange={e=>setConfirm(e.target.value)} placeholder="Re-enter password" onKeyDown={e=>e.key==='Enter'&&handleSubmit()} />
+            </div>
+            <button className=\"btn-primary\" style={{ width:'100%', marginTop:8 }} onClick={handleSubmit} disabled={loading}>
+              {loading ? 'Setting password\u2026' : 'Set Password & Continue'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function AuthScreen({ onAuth }) {
   const [tab, setTab] = useState('login');
   const [form, setForm] = useState({ name:'', company:'', email:'', password:'' });
@@ -1261,7 +1313,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
 
 
 // ─── TOP BAR ─────────────────────────────────────────────────────────────────
-function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout, onGetResults, workspaces, onOpenWorkspace, onProfileUpdate, toast }) {
+function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout, onGetResults, workspaces, onOpenWorkspace, onProfileUpdate }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -1346,21 +1398,11 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
     if (!inviteEmail.trim()) return;
     setInviteSending(true);
     try {
-      const { data, error } = await supabase.functions.invoke('invite-user', {
-        body: { email: inviteEmail.trim(), role: inviteRole },
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      toast(`Invite sent to ${inviteEmail}!`);
-      setInviteEmail('');
-      setInviteOpen(false);
-    } catch (e) {
-      toast(e.message || 'Failed to send invite. Please try again.');
-    } finally {
-      setInviteSending(false);
-    }
+      await supabase.auth.admin?.inviteUserByEmail(inviteEmail);
+    } catch(e) {}
+    setInviteSending(false);
+    setInviteEmail('');
+    setInviteOpen(false);
   };
 
   const HELP_ARTICLES = [
@@ -12593,6 +12635,7 @@ function LiveTransferDashboard({ profile, toast }) {
 
 export default function App() {
   const [session, setSession] = useState(null);
+  const [needsPassword, setNeedsPassword] = useState(false);
   const [profile, setProfile] = useState(null);
   const [contacts, setContacts] = useState([]);
   const [view, setViewRaw] = useState('dashboard');
@@ -12668,8 +12711,16 @@ export default function App() {
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session) loadProfile(session.user.id);
-      else { setProfile(null); setContacts([]); }
+      if (session) {
+        // Detect invite acceptance - user has no password set yet
+        if (_event === 'USER_UPDATED' || _event === 'SIGNED_IN') {
+          const meta = session.user?.user_metadata || {};
+          const isInvited = !meta.password_set && session.user?.invited_at;
+          if (isInvited) { setNeedsPassword(true); return; }
+        }
+        setNeedsPassword(false);
+        loadProfile(session.user.id);
+      } else { setNeedsPassword(false); setProfile(null); setContacts([]); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -12724,6 +12775,7 @@ export default function App() {
 
   if (presentToken) return <><style>{css}</style><PublicPresentationViewer token={presentToken} /></>;
   if (!session) return <><style>{css}</style><AuthScreen onAuth={()=>{}} /></>;
+  if (needsPassword) return <><style>{css}</style><SetPasswordScreen onDone={() => { setNeedsPassword(false); loadProfile(session.user.id); }} /></>;
   if (!profile) return <><style>{css}</style><div style={{ padding:40, textAlign:'center', color:'var(--muted)' }}>Loading... <span style={{fontSize:11,display:'block',marginTop:8}}>If this persists, check browser console (F12) for errors.</span></div></>;
 
   const accentColor = brand.brand_color || '#3b82f6';
@@ -12822,7 +12874,7 @@ export default function App() {
       </div>
 
       {/* Top Bar */}
-      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>setView(v,null)} onLogout={logout} workspaces={workspaces} onOpenWorkspace={w=>setView('workspace',w)} onProfileUpdate={updated=>setProfile(updated)} toast={toast}
+      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>setView(v,null)} onLogout={logout} workspaces={workspaces} onOpenWorkspace={w=>setView('workspace',w)} onProfileUpdate={updated=>setProfile(updated)}
         onGetResults={(q)=>{
           const r = [];
           const ql = q.toLowerCase();
