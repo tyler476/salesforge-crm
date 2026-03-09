@@ -5476,13 +5476,11 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
   const { pickFile } = useGoogleDrivePicker();
   const [attachingDrive, setAttachingDrive] = useState(false);
 
-  const [mentionPos, setMentionPos] = useState({top:0,left:0});
   const [editingField, setEditingField] = useState(null);
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const [showAssignPicker, setShowAssignPicker] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
   const [likedUpdates, setLikedUpdates] = useState(new Set());
-  const textareaRef = React.useRef();
   const fileInputRef = React.useRef();
   const panelRef = React.useRef();
 
@@ -5578,46 +5576,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
     toast('Attachment removed');
   };
 
-  const postUpdate = async () => {
-    if(!newUpdate.trim()) return;
-    setPosting(true);
-    const { data } = await supabase.from('workspace_updates').insert([{ item_id: item.id, author_name: profile.full_name, author_id: profile.id, body: newUpdate }]).select().single();
-    if(data) {
-      setUpdates(u=>[...u,data]);
-      // Fire notifications for each @mentioned team member
-      const mentioned = (newUpdate.match(/@([A-Za-z ]+?)(?=\s|$|@)/g)||[]).map(m=>m.slice(1).trim());
-      for(const name of mentioned) {
-        const member = teamMembers.find(m=>m.full_name===name||m.full_name?.startsWith(name));
-        if(member) {
-          await createNotification({
-            company_id:     profile.company_name,
-            recipient_id:   member.id,
-            recipient_name: member.full_name,
-            actor_id:       profile.id,
-            actor_name:     profile.full_name,
-            type:           'mention',
-            message:        `mentioned you in "${item.name}"`,
-            item_id:        item.id,
-            item_name:      item.name,
-            workspace_id:   group?.workspace_id||null,
-            workspace_name: group?.workspace_name||'',
-          });
-          if(member.email) {
-            supabase.functions.invoke('send-email', {
-              body: {
-                to: member.email,
-                subject: `${profile.full_name} mentioned you in "${item.name}"`,
-                html: `<p>Hi ${member.full_name},</p><p><strong>${profile.full_name}</strong> mentioned you in <strong>${item.name}</strong>.</p><p><a href="${window.location.origin}">View in Citizens Financial CRM</a></p>`,
-                from_name: 'Citizens Financial CRM',
-              }
-            }).catch(()=>{});
-          }
-        }
-      }
-      setNewUpdate('');
-    }
-    setPosting(false);
-  };
+
 
   const deleteUpdate = async (id) => {
     await supabase.from('workspace_updates').delete().eq('id', id);
@@ -5631,40 +5590,6 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
     setUpdates(u => u.map(x => x.id === id ? { ...x, likes_count: (x.likes_count||0)+1 } : x));
     await supabase.from('workspace_updates').update({ likes_count: supabase.raw('COALESCE(likes_count,0)+1') }).eq('id', id);
   };
-
-  const handleTextChange = (e) => {
-    const val = e.target.value;
-    setNewUpdate(val);
-    const cursor = e.target.selectionStart;
-    const textBefore = val.slice(0, cursor);
-    const atIdx = textBefore.lastIndexOf('@');
-    if(atIdx !== -1) {
-      const after = textBefore.slice(atIdx+1);
-      if(!after.includes(' ') && !after.includes('\n')) {
-        setMentionSearch(after.toLowerCase());
-        setMentionStart(atIdx);
-        setMentionOpen(true);
-        if(textareaRef.current) {
-          const r = textareaRef.current.getBoundingClientRect();
-          setMentionPos({ top: r.top - 8, left: r.left });
-        }
-        return;
-      }
-    }
-    setMentionOpen(false);
-  };
-
-  const insertMention = (member) => {
-    const before = newUpdate.slice(0, mentionStart);
-    const after = newUpdate.slice(mentionStart + 1 + mentionSearch.length);
-    const mention = '@' + member.full_name;
-    setNewUpdate(before + mention + ' ' + after);
-    setMentionOpen(false);
-    setMentionSearch('');
-    setTimeout(()=>{ if(textareaRef.current) { textareaRef.current.focus(); const pos = (before+mention+' ').length; textareaRef.current.setSelectionRange(pos,pos); }},0);
-  };
-
-  const filteredMembers = teamMembers.filter(m=> m.id !== profile.id && (mentionSearch==='' || m.full_name.toLowerCase().includes(mentionSearch)));
 
   const renderBody = (body) => {
     // If it looks like HTML (contains tags), render it safely
@@ -6016,65 +5941,18 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
 function UpdatesPanel({ item, profile, onClose, toast }) {
   const [tab, setTab] = useState('updates');
   const [updates, setUpdates] = useState([]);
-  const [newUpdate, setNewUpdate] = useState('');
   const [posting, setPosting] = useState(false);
   const [files, setFiles] = useState([]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [activityLog, setActivityLog] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
-  const [mentionSearch, setMentionSearch] = useState('');
-  const [mentionOpen, setMentionOpen] = useState(false);
   const [mentionPos, setMentionPos] = useState({top:0,left:0});
-  const [mentionStart, setMentionStart] = useState(0);
-  const textareaRef = React.useRef();
   const fileInputRef = React.useRef();
 
   useEffect(() => {
     loadUpdates(); loadFiles(); buildActivityLog();
     supabase.from('profiles').select('*').eq('company_name', profile.company_name).then(({data})=>{ setTeamMembers(data||[]); registerAvatars(data||[]); });
   }, [item.id]);
-
-  const handleTextChange = (e) => {
-    const val = e.target.value;
-    setNewUpdate(val);
-    const cursor = e.target.selectionStart;
-    // Look back from cursor for @ symbol
-    const textBefore = val.slice(0, cursor);
-    const atIdx = textBefore.lastIndexOf('@');
-    if(atIdx !== -1) {
-      const after = textBefore.slice(atIdx+1);
-      // Only trigger if no space between @ and cursor
-      if(!after.includes(' ') && !after.includes('\n')) {
-        setMentionSearch(after.toLowerCase());
-        setMentionStart(atIdx);
-        setMentionOpen(true);
-        // Position the dropdown near cursor
-        const ta = textareaRef.current;
-        if(ta) {
-          const rect = ta.getBoundingClientRect();
-          setMentionPos({ top: rect.top - 8, left: rect.left + 16 });
-        }
-        return;
-      }
-    }
-    setMentionOpen(false);
-  };
-
-  const insertMention = (member) => {
-    const before = newUpdate.slice(0, mentionStart);
-    const after = newUpdate.slice(mentionStart + 1 + mentionSearch.length);
-    const mention = '@' + member.full_name;
-    const updated = before + mention + ' ' + after;
-    setNewUpdate(updated);
-    setMentionOpen(false);
-    setMentionSearch('');
-    setTimeout(()=>{ if(textareaRef.current) { textareaRef.current.focus(); const pos = (before+mention+' ').length; textareaRef.current.setSelectionRange(pos,pos); }}, 0);
-  };
-
-  const filteredMembers = teamMembers.filter(m=>
-    m.id !== profile.id &&
-    (mentionSearch==='' || m.full_name.toLowerCase().includes(mentionSearch))
-  );
 
   const renderBody = (body) => {
     if(/<[a-z][\s\S]*>/i.test(body)) return <div dangerouslySetInnerHTML={{ __html: body }} style={{ lineHeight:1.65 }} />;
@@ -6100,15 +5978,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
     setActivityLog(log);
   };
 
-  const postUpdate = async () => {
-    if(!newUpdate.trim()) return;
-    setPosting(true);
-    const {data} = await supabase.from('workspace_updates').insert([{
-      item_id:item.id, author_name:profile.full_name, author_id:profile.id, body:newUpdate
-    }]).select().single();
-    if(data) { setUpdates(u=>[...u, data]); setNewUpdate(''); toast('Update posted!'); }
-    setPosting(false);
-  };
+
 
   const deleteUpdate = async (id) => {
     await supabase.from('workspace_updates').delete().eq('id',id);
