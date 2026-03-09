@@ -1346,11 +1346,21 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
     if (!inviteEmail.trim()) return;
     setInviteSending(true);
     try {
-      await supabase.auth.admin?.inviteUserByEmail(inviteEmail);
-    } catch(e) {}
-    setInviteSending(false);
-    setInviteEmail('');
-    setInviteOpen(false);
+      const { data, error } = await supabase.functions.invoke('invite-user', {
+        body: { email: inviteEmail.trim(), role: inviteRole },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+
+      toast(`Invite sent to ${inviteEmail}!`);
+      setInviteEmail('');
+      setInviteOpen(false);
+    } catch (e) {
+      toast(e.message || 'Failed to send invite. Please try again.');
+    } finally {
+      setInviteSending(false);
+    }
   };
 
   const HELP_ARTICLES = [
