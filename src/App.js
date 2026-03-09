@@ -1155,7 +1155,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
 
 
 // ─── TOP BAR ─────────────────────────────────────────────────────────────────
-function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout, onGetResults, workspaces, onOpenWorkspace }) {
+function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout, onGetResults, workspaces, onOpenWorkspace, onProfileUpdate }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -1602,7 +1602,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
           </div>
           <div>
             <div style={{ fontWeight:600, fontSize:13 }}>{profile.full_name}</div>
-            <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{profile.role}</div>
+            <div style={{ fontSize:11, color:'var(--muted)' }}>{profile.title || profile.role}</div>
           </div>
         </div>
         {/* Menu items */}
@@ -1653,8 +1653,8 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
               )}
             </div>
             <div style={{ flex:1 }}>
-              <div style={{ fontWeight:700, fontSize:14 }}>{profile.full_name}</div>
-              <div style={{ fontSize:12, color:'var(--muted)', textTransform:'capitalize', marginBottom:6 }}>{profile.role} · {profile.company_name}</div>
+              <div style={{ fontWeight:700, fontSize:14 }}>{profileForm.full_name || profile.full_name}</div>
+              <div style={{ fontSize:12, color:'var(--muted)', marginBottom:6 }}>{profileForm.title || profile.title || profile.role} · {profile.company_name}</div>
               <div style={{ fontSize:11, color:'var(--muted)' }}>{profile.email}</div>
             </div>
           </div>
@@ -1723,9 +1723,11 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
               disabled={profileSaving}
               onClick={async ()=>{
                 setProfileSaving(true);
-                await supabase.from('profiles').update({ full_name: profileForm.full_name, phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url }).eq('id', profile.id);
+                const updates = { full_name: profileForm.full_name, phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url };
+                await supabase.from('profiles').update(updates).eq('id', profile.id);
                 setProfileSaving(false);
                 setProfileModalOpen(false);
+                onProfileUpdate && onProfileUpdate({ ...profile, ...updates });
               }}
               style={{ padding:'8px 20px', borderRadius:7, background:'var(--accent)', border:'none', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer', opacity: profileSaving ? 0.6 : 1 }}>
               {profileSaving ? 'Saving…' : 'Save Changes'}
@@ -1752,11 +1754,15 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
   React.useEffect(()=>{
     if(!profile?.company_name) return;
     Promise.all([
-      supabase.from('workspace_items').select('*, workspace_groups!group_id(workspace_id)').eq('company_id', profile.company_name).eq('archived', false).neq('trashed', true),
+      supabase.from('workspace_items').select('id,name,date,status,group_id,workspace_id,assigned_officers,lock_expiration,archived,trashed,company_id').eq('company_id', profile.company_name).eq('archived', false).neq('trashed', true),
       supabase.from('workspace_updates').select('*').eq('company_id', profile.company_name).order('created_at',{ascending:false}).limit(30),
       supabase.from('profiles').select('*').eq('company_name', profile.company_name),
-    ]).then(([items, updates, members])=>{
-      const data = items.data||[];
+      supabase.from('workspace_groups').select('id,workspace_id').in('workspace_id', workspaces.map(w=>w.id)),
+    ]).then(([items, updates, members, groups])=>{
+      // Build groupId → workspaceId map for reliable counting
+      const groupMap = {};
+      (groups.data||[]).forEach(g=>{ groupMap[g.id] = g.workspace_id; });
+      const data = (items.data||[]).map(i=>({ ...i, _wsId: i.workspace_id || groupMap[i.group_id] || null }));
       setAllItems(data);
       const mine = data.filter(i=>(i.assigned_officers||[]).some(o=>o===profile.full_name||o===profile.email||o?.toLowerCase()===profile.full_name?.toLowerCase()));
       mine.sort((a,b)=>{
@@ -1803,7 +1809,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
     const map = {};
     workspaces.forEach(w=>{ map[w.id]={total:0,overdue:0,done:0,statuses:{}}; });
     allItems.forEach(i=>{
-      const wsId = i.workspace_groups?.workspace_id || i.workspace_id;
+      const wsId = i._wsId;
       if(!wsId || !map[wsId]) return;
       map[wsId].total++;
       if(dueDateStatus(i.date)?.label==='Overdue') map[wsId].overdue++;
@@ -1929,7 +1935,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
                   const color  = WS_COLORS[i%WS_COLORS.length];
                   const stats  = wsStats[w.id]||{total:0,overdue:0,statuses:{}}; 
                   const statusEntries = Object.entries(stats.statuses).sort((a,b)=>b[1]-a[1]).slice(0,4);
-                  const lastActivity = activityFeed.find(a=>a.workspace_id===w.id||allItems.some(it=>(it.workspace_groups?.workspace_id||it.workspace_id)===w.id&&it.id===a.item_id));
+                  const lastActivity = activityFeed.find(a=>a.workspace_id===w.id||allItems.some(it=>it._wsId===w.id&&it.id===a.item_id));
                   return (
                     <div key={w.id} onClick={()=>onOpenWorkspace(w)}
                       style={{ cursor:'pointer', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:'18px 16px', transition:'all .2s', borderTop:`3px solid ${color}`, position:'relative' }}
@@ -12436,7 +12442,7 @@ export default function App() {
             <div style={{ width:30, height:30, borderRadius:'50%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700 }}>{initials(profile.full_name||'?')}</div>
             <div className="nav-label" style={{ fontSize:13 }}>
               <div style={{ fontWeight:600, color:'#fff' }}>{profile.full_name}</div>
-              <div style={{ color:'var(--sidebar-text)', fontSize:11, textTransform:'capitalize' }}>{profile.role}</div>
+              <div style={{ color:'var(--sidebar-text)', fontSize:11 }}>{profile.title || profile.role}</div>
             </div>
           </div>
           <button style={{ width:'100%', padding:'8px', borderRadius:6, background:'rgba(255,255,255,.1)', color:'#c9d3e8', border:'1px solid rgba(255,255,255,.15)', fontSize:13, cursor:'pointer', fontWeight:500 }} onClick={logout}>Sign Out</button>
@@ -12444,7 +12450,7 @@ export default function App() {
       </div>
 
       {/* Top Bar */}
-      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>setView(v,null)} onLogout={logout} workspaces={workspaces} onOpenWorkspace={w=>setView('workspace',w)}
+      <TopBar profile={profile} onSearch={setGlobalSearch} searchOpen={searchOpen} setSearchOpen={setSearchOpen} onNavigate={v=>setView(v,null)} onLogout={logout} workspaces={workspaces} onOpenWorkspace={w=>setView('workspace',w)} onProfileUpdate={updated=>setProfile(updated)}
         onGetResults={(q)=>{
           const r = [];
           const ql = q.toLowerCase();
