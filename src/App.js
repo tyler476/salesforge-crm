@@ -720,7 +720,6 @@ async function createNotification(opts) {
   const ALLOW_SELF_TYPES = ['assignment','status_change','mention','comment','update'];
   if(opts.recipient_id === opts.actor_id && !ALLOW_SELF_TYPES.includes(opts.type)) return;
 
-  // Build payload with all desired fields
   let payload = {
     recipient_id:  opts.recipient_id,
     recipient_name:opts.recipient_name||'',
@@ -739,23 +738,52 @@ async function createNotification(opts) {
   for (let attempt = 0; attempt < 10; attempt++) {
     const { data: inserted, error } = await supabase.from('notifications').insert([payload]).select();
     if (!error) {
-      console.log('[NOTIF] Insert succeeded on attempt', attempt+1, '->', inserted);
-      return; // success
+      // ── Send email for assignment & mention types ──────────────────────────
+      if(['assignment','mention'].includes(opts.type)) {
+        try {
+          // Get recipient email if not already provided
+          let recipientEmail = opts.recipient_email;
+          if(!recipientEmail && opts.recipient_id) {
+            const { data: prof } = await supabase.from('profiles').select('email').eq('id', opts.recipient_id).single();
+            recipientEmail = prof?.email;
+          }
+          if(recipientEmail) {
+            const isAssignment = opts.type === 'assignment';
+            const subject = isAssignment
+              ? `${opts.actor_name||'Someone'} assigned you to "${opts.item_name||'an item'}"`
+              : `${opts.actor_name||'Someone'} mentioned you in "${opts.item_name||'an item'}"`;
+            const actionText = isAssignment
+              ? `<strong>${opts.actor_name||'A teammate'}</strong> has assigned you as an owner on <strong>${opts.item_name||'an item'}</strong>${opts.workspace_name ? ` in the <strong>${opts.workspace_name}</strong> workspace` : ''}.`
+              : `<strong>${opts.actor_name||'A teammate'}</strong> mentioned you in an update on <strong>${opts.item_name||'an item'}</strong>${opts.workspace_name ? ` in the <strong>${opts.workspace_name}</strong> workspace` : ''}.`;
+            const emailHtml = `
+              <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;background:#fff;border-radius:8px;overflow:hidden;border:1px solid #e2e8f0">
+                <div style="background:#1a1e2e;padding:24px 28px;text-align:center">
+                  <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style="max-height:48px;filter:brightness(0) invert(1)" />
+                </div>
+                <div style="padding:32px 28px">
+                  <h2 style="margin:0 0 16px;font-size:20px;color:#1a1e2e">${isAssignment ? '📋 New Assignment' : '💬 You were mentioned'}</h2>
+                  <p style="margin:0 0 20px;font-size:15px;color:#374151;line-height:1.6">Hi ${opts.recipient_name||'there'},</p>
+                  <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.6">${actionText}</p>
+                  <a href="${window.location.origin}" style="display:inline-block;background:#4d8ef0;color:#fff;text-decoration:none;padding:12px 24px;border-radius:7px;font-size:14px;font-weight:600">View in CRM →</a>
+                </div>
+                <div style="padding:16px 28px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;color:#94a3b8;text-align:center">
+                  Citizens Financial CRM · You're receiving this because you are a team member.
+                </div>
+              </div>`;
+            supabase.functions.invoke('send-email', {
+              body: { to: recipientEmail, subject, html: emailHtml, from_name: 'Citizens Financial CRM' }
+            }).catch(()=>{});
+          }
+        } catch(e) { /* email failure is non-fatal */ }
+      }
+      return;
     }
-    console.warn('[NOTIF] Attempt', attempt+1, 'failed:', error.message, '| payload keys:', Object.keys(payload));
-    // Extract the offending column name from the error message
     const m = error.message.match(/column[s]? [\x22\x27]([a-z_]+)[\x22\x27]/)
            || error.message.match(/[\x22\x27]([a-z_]+)[\x22\x27] column/);
     const col = m?.[1];
-    if (col && col in payload) {
-      console.warn('[NOTIF] Stripping unknown column:', col);
-      delete payload[col]; // remove and retry
-    } else {
-      console.error('[NOTIF] INSERT FAILED (non-column error):', error.message, error);
-      return;
-    }
+    if (col && col in payload) { delete payload[col]; }
+    else { return; }
   }
-  console.error('[NOTIF] INSERT FAILED after 10 attempts - notifications table may be missing required columns');
 }
 
 function timeAgo(dateStr) {
@@ -4490,12 +4518,19 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
       )}
 
       {viewMode==='table' && groups.map(group => {
+        const isOwner = (i) => (i.assigned_officers||[]).some(o =>
+          o === profile.full_name || o === profile.email ||
+          o?.toLowerCase() === profile.full_name?.toLowerCase() ||
+          o?.toLowerCase() === profile.email?.toLowerCase()
+        );
         let groupItems = (items[group.id]||[]).filter(item => {
           const q = (search||'').toLowerCase();
           const matchSearch = !search || !q || item.name?.toLowerCase().includes(q) || item.lender?.toLowerCase().includes(q) || item.loan_officer?.toLowerCase().includes(q);
           const matchStatus = !filterStatus || item.status===filterStatus;
           const matchOfficer = !filterOfficer || (item.assigned_officers||[]).includes(filterOfficer);
-          return matchSearch && matchStatus && matchOfficer;
+          // Non-admins only see items they own
+          const matchRole = profile.role==='admin' || isOwner(item);
+          return matchSearch && matchStatus && matchOfficer && matchRole;
         });
         if(sortCol) groupItems = [...groupItems].sort((a,b)=>{
           const va=(a[sortCol]||'').toString().toLowerCase(), vb=(b[sortCol]||'').toString().toLowerCase();
@@ -4504,6 +4539,9 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
         const isCollapsed = collapsed[group.id];
         const groupSelected = selected[group.id]||new Set();
         const allGroupSelected = groupItems.length>0 && groupItems.every(i=>groupSelected.has(i.id));
+
+        // Non-admins: skip groups that have no items they own
+        if(profile.role !== 'admin' && groupItems.length === 0) return null;
 
         return (
           <div key={group.id} style={{ marginBottom:28 }}>
@@ -4569,7 +4607,13 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                           onDragOver={e=>{ e.preventDefault(); setDragOverGroup(group.id); setDragOverIdx(idx); }}
                           onDrop={e=>handleDrop(e,group.id,idx)}
                         />
-                        {expandedItems[item.id] && (subItems[item.id]||[]).map(sub=>(
+                        {expandedItems[item.id] && (subItems[item.id]||[]).filter(sub=>{
+                          // Admins see everything; if user owns parent item, see all subs;
+                          // otherwise only see subs they own
+                          if(profile.role==='admin') return true;
+                          if(isOwner(item)) return true; // owns parent → see all children
+                          return isOwner(sub); // only see subitems they own
+                        }).map(sub=>(
                           <SubItemRow
                             key={sub.id}
                             sub={sub}
@@ -12571,6 +12615,10 @@ export default function App() {
 
   // Browser history navigation
   const setView = useCallback((newView, workspace=null) => {
+    // Permission guard — non-admins cannot access team or lender portals
+    if(profile?.role !== 'admin' && ['team','lenders'].includes(newView)) {
+      newView = 'dashboard'; workspace = null;
+    }
     const state = { view: newView, workspaceId: workspace?.id||null, workspaceName: workspace?.name||null };
     window.history.pushState(state, '', `#${newView}${workspace?'-'+workspace.id:''}`);
     setViewRaw(newView);
@@ -12677,7 +12725,7 @@ export default function App() {
     { id:'presentations', label:'Presentations', icon:Icons.file },
     { id:'pricing', label:'Pricing Engine', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
     { id:'pipeline', label:'AI Pipeline', icon:Icons.pipeline },
-    { id:'team', label:'Team', icon:Icons.team },
+
     { id:'automation', label:'AI Outreach', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 2 15 22 11 13 2 9 22 2"/></svg> },
     { id:'content-hub', label:'Content Hub', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> },
     { id:'lead-scoring', label:'Lead Scoring', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><polyline points="2 20 22 20"/></svg> },
@@ -12702,7 +12750,11 @@ export default function App() {
           <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ maxHeight:60, maxWidth:180, filter:'brightness(0) invert(1)' }} className="brand-name" />
         </div>
         <nav style={{ flex:1, padding:'12px 0', overflowY:'auto' }}>
-          {navItems.map(n=>(
+          {navItems.filter(n=>{
+            if(profile?.role==='admin') return true;
+            // Non-admins: hide Team and Lender Portals
+            return !['team','lenders'].includes(n.id);
+          }).map(n=>(
             <div key={n.id} className={`nav-item ${(n.id==='pricing'?pricingOpen:view===n.id&&!activeWorkspace)?'active':''}`} onClick={()=>{ if(n.id==='pricing'){setPricingOpen(o=>!o);}else{setPricingOpen(false);setView(n.id,null);} }}>
               <span>{n.icon}</span><span className="nav-label">{n.label}</span>
             </div>
@@ -12722,7 +12774,12 @@ export default function App() {
             {/* Workspace Children */}
             {workspacesOpen && (
               <div style={{ marginLeft:8 }}>
-                {workspaces.map(w=>(
+                {workspaces.filter(w=>{
+                  if(profile?.role==='admin') return true;
+                  // Non-admins: hide restricted workspaces
+                  const n = (w.name||'').toLowerCase();
+                  return !['team tasks','first funding','trinadad leads','trinidad leads','trinidad','first fund'].some(r=>n.includes(r));
+                }).map(w=>(
                   <div key={w.id} className={`nav-item ${activeWorkspace?.id===w.id?'active':''}`}
                     onClick={()=>{ setView('workspace', w); }}
                     style={{ paddingLeft:40, fontSize:13 }}>
@@ -12855,12 +12912,19 @@ export default function App() {
           />
         )}
         {view==='calendar' && <CalendarView profile={profile} workspaces={workspaces} toast={toast} />}
-        {view==='workspace' && activeWorkspace && <WorkspaceView workspace={activeWorkspace} profile={profile} toast={toast}
-  allWorkspaces={workspaces}
-  onSwitchWorkspace={w=>setView('workspace',w)}
-  onAddWorkspace={()=>setSidebarNewWs(true)}
-  onRename={async(name)=>{ await supabase.from('workspaces').update({name}).eq('id',activeWorkspace.id); setWorkspaces(w=>w.map(x=>x.id===activeWorkspace.id?{...x,name}:x)); setActiveWorkspace(a=>({...a,name})); }}
-  onDelete={async()=>{ if(!window.confirm('Delete this workspace?')) return; await supabase.from('workspaces').delete().eq('id',activeWorkspace.id); setWorkspaces(w=>w.filter(x=>x.id!==activeWorkspace.id)); setView('dashboard', null); }} />}
+        {view==='workspace' && activeWorkspace && (() => {
+          if(profile?.role !== 'admin') {
+            const n = (activeWorkspace.name||'').toLowerCase();
+            const blocked = ['team tasks','first funding','trinadad leads','trinidad leads','trinidad','first fund'].some(r=>n.includes(r));
+            if(blocked) return <div style={{ display:'flex',alignItems:'center',justifyContent:'center',height:'60vh',flexDirection:'column',gap:12 }}><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="1.5"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><div style={{ color:'var(--muted)',fontSize:15 }}>You don't have access to this workspace.</div></div>;
+          }
+          return <WorkspaceView workspace={activeWorkspace} profile={profile} toast={toast}
+            allWorkspaces={workspaces}
+            onSwitchWorkspace={w=>setView('workspace',w)}
+            onAddWorkspace={()=>setSidebarNewWs(true)}
+            onRename={async(name)=>{ await supabase.from('workspaces').update({name}).eq('id',activeWorkspace.id); setWorkspaces(w=>w.map(x=>x.id===activeWorkspace.id?{...x,name}:x)); setActiveWorkspace(a=>({...a,name})); }}
+            onDelete={async()=>{ if(!window.confirm('Delete this workspace?')) return; await supabase.from('workspaces').delete().eq('id',activeWorkspace.id); setWorkspaces(w=>w.filter(x=>x.id!==activeWorkspace.id)); setView('dashboard', null); }} />;
+        })()}
       </div>
 
       {/* Contact Drawer */}
