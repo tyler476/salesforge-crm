@@ -698,19 +698,25 @@ async function createNotification(opts) {
 
   // Retry loop — strips unknown columns one at a time until insert succeeds
   for (let attempt = 0; attempt < 10; attempt++) {
-    const { error } = await supabase.from('notifications').insert([payload]);
-    if (!error) return; // success
+    const { data: inserted, error } = await supabase.from(‘notifications’).insert([payload]).select();
+    if (!error) {
+      console.log(‘[NOTIF] Insert succeeded on attempt’, attempt+1, ‘→’, inserted);
+      return; // success
+    }
+    console.warn(‘[NOTIF] Attempt’, attempt+1, ‘failed:’, error.message, ‘| payload keys:’, Object.keys(payload));
     // Extract the offending column name from the error message
-    const m = error.message.match(/column[s]? ["‘’]([a-z_]+)["‘’]/i)
-           || error.message.match(/["‘’]([a-z_]+)["‘’] column/i);
+    const m = error.message.match(/column[s]? ["’’\u2018\u2019]([a-z_]+)["’’\u2018\u2019]/i)
+           || error.message.match(/["’’\u2018\u2019]([a-z_]+)["’’\u2018\u2019] column/i);
     const col = m?.[1];
     if (col && col in payload) {
+      console.warn(‘[NOTIF] Stripping unknown column:’, col);
       delete payload[col]; // remove and retry
     } else {
-      console.error('[NOTIF] INSERT FAILED:', error.message);
+      console.error(‘[NOTIF] INSERT FAILED (non-column error):’, error.message, error);
       return;
     }
   }
+  console.error(‘[NOTIF] INSERT FAILED after 10 attempts — notifications table may be missing required columns’);
 }
 
 function timeAgo(dateStr) {
@@ -12473,10 +12479,11 @@ export default function App() {
 
   const loadProfile = async (uid) => {
     console.log('[App] loadProfile called with uid:', uid);
-    const { data, error } = await supabase.from('profiles').select('*').eq('id', uid).single();
-    console.log('[App] loadProfile result:', { data, error });
-    if (data) {
+    const { data: rawData, error } = await supabase.from('profiles').select('*').eq('id', uid).single();
+    console.log('[App] loadProfile result:', { data: rawData, error });
+    if (rawData) {
       // Merge localStorage extras (phone/title/avatar may not be DB columns yet)
+      let data = { ...rawData };
       try {
         const extra = JSON.parse(localStorage.getItem('profile_extra_' + uid) || 'null');
         if (extra) {
@@ -12487,7 +12494,7 @@ export default function App() {
             avatar_url: data.avatar_url || extra.avatar_url || '',
           };
         }
-      } catch(e) {}
+      } catch(e) { console.warn('[App] localStorage merge failed:', e); }
       setProfile(data);
       setBrand({ company_name: data.company_name||'Citizens Financial', logo_url: data.logo_url||'', brand_color: data.brand_color||'#3b82f6' });
       loadContacts(data.company_name);
