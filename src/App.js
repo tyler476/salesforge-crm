@@ -1616,7 +1616,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
       {/* Avatar */}
       <div onClick={e=>{ stop(e); setProfileOpen(o=>!o); setHelpOpen(false); setAppsOpen(false); setNotifOpen(false); }}
         style={{ cursor:'pointer', marginLeft:4, flexShrink:0 }}>
-        <Avatar name={profile.full_name||''} url={profile.avatar_url||''} size={34} style={{ border:'2px solid rgba(255,255,255,.2)' }} />
+        <Avatar name={profile.full_name||profile.email||''} url={profile.avatar_url||''} size={34} style={{ border:'2px solid rgba(255,255,255,.2)' }} />
       </div>
       </div>{/* end right actions */}
     </div>
@@ -1867,7 +1867,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
             {profile?.avatar_url ? <img src={profile.avatar_url} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>e.target.style.display='none'} /> : <div style={{ width:'100%', height:'100%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700 }}>{initials(profile.full_name||'?')}</div>}
           </div>
           <div>
-            <div style={{ fontWeight:600, fontSize:13 }}>{profile.full_name}</div>
+            <div style={{ fontWeight:600, fontSize:13 }}>{profile.full_name || profile.email || 'My Account'}</div>
             <div style={{ fontSize:11, color:'var(--muted)' }}>{profile.title || profile.role}</div>
           </div>
         </div>
@@ -12832,7 +12832,9 @@ export default function App() {
     console.log('[App] loadProfile result:', { data: rawData, error });
     if (rawData) {
       // Merge localStorage extras (phone/title/avatar may not be DB columns yet)
-      let data = { ...rawData };
+      // Also merge auth email in case the profiles row doesn't have it yet
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      let data = { ...rawData, email: rawData.email || authUser?.email || '' };
       try {
         const extra = JSON.parse(localStorage.getItem('profile_extra_' + uid) || 'null');
         if (extra) {
@@ -12874,10 +12876,10 @@ export default function App() {
   // For non-admins: load all items they own so we know which workspaces to show them
   const loadMemberOwnedItems = useCallback(async (company, prof) => {
     if(!prof || prof.role === 'admin') return;
-    const { data: grpData } = await supabase.from('workspace_groups').select('id,workspace_id').eq('company_id', company);
-    if(!grpData) return;
+    // workspace_groups has no company_id — fetch all then match to company workspaces
+    const { data: grpData } = await supabase.from('workspace_groups').select('id,workspace_id');
     const groupMap = {};
-    grpData.forEach(g => { groupMap[g.id] = g.workspace_id; });
+    (grpData||[]).forEach(g => { groupMap[g.id] = g.workspace_id; });
     const { data: items } = await supabase.from('workspace_items')
       .select('id,group_id,workspace_id,assigned_officers')
       .eq('company_id', company);
@@ -12886,8 +12888,8 @@ export default function App() {
       .map(i => ({ ...i, _wsId: i.workspace_id || groupMap[i.group_id] || null }))
       .filter(i => (i.assigned_officers||[]).some(o =>
         o === prof.full_name || o === prof.email ||
-        o?.toLowerCase() === prof.full_name?.toLowerCase() ||
-        o?.toLowerCase() === prof.email?.toLowerCase()
+        o?.toLowerCase() === (prof.full_name||'').toLowerCase() ||
+        o?.toLowerCase() === (prof.email||'').toLowerCase()
       ));
     setMemberOwnedItems(mine);
   }, []);
@@ -12965,7 +12967,7 @@ export default function App() {
                   // Always block admin-only workspaces
                   if(['team tasks','first funding','trinadad leads','trinidad leads','trinidad','first fund'].some(r=>n.includes(r))) return false;
                   // Always show LO Resources
-                  if(n.includes('lo resource') || n.includes('lo resource')) return true;
+                  if(n.includes('lo resource') || n.includes('lo resources') || n === 'lo resources') return true;
                   // Show workspaces the user has been added to as owner on any item
                   return memberWorkspaceIds.has(w.id);
                 }).map(w=>(
@@ -12990,9 +12992,9 @@ export default function App() {
         </nav>
         <div style={{ padding:16, borderTop:'1px solid rgba(255,255,255,.1)' }}>
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-            <Avatar name={profile.full_name||''} size={30} url={profile.avatar_url} />
+            <Avatar name={profile.full_name||profile.email||''} size={30} url={profile.avatar_url} />
             <div className="nav-label" style={{ fontSize:13 }}>
-              <div style={{ fontWeight:600, color:'#fff' }}>{profile.full_name}</div>
+              <div style={{ fontWeight:600, color:'#fff' }}>{profile.full_name || profile.email || 'My Account'}</div>
               <div style={{ color:'var(--sidebar-text)', fontSize:11 }}>{profile.title || profile.role}</div>
             </div>
           </div>
