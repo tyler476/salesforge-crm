@@ -675,6 +675,24 @@ const fmt = (n) => n >= 1000000 ? `$${(n/1000000).toFixed(1)}M` : n >= 1000 ? `$
 const initials = (name='') => name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
 const avatarColor = (name='') => { const colors=['#3b82f6','#06b6d4','#10b981','#8b5cf6','#f59e0b','#ef4444']; return colors[name.charCodeAt(0)%colors.length]; };
 
+// ─── AVATAR COMPONENT ────────────────────────────────────────────────────────
+function Avatar({ name='', url='', size=32, fontSize:fsProp, style={} }) {
+  const fs = fsProp || Math.max(9, Math.round(size * 0.38));
+  const bg = avatarColor(name);
+  const fallback = (
+    <div style={{ width:size, height:size, borderRadius:'50%', background:bg, display:'flex', alignItems:'center', justifyContent:'center', fontSize:fs, fontWeight:700, color:'#fff', flexShrink:0, ...style }}>
+      {initials(name)}
+    </div>
+  );
+  if (!url) return fallback;
+  return (
+    <div style={{ width:size, height:size, borderRadius:'50%', overflow:'hidden', flexShrink:0, background:bg, display:'flex', alignItems:'center', justifyContent:'center', ...style }}>
+      <img src={url} alt={name} style={{ width:'100%', height:'100%', objectFit:'cover', display:'block' }}
+        onError={e=>{ e.target.style.display='none'; }} />
+    </div>
+  );
+}
+
 // ─── NOTIFICATIONS UTILITY ───────────────────────────────────────────────────
 async function createNotification(opts) {
   if(!opts.recipient_id) return;
@@ -1085,7 +1103,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
       <div style={{ padding:24 }}>
         <div style={{ display:'flex', justifyContent:'space-between', marginBottom:20 }}>
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-            <div style={{ width:48, height:48, borderRadius:'50%', background:avatarColor(contact.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:16, fontFamily:'Syne,sans-serif' }}>{initials(contact.full_name)}</div>
+            <Avatar name={contact.full_name} size={48} />
             <div>
               <div style={{ fontWeight:700, fontSize:18, fontFamily:"Cormorant Garamond, Playfair Display, serif" }}>{contact.full_name}</div>
               <div style={{ color:'var(--muted)', fontSize:13 }}>{contact.title} {contact.company && `@ ${contact.company}`}</div>
@@ -1432,12 +1450,8 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
 
       {/* Avatar */}
       <div onClick={e=>{ stop(e); setProfileOpen(o=>!o); setHelpOpen(false); setAppsOpen(false); setNotifOpen(false); }}
-        style={{ width:34, height:34, borderRadius:'50%', cursor:'pointer', marginLeft:4, border:'2px solid rgba(255,255,255,.2)', overflow:'hidden', flexShrink:0 }}>
-        {profile?.avatar_url ? (
-          <img src={profile.avatar_url} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>{ e.target.style.display='none'; e.target.parentNode.style.background=avatarColor(profile.full_name||''); e.target.parentNode.innerHTML='<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:13px;font-weight:700">'+initials(profile.full_name||'?')+'</span>'; }} />
-        ) : (
-          <div style={{ width:'100%', height:'100%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700 }}>{initials(profile.full_name||'?')}</div>
-        )}
+        style={{ cursor:'pointer', marginLeft:4, flexShrink:0 }}>
+        <Avatar name={profile.full_name||''} url={profile.avatar_url||''} size={34} style={{ border:'2px solid rgba(255,255,255,.2)' }} />
       </div>
       </div>{/* end right actions */}
     </div>
@@ -1734,9 +1748,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
               {profileForm.avatar_url ? (
                 <img src={profileForm.avatar_url} alt="avatar" style={{ width:60, height:60, borderRadius:'50%', objectFit:'cover', border:'2px solid var(--border)' }} onError={e=>e.target.style.display='none'} />
               ) : (
-                <div style={{ width:60, height:60, borderRadius:'50%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:20, fontWeight:700 }}>
-                  {initials(profile.full_name||'?')}
-                </div>
+                <Avatar name={profile.full_name||''} size={60} url={profile.avatar_url} />
               )}
             </div>
             <div style={{ flex:1 }}>
@@ -1754,7 +1766,7 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                 <div style={{ width:64, height:64, borderRadius:'50%', overflow:'hidden', flexShrink:0, border:'2px solid var(--border)', background:'var(--surface2)' }}>
                   {profileForm.avatar_url
                     ? <img src={profileForm.avatar_url} alt="preview" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>e.target.style.display='none'} />
-                    : <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', fontSize:22, fontWeight:700, background:avatarColor(profile.full_name||''), color:'#fff' }}>{initials(profile.full_name||'?')}</div>
+                    : <Avatar name={profile.full_name||''} size={60} />
                   }
                 </div>
                 <div style={{ flex:1 }}>
@@ -2200,7 +2212,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
                 <div key={a.id} style={{ display:'flex', gap:10, padding:'12px 14px', borderBottom:idx<activityFeed.length-1?'1px solid var(--border)':'none', alignItems:'flex-start' }}
                   onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.03)'}
                   onMouseOut={e=>e.currentTarget.style.background=''}>
-                  <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(a.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, flexShrink:0 }}>{initials(a.author_name||'?')}</div>
+                  <Avatar name={a.author_name||''} size={28} />
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontSize:12, fontWeight:600 }}>{a.author_name} <span style={{ fontWeight:400, color:'var(--muted)' }}>posted an update</span></div>
                     <div style={{ fontSize:11, color:'var(--muted)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', margin:'2px 0' }}>{a.body}</div>
@@ -2219,7 +2231,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
                 {workload.map(({member,total,overdue})=>(
                   <div key={member.id} style={{ marginBottom:14 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:5 }}>
-                      <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(member.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, flexShrink:0 }}>{initials(member.full_name||'?')}</div>
+                      <Avatar name={member.full_name||''} size={24} url={member.avatar_url} />
                       <span style={{ fontSize:13, fontWeight:600, flex:1 }}>{member.full_name}</span>
                       <span style={{ fontSize:11, fontFamily:'JetBrains Mono,monospace', color:'var(--muted)' }}>{total}</span>
                     </div>
@@ -2245,7 +2257,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
                 <div key={c.id} style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', borderBottom:idx<Math.min(contacts.length,6)-1?'1px solid var(--border)':'none', cursor:'pointer' }}
                   onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.07)'}
                   onMouseOut={e=>e.currentTarget.style.background=''}>
-                  <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(c.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(c.full_name)}</div>
+                  <Avatar name={c.full_name} size={32} />
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ fontWeight:600, fontSize:13, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.full_name}</div>
                     <div style={{ color:'var(--muted)', fontSize:11, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{c.company||c.email||''}</div>
@@ -2610,7 +2622,7 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
                 <td onClick={e=>toggleSelect(c.id,e)}><input type="checkbox" checked={selected.includes(c.id)} onChange={()=>{}} /></td>
                 <td>
                   <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                    <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(c.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700 }}>{initials(c.full_name)}</div>
+                    <Avatar name={c.full_name} size={32} />
                     <div>
                       <div style={{ fontWeight:500 }}>{c.full_name}</div>
                       <div style={{ color:'var(--muted)', fontSize:12 }}>{c.email}</div>
@@ -2770,7 +2782,7 @@ function LeadsView({ contacts: raw, onAdd, onSelect, onRefresh, toast, profile, 
                 <td onClick={e=>toggleSelect(c.id,e)}><input type="checkbox" checked={selected.includes(c.id)} onChange={()=>{}} /></td>
                 <td>
                   <div style={{display:'flex',alignItems:'center',gap:10}}>
-                    <div style={{width:32,height:32,borderRadius:'50%',background:avatarColor(c.full_name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:'#fff',flexShrink:0}}>{initials(c.full_name)}</div>
+                    <Avatarname={c.full_name} size={32} />
                     <div>
                       <div style={{fontWeight:600,fontSize:13}}>{c.full_name}</div>
                       <div style={{color:'var(--muted)',fontSize:11}}>{c.email||'—'}</div>
@@ -3306,7 +3318,7 @@ function AIPipelineView({ contacts, onSelect, profile, toast }) {
 
                 {/* Lead info */}
                 <div style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }} onClick={() => onSelect(c)}>
-                  <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(c.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700, color:'#fff', flexShrink:0 }}>{initials(c.full_name)}</div>
+                  <Avatar name={c.full_name} size={36} />
                   <div>
                     <div style={{ fontWeight:600, fontSize:14 }}>{c.full_name}</div>
                     <div style={{ fontSize:11, color:'var(--muted)', display:'flex', alignItems:'center', gap:6, marginTop:2 }}>
@@ -3456,7 +3468,7 @@ function AIPipelineView({ contacts, onSelect, profile, toast }) {
               return (
                 <div key={c.id} style={{ background:rs.bg, border:`1px solid ${rs.color}33`, borderRadius:10, padding:'12px 18px', display:'grid', gridTemplateColumns:'2fr 1.2fr 80px auto', alignItems:'center', gap:14 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }} onClick={() => onSelect(c)}>
-                    <div style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(c.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', flexShrink:0 }}>{initials(c.full_name)}</div>
+                    <Avatar name={c.full_name} size={34} />
                     <div>
                       <div style={{ fontWeight:600, fontSize:14 }}>{c.full_name}</div>
                       <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>{c.stage}</div>
@@ -3559,7 +3571,7 @@ function TeamView({ profile, toast }) {
         <div style={{ fontWeight:600, marginBottom:16 }}>Team Members ({members.length})</div>
         {members.map(m=>(
           <div key={m.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 0', borderBottom:'1px solid var(--border)' }}>
-            <div style={{ width:38, height:38, borderRadius:'50%', background:avatarColor(m.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700 }}>{initials(m.full_name||'?')}</div>
+            <Avatar name={m.full_name||''} size={38} url={m.avatar_url} />
             <div style={{ flex:1 }}>
               <div style={{ fontWeight:500 }}>{m.full_name}</div>
               <div style={{ color:'var(--muted)', fontSize:12 }}>{m.email||'—'}</div>
@@ -4628,7 +4640,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
                             {(item.assigned_officers||[]).length>0 && (
                               <div style={{ display:'flex', gap:3, marginTop:8, paddingTop:8, borderTop:'1px solid var(--border)' }}>
                                 {(item.assigned_officers||[]).map((name,i)=>(
-                                  <div key={i} title={name} style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, color:'#fff', border:'2px solid var(--surface)' }}>{initials(name)}</div>
+                                  <Avatar key={i} name={name} size={24} style={{ border:'2px solid var(--surface)', flexShrink:0 }} />
                                 ))}
                                 <span style={{ fontSize:11, color:'var(--muted)', marginLeft:4, lineHeight:'24px' }}>{(item.assigned_officers||[]).join(', ')}</span>
                               </div>
@@ -4935,9 +4947,7 @@ function SubItemRow({ sub, statuses, teamMembers, updateCount, onOpenUpdates, on
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               </div>
             : owners.map((name,i)=>(
-                <div key={i} title={name} style={{ width:26, height:26, borderRadius:'50%', background:avatarColor(name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', marginLeft:i>0?-8:0, border:'2px solid var(--surface)', zIndex:owners.length-i, position:'relative' }}>
-                  {initials(name)}
-                </div>
+                <Avatar key={i} name={name} size={26} style={{ marginLeft:i>0?-8:0, border:'2px solid var(--surface)', zIndex:owners.length-i, position:'relative', flexShrink:0 }} />
               ))
           }
         </div>
@@ -4955,7 +4965,7 @@ function SubItemRow({ sub, statuses, teamMembers, updateCount, onOpenUpdates, on
                   setOwners(next);
                   onUpdate('assigned_officers', next);
                 }} style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 8px', borderRadius:7, cursor:'pointer', background:assigned?'rgba(77,142,240,.12)':'transparent', marginBottom:2 }}>
-                  <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff', flexShrink:0 }}>{initials(m.full_name)}</div>
+                  <Avatar name={m.full_name} size={28} url={m.avatar_url} />
                   <span style={{ fontSize:13, flex:1, color:'var(--text)' }}>{m.full_name}</span>
                   <div style={{ width:16, height:16, borderRadius:4, border:assigned?'none':'2px solid var(--border)', background:assigned?'var(--accent)':'transparent', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                     {assigned && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>}
@@ -5067,9 +5077,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
             <div style={{ width:28, height:28, borderRadius:'50%', border:'2px dashed var(--border)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--border)', fontSize:14 }}>+</div>
           )}
           {(item.assigned_officers||[]).map((name,i)=>(
-            <div key={i} title={name} style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', border:'2px solid var(--surface)', marginLeft: i>0?-8:0, zIndex: i, flexShrink:0 }}>
-              {initials(name)}
-            </div>
+            <Avatar key={i} name={name} size={28} style={{ border:'2px solid var(--surface)', marginLeft:i>0?-8:0, zIndex:i, flexShrink:0 }} />
           ))}
           {(item.assigned_officers||[]).length>0 && hovered && <span style={{ fontSize:11, color:'var(--muted)', marginLeft:4 }}>+</span>}
         </div>
@@ -5087,7 +5095,7 @@ function WorkspaceItemRow({ item, group, statuses, teamMembers, profile, onUpdat
                 }} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:4, cursor:'pointer', background: assigned?'rgba(77,142,240,.15)':'' }}
                   onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
                   onMouseOut={e=>e.currentTarget.style.background=assigned?'rgba(77,142,240,.15)':''}>
-                  <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700 }}>{initials(m.full_name)}</div>
+                  <Avatar name={m.full_name} size={24} url={m.avatar_url} />
                   <div style={{ fontSize:12 }}>{m.full_name}</div>
                   {assigned && <span style={{ marginLeft:'auto', color:'var(--accent)', fontSize:12 }}>✓</span>}
                 </div>
@@ -5477,7 +5485,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
               <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                 {(item.assigned_officers||[]).map((name,i)=>(
                   <div key={i} style={{ display:'flex', alignItems:'center', gap:6, background:'rgba(255,255,255,.06)', borderRadius:20, padding:'3px 10px 3px 4px' }}>
-                    <div style={{ width:22, height:22, borderRadius:'50%', background:avatarColor(name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700 }}>{initials(name)}</div>
+                    <Avatar name={name} size={22} />
                     <span style={{ fontSize:12 }}>{name}</span>
                     <span onClick={()=>updateField('assigned_officers',(item.assigned_officers||[]).filter(x=>x!==name))} style={{ cursor:'pointer', color:'var(--muted)', fontSize:14, lineHeight:1 }}>×</span>
                   </div>
@@ -5495,7 +5503,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                         style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 8px', borderRadius:4, cursor:'pointer', background:assigned?'rgba(77,142,240,.15)':'' }}
                         onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.05)'}
                         onMouseOut={e=>e.currentTarget.style.background=assigned?'rgba(77,142,240,.15)':''}>
-                        <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700 }}>{initials(m.full_name)}</div>
+                        <Avatar name={m.full_name} size={24} url={m.avatar_url} />
                         <div style={{ flex:1 }}>
                           <div style={{ fontSize:13 }}>{m.full_name}</div>
                           <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
@@ -5552,7 +5560,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
           <div>
             <div style={{ background:'var(--surface2)', borderRadius:10, padding:14, marginBottom:20, border:'1px solid var(--border)', position:'relative' }}>
               <div style={{ display:'flex', gap:10, marginBottom:8 }}>
-                <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(profile.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(profile.full_name)}</div>
+                <Avatar name={profile.full_name} size={32} url={profile.avatar_url} />
                 <textarea ref={textareaRef} rows={3} value={newUpdate} onChange={handleTextChange}
                   placeholder="Write an update... type @ to mention a teammate"
                   onKeyDown={e=>{
@@ -5573,7 +5581,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                       style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', cursor:'pointer' }}
                       onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.15)'}
                       onMouseOut={e=>e.currentTarget.style.background=''}>
-                      <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, flexShrink:0 }}>{initials(m.full_name)}</div>
+                      <Avatar name={m.full_name} size={28} url={m.avatar_url} />
                       <div>
                         <div style={{ fontSize:13, fontWeight:600 }}>{m.full_name}</div>
                         <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
@@ -5590,7 +5598,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                 {/* Top-level update */}
                 <div style={{ display:'flex', gap:10 }}>
                   <div style={{ flexShrink:0 }}>
-                    <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(u.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, color:'#fff' }}>{(u.author_name||'?').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}</div>
+                    <Avatar name={u.author_name||''} size={32} />
                   </div>
                   <div style={{ flex:1 }}>
                     <div style={{ background:'var(--surface2)', borderRadius:10, padding:'10px 14px', border:'1px solid var(--border)', marginBottom:4 }}>
@@ -5616,7 +5624,7 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
                     {/* Replies — indented under this update */}
                     {updates.filter(r=>r.body.startsWith('↩ ')).slice(0,50).map((r,ri)=>(
                       <div key={r.id} style={{ display:'flex', gap:8, marginBottom:10, paddingLeft:8, borderLeft:'2px solid var(--border)' }}>
-                        <div style={{ width:24, height:24, borderRadius:'50%', background:avatarColor(r.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'#fff', flexShrink:0 }}>{(r.author_name||'?').split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2)}</div>
+                        <Avatar name={r.author_name||''} size={24} />
                         <div style={{ flex:1, background:'rgba(255,255,255,.04)', borderRadius:8, padding:'8px 12px', border:'1px solid var(--border)' }}>
                           <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
                             <span style={{ fontWeight:700, fontSize:12 }}>{r.author_name}</span>
@@ -5877,7 +5885,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
             {/* Post box */}
             <div style={{ background:'var(--surface2)', borderRadius:10, padding:14, marginBottom:20, border:'1px solid var(--border)', position:'relative' }}>
               <div style={{ display:'flex', gap:10, marginBottom:8 }}>
-                <div style={{ width:32, height:32, borderRadius:'50%', background:avatarColor(profile.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(profile.full_name)}</div>
+                <Avatar name={profile.full_name} size={32} url={profile.avatar_url} />
                 <textarea ref={textareaRef} rows={3} value={newUpdate} onChange={handleTextChange}
                   placeholder="Write an update... type @ to mention a teammate"
                   onKeyDown={e=>{
@@ -5906,7 +5914,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
                       style={{ display:'flex', alignItems:'center', gap:10, padding:'9px 12px', cursor:'pointer' }}
                       onMouseOver={e=>e.currentTarget.style.background='rgba(77,142,240,.15)'}
                       onMouseOut={e=>e.currentTarget.style.background=''}>
-                      <div style={{ width:28, height:28, borderRadius:'50%', background:avatarColor(m.full_name), display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, flexShrink:0 }}>{initials(m.full_name)}</div>
+                      <Avatar name={m.full_name} size={28} url={m.avatar_url} />
                       <div>
                         <div style={{ fontSize:13, fontWeight:600 }}>{m.full_name}</div>
                         <div style={{ fontSize:11, color:'var(--muted)', textTransform:'capitalize' }}>{m.role}</div>
@@ -5920,7 +5928,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
             {updates.length===0 && <div style={{ color:'var(--muted)', fontSize:13, textAlign:'center', padding:'30px 0' }}>No updates yet — be the first to post!</div>}
             {updates.map(u=>(
               <div key={u.id} style={{ display:'flex', gap:10, marginBottom:16 }}>
-                <div style={{ width:34, height:34, borderRadius:'50%', background:avatarColor(u.author_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, fontWeight:700, flexShrink:0 }}>{initials(u.author_name||'?')}</div>
+                <Avatar name={u.author_name||''} size={34} />
                 <div style={{ flex:1 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:5 }}>
                     <span style={{ fontWeight:700, fontSize:13 }}>{u.author_name}</span>
@@ -6678,7 +6686,7 @@ function CalendarView({ profile, workspaces, toast }) {
                   </div>
                   {adminView && (profile.role==='admin'||profile.role==='manager') && (
                     <div style={{ display:'flex', alignItems:'center', gap:6, flexShrink:0 }}>
-                      <div style={{ width:24, height:24, borderRadius:'50%', background:color, display:'flex', alignItems:'center', justifyContent:'center', fontSize:9, fontWeight:700, color:'#fff' }}>{initials(ev.creator_name||'?')}</div>
+                      <Avatar name={ev.creator_name||''} size={24} style={{ background:color }} />
                       <span style={{ fontSize:11, color:'var(--muted)' }}>{ev.creator_name}</span>
                     </div>
                   )}
@@ -11405,7 +11413,7 @@ function AutomationView({ contacts, profile, toast, onOpenPricing, onGeneratePre
                     style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', background:'var(--card)', border:'1px solid var(--border)', borderRadius:10, cursor:'pointer' }}
                     onMouseOver={e=>e.currentTarget.style.borderColor='var(--accent)'}
                     onMouseOut={e=>e.currentTarget.style.borderColor='var(--border)'}>
-                    <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(c.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:13 }}>{initials(c.full_name||'?')}</div>
+                    <Avatar name={c.full_name||''} size={36} />
                     <div>
                       <div style={{ fontWeight:600, fontSize:14 }}>{c.full_name}</div>
                       <div style={{ fontSize:12, color:'var(--muted)' }}>{c.phone || c.email || 'No contact info'}</div>
@@ -11439,7 +11447,7 @@ function AutomationView({ contacts, profile, toast, onOpenPricing, onGeneratePre
           {qualMode === 'running' && currentQ && (
             <div>
               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20 }}>
-                <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(qualContact?.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:13 }}>{initials(qualContact?.full_name||'?')}</div>
+                <Avatar name={qualContact?.full_name||''} size={36} />
                 <div>
                   <div style={{ fontWeight:600 }}>{qualContact?.full_name}</div>
                   <div style={{ fontSize:12, color:'var(--muted)' }}>Step {qualStep+1} of {AI_QUAL_QUESTIONS_LOCAL.length}</div>
@@ -11569,9 +11577,7 @@ function AutomationView({ contacts, profile, toast, onOpenPricing, onGeneratePre
           <div style={{ width:480, height:600, background:'var(--surface)', borderRadius:16, border:'1px solid var(--border)', display:'flex', flexDirection:'column', overflow:'hidden' }}
             onClick={e => e.stopPropagation()}>
             <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--border)', display:'flex', alignItems:'center', gap:12 }}>
-              <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(viewConvo.contacts?.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700 }}>
-                {initials(viewConvo.contacts?.full_name||'?')}
-              </div>
+              <Avatar name={viewConvo.contacts?.full_name||''} size={36} />
               <div>
                 <div style={{ fontWeight:700 }}>{viewConvo.contacts?.full_name}</div>
                 <div style={{ fontSize:12, color:'var(--muted)' }}>{viewConvo.contacts?.phone}</div>
@@ -12349,9 +12355,7 @@ function LiveTransferDashboard({ profile, toast }) {
           ) : queue.map(t => (
             <div key={t.id} style={{ background:'var(--card)', border:'2px solid #22c55e33', borderRadius:12, padding:'14px 16px', marginBottom:10 }}>
               <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10 }}>
-                <div style={{ width:36, height:36, borderRadius:'50%', background:avatarColor(t.contacts?.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700 }}>
-                  {initials(t.contacts?.full_name||'?')}
-                </div>
+                <Avatar name={t.contacts?.full_name||''} size={36} />
                 <div style={{ flex:1 }}>
                   <div style={{ fontWeight:700 }}>{t.contacts?.full_name}</div>
                   <div style={{ fontSize:12, color:'var(--muted)' }}>{t.contacts?.phone} · {t.contacts?.stage}</div>
@@ -12605,7 +12609,7 @@ export default function App() {
         </nav>
         <div style={{ padding:16, borderTop:'1px solid rgba(255,255,255,.1)' }}>
           <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-            <div style={{ width:30, height:30, borderRadius:'50%', background:avatarColor(profile.full_name||''), display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700 }}>{initials(profile.full_name||'?')}</div>
+            <Avatar name={profile.full_name||''} size={30} url={profile.avatar_url} />
             <div className="nav-label" style={{ fontSize:13 }}>
               <div style={{ fontWeight:600, color:'#fff' }}>{profile.full_name}</div>
               <div style={{ color:'var(--sidebar-text)', fontSize:11 }}>{profile.title || profile.role}</div>
