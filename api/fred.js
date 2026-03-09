@@ -1,9 +1,9 @@
 // api/fred.js — Vercel serverless proxy for FRED API
-// Bypasses CORS by fetching on the server side
-// Deploy this file to /api/fred.js in your project root
+// Place this file at: /api/fred.js in your project root
+// This avoids CORS restrictions when calling api.stlouisfed.org from the browser
 
 export default async function handler(req, res) {
-  // Allow your Vercel app to call this
+  // Allow all origins (your app's own frontend)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -19,18 +19,18 @@ export default async function handler(req, res) {
   }
 
   try {
-    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${series_id}&api_key=${api_key}&file_type=json&sort_order=desc&limit=5`;
+    const url = `https://api.stlouisfed.org/fred/series/observations?series_id=${series_id}&api_key=${api_key}&sort_order=desc&limit=10&file_type=json`;
     const response = await fetch(url);
+    const data = await response.json();
 
     if (!response.ok) {
-      return res.status(response.status).json({ error: 'FRED API error', status: response.status });
+      return res.status(response.status).json(data);
     }
 
-    const data = await response.json();
-    // Cache for 6 hours on Vercel's CDN
-    res.setHeader('Cache-Control', 's-maxage=21600, stale-while-revalidate');
+    // Cache for 1 hour on CDN edge
+    res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate');
     return res.status(200).json(data);
   } catch (err) {
-    return res.status(500).json({ error: 'Proxy fetch failed', message: err.message });
+    return res.status(500).json({ error: 'Proxy fetch failed: ' + err.message });
   }
 }
