@@ -679,7 +679,9 @@ const avatarColor = (name='') => { const colors=['#3b82f6','#06b6d4','#10b981','
 async function createNotification(opts) {
   console.log('[NOTIF] createNotification called', { type: opts.type, recipient_id: opts.recipient_id, actor_id: opts.actor_id, message: opts.message, item_name: opts.item_name });
   if(!opts.recipient_id) { console.warn('[NOTIF] SKIPPED: no recipient_id'); return; }
-  if(opts.recipient_id === opts.actor_id && opts.type !== 'assignment') { console.warn('[NOTIF] SKIPPED: self-notification for type', opts.type); return; }
+  // Allow self-notifications for status changes and mentions so you see activity on your own items
+  const ALLOW_SELF = ['assignment','status_change','mention','comment','update'];
+  if(opts.recipient_id === opts.actor_id && !ALLOW_SELF.includes(opts.type)) { console.warn('[NOTIF] SKIPPED: self-notification for type', opts.type); return; }
   try {
     const { error } = await supabase.from('notifications').insert([{
       company_id:    opts.company_id,
@@ -1179,6 +1181,17 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [profileForm, setProfileForm] = useState({ full_name: profile?.full_name||'', phone: profile?.phone||'', title: profile?.title||'', avatar_url: profile?.avatar_url||'' });
+  // Keep profileForm in sync when profile prop updates (e.g. after auth reload)
+  React.useEffect(() => {
+    if (profile) {
+      setProfileForm({
+        full_name:  profile.full_name  || '',
+        phone:      profile.phone      || '',
+        title:      profile.title      || '',
+        avatar_url: profile.avatar_url || '',
+      });
+    }
+  }, [profile?.id, profile?.full_name, profile?.title, profile?.avatar_url, profile?.phone]);
   const [profileSaving, setProfileSaving] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -1473,8 +1486,14 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                       const BAD = ['new activity','notification occurred','a notification occurred','activity occurred','you have a new notification','triggered','new notification'];
                       const stored = (n.message||'').trim();
                       const useStored = stored && !BAD.some(b => stored.toLowerCase().includes(b));
-                      if (useStored) return stored;
-                      return (()=>{
+                      // Use stored message if it's descriptive; if it looks like a partial message
+                      // (e.g. "mentioned you in...") prepend the actor name
+                      if (useStored) {
+                        const alreadyHasActor = !n.actor_name || stored.toLowerCase().startsWith(n.actor_name.toLowerCase());
+                        if (!alreadyHasActor) return `${n.actor_name} ${stored}`;
+                        return stored;
+                      }
+                      // Fallback: build from type + actor_name + item_name
                       const who = n.actor_name ? `${n.actor_name} ` : '';
                       const item = n.item_name ? `"${n.item_name}"` : 'an item';
                       const t = (n.type||'').toLowerCase().replace(/[^a-z]/g,'');
@@ -1490,7 +1509,6 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
                       if(t.includes('lock'))         return `Rate lock expiring on ${item}`;
                       if(t.includes('comment')||t.includes('update')) return `${who}commented on ${item}`;
                       return who ? `${who}updated ${item}` : `New activity on ${item}`;
-                    })();
                     })()}
                   </div>
                   {/* Item + workspace */}
@@ -1771,8 +1789,12 @@ function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLo
               onClick={async ()=>{
                 setProfileSaving(true);
                 const updates = { full_name: profileForm.full_name, phone: profileForm.phone, title: profileForm.title, avatar_url: profileForm.avatar_url };
-                await supabase.from('profiles').update(updates).eq('id', profile.id);
+                const { error: saveErr } = await supabase.from('profiles').update(updates).eq('id', profile.id);
                 setProfileSaving(false);
+                if (saveErr) {
+                  alert('Could not save profile: ' + saveErr.message);
+                  return;
+                }
                 setProfileModalOpen(false);
                 onProfileUpdate && onProfileUpdate({ ...profile, ...updates });
               }}
@@ -4071,7 +4093,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
       // Notify assigned officers of status change
       for(const name of (currentItem.assigned_officers||[])) {
         const member = teamMembers.find(m=>m.full_name===name||m.email===name);
-        if(member && member.id !== profile?.id) {
+        if(member) {
           createNotification({
             company_id:    profile.company_name,
             recipient_id:  member.id,
