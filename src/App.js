@@ -6785,9 +6785,7 @@ function TrashArchiveView({ profile, workspaces, toast }) {
   const [archivedItems, setArchivedItems] = useState([]);
   const [trashedItems, setTrashedItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [scheduledEmails, setScheduledEmails] = useState([]);
-  const [schedLoading, setSchedLoading] = useState(false);
-  const [showSchedWizard, setShowSchedWizard] = useState(false);
+
 
   useEffect(()=>{ loadItems(); }, [tab]);
 
@@ -12266,6 +12264,8 @@ function CampaignsView({ contacts, profile, toast, onOpenPricing, onGeneratePres
   const [emailCampaigns, setEmailCampaigns] = useState([]);
   const [smsCampaigns, setSmsCampaigns]     = useState([]);
   const [loading, setLoading] = useState(true);
+  const [scheduledEmails, setScheduledEmails] = useState([]);
+  const [schedLoading, setSchedLoading] = useState(false);
 
   // ── New campaign wizard state ──
   const [wizard, setWizard]   = useState(null); // null | { type:'email'|'sms' }
