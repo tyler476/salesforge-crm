@@ -1029,7 +1029,7 @@ function AuthScreen({ onAuth }) {
 // ─── CONTACT FORM ─────────────────────────────────────────────────────────────
 function ContactForm({ contact, onSave, onClose, companyId, toast }) {
   const CONTACT_GROUPS = ['CDCR','CHCF','CMF','FHA/VA Nor-Cal','FHA/VA So-Cal','SQ'];
-  const blank = { full_name:'', email:'', phone:'', company:'', title:'', address:'', occupation:'', stage:'New Lead', tags:'', notes:'', contact_group:'' };
+  const blank = { full_name:'', email:'', phone:'', company:'', title:'', address:'', occupation:'', date_of_birth:'', stage:'New Lead', tags:'', notes:'', contact_group:'' };
   const [form, setForm] = useState(contact ? {...contact, tags:(contact.tags||[]).join(',')} : blank);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
@@ -1061,6 +1061,7 @@ function ContactForm({ contact, onSave, onClose, companyId, toast }) {
         contact_group: form.contact_group || '',
         tags: form.tags ? form.tags.split(',').map(t=>t.trim()).filter(Boolean) : [],
         notes: form.notes || '',
+        date_of_birth: form.date_of_birth || null,
         company_id: companyId,
         record_type: 'contact',
       };
@@ -1126,6 +1127,10 @@ function ContactForm({ contact, onSave, onClose, companyId, toast }) {
           <div className="form-group">
             <label>Address<span style={optStyle}>optional</span></label>
             <input value={form.address||''} onChange={e=>set('address',e.target.value)} placeholder="123 Main St" />
+          </div>
+          <div className="form-group">
+            <label>Date of Birth<span style={optStyle}>optional</span></label>
+            <input type="date" value={form.date_of_birth||''} onChange={e=>set('date_of_birth',e.target.value)} />
           </div>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
@@ -1288,6 +1293,26 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
             </div>
           ))}
         </div>
+        {contact.date_of_birth && (()=>{
+          const today = new Date();
+          const dob = new Date(contact.date_of_birth);
+          const thisYear = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+          const nextBday = thisYear < today ? new Date(today.getFullYear()+1, dob.getMonth(), dob.getDate()) : thisYear;
+          const daysUntil = Math.round((nextBday - new Date(today.toDateString())) / 86400000);
+          const age = today.getFullYear() - dob.getFullYear() - (today < thisYear ? 1 : 0);
+          const isToday = daysUntil === 0;
+          return (
+            <div style={{background:isToday?'linear-gradient(135deg,rgba(168,85,247,.12),rgba(236,72,153,.08))':'var(--surface2)',border:`1px solid ${isToday?'rgba(168,85,247,.3)':'var(--border)'}`,borderRadius:10,padding:'10px 14px',marginBottom:16,display:'flex',alignItems:'center',gap:10}}>
+              <span style={{fontSize:22}}>{isToday?'🎂':'🎈'}</span>
+              <div style={{flex:1}}>
+                <div style={{fontSize:12,color:'var(--muted)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.05em'}}>Birthday</div>
+                <div style={{fontSize:13,fontWeight:600,marginTop:1}}>
+                  {dob.toLocaleDateString('en-US',{month:'long',day:'numeric'})} · Age {isToday?age:age} · {isToday?<span style={{color:'#a855f7',fontWeight:700}}>Today! 🎉</span>:daysUntil===1?'Tomorrow':`${daysUntil} days away`}
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         <div style={{ marginBottom:20 }}>
           <div style={{ fontSize:12, color:'var(--muted)', marginBottom:8, fontWeight:600, textTransform:'uppercase', letterSpacing:'.05em' }}>Group</div>
@@ -3465,7 +3490,7 @@ function LeadRowActions({ contact, profile, toast, onRefresh, onBuildPresentatio
 // ─── LEAD FORM MODAL ──────────────────────────────────────────────────────────
 function LeadFormModal({ contact, onSave, onClose, companyId, toast }) {
   const SRCS = ['Manual','CSV Import','Hannah AI','Live Transfer','Campaign','Referral','Web'];
-  const blank = {full_name:'',email:'',phone:'',company:'',occupation:'',address:'',stage:'New Lead',source:'Manual',notes:''};
+  const blank = {full_name:'',email:'',phone:'',company:'',occupation:'',address:'',date_of_birth:'',stage:'New Lead',source:'Manual',notes:''};
   const [form, setForm] = useState(contact?{...blank,...contact}:blank);
   const [errors, setErrors] = useState({});
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
@@ -3479,7 +3504,7 @@ function LeadFormModal({ contact, onSave, onClose, companyId, toast }) {
     }
     if (Object.keys(errs).length) { setErrors(errs); toast&&toast('Please fill in the required fields'); return; }
     setErrors({});
-    const payload = {full_name:form.full_name.trim(),email:form.email||'',phone:form.phone||'',company:form.company||'',occupation:form.occupation||'',address:form.address||'',stage:form.stage||'New Lead',source:form.source||'Manual',notes:form.notes||'',company_id:companyId,record_type:'lead'};
+    const payload = {full_name:form.full_name.trim(),email:form.email||'',phone:form.phone||'',company:form.company||'',occupation:form.occupation||'',address:form.address||'',date_of_birth:form.date_of_birth||null,stage:form.stage||'New Lead',source:form.source||'Manual',notes:form.notes||'',company_id:companyId,record_type:'lead'};
     if(contact?.id){
       const {error}=await supabase.from('contacts').update(payload).eq('id',contact.id);
       if(error){toast&&toast('Error: '+error.message);return;}
@@ -3529,6 +3554,10 @@ function LeadFormModal({ contact, onSave, onClose, companyId, toast }) {
           <div className="form-group">
             <label>Address<span style={optStyle}>optional</span></label>
             <input value={form.address||''} onChange={e=>set('address',e.target.value)} placeholder="123 Main St" />
+          </div>
+          <div className="form-group">
+            <label>Date of Birth<span style={optStyle}>optional</span></label>
+            <input type="date" value={form.date_of_birth||''} onChange={e=>set('date_of_birth',e.target.value)} />
           </div>
         </div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginTop:4}}>
@@ -6756,6 +6785,9 @@ function TrashArchiveView({ profile, workspaces, toast }) {
   const [archivedItems, setArchivedItems] = useState([]);
   const [trashedItems, setTrashedItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [scheduledEmails, setScheduledEmails] = useState([]);
+  const [schedLoading, setSchedLoading] = useState(false);
+  const [showSchedWizard, setShowSchedWizard] = useState(false);
 
   useEffect(()=>{ loadItems(); }, [tab]);
 
@@ -11841,6 +11873,394 @@ const CAMPAIGN_TEMPLATES = {
   ],
 };
 
+// ─── SCHEDULED EMAILS PANEL ──────────────────────────────────────────────────
+function ScheduledEmailsPanel({ companyId, profile, contacts, toast, scheduledEmails, loading, onRefresh }) {
+  const [showWizard, setShowWizard]     = useState(false);
+  const [wizardMode, setWizardMode]     = useState('one-time'); // 'one-time' | 'birthday' | 'holiday'
+  const [cancelling, setCancelling]     = useState(null);
+  const [showBdaySetup, setShowBdaySetup] = useState(false);
+  const [bdaySaving, setBdaySaving]     = useState(false);
+
+  // ── One-time / recurring wizard form ──
+  const blankWiz = { name:'', contact_id:'', template_id:'bt_rate_update', custom_subject:'', custom_body:'', send_at:'', recurrence:'once' };
+  const [wiz, setWiz] = useState(blankWiz);
+  const setW = (k,v) => setWiz(w=>({...w,[k]:v}));
+  const [wizSaving, setWizSaving] = useState(false);
+  const [showTplPicker, setShowTplPicker] = useState(false);
+
+  // ── Birthday auto-scheduler setup ──
+  const [bdayTime, setBdayTime]         = useState('09:00');
+  const [bdayTemplateId, setBdayTemplateId] = useState('bt_birthday');
+  const [bdayEnabled, setBdayEnabled]   = useState(false);
+
+  const withDOB = contacts.filter(c => c.date_of_birth && c.email);
+
+  const now = new Date();
+  const pending  = scheduledEmails.filter(e => e.status === 'pending');
+  const sent     = scheduledEmails.filter(e => e.status === 'sent');
+  const failed   = scheduledEmails.filter(e => e.status === 'failed');
+
+  // Days until next birthday
+  const daysUntilBday = (dob) => {
+    if (!dob) return null;
+    const d = new Date(dob);
+    const today = new Date();
+    const next = new Date(today.getFullYear(), d.getMonth(), d.getDate());
+    if (next < today) next.setFullYear(today.getFullYear() + 1);
+    return Math.round((next - new Date(today.toDateString())) / 86400000);
+  };
+
+  // Upcoming birthdays (next 60 days)
+  const upcomingBdays = withDOB
+    .map(c => ({ ...c, _days: daysUntilBday(c.date_of_birth) }))
+    .filter(c => c._days !== null && c._days <= 60)
+    .sort((a,b) => a._days - b._days);
+
+  const cancelScheduled = async (id) => {
+    setCancelling(id);
+    await supabase.from('scheduled_emails').update({ status:'cancelled' }).eq('id', id);
+    toast && toast('Email cancelled');
+    onRefresh();
+    setCancelling(null);
+  };
+
+  const saveOneTime = async () => {
+    if (!wiz.contact_id || !wiz.send_at) { toast && toast('Select a contact and send date'); return; }
+    setWizSaving(true);
+    const contact = contacts.find(c => c.id === wiz.contact_id);
+    const tpl = BUILTIN_EMAIL_TEMPLATES.find(t => t.id === wiz.template_id);
+    const subject = wiz.custom_subject || personaliseTemplate(tpl?.subject || '', contact, profile);
+    const body    = wiz.custom_body    || personaliseTemplate(tpl?.body    || '', contact, profile);
+    const { error } = await supabase.from('scheduled_emails').insert([{
+      company_id: companyId,
+      contact_id: wiz.contact_id,
+      template_id: wiz.template_id,
+      send_at: new Date(wiz.send_at).toISOString(),
+      recurrence: wiz.recurrence,
+      status: 'pending',
+      subject,
+      body,
+      created_by: profile?.id,
+    }]);
+    if (error) { toast && toast('Error: ' + error.message); setWizSaving(false); return; }
+    toast && toast('Email scheduled!');
+    setWizSaving(false);
+    setShowWizard(false);
+    setWiz(blankWiz);
+    onRefresh();
+  };
+
+  // Birthday auto-scheduler: create/update pending birthday emails for all contacts with DOB
+  const saveBirthdaySchedules = async () => {
+    setBdaySaving(true);
+    const tpl = BUILTIN_EMAIL_TEMPLATES.find(t => t.id === bdayTemplateId) || BUILTIN_EMAIL_TEMPLATES.find(t => t.id === 'bt_birthday');
+    let queued = 0;
+
+    for (const c of withDOB) {
+      // Check if already has a pending yearly birthday email
+      const existing = scheduledEmails.find(e =>
+        e.contact_id === c.id && e.recurrence === 'yearly' && e.status === 'pending'
+      );
+      if (existing) continue;
+
+      const dob = new Date(c.date_of_birth);
+      const today = new Date();
+      let nextBday = new Date(today.getFullYear(), dob.getMonth(), dob.getDate());
+      const [hh, mm] = bdayTime.split(':');
+      nextBday.setHours(parseInt(hh), parseInt(mm), 0, 0);
+      if (nextBday <= today) nextBday.setFullYear(today.getFullYear() + 1);
+
+      const subject = personaliseTemplate(tpl?.subject || '🎂 Happy Birthday, {firstName}!', c, profile);
+      const body    = personaliseTemplate(tpl?.body    || '', c, profile);
+
+      await supabase.from('scheduled_emails').insert([{
+        company_id: companyId,
+        contact_id: c.id,
+        template_id: bdayTemplateId,
+        send_at: nextBday.toISOString(),
+        recurrence: 'yearly',
+        status: 'pending',
+        subject,
+        body,
+        created_by: profile?.id,
+      }]);
+      queued++;
+    }
+    toast && toast(queued > 0 ? `Scheduled ${queued} birthday email${queued!==1?'s':''}!` : 'All contacts already have birthday emails scheduled');
+    setBdaySaving(false);
+    setShowBdaySetup(false);
+    onRefresh();
+  };
+
+  const STATUS_STYLE = {
+    pending:   { bg:'rgba(59,130,246,.12)',  color:'#3b82f6',  label:'Scheduled' },
+    sent:      { bg:'rgba(26,154,92,.12)',   color:'#1a9a5c',  label:'Sent' },
+    failed:    { bg:'rgba(239,68,68,.12)',   color:'#ef4444',  label:'Failed' },
+    cancelled: { bg:'rgba(107,114,128,.12)', color:'#6b7280',  label:'Cancelled' },
+  };
+
+  return (
+    <div>
+      {/* ── Header stats ── */}
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:24}}>
+        {[
+          {label:'Scheduled',val:pending.length,  color:'#3b82f6',icon:'🗓️'},
+          {label:'Sent',     val:sent.length,      color:'#1a9a5c',icon:'✅'},
+          {label:'Failed',   val:failed.length,    color:'#ef4444',icon:'⚠️'},
+          {label:'With Birthday',val:withDOB.length,color:'#a855f7',icon:'🎂'},
+        ].map(s=>(
+          <div key={s.label} style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:12,padding:'16px 18px'}}>
+            <div style={{fontSize:20,marginBottom:6}}>{s.icon}</div>
+            <div style={{fontSize:11,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:4}}>{s.label}</div>
+            <div style={{fontSize:26,fontWeight:800,fontFamily:'Syne,sans-serif',color:s.color}}>{s.val}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Action buttons ── */}
+      <div style={{display:'flex',gap:10,marginBottom:24,flexWrap:'wrap'}}>
+        <button onClick={()=>{ setWizardMode('one-time'); setShowWizard(true); }}
+          style={{padding:'9px 18px',borderRadius:8,background:'var(--accent)',border:'none',color:'#fff',fontWeight:600,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          Schedule One-Time Email
+        </button>
+        <button onClick={()=>setShowBdaySetup(true)}
+          style={{padding:'9px 18px',borderRadius:8,background:'linear-gradient(135deg,#a855f7,#ec4899)',border:'none',color:'#fff',fontWeight:600,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
+          🎂 Auto-Schedule Birthday Emails
+        </button>
+      </div>
+
+      {/* ── Upcoming birthdays preview ── */}
+      {upcomingBdays.length > 0 && (
+        <div style={{background:'linear-gradient(135deg,rgba(168,85,247,.06),rgba(236,72,153,.04))',border:'1px solid rgba(168,85,247,.2)',borderRadius:12,padding:'16px 20px',marginBottom:24}}>
+          <div style={{fontWeight:700,fontSize:13,color:'#a855f7',marginBottom:12,display:'flex',alignItems:'center',gap:6}}>
+            🎈 Upcoming Birthdays <span style={{fontSize:11,fontWeight:400,color:'var(--muted)'}}>next 60 days</span>
+          </div>
+          <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
+            {upcomingBdays.slice(0,8).map(c=>(
+              <div key={c.id} style={{background:'var(--surface)',border:'1px solid rgba(168,85,247,.15)',borderRadius:10,padding:'8px 12px',display:'flex',alignItems:'center',gap:8}}>
+                <Avatar name={c.full_name} size={28}/>
+                <div>
+                  <div style={{fontSize:12,fontWeight:600}}>{c.full_name}</div>
+                  <div style={{fontSize:11,color:c._days===0?'#a855f7':'var(--muted)'}}>
+                    {c._days===0?'🎉 Today!':c._days===1?'Tomorrow':`in ${c._days} days`}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Scheduled list ── */}
+      <div style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:12,overflow:'hidden'}}>
+        <div style={{padding:'14px 20px',borderBottom:'1px solid var(--border)',fontWeight:700,fontSize:14,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <span>Scheduled Emails</span>
+          <button onClick={onRefresh} style={{padding:'4px 12px',borderRadius:6,background:'var(--surface2)',border:'1px solid var(--border)',color:'var(--text)',fontSize:12,cursor:'pointer'}}>↻ Refresh</button>
+        </div>
+        {loading ? (
+          <div style={{padding:40,textAlign:'center',color:'var(--muted)'}}>Loading…</div>
+        ) : scheduledEmails.length === 0 ? (
+          <div style={{padding:48,textAlign:'center',color:'var(--muted)'}}>
+            <div style={{fontSize:36,marginBottom:12}}>🗓️</div>
+            <div style={{fontWeight:600,marginBottom:6}}>No scheduled emails yet</div>
+            <div style={{fontSize:13}}>Click "Schedule One-Time Email" or set up birthday auto-emails above</div>
+          </div>
+        ) : (
+          <table style={{width:'100%',borderCollapse:'collapse'}}>
+            <thead>
+              <tr style={{background:'var(--surface2)',fontSize:11,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em'}}>
+                {['Contact','Subject','Send Date','Type','Status',''].map(h=>(
+                  <th key={h} style={{padding:'10px 16px',textAlign:'left',fontWeight:600}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {scheduledEmails.map((e,i)=>{
+                const st = STATUS_STYLE[e.status] || STATUS_STYLE.pending;
+                const sendDate = new Date(e.send_at);
+                const isPast = sendDate < now;
+                return (
+                  <tr key={e.id} style={{borderTop:'1px solid var(--border)',background:i%2===0?'transparent':'var(--surface2)'}}>
+                    <td style={{padding:'12px 16px'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8}}>
+                        <Avatar name={e.contacts?.full_name||'?'} size={28}/>
+                        <div>
+                          <div style={{fontSize:13,fontWeight:600}}>{e.contacts?.full_name||'—'}</div>
+                          <div style={{fontSize:11,color:'var(--muted)'}}>{e.contacts?.email||''}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{padding:'12px 16px',fontSize:13,maxWidth:200}}>
+                      <div style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{e.subject||'—'}</div>
+                    </td>
+                    <td style={{padding:'12px 16px',fontSize:13}}>
+                      <div style={{fontWeight:e.status==='pending'&&!isPast?600:400}}>
+                        {sendDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+                      </div>
+                      <div style={{fontSize:11,color:'var(--muted)'}}>{sendDate.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}</div>
+                    </td>
+                    <td style={{padding:'12px 16px'}}>
+                      <span style={{fontSize:11,padding:'3px 9px',borderRadius:20,background:'rgba(107,114,128,.1)',color:'var(--muted)',fontWeight:500}}>
+                        {e.recurrence==='yearly'?'🔁 Yearly':'1x'}
+                      </span>
+                    </td>
+                    <td style={{padding:'12px 16px'}}>
+                      <span style={{fontSize:11,padding:'3px 9px',borderRadius:20,background:st.bg,color:st.color,fontWeight:600}}>
+                        {st.label}
+                      </span>
+                    </td>
+                    <td style={{padding:'12px 16px'}}>
+                      {e.status==='pending' && (
+                        <button onClick={()=>cancelScheduled(e.id)} disabled={cancelling===e.id}
+                          style={{padding:'4px 10px',borderRadius:6,background:'rgba(239,68,68,.08)',border:'1px solid rgba(239,68,68,.2)',color:'#ef4444',fontSize:12,cursor:'pointer'}}>
+                          {cancelling===e.id?'…':'Cancel'}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* ── One-time schedule wizard ── */}
+      {showWizard && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:99999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}
+          onClick={()=>setShowWizard(false)}>
+          <div style={{width:'min(540px,95vw)',background:'var(--surface)',borderRadius:16,border:'1px solid var(--border)',overflow:'hidden',boxShadow:'0 24px 64px rgba(0,0,0,.4)'}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{padding:'18px 24px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center',background:'var(--surface2)'}}>
+              <div style={{fontWeight:700,fontSize:15}}>Schedule an Email</div>
+              <button onClick={()=>setShowWizard(false)} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',fontSize:20}}>✕</button>
+            </div>
+            <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14}}>
+              {/* Contact picker */}
+              <div>
+                <label style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',display:'block',marginBottom:5}}>Contact</label>
+                <select value={wiz.contact_id} onChange={e=>setW('contact_id',e.target.value)}
+                  style={{width:'100%',padding:'9px 12px',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:7,color:'var(--text)',fontSize:13}}>
+                  <option value="">— Select a contact —</option>
+                  {contacts.filter(c=>c.email).map(c=>(
+                    <option key={c.id} value={c.id}>{c.full_name} ({c.email})</option>
+                  ))}
+                </select>
+              </div>
+              {/* Template picker */}
+              <div>
+                <label style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',display:'block',marginBottom:5}}>Template</label>
+                <div style={{display:'flex',gap:8}}>
+                  <select value={wiz.template_id} onChange={e=>setW('template_id',e.target.value)}
+                    style={{flex:1,padding:'9px 12px',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:7,color:'var(--text)',fontSize:13}}>
+                    {BUILTIN_EMAIL_TEMPLATES.map(t=>(
+                      <option key={t.id} value={t.id}>[{t.category}] {t.name}</option>
+                    ))}
+                  </select>
+                  <button onClick={()=>setShowTplPicker(true)}
+                    style={{padding:'9px 14px',borderRadius:7,background:'var(--surface2)',border:'1px solid var(--border)',color:'var(--text)',fontSize:12,cursor:'pointer',whiteSpace:'nowrap'}}>
+                    Browse All
+                  </button>
+                </div>
+              </div>
+              {/* Send date + time */}
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                <div>
+                  <label style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',display:'block',marginBottom:5}}>Send Date & Time</label>
+                  <input type="datetime-local" value={wiz.send_at} onChange={e=>setW('send_at',e.target.value)}
+                    style={{width:'100%',padding:'9px 12px',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:7,color:'var(--text)',fontSize:13,boxSizing:'border-box'}} />
+                </div>
+                <div>
+                  <label style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',display:'block',marginBottom:5}}>Recurrence</label>
+                  <select value={wiz.recurrence} onChange={e=>setW('recurrence',e.target.value)}
+                    style={{width:'100%',padding:'9px 12px',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:7,color:'var(--text)',fontSize:13}}>
+                    <option value="once">One-time only</option>
+                    <option value="yearly">Yearly (same date)</option>
+                  </select>
+                </div>
+              </div>
+              {/* Custom subject override */}
+              <div>
+                <label style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',display:'block',marginBottom:5}}>Subject Override <span style={{fontWeight:400,textTransform:'none'}}>(optional — uses template default if blank)</span></label>
+                <input value={wiz.custom_subject} onChange={e=>setW('custom_subject',e.target.value)}
+                  placeholder="Leave blank to use template subject..."
+                  style={{width:'100%',padding:'9px 12px',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:7,color:'var(--text)',fontSize:13,boxSizing:'border-box'}} />
+              </div>
+            </div>
+            <div style={{padding:'14px 24px',borderTop:'1px solid var(--border)',display:'flex',justifyContent:'flex-end',gap:10}}>
+              <button onClick={()=>setShowWizard(false)} style={{padding:'8px 18px',borderRadius:7,background:'var(--surface2)',border:'1px solid var(--border)',color:'var(--text)',cursor:'pointer',fontSize:13}}>Cancel</button>
+              <button onClick={saveOneTime} disabled={wizSaving||!wiz.contact_id||!wiz.send_at}
+                style={{padding:'8px 22px',borderRadius:7,background:'var(--accent)',border:'none',color:'#fff',fontWeight:600,fontSize:13,cursor:'pointer',opacity:(!wiz.contact_id||!wiz.send_at)?0.5:1}}>
+                {wizSaving?'Scheduling…':'Schedule Email →'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Birthday auto-scheduler setup ── */}
+      {showBdaySetup && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:99999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}
+          onClick={()=>setShowBdaySetup(false)}>
+          <div style={{width:'min(500px,95vw)',background:'var(--surface)',borderRadius:16,border:'1px solid var(--border)',overflow:'hidden',boxShadow:'0 24px 64px rgba(0,0,0,.4)'}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{padding:'18px 24px',borderBottom:'1px solid var(--border)',background:'linear-gradient(135deg,rgba(168,85,247,.12),rgba(236,72,153,.06))'}}>
+              <div style={{fontWeight:700,fontSize:15,display:'flex',alignItems:'center',gap:8}}>🎂 Birthday Auto-Scheduler</div>
+              <div style={{fontSize:12,color:'var(--muted)',marginTop:4}}>Automatically queues birthday emails for all contacts with a date of birth on file</div>
+            </div>
+            <div style={{padding:'20px 24px',display:'flex',flexDirection:'column',gap:14}}>
+              <div style={{background:'var(--surface2)',borderRadius:10,padding:'14px 16px',display:'flex',alignItems:'center',gap:10}}>
+                <span style={{fontSize:28}}>🎈</span>
+                <div>
+                  <div style={{fontWeight:700,fontSize:14}}>{withDOB.length} contacts with a birthday on file</div>
+                  <div style={{fontSize:12,color:'var(--muted)',marginTop:2}}>{contacts.length - withDOB.length} contacts missing DOB — add it in their profile</div>
+                </div>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12}}>
+                <div>
+                  <label style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',display:'block',marginBottom:5}}>Send Time</label>
+                  <input type="time" value={bdayTime} onChange={e=>setBdayTime(e.target.value)}
+                    style={{width:'100%',padding:'9px 12px',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:7,color:'var(--text)',fontSize:13,boxSizing:'border-box'}} />
+                </div>
+                <div>
+                  <label style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',display:'block',marginBottom:5}}>Template</label>
+                  <select value={bdayTemplateId} onChange={e=>setBdayTemplateId(e.target.value)}
+                    style={{width:'100%',padding:'9px 12px',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:7,color:'var(--text)',fontSize:13}}>
+                    {BUILTIN_EMAIL_TEMPLATES.filter(t=>t.category==='Birthday'||t.category==='Holiday').map(t=>(
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div style={{background:'rgba(168,85,247,.06)',border:'1px solid rgba(168,85,247,.15)',borderRadius:10,padding:'12px 16px',fontSize:13,color:'var(--muted)',lineHeight:1.7}}>
+                <strong style={{color:'var(--text)'}}>How it works:</strong> Each contact gets a yearly recurring birthday email queued for their next birthday at the time you pick. Your Supabase edge function (<code>email-scheduler</code>) runs daily and sends any emails due that day automatically — no browser needed.
+              </div>
+            </div>
+            <div style={{padding:'14px 24px',borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span style={{fontSize:12,color:'var(--muted)'}}>{withDOB.length} emails will be queued</span>
+              <div style={{display:'flex',gap:10}}>
+                <button onClick={()=>setShowBdaySetup(false)} style={{padding:'8px 18px',borderRadius:7,background:'var(--surface2)',border:'1px solid var(--border)',color:'var(--text)',cursor:'pointer',fontSize:13}}>Cancel</button>
+                <button onClick={saveBirthdaySchedules} disabled={bdaySaving||withDOB.length===0}
+                  style={{padding:'8px 22px',borderRadius:7,background:'linear-gradient(135deg,#a855f7,#ec4899)',border:'none',color:'#fff',fontWeight:600,fontSize:13,cursor:'pointer',opacity:withDOB.length===0?0.5:1}}>
+                  {bdaySaving?'Scheduling…':`Schedule ${withDOB.length} Birthday Emails →`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Template picker from wizard */}
+      {showTplPicker && (
+        <TemplatePickerModal profile={profile} onClose={()=>setShowTplPicker(false)}
+          onSelect={t=>{ setW('template_id', t.id); setShowTplPicker(false); }} />
+      )}
+    </div>
+  );
+}
+
+
 function CampaignsView({ contacts, profile, toast, onOpenPricing, onGeneratePresentation }) {
   const [tab, setTab] = useState('email');
   const [emailCampaigns, setEmailCampaigns] = useState([]);
@@ -11889,6 +12309,19 @@ function CampaignsView({ contacts, profile, toast, onOpenPricing, onGeneratePres
   }, [companyId]);
 
   useEffect(()=>{ loadCampaigns(); },[loadCampaigns]);
+
+  const loadScheduled = React.useCallback(async () => {
+    if(!companyId) return;
+    setSchedLoading(true);
+    const { data } = await supabase.from('scheduled_emails')
+      .select('*, contacts(full_name, email, date_of_birth)')
+      .eq('company_id', companyId)
+      .order('send_at', { ascending: true });
+    setScheduledEmails(data || []);
+    setSchedLoading(false);
+  }, [companyId]);
+
+  useEffect(()=>{ if(tab==='scheduled') loadScheduled(); },[tab, loadScheduled]);
 
   // ── Resolve recipients ──
   const getRecipients = () => {
@@ -12071,7 +12504,7 @@ function CampaignsView({ contacts, profile, toast, onOpenPricing, onGeneratePres
 
       {/* Tabs */}
       <div style={{display:'flex',gap:4,marginBottom:20,background:'var(--surface2)',borderRadius:10,padding:4,width:'fit-content'}}>
-        {[['email','📧 Email'],['sms','📱 SMS'],['ai-outreach','🤖 AI Outreach']].map(([t,l])=>(
+        {[['email','📧 Email'],['sms','📱 SMS'],['scheduled','🗓️ Scheduled'],['ai-outreach','🤖 AI Outreach']].map(([t,l])=>(
           <button key={t} onClick={()=>setTab(t)}
             style={{padding:'7px 18px',borderRadius:7,border:'none',background:tab===t?'var(--surface)':'transparent',color:tab===t?'var(--text)':'var(--muted)',fontWeight:tab===t?600:400,fontSize:13,cursor:'pointer',boxShadow:tab===t?'0 1px 4px rgba(0,0,0,.15)':'none',transition:'all .15s'}}>
             {l}
@@ -12159,6 +12592,20 @@ function CampaignsView({ contacts, profile, toast, onOpenPricing, onGeneratePres
             </div>
           )}
         </div>
+      )}
+
+
+      {/* Scheduled Emails Tab */}
+      {tab==='scheduled' && (
+        <ScheduledEmailsPanel
+          companyId={companyId}
+          profile={profile}
+          contacts={contacts}
+          toast={toast}
+          scheduledEmails={scheduledEmails}
+          loading={schedLoading}
+          onRefresh={loadScheduled}
+        />
       )}
 
       {/* AI Outreach Tab */}
