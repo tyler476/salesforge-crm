@@ -11275,16 +11275,16 @@ function PresentationGenerator({ qualData, onBack, onSendToLead, toast: toastFn 
 const CONTACT_GROUPS_CAMP = ['CDCR','CHCF','CMF','FHA/VA Nor-Cal','FHA/VA So-Cal','SQ'];
 const CAMPAIGN_TEMPLATES = {
   email: [
-    { label:'Rate Check-In', subject:'Quick update on rates for you, {firstName}', body:'Hi {firstName},\n\nI wanted to reach out with a quick update — rates have been shifting and I'd love to take 10 minutes to run fresh numbers for your situation.\n\nWould you be open to a quick call this week?\n\nBest,\n{loName}' },
-    { label:'New Listing Follow-Up', subject:'A home just hit the market in your target area', body:'Hi {firstName},\n\nA new listing just came up that caught my eye for you. Before you fall in love with it, I want to make sure your financing is locked and ready.\n\nLet's get your pre-approval squared away so you can move fast if needed.\n\n{loName}' },
-    { label:'Re-engagement', subject:'Still here to help, {firstName}', body:'Hi {firstName},\n\nI know life gets busy — I just wanted to check in and let you know I'm still here whenever you're ready to move forward on a home loan.\n\nNo pressure, just a friendly reminder. Feel free to reply anytime.\n\n{loName}' },
-    { label:'Presentation Follow-Up', subject:'Following up on your mortgage presentation', body:'Hi {firstName},\n\nI sent over your personalized mortgage presentation a few days ago and wanted to make sure you had a chance to review it.\n\nDo you have any questions on the rates or loan options? Happy to walk through it together.\n\n{loName}' },
+    { label:'Rate Check-In', subject:'Quick update on rates for you, {firstName}', body:"Hi {firstName},\n\nI wanted to reach out with a quick update — rates have been shifting and I'd love to take 10 minutes to run fresh numbers for your situation.\n\nWould you be open to a quick call this week?\n\nBest,\n{loName}" },
+    { label:'New Listing Follow-Up', subject:'A home just hit the market in your target area', body:"Hi {firstName},\n\nA new listing just came up that caught my eye for you. Before you fall in love with it, I want to make sure your financing is locked and ready.\n\nLet's get your pre-approval squared away so you can move fast if needed.\n\n{loName}" },
+    { label:'Re-engagement', subject:'Still here to help, {firstName}', body:"Hi {firstName},\n\nI know life gets busy — I just wanted to check in and let you know I'm still here whenever you're ready to move forward on a home loan.\n\nNo pressure, just a friendly reminder. Feel free to reply anytime.\n\n{loName}" },
+    { label:'Presentation Follow-Up', subject:'Following up on your mortgage presentation', body:"Hi {firstName},\n\nI sent over your personalized mortgage presentation a few days ago and wanted to make sure you had a chance to review it.\n\nDo you have any questions on the rates or loan options? Happy to walk through it together.\n\n{loName}" },
   ],
   sms: [
-    { label:'Quick Check-In', body:'Hi {firstName}, this is {loName} from Citizens Financial. Rates moved this week — want me to run fresh numbers for you? Reply YES and I'll send them over.' },
+    { label:'Quick Check-In', body:"Hi {firstName}, this is {loName} from Citizens Financial. Rates moved this week — want me to run fresh numbers for you? Reply YES and I'll send them over." },
     { label:'Appointment Reminder', body:'Hi {firstName}, just a reminder about your appointment with {loName} tomorrow. Reply CONFIRM or RESCHEDULE.' },
-    { label:'Re-engagement', body:'Hey {firstName}! {loName} here from Citizens Financial. Still thinking about buying? I can pull current rates for your area in minutes. Reply back anytime 🏠' },
-    { label:'Rate Alert', body:'Hi {firstName} — rates just dropped to their lowest point this month. Now might be a great time to lock in. Want me to run numbers? — {loName}, Citizens Financial' },
+    { label:'Re-engagement', body:"Hey {firstName}! {loName} here from Citizens Financial. Still thinking about buying? I can pull current rates for your area in minutes. Reply back anytime 🏠" },
+    { label:'Rate Alert', body:"Hi {firstName} — rates just dropped to their lowest point this month. Now might be a great time to lock in. Want me to run numbers? — {loName}, Citizens Financial" },
   ],
 };
 
