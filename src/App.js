@@ -9642,7 +9642,7 @@ Respond with well-structured answers using bullet points and headers. Be concise
       'pricing': 'pricing', 'pricer': 'pricing', 'price engine': 'pricing',
       'calendar': 'calendar',
       'presentations': 'presentations', 'presentation': 'presentations',
-      'automation': 'automation',
+      'automation': 'campaigns',
       'lenders': 'lenders', 'lender': 'lenders',
       'rate compare': 'ratecompare', 'ratecompare': 'ratecompare',
       'lead scoring': 'lead-scoring', 'scoring': 'lead-scoring',
@@ -11269,6 +11269,623 @@ function PresentationGenerator({ qualData, onBack, onSendToLead, toast: toastFn 
   );
 }
 
+
+
+// ─── CAMPAIGNS VIEW ──────────────────────────────────────────────────────────
+const CONTACT_GROUPS_CAMP = ['CDCR','CHCF','CMF','FHA/VA Nor-Cal','FHA/VA So-Cal','SQ'];
+const CAMPAIGN_TEMPLATES = {
+  email: [
+    { label:'Rate Check-In', subject:'Quick update on rates for you, {firstName}', body:'Hi {firstName},\n\nI wanted to reach out with a quick update — rates have been shifting and I'd love to take 10 minutes to run fresh numbers for your situation.\n\nWould you be open to a quick call this week?\n\nBest,\n{loName}' },
+    { label:'New Listing Follow-Up', subject:'A home just hit the market in your target area', body:'Hi {firstName},\n\nA new listing just came up that caught my eye for you. Before you fall in love with it, I want to make sure your financing is locked and ready.\n\nLet's get your pre-approval squared away so you can move fast if needed.\n\n{loName}' },
+    { label:'Re-engagement', subject:'Still here to help, {firstName}', body:'Hi {firstName},\n\nI know life gets busy — I just wanted to check in and let you know I'm still here whenever you're ready to move forward on a home loan.\n\nNo pressure, just a friendly reminder. Feel free to reply anytime.\n\n{loName}' },
+    { label:'Presentation Follow-Up', subject:'Following up on your mortgage presentation', body:'Hi {firstName},\n\nI sent over your personalized mortgage presentation a few days ago and wanted to make sure you had a chance to review it.\n\nDo you have any questions on the rates or loan options? Happy to walk through it together.\n\n{loName}' },
+  ],
+  sms: [
+    { label:'Quick Check-In', body:'Hi {firstName}, this is {loName} from Citizens Financial. Rates moved this week — want me to run fresh numbers for you? Reply YES and I'll send them over.' },
+    { label:'Appointment Reminder', body:'Hi {firstName}, just a reminder about your appointment with {loName} tomorrow. Reply CONFIRM or RESCHEDULE.' },
+    { label:'Re-engagement', body:'Hey {firstName}! {loName} here from Citizens Financial. Still thinking about buying? I can pull current rates for your area in minutes. Reply back anytime 🏠' },
+    { label:'Rate Alert', body:'Hi {firstName} — rates just dropped to their lowest point this month. Now might be a great time to lock in. Want me to run numbers? — {loName}, Citizens Financial' },
+  ],
+};
+
+function CampaignsView({ contacts, profile, toast, onOpenPricing, onGeneratePresentation }) {
+  const [tab, setTab] = useState('email');
+  const [emailCampaigns, setEmailCampaigns] = useState([]);
+  const [smsCampaigns, setSmsCampaigns]     = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // ── New campaign wizard state ──
+  const [wizard, setWizard]   = useState(null); // null | { type:'email'|'sms' }
+  const [step, setStep]       = useState('compose'); // compose | preview | sending | done
+  const [sentCount, setSentCount] = useState(0);
+  const [sendProgress, setSendProgress] = useState(0);
+
+  // ── Compose form ──
+  const [form, setForm] = useState({
+    name: '', subject: '', body: '',
+    audience: 'all',      // all | group | single
+    group: CONTACT_GROUPS_CAMP[0],
+    singleContact: null,
+    scheduleEnabled: false,
+    scheduleDate: '',
+  });
+  const setF = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  // ── Single contact search ──
+  const [contactSearch, setContactSearch] = useState('');
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [viewDetail, setViewDetail]       = useState(null);
+
+  const companyId = profile?.company_name;
+
+  // ── Load campaigns ──
+  const loadCampaigns = React.useCallback(async () => {
+    if(!companyId) return;
+    setLoading(true);
+    const [{ data: ec }, { data: sc }] = await Promise.all([
+      supabase.from('automation_campaigns').select('*')
+        .eq('company_id', companyId).eq('channel','email')
+        .order('created_at',{ascending:false}),
+      supabase.from('automation_campaigns').select('*')
+        .eq('company_id', companyId).eq('channel','sms')
+        .order('created_at',{ascending:false}),
+    ]);
+    setEmailCampaigns(ec||[]);
+    setSmsCampaigns(sc||[]);
+    setLoading(false);
+  }, [companyId]);
+
+  useEffect(()=>{ loadCampaigns(); },[loadCampaigns]);
+
+  // ── Resolve recipients ──
+  const getRecipients = () => {
+    if(form.audience==='single') return form.singleContact ? [form.singleContact] : [];
+    let pool = [...contacts];
+    if(form.audience==='group') pool = pool.filter(c=>c.contact_group===form.group);
+    if(wizard?.type==='email') pool = pool.filter(c=>c.email);
+    if(wizard?.type==='sms')   pool = pool.filter(c=>c.phone);
+    return pool;
+  };
+
+  const recipients = getRecipients();
+
+  // ── Personalise message ──
+  const personalise = (text, contact) => {
+    const firstName = (contact?.full_name||'').split(' ')[0] || 'there';
+    return (text||'')
+      .replace(/\{firstName\}/g, firstName)
+      .replace(/\{loName\}/g, profile?.full_name||'Your Loan Officer')
+      .replace(/\{company\}/g, profile?.company_name||'Citizens Financial');
+  };
+
+  // ── Save campaign to DB ──
+  const saveCampaignRecord = async (sentCount) => {
+    const { data } = await supabase.from('automation_campaigns').insert([{
+      company_id: companyId,
+      name: form.name || (wizard?.type==='email' ? 'Email Campaign' : 'SMS Campaign'),
+      channel: wizard?.type,
+      status: 'complete',
+      total_leads: recipients.length,
+      sent_count: sentCount,
+      created_by: profile.id,
+      tag: form.audience==='group' ? form.group : (form.audience==='single' ? 'Single Send' : 'All Contacts'),
+    }]).select().single();
+    return data;
+  };
+
+  // ── SEND EMAIL CAMPAIGN ──
+  const sendEmailCampaign = async () => {
+    setStep('sending'); setSendProgress(0); setSentCount(0);
+    let sent = 0;
+    for(let i=0; i<recipients.length; i++) {
+      const c = recipients[i];
+      try {
+        const html = `<div style="font-family:Inter,sans-serif;max-width:600px;margin:0 auto;">
+          <div style="background:#0c1a35;padding:28px 36px;border-radius:12px 12px 0 0;">
+            <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style="height:32px;filter:brightness(0) invert(1);display:block;margin-bottom:8px;"/>
+          </div>
+          <div style="padding:28px 36px;background:#fff;border-radius:0 0 12px 12px;border:1px solid #eee;">
+            <p style="font-size:15px;color:#222;line-height:1.75;white-space:pre-wrap;">${personalise(form.body,c)}</p>
+            <hr style="border:none;border-top:1px solid #eee;margin:24px 0;"/>
+            <p style="font-size:12px;color:#999;">You're receiving this from ${profile?.full_name||'Citizens Financial'}. To unsubscribe reply STOP.</p>
+          </div>
+        </div>`;
+        const result = await sendClientEmail({
+          to: c.email,
+          subject: personalise(form.subject, c),
+          html,
+          replyTo: profile?.email||'',
+        });
+        if(result.ok) {
+          sent++;
+          await supabase.from('activities').insert([{
+            contact_id: c.id, company_id: companyId, type:'email',
+            body:'Campaign: '+form.name+'\nSubject: '+form.subject,
+          }]).catch(()=>{});
+        }
+      } catch(e) { console.warn('Failed for', c.full_name); }
+      setSendProgress(Math.round(((i+1)/recipients.length)*100));
+    }
+    setSentCount(sent);
+    await saveCampaignRecord(sent);
+    loadCampaigns();
+    setStep('done');
+  };
+
+  // ── SEND SMS CAMPAIGN ──
+  const sendSmsCampaign = async () => {
+    setStep('sending'); setSendProgress(0); setSentCount(0);
+    let sent = 0;
+    for(let i=0; i<recipients.length; i++) {
+      const c = recipients[i];
+      try {
+        const { error } = await supabase.functions.invoke('twilio-sms', {
+          body: { contact_id:c.id, company_id:companyId, to:c.phone, body:personalise(form.body,c) },
+        });
+        if(!error) {
+          sent++;
+          await supabase.from('activities').insert([{
+            contact_id:c.id, company_id:companyId, type:'sms',
+            body:'Campaign: '+form.name+'\n'+personalise(form.body,c),
+          }]).catch(()=>{});
+        }
+      } catch(e) { console.warn('Failed for', c.full_name); }
+      setSendProgress(Math.round(((i+1)/recipients.length)*100));
+    }
+    setSentCount(sent);
+    await saveCampaignRecord(sent);
+    loadCampaigns();
+    setStep('done');
+  };
+
+  const openWizard = (type) => {
+    setWizard({ type });
+    setStep('compose');
+    setForm({ name:'', subject:'', body:'', audience:'all', group:CONTACT_GROUPS_CAMP[0], singleContact:null, scheduleEnabled:false, scheduleDate:'' });
+    setContactSearch(''); setShowTemplates(false);
+  };
+
+  const closeWizard = () => { setWizard(null); setStep('compose'); };
+
+  const gmailConnected = !!getStoredGmailToken();
+  const filteredContacts = contacts.filter(c=>{
+    const q = contactSearch.toLowerCase();
+    return !q || (c.full_name||'').toLowerCase().includes(q) || (c.email||'').toLowerCase().includes(q) || (c.phone||'').includes(q);
+  });
+
+  // ── STATUS BADGE ──
+  const StatusBadge = ({status}) => {
+    const map = { active:{c:'#22c55e',l:'Active'}, complete:{c:'#3b82f6',l:'Complete'}, paused:{c:'#f59e0b',l:'Paused'}, draft:{c:'#888',l:'Draft'} };
+    const s = map[status]||map.draft;
+    return <span style={{fontSize:11,padding:'2px 9px',borderRadius:20,background:s.c+'22',color:s.c,fontWeight:600}}>{s.l}</span>;
+  };
+
+  // ── CAMPAIGN ROW ──
+  const CampaignRow = ({c}) => (
+    <div style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:12,padding:'16px 20px',display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr 120px',alignItems:'center',gap:12}}>
+      <div>
+        <div style={{fontWeight:700,fontSize:14}}>{c.name}</div>
+        <div style={{fontSize:11,color:'var(--muted)',marginTop:3}}>
+          {new Date(c.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}
+          {c.tag && <span style={{marginLeft:8,padding:'1px 7px',background:'var(--surface2)',borderRadius:10,border:'1px solid var(--border)'}}>{c.tag}</span>}
+        </div>
+      </div>
+      <div><div style={{fontSize:11,color:'var(--muted)',marginBottom:2}}>Sent</div><div style={{fontWeight:700,fontSize:16}}>{(c.sent_count||0).toLocaleString()}</div></div>
+      <div><div style={{fontSize:11,color:'var(--muted)',marginBottom:2}}>Replied</div><div style={{fontWeight:700,fontSize:16}}>{(c.replied_count||0).toLocaleString()}</div></div>
+      <div><div style={{fontSize:11,color:'var(--muted)',marginBottom:2}}>Qualified</div><div style={{fontWeight:700,fontSize:16}}>{(c.qualified_count||0).toLocaleString()}</div></div>
+      <StatusBadge status={c.status}/>
+      <button onClick={()=>setViewDetail(c)} style={{padding:'6px 14px',borderRadius:7,background:'var(--surface2)',border:'1px solid var(--border)',color:'var(--text)',fontSize:12,cursor:'pointer'}}>View</button>
+    </div>
+  );
+
+  // ── EMPTY STATE ──
+  const EmptyState = ({type, onNew}) => (
+    <div style={{textAlign:'center',padding:'60px 20px',color:'var(--muted)'}}>
+      <div style={{fontSize:40,marginBottom:16}}>{type==='email'?'📧':'📱'}</div>
+      <div style={{fontSize:16,fontWeight:600,color:'var(--text)',marginBottom:8}}>No {type==='email'?'email':'SMS'} campaigns yet</div>
+      <div style={{fontSize:13,marginBottom:24}}>Send your first campaign to start reaching your contacts.</div>
+      <button onClick={onNew} style={{padding:'10px 24px',borderRadius:8,background:'var(--accent)',border:'none',color:'#fff',fontWeight:600,cursor:'pointer'}}>
+        + New {type==='email'?'Email':'SMS'} Campaign
+      </button>
+    </div>
+  );
+
+  // ── STATS ROW ──
+  const campaigns = tab==='email' ? emailCampaigns : smsCampaigns;
+  const totalSent  = campaigns.reduce((s,c)=>s+(c.sent_count||0),0);
+  const totalReply = campaigns.reduce((s,c)=>s+(c.replied_count||0),0);
+  const replyRate  = totalSent>0 ? Math.round(totalReply/totalSent*100) : 0;
+
+  return (
+    <div style={{padding:24,maxWidth:1200,margin:'0 auto'}}>
+      {/* Header */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:24}}>
+        <div>
+          <h1 style={{fontFamily:"Cormorant Garamond,serif",fontSize:28,fontWeight:700,margin:0}}>Campaigns</h1>
+          <p style={{color:'var(--muted)',fontSize:13,margin:'4px 0 0'}}>Email and SMS outreach — single sends or mass campaigns</p>
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={()=>openWizard('email')}
+            style={{padding:'8px 18px',borderRadius:8,background:'linear-gradient(135deg,#3b82f6,#1d4ed8)',border:'none',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
+            📧 New Email Campaign
+          </button>
+          <button onClick={()=>openWizard('sms')}
+            style={{padding:'8px 18px',borderRadius:8,background:'linear-gradient(135deg,#22c55e,#16a34a)',border:'none',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
+            📱 New SMS Campaign
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{display:'flex',gap:4,marginBottom:20,background:'var(--surface2)',borderRadius:10,padding:4,width:'fit-content'}}>
+        {[['email','📧 Email'],['sms','📱 SMS'],['ai-outreach','🤖 AI Outreach']].map(([t,l])=>(
+          <button key={t} onClick={()=>setTab(t)}
+            style={{padding:'7px 18px',borderRadius:7,border:'none',background:tab===t?'var(--surface)':'transparent',color:tab===t?'var(--text)':'var(--muted)',fontWeight:tab===t?600:400,fontSize:13,cursor:'pointer',boxShadow:tab===t?'0 1px 4px rgba(0,0,0,.15)':'none',transition:'all .15s'}}>
+            {l}
+          </button>
+        ))}
+      </div>
+
+      {/* Email Tab */}
+      {tab==='email' && (
+        <div>
+          {/* Stats */}
+          {emailCampaigns.length>0 && (
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20}}>
+              {[
+                {label:'Campaigns',val:emailCampaigns.length,color:'#3b82f6'},
+                {label:'Total Sent',val:totalSent.toLocaleString(),color:'#8b5cf6'},
+                {label:'Replied',val:totalReply.toLocaleString(),color:'#22c55e'},
+                {label:'Reply Rate',val:replyRate+'%',color:'#f59e0b'},
+              ].map(s=>(
+                <div key={s.label} style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:12,padding:'16px 18px'}}>
+                  <div style={{fontSize:11,color:'var(--muted)',marginBottom:6,textTransform:'uppercase',letterSpacing:'.05em'}}>{s.label}</div>
+                  <div style={{fontSize:24,fontWeight:800,fontFamily:'Syne,sans-serif',color:s.color}}>{s.val}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {/* Gmail notice */}
+          {!gmailConnected && (
+            <div style={{background:'rgba(59,130,246,.07)',border:'1px solid rgba(59,130,246,.2)',borderRadius:10,padding:'12px 16px',marginBottom:16,fontSize:13,display:'flex',alignItems:'center',gap:10}}>
+              <span style={{fontSize:16}}>💡</span>
+              <span>Connect Gmail in your profile to send emails from your own address. Without it, emails send from <strong>info@citizensfinancial.co</strong>.</span>
+            </div>
+          )}
+          {loading ? (
+            <div style={{textAlign:'center',padding:40,color:'var(--muted)'}}>Loading campaigns...</div>
+          ) : emailCampaigns.length===0 ? (
+            <EmptyState type="email" onNew={()=>openWizard('email')}/>
+          ) : (
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr 120px',gap:12,padding:'4px 20px'}}>
+                {['Campaign','Sent','Replied','Qualified','Status',''].map(h=>(
+                  <div key={h} style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em'}}>{h}</div>
+                ))}
+              </div>
+              {emailCampaigns.map(c=><CampaignRow key={c.id} c={c}/>)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SMS Tab */}
+      {tab==='sms' && (
+        <div>
+          {smsCampaigns.length>0 && (
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12,marginBottom:20}}>
+              {[
+                {label:'Campaigns',val:smsCampaigns.length,color:'#22c55e'},
+                {label:'Total Sent',val:smsCampaigns.reduce((s,c)=>s+(c.sent_count||0),0).toLocaleString(),color:'#8b5cf6'},
+                {label:'Replied',val:smsCampaigns.reduce((s,c)=>s+(c.replied_count||0),0).toLocaleString(),color:'#3b82f6'},
+                {label:'Reply Rate',val:(smsCampaigns.reduce((s,c)=>s+(c.sent_count||0),0)>0?Math.round(smsCampaigns.reduce((s,c)=>s+(c.replied_count||0),0)/smsCampaigns.reduce((s,c)=>s+(c.sent_count||0),0)*100):0)+'%',color:'#f59e0b'},
+              ].map(s=>(
+                <div key={s.label} style={{background:'var(--card)',border:'1px solid var(--border)',borderRadius:12,padding:'16px 18px'}}>
+                  <div style={{fontSize:11,color:'var(--muted)',marginBottom:6,textTransform:'uppercase',letterSpacing:'.05em'}}>{s.label}</div>
+                  <div style={{fontSize:24,fontWeight:800,fontFamily:'Syne,sans-serif',color:s.color}}>{s.val}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{background:'rgba(245,158,11,.07)',border:'1px solid rgba(245,158,11,.2)',borderRadius:10,padding:'12px 16px',marginBottom:16,fontSize:13,display:'flex',alignItems:'center',gap:10}}>
+            <span style={{fontSize:16}}>📱</span>
+            <span>SMS campaigns require an active Twilio A2P 10DLC registration. Contact support to enable SMS sending.</span>
+          </div>
+          {loading ? (
+            <div style={{textAlign:'center',padding:40,color:'var(--muted)'}}>Loading campaigns...</div>
+          ) : smsCampaigns.length===0 ? (
+            <EmptyState type="sms" onNew={()=>openWizard('sms')}/>
+          ) : (
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              <div style={{display:'grid',gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr 120px',gap:12,padding:'4px 20px'}}>
+                {['Campaign','Sent','Replied','Qualified','Status',''].map(h=>(
+                  <div key={h} style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em'}}>{h}</div>
+                ))}
+              </div>
+              {smsCampaigns.map(c=><CampaignRow key={c.id} c={c}/>)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* AI Outreach Tab */}
+      {tab==='ai-outreach' && (
+        <AutomationView contacts={contacts} profile={profile} toast={toast}
+          onOpenPricing={onOpenPricing} onGeneratePresentation={onGeneratePresentation}/>
+      )}
+
+      {/* ── CAMPAIGN DETAIL MODAL ── */}
+      {viewDetail && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.6)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center'}}
+          onClick={()=>setViewDetail(null)}>
+          <div style={{width:520,background:'var(--surface)',borderRadius:16,border:'1px solid var(--border)',overflow:'hidden'}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{padding:'20px 24px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center',background:'var(--surface2)'}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:16}}>{viewDetail.name}</div>
+                <div style={{fontSize:12,color:'var(--muted)',marginTop:2}}>{viewDetail.channel?.toUpperCase()} campaign · {new Date(viewDetail.created_at).toLocaleDateString()}</div>
+              </div>
+              <button onClick={()=>setViewDetail(null)} style={{background:'none',border:'none',color:'var(--muted)',fontSize:20,cursor:'pointer'}}>✕</button>
+            </div>
+            <div style={{padding:'24px',display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:16,borderBottom:'1px solid var(--border)'}}>
+              {[['Sent',viewDetail.sent_count||0,'#3b82f6'],['Replied',viewDetail.replied_count||0,'#22c55e'],['Qualified',viewDetail.qualified_count||0,'#8b5cf6'],
+                ['Presentations',viewDetail.presentation_count||0,'#f59e0b'],['Applied',viewDetail.app_count||0,'#ec4899'],['Reply Rate',viewDetail.sent_count>0?Math.round((viewDetail.replied_count||0)/viewDetail.sent_count*100)+'%':'—','#14b8a6']
+              ].map(([l,v,c])=>(
+                <div key={l} style={{background:'var(--surface2)',borderRadius:10,padding:'14px 16px'}}>
+                  <div style={{fontSize:11,color:'var(--muted)',marginBottom:4}}>{l}</div>
+                  <div style={{fontSize:22,fontWeight:800,color:c}}>{typeof v==='number'?v.toLocaleString():v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{padding:'16px 24px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <StatusBadge status={viewDetail.status}/>
+              {viewDetail.tag && <span style={{fontSize:12,color:'var(--muted)'}}>Segment: {viewDetail.tag}</span>}
+              <button onClick={()=>setViewDetail(null)} style={{padding:'7px 18px',borderRadius:7,background:'var(--surface2)',border:'1px solid var(--border)',color:'var(--text)',fontSize:13,cursor:'pointer'}}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CAMPAIGN WIZARD MODAL ── */}
+      {wizard && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.65)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}
+          onClick={()=>{ if(step!=='sending') closeWizard(); }}>
+          <div style={{width:'min(640px,100%)',background:'var(--surface)',borderRadius:18,border:'1px solid var(--border)',overflow:'hidden',boxShadow:'0 32px 80px rgba(0,0,0,.5)'}}
+            onClick={e=>e.stopPropagation()}>
+
+            {/* Wizard header */}
+            <div style={{background: wizard.type==='email'?'linear-gradient(135deg,#1e3a8a,#3b82f6)':'linear-gradient(135deg,#14532d,#22c55e)',padding:'22px 28px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <div>
+                <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:22,fontWeight:700,color:'#fff'}}>
+                  {wizard.type==='email'?'📧 New Email Campaign':'📱 New SMS Campaign'}
+                </div>
+                <div style={{fontSize:13,color:'rgba(255,255,255,.6)',marginTop:3}}>
+                  {step==='compose'&&'Build your message'}{step==='preview'&&`Ready to send to ${recipients.length} contact${recipients.length!==1?'s':''}`}{step==='sending'&&'Sending...'}{step==='done'&&'Campaign complete'}
+                </div>
+              </div>
+              {step!=='sending' && <button onClick={closeWizard} style={{background:'rgba(255,255,255,.15)',border:'1px solid rgba(255,255,255,.2)',color:'#fff',width:32,height:32,borderRadius:8,cursor:'pointer',fontSize:18,display:'flex',alignItems:'center',justifyContent:'center'}}>✕</button>}
+            </div>
+
+            {/* ── COMPOSE STEP ── */}
+            {step==='compose' && (
+              <div style={{padding:28,display:'flex',flexDirection:'column',gap:18,maxHeight:'70vh',overflowY:'auto'}}>
+
+                {/* Campaign name */}
+                <div>
+                  <label style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',display:'block',marginBottom:6}}>Campaign Name</label>
+                  <input value={form.name} onChange={e=>setF('name',e.target.value)} placeholder="e.g. March Re-engagement — CDCR Group"
+                    style={{width:'100%',padding:'10px 12px',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,color:'var(--text)',fontSize:14,boxSizing:'border-box'}}/>
+                </div>
+
+                {/* Audience */}
+                <div>
+                  <label style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',display:'block',marginBottom:8}}>Audience</label>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+                    {[['all','All Contacts','👥'],['group','By Group','🗂️'],['single','Single Contact','👤']].map(([v,l,ic])=>(
+                      <div key={v} onClick={()=>setF('audience',v)}
+                        style={{padding:'12px 14px',borderRadius:10,border:`2px solid ${form.audience===v?'var(--accent)':'var(--border)'}`,background:form.audience===v?'rgba(59,130,246,.08)':'var(--surface2)',cursor:'pointer',textAlign:'center',transition:'all .15s'}}>
+                        <div style={{fontSize:20,marginBottom:4}}>{ic}</div>
+                        <div style={{fontSize:12,fontWeight:600,color:form.audience===v?'var(--accent)':'var(--text)'}}>{l}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Group picker */}
+                  {form.audience==='group' && (
+                    <div style={{marginTop:12}}>
+                      <select value={form.group} onChange={e=>setF('group',e.target.value)}
+                        style={{width:'100%',padding:'9px 12px',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,color:'var(--text)',fontSize:13}}>
+                        {CONTACT_GROUPS_CAMP.map(g=><option key={g}>{g}</option>)}
+                      </select>
+                      <div style={{fontSize:12,color:'var(--muted)',marginTop:6}}>
+                        {contacts.filter(c=>c.contact_group===form.group&&(wizard.type==='email'?c.email:c.phone)).length} contacts in this group with {wizard.type==='email'?'email':'phone'}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Single contact picker */}
+                  {form.audience==='single' && (
+                    <div style={{marginTop:12}}>
+                      <input value={contactSearch} onChange={e=>setContactSearch(e.target.value)}
+                        placeholder={`Search contacts by name or ${wizard.type==='email'?'email':'phone'}...`}
+                        style={{width:'100%',padding:'9px 12px',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,color:'var(--text)',fontSize:13,boxSizing:'border-box',marginBottom:8}}/>
+                      {form.singleContact ? (
+                        <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(59,130,246,.08)',border:'1px solid rgba(59,130,246,.3)',borderRadius:8}}>
+                          <Avatar name={form.singleContact.full_name||''} size={32}/>
+                          <div style={{flex:1}}>
+                            <div style={{fontWeight:600,fontSize:13}}>{form.singleContact.full_name}</div>
+                            <div style={{fontSize:11,color:'var(--muted)'}}>{wizard.type==='email'?form.singleContact.email:form.singleContact.phone}</div>
+                          </div>
+                          <button onClick={()=>setF('singleContact',null)} style={{background:'none',border:'none',color:'var(--muted)',cursor:'pointer',fontSize:16}}>✕</button>
+                        </div>
+                      ) : (
+                        <div style={{maxHeight:160,overflowY:'auto',border:'1px solid var(--border)',borderRadius:8}}>
+                          {filteredContacts.filter(c=>wizard.type==='email'?c.email:c.phone).slice(0,15).map(c=>(
+                            <div key={c.id} onClick={()=>{setF('singleContact',c);setContactSearch('');}}
+                              style={{display:'flex',alignItems:'center',gap:10,padding:'8px 12px',cursor:'pointer',borderBottom:'1px solid var(--border)'}}
+                              onMouseOver={e=>e.currentTarget.style.background='var(--surface2)'}
+                              onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                              <Avatar name={c.full_name||''} size={28}/>
+                              <div>
+                                <div style={{fontSize:13,fontWeight:500}}>{c.full_name}</div>
+                                <div style={{fontSize:11,color:'var(--muted)'}}>{wizard.type==='email'?c.email:c.phone}</div>
+                              </div>
+                            </div>
+                          ))}
+                          {filteredContacts.filter(c=>wizard.type==='email'?c.email:c.phone).length===0 && (
+                            <div style={{padding:'16px',textAlign:'center',fontSize:13,color:'var(--muted)'}}>No contacts with {wizard.type==='email'?'email':'phone'} found</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Subject (email only) */}
+                {wizard.type==='email' && (
+                  <div>
+                    <label style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',display:'block',marginBottom:6}}>Subject Line</label>
+                    <input value={form.subject} onChange={e=>setF('subject',e.target.value)} placeholder="e.g. Quick update on rates for you, {firstName}"
+                      style={{width:'100%',padding:'10px 12px',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,color:'var(--text)',fontSize:14,boxSizing:'border-box'}}/>
+                    <div style={{fontSize:11,color:'var(--muted)',marginTop:4}}>Use &#123;firstName&#125;, &#123;loName&#125;, &#123;company&#125; for personalisation</div>
+                  </div>
+                )}
+
+                {/* Message body */}
+                <div>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
+                    <label style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em'}}>Message</label>
+                    <button onClick={()=>setShowTemplates(!showTemplates)}
+                      style={{fontSize:11,padding:'3px 10px',borderRadius:6,background:'var(--surface2)',border:'1px solid var(--border)',color:'var(--text)',cursor:'pointer'}}>
+                      📋 Templates
+                    </button>
+                  </div>
+                  {showTemplates && (
+                    <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:10,padding:12,marginBottom:10,maxHeight:180,overflowY:'auto'}}>
+                      {(CAMPAIGN_TEMPLATES[wizard.type]||[]).map((t,i)=>(
+                        <div key={i} onClick={()=>{ setF('body',t.body); if(wizard.type==='email') setF('subject',t.subject); setShowTemplates(false); }}
+                          style={{padding:'8px 10px',borderRadius:7,cursor:'pointer',marginBottom:4}}
+                          onMouseOver={e=>e.currentTarget.style.background='var(--surface)'}
+                          onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                          <div style={{fontWeight:600,fontSize:12}}>{t.label}</div>
+                          <div style={{fontSize:11,color:'var(--muted)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.body.substring(0,70)}...</div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <textarea value={form.body} onChange={e=>setF('body',e.target.value)}
+                    placeholder={wizard.type==='email'?'Write your email message here...\n\nTip: Use {firstName} to personalise each message.':'Write your SMS message here... (160 chars recommended)\n\nTip: Use {firstName} and {loName} to personalise.'}
+                    rows={wizard.type==='email'?7:4}
+                    style={{width:'100%',padding:'10px 12px',background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:8,color:'var(--text)',fontSize:14,resize:'vertical',boxSizing:'border-box',lineHeight:1.6}}/>
+                  {wizard.type==='sms' && (
+                    <div style={{fontSize:11,color:form.body.length>160?'#ef4444':'var(--muted)',textAlign:'right',marginTop:3}}>{form.body.length} chars</div>
+                  )}
+                </div>
+
+                {/* Gmail status (email only) */}
+                {wizard.type==='email' && (
+                  <div style={{padding:'10px 14px',background:gmailConnected?'rgba(26,154,92,.08)':'var(--surface2)',border:`1px solid ${gmailConnected?'rgba(26,154,92,.25)':'var(--border)'}`,borderRadius:8,fontSize:12,display:'flex',alignItems:'center',gap:8}}>
+                    {gmailConnected
+                      ? <><span>✅</span><span>Emails will send <strong>from your Gmail address</strong>. Replies come back to your inbox.</span></>
+                      : <><span>ℹ️</span><span>Gmail not connected — emails will send from <strong>info@citizensfinancial.co</strong>. <a href="#" onClick={e=>{e.preventDefault();toast('Open your profile to connect Gmail')}} style={{color:'var(--accent)'}}>Connect Gmail</a></span></>
+                    }
+                  </div>
+                )}
+
+                {/* Footer */}
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',paddingTop:8,borderTop:'1px solid var(--border)'}}>
+                  <div style={{fontSize:13,color:'var(--muted)'}}>
+                    {recipients.length>0?<span><strong style={{color:'var(--text)'}}>{recipients.length}</strong> recipient{recipients.length!==1?'s':''}</span>:<span style={{color:'#ef4444'}}>No recipients selected</span>}
+                  </div>
+                  <div style={{display:'flex',gap:10}}>
+                    <button onClick={closeWizard} style={{padding:'9px 18px',borderRadius:8,background:'var(--surface2)',border:'1px solid var(--border)',color:'var(--text)',fontSize:13,cursor:'pointer'}}>Cancel</button>
+                    <button onClick={()=>setStep('preview')}
+                      disabled={!form.body||(wizard.type==='email'&&!form.subject)||recipients.length===0}
+                      style={{padding:'9px 22px',borderRadius:8,background:'var(--accent)',border:'none',color:'#fff',fontSize:13,fontWeight:600,cursor:'pointer',opacity:(!form.body||(wizard.type==='email'&&!form.subject)||recipients.length===0)?0.4:1}}>
+                      Preview & Send →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── PREVIEW STEP ── */}
+            {step==='preview' && (
+              <div style={{padding:28,display:'flex',flexDirection:'column',gap:18}}>
+                <div style={{background:'var(--surface2)',borderRadius:12,padding:'16px 20px',border:'1px solid var(--border)'}}>
+                  <div style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:12}}>Preview — First Recipient</div>
+                  {wizard.type==='email' && (
+                    <div style={{marginBottom:10}}>
+                      <span style={{fontSize:12,color:'var(--muted)'}}>Subject: </span>
+                      <span style={{fontSize:13,fontWeight:600}}>{personalise(form.subject,recipients[0])}</span>
+                    </div>
+                  )}
+                  <div style={{fontSize:13,lineHeight:1.7,whiteSpace:'pre-wrap',color:'var(--text)',maxHeight:200,overflowY:'auto'}}>
+                    {personalise(form.body,recipients[0])}
+                  </div>
+                </div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:12}}>
+                  {[
+                    ['Recipients',recipients.length,'#3b82f6'],
+                    ['Channel',wizard.type==='email'?'Email':'SMS',wizard.type==='email'?'#3b82f6':'#22c55e'],
+                    ['From',wizard.type==='email'?(gmailConnected?'Your Gmail':'info@citizensfinancial.co'):'Twilio','#8b5cf6'],
+                  ].map(([l,v,c])=>(
+                    <div key={l} style={{background:'var(--surface2)',borderRadius:10,padding:'12px 14px',textAlign:'center'}}>
+                      <div style={{fontSize:11,color:'var(--muted)',marginBottom:4}}>{l}</div>
+                      <div style={{fontSize:14,fontWeight:700,color:c}}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{background:'rgba(245,158,11,.08)',border:'1px solid rgba(245,158,11,.2)',borderRadius:8,padding:'10px 14px',fontSize:12,color:'var(--muted)'}}>
+                  ⚠️ This will send to <strong style={{color:'var(--text)'}}>{recipients.length} real contact{recipients.length!==1?'s':''}</strong>. Double-check your message before confirming.
+                </div>
+                <div style={{display:'flex',gap:10,paddingTop:4}}>
+                  <button onClick={()=>setStep('compose')} style={{flex:1,padding:'10px',borderRadius:8,background:'var(--surface2)',border:'1px solid var(--border)',color:'var(--text)',cursor:'pointer',fontSize:13}}>← Edit</button>
+                  <button onClick={wizard.type==='email'?sendEmailCampaign:sendSmsCampaign}
+                    style={{flex:2,padding:'10px',borderRadius:8,background:wizard.type==='email'?'linear-gradient(135deg,#3b82f6,#1d4ed8)':'linear-gradient(135deg,#22c55e,#16a34a)',border:'none',color:'#fff',fontWeight:700,fontSize:14,cursor:'pointer'}}>
+                    🚀 Send to {recipients.length} Contact{recipients.length!==1?'s':''}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── SENDING STEP ── */}
+            {step==='sending' && (
+              <div style={{padding:40,textAlign:'center'}}>
+                <div style={{fontSize:40,marginBottom:16}}>
+                  {wizard.type==='email'?'📧':'📱'}
+                </div>
+                <div style={{fontSize:18,fontWeight:700,marginBottom:8}}>Sending Campaign...</div>
+                <div style={{fontSize:13,color:'var(--muted)',marginBottom:24}}>{sendProgress}% complete</div>
+                <div style={{background:'var(--surface2)',borderRadius:8,height:8,overflow:'hidden',maxWidth:320,margin:'0 auto'}}>
+                  <div style={{height:'100%',background:'var(--accent)',width:sendProgress+'%',transition:'width .2s',borderRadius:8}}/>
+                </div>
+              </div>
+            )}
+
+            {/* ── DONE STEP ── */}
+            {step==='done' && (
+              <div style={{padding:40,textAlign:'center'}}>
+                <div style={{width:64,height:64,borderRadius:'50%',background:'rgba(26,154,92,.12)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1a9a5c" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:26,fontWeight:700,marginBottom:8}}>Campaign Sent!</div>
+                <div style={{fontSize:14,color:'var(--muted)',marginBottom:6}}>
+                  Successfully sent to <strong style={{color:'var(--text)'}}>{sentCount}</strong> contact{sentCount!==1?'s':''}
+                </div>
+                {wizard.type==='email' && gmailConnected && (
+                  <div style={{fontSize:13,color:'var(--muted)',marginBottom:24}}>Replies will arrive directly in your Gmail inbox.</div>
+                )}
+                <button onClick={closeWizard} style={{padding:'10px 28px',borderRadius:8,background:'var(--accent)',border:'none',color:'#fff',fontWeight:600,cursor:'pointer'}}>Done</button>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── AI OUTREACH AUTOMATION VIEW (real data) ────────────────────────────────
 function AutomationView({ contacts, profile, toast, onOpenPricing, onGeneratePresentation }) {
@@ -12981,7 +13598,7 @@ export default function App() {
     { id:'pricing', label:'Pricing Engine', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
     { id:'pipeline', label:'AI Pipeline', icon:Icons.pipeline },
 
-    { id:'automation', label:'AI Outreach', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 2 15 22 11 13 2 9 22 2"/></svg> },
+    { id:'campaigns', label:'Campaigns', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> },
     { id:'content-hub', label:'Content Hub', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg> },
     { id:'lead-scoring', label:'Lead Scoring', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><polyline points="2 20 22 20"/></svg> },
     { id:'live-transfers', label:'Live Transfers', icon:<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.62 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91A16 16 0 0 0 14.09 15.91l1.27-.87a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> },
@@ -13192,7 +13809,7 @@ export default function App() {
         {view==='branding' && <BrandingView profile={profile} onBrandUpdate={b=>setBrand(b)} toast={toast} />}
         {view==='trash' && <TrashArchiveView profile={profile} workspaces={workspaces} toast={toast} />}
         {view==='hannah' && <HannahPage profile={profile} onNavigate={setView} onOpenPricing={()=>setPricingOpen(true)} />}
-        {view==='automation' && <AutomationView contacts={contacts} profile={profile} toast={toast} onOpenPricing={(qualData) => { setPricingPreset(qualData); setPricingOpen(true); }} onGeneratePresentation={(qualData) => { setPresGenData(qualData); setView('presentation-gen', null); }} />}
+        {view==='campaigns' && <CampaignsView contacts={contacts} profile={profile} toast={toast} onOpenPricing={(qualData) => { setPricingPreset(qualData); setPricingOpen(true); }} onGeneratePresentation={(qualData) => { setPresGenData(qualData); setView('presentation-gen', null); }} />}
         {view==='content-hub'    && <ContentHubView    profile={profile} toast={toast} />}
         {view==='lead-scoring'   && <LeadScoringView   contacts={contacts} profile={profile} toast={toast} />}
         {view==='live-transfers' && <LiveTransferDashboard profile={profile} toast={toast} />}
