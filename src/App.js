@@ -1430,11 +1430,18 @@ const BUILTIN_EMAIL_TEMPLATES = [
     <p style="font-size:17px;color:#111827;margin:0 0 8px;">Hi {firstName},</p>
     <p style="font-size:15px;color:#555;line-height:1.8;margin:0 0 24px;">In today's market, having a pre-approval letter in hand is the difference between winning and losing on a home. Sellers take pre-approved buyers seriously — and it costs you nothing to get started.</p>
     <div style="display:grid;gap:12px;margin-bottom:28px;">
-      {[["⚡","Fast","Most clients pre-approved in 24 hours"],["🔒","No Credit Impact","Soft pull only at the start"],["📄","Full Letter","Specific to the address you offer on"]].map(([ic,t,d])=>`
       <div style="display:flex;align-items:center;gap:14px;background:#f8fafc;border-radius:10px;padding:14px 16px;border:1px solid #e5eaf2;">
-        <div style="font-size:24px;">${ic}</div>
-        <div><div style="font-weight:700;font-size:14px;color:#111;">${t}</div><div style="font-size:13px;color:#777;margin-top:2px;">${d}</div></div>
-      </div>`).join('')}
+        <div style="font-size:24px;">⚡</div>
+        <div><div style="font-weight:700;font-size:14px;color:#111;">Fast</div><div style="font-size:13px;color:#777;margin-top:2px;">Most clients pre-approved in 24 hours</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;background:#f8fafc;border-radius:10px;padding:14px 16px;border:1px solid #e5eaf2;">
+        <div style="font-size:24px;">🔒</div>
+        <div><div style="font-weight:700;font-size:14px;color:#111;">No Credit Impact</div><div style="font-size:13px;color:#777;margin-top:2px;">Soft pull only at the start</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;background:#f8fafc;border-radius:10px;padding:14px 16px;border:1px solid #e5eaf2;">
+        <div style="font-size:24px;">📄</div>
+        <div><div style="font-weight:700;font-size:14px;color:#111;">Full Letter</div><div style="font-size:13px;color:#777;margin-top:2px;">Specific to the address you offer on</div></div>
+      </div>
     </div>
     <div style="text-align:center;">
       <a href="mailto:{replyEmail}" style="display:inline-block;background:#0c1a35;color:#fff;padding:14px 36px;border-radius:30px;text-decoration:none;font-weight:700;font-size:15px;">Start My Pre-Approval →</a>
