@@ -1166,6 +1166,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
   const [note, setNote] = useState('');
   const [noteType, setNoteType] = useState('note');
   const [emailSubject, setEmailSubject] = useState('');
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [emailBody, setEmailBody] = useState('');
   const [sendingEmail, setSendingEmail] = useState(false);
   const [localGroup, setLocalGroup] = useState(contact?.contact_group || '');
@@ -1319,9 +1320,15 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
           </div>
           {noteType==='email' ? (
             <div>
+              <div style={{display:'flex',justifyContent:'flex-end',marginBottom:6}}>
+                <button onClick={()=>setShowTemplatePicker(true)} style={{padding:'4px 12px',borderRadius:6,background:'var(--surface2)',border:'1px solid var(--border)',color:'var(--text)',fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="14" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg> Templates
+                </button>
+              </div>
               <input value={emailSubject} onChange={e=>setEmailSubject(e.target.value)} placeholder="Subject..." style={{ marginBottom:8 }} />
               <textarea rows={4} value={emailBody} onChange={e=>setEmailBody(e.target.value)} placeholder="Write your email..." style={{ marginBottom:8 }} />
               <button className="btn-primary btn-sm" onClick={sendEmail} disabled={sendingEmail}>{sendingEmail?'Sending...':<span style={{display:'flex',alignItems:'center',gap:4}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg> Send Email</span>}</button>
+              {showTemplatePicker && <TemplatePickerModal profile={profile} onClose={()=>setShowTemplatePicker(false)} onSelect={t=>{ setEmailSubject(personaliseTemplate(t.subject,contact,profile)); setEmailBody(personaliseTemplate(t.body,contact,profile)); setShowTemplatePicker(false); }} />}
             </div>
           ) : (
             <div>
@@ -1361,6 +1368,545 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
   );
 }
 
+
+
+// ─── EMAIL TEMPLATES SYSTEM ──────────────────────────────────────────────────
+
+// ── Built-in visually designed HTML templates ──────────────────────────────
+const BUILTIN_EMAIL_TEMPLATES = [
+  // ── MORTGAGE BUSINESS ──
+  {
+    id: 'bt_rate_update',
+    name: 'Rate Update',
+    category: 'Mortgage',
+    subject: "Rates just moved — here's what it means for you, {firstName}",
+    body: `<div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#f4f7fb;">
+  <div style="background:linear-gradient(135deg,#0c1a35 0%,#1a3a6e 100%);padding:40px 44px;border-radius:14px 14px 0 0;text-align:center;">
+    <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style="height:38px;filter:brightness(0) invert(1);display:block;margin:0 auto 16px;"/>
+    <div style="display:inline-block;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:30px;padding:6px 18px;font-size:12px;color:rgba(255,255,255,.7);letter-spacing:.08em;text-transform:uppercase;margin-bottom:18px;">Rate Alert</div>
+    <h1 style="color:#fff;font-size:28px;font-weight:700;margin:0;line-height:1.3;">Rates Just Moved</h1>
+    <p style="color:rgba(255,255,255,.6);font-size:15px;margin:10px 0 0;">Here is what it means for your home loan</p>
+  </div>
+  <div style="background:#fff;padding:36px 44px;">
+    <p style="font-size:17px;color:#111827;margin:0 0 8px;">Hi {firstName},</p>
+    <p style="font-size:15px;color:#555;line-height:1.8;margin:0 0 24px;">Mortgage rates shifted this week and I wanted to make sure you had the latest picture before making any decisions. A small move in rates can mean hundreds of dollars difference per month on your payment.</p>
+    <div style="background:linear-gradient(135deg,#f0f9f4,#e6f5ed);border:1px solid #b7e5cc;border-radius:12px;padding:22px 26px;margin-bottom:24px;">
+      <div style="font-size:13px;font-weight:700;color:#1a9a5c;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">Why This Matters</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:140px;background:#fff;border-radius:10px;padding:14px 16px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06);">
+          <div style="font-size:22px;font-weight:800;color:#0c1a35;">↓ 0.25%</div>
+          <div style="font-size:12px;color:#888;margin-top:4px;">Rate drop</div>
+        </div>
+        <div style="flex:1;min-width:140px;background:#fff;border-radius:10px;padding:14px 16px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06);">
+          <div style="font-size:22px;font-weight:800;color:#1a9a5c;">~$45/mo</div>
+          <div style="font-size:12px;color:#888;margin-top:4px;">Potential savings</div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:15px;color:#555;line-height:1.8;margin:0 0 28px;">I would love to run fresh numbers for your specific situation — it only takes a few minutes and there is no obligation. Want me to pull a current rate quote?</p>
+    <div style="text-align:center;margin-bottom:28px;">
+      <a href="mailto:{replyEmail}" style="display:inline-block;background:linear-gradient(135deg,#1a9a5c,#22c55e);color:#fff;padding:14px 36px;border-radius:30px;text-decoration:none;font-weight:700;font-size:15px;">Yes, Run My Numbers →</a>
+    </div>
+  </div>
+  <div style="background:#f4f7fb;padding:20px 44px;border-radius:0 0 14px 14px;border-top:1px solid #e5eaf2;text-align:center;">
+    <p style="font-size:13px;color:#888;margin:0;">Best regards,<br/><strong style="color:#444;">{loName}</strong><br/>{company}</p>
+    <p style="font-size:11px;color:#bbb;margin:10px 0 0;">You received this because you are a client of {company}. Reply STOP to unsubscribe.</p>
+  </div>
+</div>`,
+  },
+  {
+    id: 'bt_preapproval',
+    name: 'Get Pre-Approved',
+    category: 'Mortgage',
+    subject: "Ready to make offers? Let's get you pre-approved, {firstName}",
+    body: `<div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#f4f7fb;">
+  <div style="background:linear-gradient(135deg,#0c1a35,#1e3a8a);padding:40px 44px;border-radius:14px 14px 0 0;text-align:center;">
+    <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style="height:38px;filter:brightness(0) invert(1);display:block;margin:0 auto 18px;"/>
+    <div style="font-size:52px;margin-bottom:12px;">🏡</div>
+    <h1 style="color:#fff;font-size:26px;font-weight:700;margin:0;">Your Dream Home is Closer</h1>
+    <p style="color:rgba(255,255,255,.6);font-size:14px;margin:8px 0 0;">Than you might think</p>
+  </div>
+  <div style="background:#fff;padding:36px 44px;">
+    <p style="font-size:17px;color:#111827;margin:0 0 8px;">Hi {firstName},</p>
+    <p style="font-size:15px;color:#555;line-height:1.8;margin:0 0 24px;">In today's market, having a pre-approval letter in hand is the difference between winning and losing on a home. Sellers take pre-approved buyers seriously — and it costs you nothing to get started.</p>
+    <div style="display:grid;gap:12px;margin-bottom:28px;">
+      {[["⚡","Fast","Most clients pre-approved in 24 hours"],["🔒","No Credit Impact","Soft pull only at the start"],["📄","Full Letter","Specific to the address you offer on"]].map(([ic,t,d])=>`
+      <div style="display:flex;align-items:center;gap:14px;background:#f8fafc;border-radius:10px;padding:14px 16px;border:1px solid #e5eaf2;">
+        <div style="font-size:24px;">${ic}</div>
+        <div><div style="font-weight:700;font-size:14px;color:#111;">${t}</div><div style="font-size:13px;color:#777;margin-top:2px;">${d}</div></div>
+      </div>`).join('')}
+    </div>
+    <div style="text-align:center;">
+      <a href="mailto:{replyEmail}" style="display:inline-block;background:#0c1a35;color:#fff;padding:14px 36px;border-radius:30px;text-decoration:none;font-weight:700;font-size:15px;">Start My Pre-Approval →</a>
+    </div>
+  </div>
+  <div style="background:#f4f7fb;padding:20px 44px;border-radius:0 0 14px 14px;text-align:center;">
+    <p style="font-size:13px;color:#888;margin:0;">— {loName}, {company}</p>
+    <p style="font-size:11px;color:#bbb;margin:8px 0 0;">Reply STOP to unsubscribe.</p>
+  </div>
+</div>`,
+  },
+  {
+    id: 'bt_reengagement',
+    name: 'Re-Engagement',
+    category: 'Mortgage',
+    subject: 'Still here for you, {firstName}',
+    body: `<div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#f4f7fb;">
+  <div style="background:#0c1a35;padding:36px 44px;border-radius:14px 14px 0 0;text-align:center;">
+    <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style="height:36px;filter:brightness(0) invert(1);display:block;margin:0 auto 16px;"/>
+    <h1 style="color:#fff;font-size:24px;font-weight:600;margin:0;">Just Checking In</h1>
+  </div>
+  <div style="background:#fff;padding:36px 44px;">
+    <p style="font-size:16px;color:#111827;margin:0 0 16px;">Hi {firstName},</p>
+    <p style="font-size:15px;color:#555;line-height:1.8;margin:0 0 16px;">Life gets busy — I completely understand. I just wanted to reach out and let you know that I am still here whenever the timing is right for you.</p>
+    <p style="font-size:15px;color:#555;line-height:1.8;margin:0 0 28px;">Whether you are actively looking, still saving, or just not sure where to start — I am happy to answer questions with zero pressure.</p>
+    <div style="background:#f0f9f4;border-left:4px solid #1a9a5c;padding:16px 20px;border-radius:0 10px 10px 0;margin-bottom:28px;">
+      <p style="font-size:14px;color:#333;margin:0;font-style:italic;">"The best time to get pre-approved is before you need it."</p>
+    </div>
+    <div style="text-align:center;">
+      <a href="mailto:{replyEmail}" style="display:inline-block;background:#1a9a5c;color:#fff;padding:13px 32px;border-radius:30px;text-decoration:none;font-weight:600;font-size:14px;">Let's Talk →</a>
+    </div>
+  </div>
+  <div style="background:#f4f7fb;padding:18px 44px;border-radius:0 0 14px 14px;text-align:center;">
+    <p style="font-size:12px;color:#888;margin:0;">— {loName}, {company} · Reply STOP to unsubscribe.</p>
+  </div>
+</div>`,
+  },
+  {
+    id: 'bt_presentation_followup',
+    name: 'Presentation Follow-Up',
+    category: 'Mortgage',
+    subject: 'Following up on your mortgage presentation, {firstName}',
+    body: `<div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#f4f7fb;">
+  <div style="background:linear-gradient(135deg,#1a3a6e,#0c1a35);padding:40px 44px;border-radius:14px 14px 0 0;text-align:center;">
+    <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style="height:36px;filter:brightness(0) invert(1);display:block;margin:0 auto 16px;"/>
+    <div style="font-size:44px;margin-bottom:10px;">📊</div>
+    <h1 style="color:#fff;font-size:24px;font-weight:700;margin:0;">Your Mortgage Presentation</h1>
+    <p style="color:rgba(255,255,255,.55);font-size:14px;margin:8px 0 0;">Did you get a chance to review it?</p>
+  </div>
+  <div style="background:#fff;padding:36px 44px;">
+    <p style="font-size:16px;color:#111827;margin:0 0 16px;">Hi {firstName},</p>
+    <p style="font-size:15px;color:#555;line-height:1.8;margin:0 0 16px;">I sent over your personalized mortgage presentation recently and wanted to make sure it landed okay and that you had a chance to look through it.</p>
+    <p style="font-size:15px;color:#555;line-height:1.8;margin:0 0 28px;">I am happy to walk through any of the numbers together — especially the rate options and monthly payment scenarios. Just reply to this email and we can set up a quick call.</p>
+    <div style="text-align:center;">
+      <a href="mailto:{replyEmail}" style="display:inline-block;background:#1a56db;color:#fff;padding:13px 32px;border-radius:30px;text-decoration:none;font-weight:600;font-size:14px;">Reply with Questions →</a>
+    </div>
+  </div>
+  <div style="background:#f4f7fb;padding:18px 44px;border-radius:0 0 14px 14px;text-align:center;">
+    <p style="font-size:12px;color:#888;margin:0;">— {loName}, {company} · Reply STOP to unsubscribe.</p>
+  </div>
+</div>`,
+  },
+
+  // ── BIRTHDAY ──
+  {
+    id: 'bt_birthday',
+    name: 'Happy Birthday',
+    category: 'Birthday',
+    subject: '🎂 Happy Birthday, {firstName}!',
+    body: `<div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#fdf6ff;">
+  <div style="background:linear-gradient(135deg,#7c3aed 0%,#a855f7 50%,#ec4899 100%);padding:50px 44px;border-radius:14px 14px 0 0;text-align:center;position:relative;overflow:hidden;">
+    <div style="font-size:56px;margin-bottom:8px;">🎂</div>
+    <h1 style="color:#fff;font-size:36px;font-weight:800;margin:0 0 6px;letter-spacing:-0.5px;">Happy Birthday!</h1>
+    <p style="color:rgba(255,255,255,.85);font-size:18px;margin:0;font-weight:300;">Wishing you a wonderful day, {firstName}</p>
+    <div style="margin-top:20px;font-size:28px;letter-spacing:6px;">🎉 🎈 🎊</div>
+  </div>
+  <div style="background:#fff;padding:36px 44px;text-align:center;">
+    <p style="font-size:16px;color:#555;line-height:1.9;margin:0 0 20px;">Hi {firstName}, on your special day I just wanted to take a moment to reach out and wish you a very happy birthday. I hope it is filled with joy, laughter, and everything you deserve.</p>
+    <div style="background:linear-gradient(135deg,#fdf6ff,#fce7f3);border-radius:12px;padding:22px;border:1px solid #f0abfc;margin-bottom:24px;">
+      <p style="font-size:15px;color:#7c3aed;margin:0;font-weight:600;">🎁 Birthday Gift</p>
+      <p style="font-size:14px;color:#555;margin:8px 0 0;line-height:1.7;">As a thank-you for being a valued client, I am here for any mortgage questions you have — no strings attached. Whether you are thinking about refinancing, buying a second home, or just curious about your options, I am one reply away.</p>
+    </div>
+    <p style="font-size:15px;color:#555;margin:0 0 28px;">Enjoy your day to the fullest — you deserve it! 🥳</p>
+    <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style="height:28px;opacity:.6;margin:0 auto;display:block;"/>
+  </div>
+  <div style="background:#fdf6ff;padding:16px 44px;border-radius:0 0 14px 14px;text-align:center;">
+    <p style="font-size:12px;color:#aaa;margin:0;">With warm wishes, {loName} · {company}</p>
+  </div>
+</div>`,
+  },
+
+  // ── HOLIDAYS ──
+  {
+    id: 'bt_new_year',
+    name: 'Happy New Year',
+    category: 'Holiday',
+    subject: '🥂 Happy New Year, {firstName}!',
+    body: `<div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#0a0f2e;">
+  <div style="background:linear-gradient(135deg,#0a0f2e 0%,#1a1f5e 50%,#0a0f2e 100%);padding:50px 44px;border-radius:14px 14px 0 0;text-align:center;">
+    <div style="font-size:56px;margin-bottom:10px;">🎆</div>
+    <h1 style="color:#ffd700;font-size:38px;font-weight:800;margin:0 0 8px;letter-spacing:-0.5px;">Happy New Year!</h1>
+    <p style="color:rgba(255,255,255,.7);font-size:17px;margin:0;">Wishing you an incredible {year}</p>
+    <div style="margin-top:18px;font-size:26px;letter-spacing:4px;">✨ 🥂 ✨</div>
+  </div>
+  <div style="background:#fff;padding:36px 44px;border-radius:0;">
+    <p style="font-size:16px;color:#111827;margin:0 0 16px;">Hi {firstName},</p>
+    <p style="font-size:15px;color:#555;line-height:1.8;margin:0 0 16px;">As we step into a brand new year, I want to take a moment to thank you for your trust and support. It means the world to me and the entire team at {company}.</p>
+    <div style="background:linear-gradient(135deg,#0a0f2e,#1a3a6e);border-radius:12px;padding:24px;margin-bottom:24px;text-align:center;">
+      <p style="font-size:14px;color:rgba(255,255,255,.7);margin:0 0 10px;text-transform:uppercase;letter-spacing:.08em;">A New Year Goal Worth Considering</p>
+      <p style="font-size:18px;color:#ffd700;font-weight:700;margin:0;">Is 2025 your year to buy, refinance, or invest?</p>
+      <p style="font-size:14px;color:rgba(255,255,255,.6);margin:10px 0 0;">I would love to help make it happen. Let us start the conversation.</p>
+    </div>
+    <div style="text-align:center;">
+      <a href="mailto:{replyEmail}" style="display:inline-block;background:linear-gradient(135deg,#1a9a5c,#22c55e);color:#fff;padding:13px 32px;border-radius:30px;text-decoration:none;font-weight:600;font-size:14px;">Let us Make It Happen →</a>
+    </div>
+  </div>
+  <div style="background:#f4f7fb;padding:18px 44px;border-radius:0 0 14px 14px;text-align:center;">
+    <p style="font-size:12px;color:#888;margin:0;">Happy New Year from {loName} & the {company} team · Reply STOP to unsubscribe.</p>
+  </div>
+</div>`,
+  },
+  {
+    id: 'bt_valentines',
+    name: "Valentine's Day",
+    category: 'Holiday',
+    subject: "💝 Happy Valentine's Day, {firstName}!",
+    body: `<div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#fff5f7;">
+  <div style="background:linear-gradient(135deg,#be123c 0%,#e11d48 50%,#fb7185 100%);padding:50px 44px;border-radius:14px 14px 0 0;text-align:center;">
+    <div style="font-size:60px;margin-bottom:8px;">💝</div>
+    <h1 style="color:#fff;font-size:34px;font-weight:800;margin:0 0 6px;">Happy Valentine's Day</h1>
+    <p style="color:rgba(255,255,255,.8);font-size:16px;margin:0;">{firstName}, today is all about love</p>
+  </div>
+  <div style="background:#fff;padding:36px 44px;text-align:center;">
+    <p style="font-size:16px;color:#555;line-height:1.9;margin:0 0 20px;">Hi {firstName}! On this day of love, I wanted to reach out and say thank you for the trust you place in me as your loan officer. Working with clients like you is truly what makes this job so rewarding.</p>
+    <div style="background:#fff5f7;border:2px solid #fda4af;border-radius:12px;padding:22px;margin-bottom:24px;">
+      <p style="font-size:15px;color:#be123c;font-weight:600;margin:0 0 8px;">Love where you live ❤️</p>
+      <p style="font-size:14px;color:#555;line-height:1.7;margin:0;">Valentine's Day is a great reminder that home is where the heart is. Whether you are thinking about buying your first home or refinancing, I am here to make the journey as smooth as possible.</p>
+    </div>
+    <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style="height:26px;opacity:.55;margin:0 auto 16px;display:block;"/>
+    <p style="font-size:13px;color:#888;margin:0;">With warm regards, {loName} · {company}</p>
+  </div>
+</div>`,
+  },
+  {
+    id: 'bt_spring',
+    name: 'Spring Market',
+    category: 'Holiday',
+    subject: "🌸 Spring is here — and so is the best buying season, {firstName}",
+    body: `<div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#f0fdf4;">
+  <div style="background:linear-gradient(135deg,#14532d 0%,#16a34a 60%,#4ade80 100%);padding:46px 44px;border-radius:14px 14px 0 0;text-align:center;">
+    <div style="font-size:52px;margin-bottom:10px;">🌸</div>
+    <h1 style="color:#fff;font-size:30px;font-weight:800;margin:0 0 8px;">Spring Has Arrived</h1>
+    <p style="color:rgba(255,255,255,.75);font-size:16px;margin:0;">And so has the hottest real estate season</p>
+  </div>
+  <div style="background:#fff;padding:36px 44px;">
+    <p style="font-size:16px;color:#111827;margin:0 0 16px;">Hi {firstName},</p>
+    <p style="font-size:15px;color:#555;line-height:1.8;margin:0 0 20px;">Spring is historically the most active home buying season of the year — more listings, more competition, and the best selection. If a home purchase has been on your mind, now is the time to get your financing in order so you are ready to move fast.</p>
+    <div style="display:flex;gap:12px;margin-bottom:24px;">
+      <div style="flex:1;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px;text-align:center;">
+        <div style="font-size:28px;margin-bottom:6px;">🏠</div>
+        <div style="font-weight:700;font-size:13px;color:#14532d;">More Listings</div>
+        <div style="font-size:12px;color:#777;margin-top:4px;">Spring brings the most inventory of the year</div>
+      </div>
+      <div style="flex:1;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:16px;text-align:center;">
+        <div style="font-size:28px;margin-bottom:6px;">⚡</div>
+        <div style="font-weight:700;font-size:13px;color:#1e40af;">Move Fast</div>
+        <div style="font-size:12px;color:#777;margin-top:4px;">Pre-approved buyers win in competitive markets</div>
+      </div>
+      <div style="flex:1;background:#fdf4ff;border:1px solid #e9d5ff;border-radius:10px;padding:16px;text-align:center;">
+        <div style="font-size:28px;margin-bottom:6px;">💰</div>
+        <div style="font-weight:700;font-size:13px;color:#7c3aed;">Lock Rates</div>
+        <div style="font-size:12px;color:#777;margin-top:4px;">Secure today's rates before summer</div>
+      </div>
+    </div>
+    <div style="text-align:center;">
+      <a href="mailto:{replyEmail}" style="display:inline-block;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;padding:13px 32px;border-radius:30px;text-decoration:none;font-weight:600;font-size:14px;">Get Spring-Ready →</a>
+    </div>
+  </div>
+  <div style="background:#f0fdf4;padding:18px 44px;border-radius:0 0 14px 14px;text-align:center;">
+    <p style="font-size:12px;color:#888;margin:0;">— {loName}, {company} · Reply STOP to unsubscribe.</p>
+  </div>
+</div>`,
+  },
+  {
+    id: 'bt_fourth_july',
+    name: 'Independence Day',
+    category: 'Holiday',
+    subject: '🇺🇸 Happy 4th of July, {firstName}!',
+    body: `<div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#f8f9ff;">
+  <div style="background:linear-gradient(135deg,#b91c1c 0%,#1e3a8a 100%);padding:46px 44px;border-radius:14px 14px 0 0;text-align:center;">
+    <div style="font-size:56px;margin-bottom:8px;">🎆🇺🇸🎆</div>
+    <h1 style="color:#fff;font-size:32px;font-weight:800;margin:0 0 8px;">Happy 4th of July!</h1>
+    <p style="color:rgba(255,255,255,.75);font-size:16px;margin:0;">Celebrating freedom, family, and home</p>
+  </div>
+  <div style="background:#fff;padding:36px 44px;text-align:center;">
+    <p style="font-size:16px;color:#555;line-height:1.9;margin:0 0 20px;">Hi {firstName}! Wishing you and your family a wonderful Independence Day full of good food, great company, and beautiful fireworks.</p>
+    <div style="background:linear-gradient(135deg,#fef2f2,#eff6ff);border-radius:12px;padding:22px;border:1px solid #fecaca;margin-bottom:24px;">
+      <p style="font-size:15px;color:#1e3a8a;font-weight:700;margin:0 0 8px;">Freedom to Own Your Home 🏡</p>
+      <p style="font-size:14px;color:#555;line-height:1.7;margin:0;">This holiday is a reminder that homeownership is one of the greatest freedoms we have. If buying your own home is still on your list, I am here to help make it happen on your timeline.</p>
+    </div>
+    <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style="height:26px;opacity:.5;margin:0 auto 16px;display:block;"/>
+    <p style="font-size:13px;color:#888;margin:0;">— {loName} & the {company} team</p>
+  </div>
+</div>`,
+  },
+  {
+    id: 'bt_thanksgiving',
+    name: 'Thanksgiving',
+    category: 'Holiday',
+    subject: '🦃 Happy Thanksgiving, {firstName}!',
+    body: `<div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#fffbeb;">
+  <div style="background:linear-gradient(135deg,#92400e 0%,#d97706 60%,#f59e0b 100%);padding:46px 44px;border-radius:14px 14px 0 0;text-align:center;">
+    <div style="font-size:56px;margin-bottom:8px;">🦃</div>
+    <h1 style="color:#fff;font-size:34px;font-weight:800;margin:0 0 6px;">Happy Thanksgiving!</h1>
+    <p style="color:rgba(255,255,255,.8);font-size:16px;margin:0;">{firstName}, so grateful for you</p>
+  </div>
+  <div style="background:#fff;padding:36px 44px;text-align:center;">
+    <p style="font-size:16px;color:#555;line-height:1.9;margin:0 0 20px;">Hi {firstName}, on this Thanksgiving I am truly grateful for the opportunity to have served you and been part of your homeownership journey. It is clients like you who make my work so meaningful.</p>
+    <div style="background:#fffbeb;border:2px solid #fde68a;border-radius:12px;padding:22px;margin-bottom:24px;">
+      <p style="font-size:28px;margin:0 0 10px;">🍂</p>
+      <p style="font-size:15px;color:#92400e;font-weight:600;margin:0 0 8px;">Grateful for home, family, and community</p>
+      <p style="font-size:14px;color:#555;line-height:1.7;margin:0;">This season, I hope you are surrounded by the people you love most, in a place that truly feels like home. From my family to yours — Happy Thanksgiving!</p>
+    </div>
+    <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style="height:26px;opacity:.5;margin:0 auto 16px;display:block;"/>
+    <p style="font-size:13px;color:#888;margin:0;">With gratitude, {loName} · {company}</p>
+  </div>
+</div>`,
+  },
+  {
+    id: 'bt_christmas',
+    name: 'Christmas & Holiday Season',
+    category: 'Holiday',
+    subject: '🎄 Season\'s Greetings, {firstName}!',
+    body: `<div style="font-family:Inter,Arial,sans-serif;max-width:600px;margin:0 auto;background:#f0fdf4;">
+  <div style="background:linear-gradient(135deg,#14532d 0%,#166534 50%,#15803d 100%);padding:46px 44px;border-radius:14px 14px 0 0;text-align:center;position:relative;">
+    <div style="font-size:56px;margin-bottom:8px;">🎄</div>
+    <h1 style="color:#fff;font-size:32px;font-weight:800;margin:0 0 8px;">Season's Greetings!</h1>
+    <p style="color:rgba(255,255,255,.8);font-size:16px;margin:0 0 14px;">Wishing you joy, warmth, and peace</p>
+    <div style="font-size:24px;letter-spacing:6px;">⭐ 🎁 ❄️ 🎅 ❄️ 🎁 ⭐</div>
+  </div>
+  <div style="background:#fff;padding:36px 44px;text-align:center;">
+    <p style="font-size:16px;color:#555;line-height:1.9;margin:0 0 20px;">Hi {firstName}, as the holiday season arrives I want to take a moment to thank you for your trust and wish you and your loved ones a truly wonderful Christmas and a joyful new year ahead.</p>
+    <div style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:12px;padding:24px;margin-bottom:24px;">
+      <p style="font-size:15px;color:#14532d;font-weight:700;margin:0 0 10px;">🏡 Home for the Holidays</p>
+      <p style="font-size:14px;color:#555;line-height:1.7;margin:0;">There is no better gift than the place you call home. If 2025 brings a new chapter for you — a first home, a bigger space, or a refinance — I am here and ready to help you make it happen.</p>
+    </div>
+    <div style="background:#f8fafc;border-radius:10px;padding:16px;margin-bottom:24px;">
+      <p style="font-size:13px;color:#888;margin:0;line-height:1.7;">Our office will be closed December 25–26 and January 1. I will be checking messages and will get back to you as soon as possible. Have a wonderful holiday season!</p>
+    </div>
+    <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style="height:28px;opacity:.55;margin:0 auto 16px;display:block;"/>
+    <p style="font-size:13px;color:#888;margin:0;">Warm holiday wishes, {loName} & the {company} team</p>
+  </div>
+</div>`,
+  },
+];
+
+// ── Personalise a template body/subject with contact data ──────────────────
+function personaliseTemplate(text, contact, profile) {
+  const firstName = (contact?.full_name || '').split(' ')[0] || 'there';
+  const year = new Date().getFullYear() + 1;
+  return (text || '')
+    .replace(/\{firstName\}/g, firstName)
+    .replace(/\{loName\}/g, profile?.full_name || 'Your Loan Officer')
+    .replace(/\{company\}/g, profile?.company_name || 'Citizens Financial')
+    .replace(/\{replyEmail\}/g, profile?.email || 'info@citizensfinancial.co')
+    .replace(/\{year\}/g, year);
+}
+
+// ── Template Picker Modal ──────────────────────────────────────────────────
+function TemplatePickerModal({ profile, onSelect, onClose }) {
+  const [dbTemplates, setDbTemplates] = React.useState([]);
+  const [category, setCategory] = React.useState('All');
+  const [search, setSearch] = React.useState('');
+  const [preview, setPreview] = React.useState(null);
+  const [showCreate, setShowCreate] = React.useState(false);
+  const [newTpl, setNewTpl] = React.useState({ name:'', category:'Mortgage', subject:'', body:'' });
+  const [saving, setSaving] = React.useState(false);
+
+  const companyId = profile?.company_name;
+
+  React.useEffect(() => {
+    if (!companyId) return;
+    supabase.from('email_templates').select('*')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setDbTemplates(data || []));
+  }, [companyId]);
+
+  const all = [...BUILTIN_EMAIL_TEMPLATES, ...dbTemplates];
+  const categories = ['All', 'Mortgage', 'Birthday', 'Holiday', 'Custom'];
+  const filtered = all.filter(t => {
+    const catMatch = category === 'All' || t.category === category || (category === 'Custom' && !['Mortgage','Birthday','Holiday'].includes(t.category));
+    const q = search.toLowerCase();
+    return catMatch && (!q || t.name.toLowerCase().includes(q) || t.subject.toLowerCase().includes(q));
+  });
+
+  const saveCustomTemplate = async () => {
+    if (!newTpl.name || !newTpl.subject || !newTpl.body) return;
+    setSaving(true);
+    const { data } = await supabase.from('email_templates').insert([{
+      company_id: companyId,
+      created_by: profile.id,
+      name: newTpl.name,
+      category: newTpl.category,
+      subject: newTpl.subject,
+      body: newTpl.body,
+      is_shared: true,
+    }]).select().single();
+    if (data) setDbTemplates(t => [data, ...t]);
+    setSaving(false);
+    setShowCreate(false);
+    setNewTpl({ name:'', category:'Mortgage', subject:'', body:'' });
+  };
+
+  const deleteTemplate = async (id) => {
+    await supabase.from('email_templates').delete().eq('id', id);
+    setDbTemplates(t => t.filter(x => x.id !== id));
+    if (preview?.id === id) setPreview(null);
+  };
+
+  const CATEGORY_COLORS = { Mortgage:'#3b82f6', Birthday:'#a855f7', Holiday:'#f59e0b', Custom:'#1a9a5c' };
+
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', zIndex:99999, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+      onClick={onClose}>
+      <div style={{ width:'min(900px,95vw)', height:'min(680px,90vh)', background:'var(--surface)', borderRadius:18, border:'1px solid var(--border)', display:'flex', overflow:'hidden', boxShadow:'0 32px 80px rgba(0,0,0,.5)' }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Left panel */}
+        <div style={{ width:300, borderRight:'1px solid var(--border)', display:'flex', flexDirection:'column', flexShrink:0 }}>
+          {/* Header */}
+          <div style={{ padding:'18px 20px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <span style={{ fontWeight:700, fontSize:15 }}>Email Templates</span>
+            <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:20 }}>✕</button>
+          </div>
+          {/* Search */}
+          <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)' }}>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search templates..."
+              style={{ width:'100%', padding:'8px 12px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:8, color:'var(--text)', fontSize:13, boxSizing:'border-box' }} />
+          </div>
+          {/* Categories */}
+          <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--border)', display:'flex', flexWrap:'wrap', gap:6 }}>
+            {categories.map(c => (
+              <button key={c} onClick={() => setCategory(c)}
+                style={{ padding:'4px 12px', borderRadius:20, fontSize:12, border:'1px solid', borderColor: category===c ? 'var(--accent)' : 'var(--border)', background: category===c ? 'rgba(59,130,246,.12)' : 'transparent', color: category===c ? 'var(--accent)' : 'var(--muted)', cursor:'pointer', fontWeight: category===c ? 600 : 400 }}>
+                {c}
+              </button>
+            ))}
+          </div>
+          {/* Template list */}
+          <div style={{ flex:1, overflowY:'auto', padding:'8px 8px' }}>
+            {filtered.map(t => (
+              <div key={t.id} onClick={() => setPreview(t)}
+                style={{ padding:'10px 12px', borderRadius:10, cursor:'pointer', marginBottom:4, background: preview?.id === t.id ? 'rgba(59,130,246,.1)' : 'transparent', border: `1px solid ${preview?.id === t.id ? 'rgba(59,130,246,.3)' : 'transparent'}`, transition:'all .15s' }}
+                onMouseOver={e => { if(preview?.id !== t.id) e.currentTarget.style.background = 'var(--surface2)'; }}
+                onMouseOut={e => { if(preview?.id !== t.id) e.currentTarget.style.background = 'transparent'; }}>
+                <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:6 }}>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:600, fontSize:13, color:'var(--text)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.name}</div>
+                    <div style={{ fontSize:11, color:'var(--muted)', marginTop:3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{t.subject.replace(/\{firstName\}/g,'[Name]')}</div>
+                  </div>
+                  <span style={{ fontSize:10, padding:'2px 7px', borderRadius:10, background:(CATEGORY_COLORS[t.category]||'#888')+'22', color:CATEGORY_COLORS[t.category]||'#888', fontWeight:600, flexShrink:0 }}>{t.category}</span>
+                </div>
+              </div>
+            ))}
+            {filtered.length === 0 && (
+              <div style={{ textAlign:'center', padding:'30px 16px', color:'var(--muted)', fontSize:13 }}>No templates found</div>
+            )}
+          </div>
+          {/* Add custom button */}
+          <div style={{ padding:'12px 16px', borderTop:'1px solid var(--border)' }}>
+            <button onClick={() => setShowCreate(true)}
+              style={{ width:'100%', padding:'8px', borderRadius:8, background:'var(--accent)', border:'none', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+              + Create Custom Template
+            </button>
+          </div>
+        </div>
+
+        {/* Right panel — preview */}
+        <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+          {preview ? (
+            <>
+              <div style={{ padding:'18px 24px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:15 }}>{preview.name}</div>
+                  <div style={{ fontSize:12, color:'var(--muted)', marginTop:3 }}>Subject: {preview.subject.replace(/\{firstName\}/g,'[Name]')}</div>
+                </div>
+                <div style={{ display:'flex', gap:8 }}>
+                  {!BUILTIN_EMAIL_TEMPLATES.find(b => b.id === preview.id) && (
+                    <button onClick={() => deleteTemplate(preview.id)}
+                      style={{ padding:'6px 12px', borderRadius:7, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.2)', color:'#ef4444', fontSize:12, cursor:'pointer' }}>
+                      Delete
+                    </button>
+                  )}
+                  <button onClick={() => onSelect(preview)}
+                    style={{ padding:'6px 18px', borderRadius:7, background:'var(--accent)', border:'none', color:'#fff', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+                    Use Template →
+                  </button>
+                </div>
+              </div>
+              <div style={{ flex:1, overflowY:'auto', padding:'20px 24px' }}>
+                <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:12 }}>Email Preview</div>
+                <div style={{ border:'1px solid var(--border)', borderRadius:10, overflow:'hidden', background:'#f9fafb' }}>
+                  <iframe
+                    srcDoc={`<html><body style="margin:0;padding:16px;background:#f9fafb;font-family:Inter,sans-serif;">${preview.body.replace(/\{firstName\}/g,'Alex').replace(/\{loName\}/g,profile?.full_name||'Jane Smith').replace(/\{company\}/g,profile?.company_name||'Citizens Financial').replace(/\{replyEmail\}/g,profile?.email||'info@citizensfinancial.co').replace(/\{year\}/g,new Date().getFullYear()+1)}</body></html>`}
+                    style={{ width:'100%', height:380, border:'none', display:'block' }}
+                    title="email preview"
+                    sandbox="allow-same-origin"
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:12, color:'var(--muted)' }}>
+              <div style={{ fontSize:40 }}>📧</div>
+              <div style={{ fontSize:14 }}>Select a template to preview it</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Create template modal */}
+      {showCreate && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.5)', zIndex:100000, display:'flex', alignItems:'center', justifyContent:'center', padding:20 }}
+          onClick={() => setShowCreate(false)}>
+          <div style={{ width:'min(560px,95vw)', background:'var(--surface)', borderRadius:16, border:'1px solid var(--border)', overflow:'hidden' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ padding:'18px 24px', borderBottom:'1px solid var(--border)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <span style={{ fontWeight:700, fontSize:15 }}>Create Custom Template</span>
+              <button onClick={() => setShowCreate(false)} style={{ background:'none', border:'none', color:'var(--muted)', cursor:'pointer', fontSize:20 }}>✕</button>
+            </div>
+            <div style={{ padding:'20px 24px', display:'flex', flexDirection:'column', gap:14 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>Template Name</label>
+                  <input value={newTpl.name} onChange={e => setNewTpl(t => ({...t, name:e.target.value}))} placeholder="e.g. Rate Drop Alert"
+                    style={{ width:'100%', padding:'9px 12px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, boxSizing:'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>Category</label>
+                  <select value={newTpl.category} onChange={e => setNewTpl(t => ({...t, category:e.target.value}))}
+                    style={{ width:'100%', padding:'9px 12px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13 }}>
+                    {['Mortgage','Birthday','Holiday','Custom'].map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>Subject Line</label>
+                <input value={newTpl.subject} onChange={e => setNewTpl(t => ({...t, subject:e.target.value}))} placeholder="Use {firstName}, {loName}, {company} to personalise"
+                  style={{ width:'100%', padding:'9px 12px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, boxSizing:'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:5 }}>Message Body</label>
+                <div style={{ fontSize:11, color:'var(--muted)', marginBottom:6 }}>Plain text or HTML. Use {"{firstName}"}, {"{loName}"}, {"{company}"} as variables.</div>
+                <textarea value={newTpl.body} onChange={e => setNewTpl(t => ({...t, body:e.target.value}))} rows={7}
+                  placeholder="Write your email body here..."
+                  style={{ width:'100%', padding:'9px 12px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, resize:'vertical', boxSizing:'border-box', lineHeight:1.6 }} />
+              </div>
+            </div>
+            <div style={{ padding:'14px 24px', borderTop:'1px solid var(--border)', display:'flex', justifyContent:'flex-end', gap:10 }}>
+              <button onClick={() => setShowCreate(false)} style={{ padding:'8px 18px', borderRadius:7, background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', cursor:'pointer', fontSize:13 }}>Cancel</button>
+              <button onClick={saveCustomTemplate} disabled={saving || !newTpl.name || !newTpl.subject || !newTpl.body}
+                style={{ padding:'8px 20px', borderRadius:7, background:'var(--accent)', border:'none', color:'#fff', fontWeight:600, fontSize:13, cursor:'pointer', opacity:(!newTpl.name||!newTpl.subject||!newTpl.body)?0.5:1 }}>
+                {saving ? 'Saving...' : 'Save Template'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── TOP BAR ─────────────────────────────────────────────────────────────────
 function TopBar({ profile, onSearch, searchOpen, setSearchOpen, onNavigate, onLogout, onGetResults, workspaces, onOpenWorkspace, onProfileUpdate, toast, onOpenProfileModal }) {
@@ -11755,23 +12301,16 @@ function CampaignsView({ contacts, profile, toast, onOpenPricing, onGeneratePres
                 <div>
                   <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:6}}>
                     <label style={{fontSize:11,fontWeight:700,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.05em'}}>Message</label>
-                    <button onClick={()=>setShowTemplates(!showTemplates)}
-                      style={{fontSize:11,padding:'3px 10px',borderRadius:6,background:'var(--surface2)',border:'1px solid var(--border)',color:'var(--text)',cursor:'pointer'}}>
-                      📋 Templates
-                    </button>
+                    {wizard.type==='email' && (
+                      <button onClick={()=>setShowTemplates(true)}
+                        style={{fontSize:11,padding:'3px 10px',borderRadius:6,background:'var(--surface2)',border:'1px solid var(--border)',color:'var(--text)',cursor:'pointer',display:'flex',alignItems:'center',gap:4}}>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="14" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></svg> Templates
+                      </button>
+                    )}
                   </div>
-                  {showTemplates && (
-                    <div style={{background:'var(--surface2)',border:'1px solid var(--border)',borderRadius:10,padding:12,marginBottom:10,maxHeight:180,overflowY:'auto'}}>
-                      {(CAMPAIGN_TEMPLATES[wizard.type]||[]).map((t,i)=>(
-                        <div key={i} onClick={()=>{ setF('body',t.body); if(wizard.type==='email') setF('subject',t.subject); setShowTemplates(false); }}
-                          style={{padding:'8px 10px',borderRadius:7,cursor:'pointer',marginBottom:4}}
-                          onMouseOver={e=>e.currentTarget.style.background='var(--surface)'}
-                          onMouseOut={e=>e.currentTarget.style.background='transparent'}>
-                          <div style={{fontWeight:600,fontSize:12}}>{t.label}</div>
-                          <div style={{fontSize:11,color:'var(--muted)',marginTop:2,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{t.body.substring(0,70)}...</div>
-                        </div>
-                      ))}
-                    </div>
+                  {showTemplates && wizard.type==='email' && (
+                    <TemplatePickerModal profile={profile} onClose={()=>setShowTemplates(false)}
+                      onSelect={t=>{ setF('subject', t.subject); setF('body', t.body); setShowTemplates(false); }} />
                   )}
                   <textarea value={form.body} onChange={e=>setF('body',e.target.value)}
                     placeholder={wizard.type==='email'?'Write your email message here...\n\nTip: Use {firstName} to personalise each message.':'Write your SMS message here... (160 chars recommended)\n\nTip: Use {firstName} and {loName} to personalise.'}
