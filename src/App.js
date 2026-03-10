@@ -1189,23 +1189,19 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
     if (!contact.email) { toast('Contact has no email address'); return; }
     setSendingEmail(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/send-email', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + process.env.REACT_APP_SUPABASE_ANON_KEY
-        },
-        body: JSON.stringify({ to: contact.email, subject: emailSubject, body: emailBody })
+      const result = await sendClientEmail({
+        to: contact.email,
+        subject: emailSubject,
+        body: emailBody,
+        replyTo: profile?.email || '',
       });
-      const data = await res.json();
-      if (data.id) {
+      if (result.ok) {
         const activityBody = 'Subject: ' + emailSubject + '\n\n' + emailBody;
         await supabase.from('activities').insert([{ contact_id:contact.id, company_id:companyId, type:'email', body:activityBody }]);
         setActivities(a=>[{type:'email', body:activityBody, created_at:new Date().toISOString()}, ...a]);
         setEmailSubject(''); setEmailBody('');
-        toast('Email sent successfully!');
-      } else { toast('Error: ' + (data.message||'Unknown error')); }
+        toast(result.via === 'gmail' ? 'Email sent from your Gmail!' : 'Email sent!');
+      } else { toast('Error: ' + (result.error||'Send failed')); }
     } catch(e) { toast('Error: ' + e.message); }
     setSendingEmail(false);
   };
@@ -3104,17 +3100,12 @@ function LeadEmailModal({ contact, onClose, toast }) {
     if(!subject||!body){toast('Subject and message required');return;}
     setSending(true);
     try {
-      const res=await fetch(process.env.REACT_APP_SUPABASE_URL+'/functions/v1/send-email',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':'Bearer '+process.env.REACT_APP_SUPABASE_ANON_KEY},
-        body:JSON.stringify({to:contact.email,subject,body}),
-      });
-      const d=await res.json();
-      if(d.id||d.success||res.ok){
+      const result = await sendClientEmail({ to:contact.email, subject, body });
+      if(result.ok){
         await supabase.from('activities').insert([{contact_id:contact.id,company_id:contact.company_id,type:'email',body:'Subject: '+subject+'\n\n'+body}]);
-        toast('Email sent to '+contact.full_name+'!');
+        toast(result.via==='gmail' ? 'Email sent from your Gmail!' : 'Email sent to '+contact.full_name+'!');
         onClose();
-      } else toast('Error: '+(d.error||'Send failed'));
+      } else toast('Error: '+(result.error||'Send failed'));
     } catch(e){toast('Error: '+e.message);}
     setSending(false);
   };
@@ -3148,10 +3139,11 @@ function LeadPresModal({ contact, profile, onClose, toast }) {
     try {
       const firstName=(contact.full_name||'').split(' ')[0];
       const emailBody='Hi '+firstName+',\n\nPlease find your personalized mortgage rate presentation. I have prepared loan options tailored to your situation.\n\nFeel free to reply with any questions.\n\nBest regards,\n'+(profile?.full_name||'Your Loan Officer');
-      await fetch(process.env.REACT_APP_SUPABASE_URL+'/functions/v1/send-email',{
-        method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':'Bearer '+process.env.REACT_APP_SUPABASE_ANON_KEY},
-        body:JSON.stringify({to:contact.email,subject:'Your Mortgage Rate Presentation — '+(profile?.company_name||'Citizens Financial'),body:emailBody}),
+      await sendClientEmail({
+        to: contact.email,
+        subject: 'Your Mortgage Rate Presentation — '+(profile?.company_name||'Citizens Financial'),
+        body: emailBody,
+        replyTo: profile?.email || '',
       });
       await supabase.from('contacts').update({stage:'Proposal'}).eq('id',contact.id);
       await supabase.from('activities').insert([{contact_id:contact.id,company_id:contact.company_id||profile?.company_name,type:'presentation_sent',body:'Sent via Leads tab'}]);
@@ -6356,6 +6348,126 @@ const GOOGLE_CLIENT_ID = '1062524105477-sprjpqt5su4rrcgceuaodpbr1cb9il3g.apps.go
 const GOOGLE_API_KEY   = 'AIzaSyC_kNTbeCmQssx8ObsYKs5jv_bq-hZ4qjw';
 const GCAL_SCOPE  = 'https://www.googleapis.com/auth/calendar.events';
 const GDRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.readonly';
+const GMAIL_SCOPE  = 'https://www.googleapis.com/auth/gmail.send';
+
+// ─── GMAIL UTILITIES ─────────────────────────────────────────────────────────
+// Reads the stored Gmail token from localStorage (set by useGoogleToken hook)
+function getStoredGmailToken() {
+  try {
+    const key = `gcal_token_${GMAIL_SCOPE.replace(/[^a-z]/gi,'_')}`;
+    const exp = `gcal_expiry_${GMAIL_SCOPE.replace(/[^a-z]/gi,'_')}`;
+    const t = localStorage.getItem(key);
+    const e = localStorage.getItem(exp);
+    if (t && e && Date.now() < Number(e) - 60000) return t;
+  } catch(_){}
+  return null;
+}
+
+// Build a base64url-encoded RFC 2822 email message for the Gmail API
+function buildGmailRaw({ to, subject, htmlBody, fromName, replyTo }) {
+  const boundary = 'crmbound_' + Math.random().toString(36).slice(2);
+  const lines = [
+    `To: ${to}`,
+    `Subject: =?UTF-8?B?${btoa(unescape(encodeURIComponent(subject)))}?=`,
+    `MIME-Version: 1.0`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    ...(replyTo ? [`Reply-To: ${replyTo}`] : []),
+    ``,
+    `--${boundary}`,
+    `Content-Type: text/html; charset=UTF-8`,
+    `Content-Transfer-Encoding: base64`,
+    ``,
+    btoa(unescape(encodeURIComponent(htmlBody))),
+    `--${boundary}--`,
+  ];
+  return btoa(unescape(encodeURIComponent(lines.join('\r\n'))))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+// Send via Gmail API directly from the browser (comes FROM the LO's Gmail address)
+// Returns { ok: true } or { ok: false, error: string }
+async function sendViaGmail({ to, subject, htmlBody, replyTo }) {
+  const token = getStoredGmailToken();
+  if (!token) return { ok: false, error: 'Gmail not connected' };
+  try {
+    const raw = buildGmailRaw({ to, subject, htmlBody, replyTo });
+    const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ raw }),
+    });
+    if (res.ok) return { ok: true };
+    const d = await res.json().catch(()=>({}));
+    return { ok: false, error: d?.error?.message || 'Gmail send failed' };
+  } catch(e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// Unified send: tries Gmail first, falls back to Supabase send-email function
+// opts: { to, subject, html, body, replyTo }
+// Returns { ok, via } where via is 'gmail' or 'fallback'
+async function sendClientEmail({ to, subject, html, body, replyTo }) {
+  const htmlBody = html || (body ? `<p style="font-family:Inter,sans-serif;font-size:14px;line-height:1.7;color:#333;">${(body||'').replace(/\n/g,'<br/>')}</p>` : '');
+  const gmailResult = await sendViaGmail({ to, subject, htmlBody, replyTo });
+  if (gmailResult.ok) return { ok: true, via: 'gmail' };
+  // Fallback to Supabase send-email
+  try {
+    const res = await fetch(process.env.REACT_APP_SUPABASE_URL + '/functions/v1/send-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + process.env.REACT_APP_SUPABASE_ANON_KEY },
+      body: JSON.stringify({ to, subject, body: htmlBody }),
+    });
+    const d = await res.json().catch(()=>({}));
+    if (res.ok || d.id || d.success) return { ok: true, via: 'fallback' };
+    return { ok: false, error: d.error || d.message || 'Send failed' };
+  } catch(e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+// ─── GMAIL CONNECT BUTTON COMPONENT ──────────────────────────────────────────
+function GmailConnectButton({ onStatusChange }) {
+  const { token, connected, gsiLoaded, connect, disconnect } = useGoogleToken(GMAIL_SCOPE);
+  React.useEffect(() => { onStatusChange && onStatusChange(connected); }, [connected]);
+  const [checking, setChecking] = React.useState(false);
+
+  const handleConnect = () => {
+    setChecking(true);
+    connect();
+    setTimeout(() => setChecking(false), 3000);
+  };
+
+  if (connected) {
+    return (
+      <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:'rgba(26,154,92,.08)', border:'1px solid rgba(26,154,92,.25)', borderRadius:8 }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1a9a5c" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:13, fontWeight:600, color:'#1a9a5c' }}>Gmail Connected</div>
+          <div style={{ fontSize:11, color:'var(--muted)' }}>Client emails will send from your Gmail address</div>
+        </div>
+        <button onClick={disconnect}
+          style={{ padding:'4px 10px', borderRadius:6, background:'transparent', border:'1px solid rgba(255,255,255,.15)', color:'var(--muted)', fontSize:11, cursor:'pointer' }}>
+          Disconnect
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:10, padding:'10px 14px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:8 }}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6z" fill="#EA4335" opacity=".15"/><polyline points="2,6 12,13 22,6" stroke="#EA4335" strokeWidth="1.5" fill="none"/></svg>
+      <div style={{ flex:1 }}>
+        <div style={{ fontSize:13, fontWeight:600 }}>Connect Gmail</div>
+        <div style={{ fontSize:11, color:'var(--muted)' }}>Send client emails directly from your Gmail inbox</div>
+      </div>
+      <button onClick={handleConnect} disabled={!gsiLoaded || checking}
+        style={{ padding:'6px 14px', borderRadius:6, background:'var(--accent)', border:'none', color:'#fff', fontSize:12, fontWeight:600, cursor: (!gsiLoaded||checking)?'wait':'pointer', opacity:(!gsiLoaded||checking)?0.7:1, whiteSpace:'nowrap' }}>
+        {checking ? 'Connecting…' : 'Connect'}
+      </button>
+    </div>
+  );
+}
 
 function loadGoogleScript(id, src, onload) {
   if(document.getElementById(id)) { onload&&onload(); return; }
@@ -7771,12 +7883,14 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent, pr
           <div style="padding-top:24px;border-top:1px solid #eee;font-size:13px;color:#888;">Best regards,<br/><strong style="color:#444;">${form.lo_name}</strong>${form.lo_phone?'<br/>'+form.lo_phone:''}${form.lo_email?'<br/><a href="mailto:'+form.lo_email+'" style="color:#1a9a5c;">'+form.lo_email+'</a>':''}</div>
         </div>
       </div>`;
-      const emailRes = await fetch(process.env.REACT_APP_SUPABASE_URL+'/functions/v1/send-email',{
-        method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+process.env.REACT_APP_SUPABASE_ANON_KEY},
-        body:JSON.stringify({ to:contact.email, subject:`Your Mortgage Presentation — ${profile.company_name}`, body:emailHtml })
+      const emailRes = await sendClientEmail({
+        to: contact.email,
+        subject: `Your Mortgage Presentation — ${profile.company_name}`,
+        html: emailHtml,
+        replyTo: profile?.email || '',
       });
-      if (!emailRes.ok) { const d=await emailRes.json().catch(()=>({})); throw new Error(d.error||emailRes.status); }
-      toast('Presentation sent to '+contact.email+'!');
+      if (!emailRes.ok) throw new Error(emailRes.error || 'Send failed');
+      toast(emailRes.via==='gmail' ? 'Presentation sent from your Gmail!' : 'Presentation sent to '+contact.email+'!');
       onSent && onSent(); onClose();
     } catch(e) { toast('Error: '+e.message); }
     setSending(false);
@@ -8197,10 +8311,13 @@ function MassPresentationModal({ contacts, profile, onClose, toast, onSent }) {
             <div style="padding-top:20px;border-top:1px solid #eee;font-size:12px;color:#888;">Best regards,<br/><strong style="color:#444;">${loName}</strong>${loPhone?'<br/>'+loPhone:''}${loEmail?'<br/><a href="mailto:'+loEmail+'" style="color:#1a9a5c;">'+loEmail+'</a>':''}</div>
           </div>
         </div>`;
-        await fetch(process.env.REACT_APP_SUPABASE_URL+'/functions/v1/send-email',{
-          method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+process.env.REACT_APP_SUPABASE_ANON_KEY},
-          body:JSON.stringify({ to:contact.email, subject:`Your Mortgage Presentation — ${profile.company_name}`, body:emailHtml })
+        const massResult = await sendClientEmail({
+          to: contact.email,
+          subject: `Your Mortgage Presentation — ${profile.company_name}`,
+          html: emailHtml,
+          replyTo: profile?.email || '',
         });
+        if (!massResult.ok) throw new Error(massResult.error || 'Send failed');
         sent++;
       } catch(e) { console.warn('Failed for',contact.full_name,e); }
       setProgress(Math.round(((i+1)/withEmail.length)*100));
@@ -13044,6 +13161,11 @@ export default function App() {
                     style={{ width:'100%', padding:'9px 12px', background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:7, color:'var(--text)', fontSize:13, boxSizing:'border-box' }} />
                 </div>
               ))}
+            </div>
+            {/* Gmail Integration */}
+            <div style={{ padding:'0 24px 16px' }}>
+              <label style={{ fontSize:11, fontWeight:700, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'.05em', display:'block', marginBottom:8 }}>Gmail Integration</label>
+              <GmailConnectButton />
             </div>
             {/* Footer */}
             <div style={{ padding:'12px 24px 20px', display:'flex', justifyContent:'flex-end', gap:10, borderTop:'1px solid var(--border)' }}>
