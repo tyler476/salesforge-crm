@@ -409,9 +409,16 @@ function PricingProvider({ children }) {
       setFredError(null);
       fetchAllFREDRates(fredApiKey).then(({ cache, error }) => {
         if (cache) {
+          const _prevRate30 = parseFloat(localStorage.getItem('last_30yr_rate') || '0');
           setFredCache(cache);
           setFredError(null);
           try { localStorage.setItem('fred_rate_cache', JSON.stringify(cache)); } catch {}
+          // ── Automation: fire rate-alert if rates moved significantly ──
+          const _currRate30 = parseFloat(cache?.base30 || '0');
+          if (_prevRate30 && _currRate30 && window._automationEngine) {
+            window._automationEngine.triggerRateAlert(_prevRate30, _currRate30, '30yr_fixed').catch(e => console.warn('[AutomationEngine] rateAlert:', e));
+          }
+          if (_currRate30) { try { localStorage.setItem('last_30yr_rate', String(_currRate30)); } catch {} }
         } else {
           setFredError(error || 'Failed to fetch rates');
         }
@@ -1075,6 +1082,10 @@ function ContactForm({ contact, onSave, onClose, companyId, toast }) {
           supabase.functions.invoke('automation-engine', {
             body: { action:'scoreLead', contact_id:data.id, qualData:{ borrowerName:data.full_name, phone:data.phone, email:data.email } }
           }).catch(()=>{});
+          // ── Automation: start new-lead onboarding sequence ──
+          if (window._automationEngine) {
+            window._automationEngine.triggerNewLeadSequence(data).catch(e => console.warn('[AutomationEngine] newLead:', e));
+          }
         }
       }
       onSave();
@@ -1245,11 +1256,16 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
   };
 
   const changeStage = async (stage) => {
+    const _prevStage = localStage;
     setLocalStage(stage);
     await supabase.from('contacts').update({ stage }).eq('id', contact.id);
     if (onContactUpdate) onContactUpdate({ ...contact, stage });
     supabase.from('activities').insert([{ contact_id:contact.id, company_id:companyId, type:'stage', body:`Stage changed to ${stage}` }]);
     setActivities(a=>[{type:'stage', body:`Stage changed to ${stage}`, created_at:new Date().toISOString()}, ...a]);
+    // ── Automation: fire stage-based sequences ──
+    if (window._automationEngine) {
+      window._automationEngine.triggerOnStageChange(contact, _prevStage, stage).catch(e => console.warn('[AutomationEngine] stageChange:', e));
+    }
   };
 
   if (!contact) return null;
@@ -7013,6 +7029,17 @@ async function sendClientEmail({ to, subject, html, body, replyTo }) {
 function GmailConnectButton({ onStatusChange }) {
   const { token, connected, gsiLoaded, connect, disconnect } = useGoogleToken(GMAIL_SCOPE);
   React.useEffect(() => { onStatusChange && onStatusChange(connected); }, [connected]);
+  // ── Automation: sync existing CRM events to Google Calendar on first connect ──
+  React.useEffect(() => {
+    if (connected && token && typeof syncCRMToGoogleCalendar === 'function') {
+      const userId = supabase.auth.getUser ? supabase.auth.getUser().then(({data})=>data?.user?.id) : Promise.resolve(null);
+      userId.then(uid => {
+        if (uid) syncCRMToGoogleCalendar(supabase, token, uid)
+          .then(r => console.log(`[AutomationEngine] Synced ${r?.synced || 0} events to Google Calendar`))
+          .catch(e => console.warn('[AutomationEngine] Calendar sync:', e));
+      });
+    }
+  }, [connected, token]);
   const [checking, setChecking] = React.useState(false);
 
   const handleConnect = () => {
@@ -14175,6 +14202,1353 @@ function LiveTransferDashboard({ profile, toast }) {
 }
 
 
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTOMATION ENGINE — Client Retention, Email/SMS/AI Calls, Calendar
+// Integrated from automationEngine.js — March 2026
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *  CITIZENS FINANCIAL CRM — FULL AUTOMATION ENGINE
+ *  File: automationEngine.js
+ *  Purpose: Client retention automation — Email, SMS, AI Calls, Calendar, Notifications
+ *  Channels: Email (Gmail/Supabase) → SMS (Twilio) → AI Calls (Retell)
+ *  Calendars: Google Calendar + In-App CRM Calendar
+ * ═══════════════════════════════════════════════════════════════════════════════
+ *
+ *  HOW TO INTEGRATE:
+ *  1. Import this file into your main App.js:
+ *     import { AutomationEngine } from './automationEngine';
+ *
+ *  2. Initialize the engine once on app load (inside your main component):
+ *     useEffect(() => {
+ *       const engine = new AutomationEngine(supabase, { gmail, twilio, retell, googleCalendar });
+ *       engine.start();
+ *       return () => engine.stop();
+ *     }, []);
+ *
+ *  3. Wire individual triggers to your existing functions (see section comments below)
+ *
+ *  REQUIRED ENV / SUPABASE SECRETS:
+ *    TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
+ *    RETELL_API_KEY
+ *    GOOGLE_CALENDAR_CLIENT_ID, GOOGLE_CALENDAR_CLIENT_SECRET
+ *    SUPABASE_SERVICE_ROLE_KEY (for edge functions)
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 1: CONSTANTS & CONFIGURATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+const AUTOMATION_CONFIG = {
+  // How often the engine polls for pending triggers (ms)
+  POLL_INTERVAL_MS: 5 * 60 * 1000, // every 5 minutes
+
+  // Retention sequence delays (days)
+  RETENTION_SEQUENCES: {
+    NEW_LEAD:        [0, 3, 7, 14],       // Day 0: email, Day 3: SMS, Day 7: AI call, Day 14: email
+    RE_ENGAGEMENT:   [30, 60, 90],         // 30/60/90 day re-engagement
+    POST_CLOSE:      [7, 30, 90, 180, 365],// Post-close referral + annual review
+    BIRTHDAY:        [-3],                 // 3 days before birthday
+    RATE_ALERT:      [0],                  // Immediate on rate change > 0.25%
+  },
+
+  // Lead score thresholds for AI call escalation
+  AI_CALL_SCORE_THRESHOLD: 70,
+
+  // Rate change threshold to trigger broadcast (percentage points)
+  RATE_CHANGE_TRIGGER_BPS: 0.25,
+
+  // Days of inactivity before re-engagement sequence fires
+  INACTIVITY_DAYS_TRIGGER: 30,
+
+  // Google Calendar event colors
+  CALENDAR_COLORS: {
+    BIRTHDAY:       '11', // tomato
+    FOLLOW_UP:      '5',  // banana
+    RATE_REVIEW:    '2',  // sage
+    AI_CALL:        '6',  // tangerine
+    CLOSING:        '10', // basil
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 2: DATABASE SCHEMA
+// ─────────────────────────────────────────────────────────────────────────────
+// Run these SQL migrations in your Supabase SQL editor BEFORE integrating:
+
+const REQUIRED_SQL_MIGRATIONS = `
+-- 1. Automation queue — every trigger writes a job here
+CREATE TABLE IF NOT EXISTS automation_queue (
+  id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  contact_id      UUID REFERENCES contacts(id) ON DELETE CASCADE,
+  company_id      UUID REFERENCES companies(id) ON DELETE CASCADE,
+  trigger_type    TEXT NOT NULL,   -- 'birthday','follow_up','re_engagement','rate_alert','post_close','ai_call','sms'
+  channel         TEXT NOT NULL,   -- 'email','sms','ai_call','calendar'
+  sequence_name   TEXT,            -- 'new_lead','re_engagement','post_close', etc.
+  sequence_step   INT DEFAULT 0,
+  scheduled_at    TIMESTAMPTZ NOT NULL,
+  executed_at     TIMESTAMPTZ,
+  status          TEXT DEFAULT 'pending',  -- 'pending','sent','failed','skipped'
+  payload         JSONB,           -- template name, message body, calendar details, etc.
+  error           TEXT,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_queue_scheduled ON automation_queue(scheduled_at, status);
+CREATE INDEX idx_queue_contact   ON automation_queue(contact_id, status);
+
+-- 2. Automation rules — configurable per company
+CREATE TABLE IF NOT EXISTS automation_rules (
+  id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  company_id      UUID REFERENCES companies(id) ON DELETE CASCADE,
+  rule_name       TEXT NOT NULL,
+  trigger_type    TEXT NOT NULL,
+  channel         TEXT NOT NULL,
+  template_id     TEXT,
+  enabled         BOOLEAN DEFAULT TRUE,
+  delay_days      INT DEFAULT 0,
+  conditions      JSONB,           -- e.g. { "min_score": 50, "stages": ["New Lead","Contacted"] }
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 3. Email engagement tracking
+CREATE TABLE IF NOT EXISTS email_events (
+  id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  contact_id      UUID REFERENCES contacts(id) ON DELETE CASCADE,
+  campaign_id     UUID,
+  event_type      TEXT NOT NULL,   -- 'sent','opened','clicked','bounced','unsubscribed'
+  metadata        JSONB,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_email_events_contact ON email_events(contact_id, event_type);
+
+-- 4. SMS conversations (extends existing)
+CREATE TABLE IF NOT EXISTS sms_messages (
+  id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  contact_id      UUID REFERENCES contacts(id) ON DELETE CASCADE,
+  company_id      UUID REFERENCES companies(id) ON DELETE CASCADE,
+  direction       TEXT NOT NULL,   -- 'outbound','inbound'
+  body            TEXT NOT NULL,
+  twilio_sid      TEXT,
+  status          TEXT,            -- 'queued','sent','delivered','failed','received'
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 5. Calendar events
+CREATE TABLE IF NOT EXISTS calendar_events (
+  id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  contact_id      UUID REFERENCES contacts(id) ON DELETE CASCADE,
+  company_id      UUID REFERENCES companies(id) ON DELETE CASCADE,
+  user_id         UUID REFERENCES users(id) ON DELETE SET NULL,
+  event_type      TEXT NOT NULL,   -- 'follow_up','birthday','rate_review','ai_call','closing'
+  title           TEXT NOT NULL,
+  description     TEXT,
+  start_time      TIMESTAMPTZ NOT NULL,
+  end_time        TIMESTAMPTZ NOT NULL,
+  google_event_id TEXT,            -- synced Google Calendar event ID
+  all_day         BOOLEAN DEFAULT FALSE,
+  created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_calendar_contact ON calendar_events(contact_id);
+CREATE INDEX idx_calendar_start   ON calendar_events(start_time);
+
+-- 6. Churn risk scores
+CREATE TABLE IF NOT EXISTS churn_risk (
+  id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  contact_id      UUID REFERENCES contacts(id) ON DELETE CASCADE,
+  risk_score      INT,             -- 0 (safe) to 100 (high risk)
+  days_inactive   INT,
+  last_contact    TIMESTAMPTZ,
+  flags           JSONB,           -- { "no_email_open": true, "score_dropped": true }
+  assessed_at     TIMESTAMPTZ DEFAULT NOW()
+);
+`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 3: MAIN AUTOMATION ENGINE CLASS
+// ─────────────────────────────────────────────────────────────────────────────
+
+class AutomationEngine {
+  constructor(supabase, integrations = {}) {
+    this.supabase = supabase;
+    this.gmail         = integrations.gmail;         // existing Gmail token helper
+    this.twilioClient  = integrations.twilio;        // Twilio REST client
+    this.retellClient  = integrations.retell;        // Retell AI client
+    this.gcal          = integrations.googleCalendar;// Google Calendar client
+    this._pollTimer    = null;
+    this._running      = false;
+  }
+
+  // Start the engine — call once on app load
+  start() {
+    if (this._running) return;
+    this._running = true;
+    this._tick();
+    this._pollTimer = setInterval(() => this._tick(), AUTOMATION_CONFIG.POLL_INTERVAL_MS);
+    console.log('[AutomationEngine] Started — polling every', AUTOMATION_CONFIG.POLL_INTERVAL_MS / 60000, 'minutes');
+  }
+
+  stop() {
+    this._running = false;
+    if (this._pollTimer) clearInterval(this._pollTimer);
+    console.log('[AutomationEngine] Stopped');
+  }
+
+  // Main poll cycle — runs every 5 minutes
+  async _tick() {
+    try {
+      await Promise.all([
+        this.processBirthdayTriggers(),
+        this.processInactivityTriggers(),
+        this.processScheduledQueue(),
+        this.assessChurnRisk(),
+      ]);
+    } catch (err) {
+      console.error('[AutomationEngine] Tick error:', err);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 4: TRIGGER SYSTEM
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * BIRTHDAY TRIGGER
+ * Fires 3 days before each contact's birthday.
+ * Schedules: email (Day -3), SMS (Day 0 = actual birthday), optional AI call follow-up.
+ *
+ * HOW TO WIRE: Replace the stub in CampaignsView's saveBirthdaySchedules()
+ * with a call to triggerBirthdaySequence(contact).
+ */
+AutomationEngine.prototype.processBirthdayTriggers = async function () {
+  const today = new Date();
+  const threeDaysOut = new Date(today);
+  threeDaysOut.setDate(today.getDate() + 3);
+
+  // Find contacts whose birthday (month+day) matches 3 days from now
+  const { data: contacts } = await this.supabase
+    .from('contacts')
+    .select('id, first_name, last_name, email, phone, date_of_birth, company_id, assigned_user_id')
+    .not('date_of_birth', 'is', null);
+
+  const birthdayContacts = (contacts || []).filter(c => {
+    const dob = new Date(c.date_of_birth);
+    return (
+      dob.getMonth() === threeDaysOut.getMonth() &&
+      dob.getDate()  === threeDaysOut.getDate()
+    );
+  });
+
+  for (const contact of birthdayContacts) {
+    // Check we haven't already queued this birthday this year
+    const thisYear = today.getFullYear();
+    const { count } = await this.supabase
+      .from('automation_queue')
+      .select('*', { count: 'exact', head: true })
+      .eq('contact_id', contact.id)
+      .eq('trigger_type', 'birthday')
+      .gte('scheduled_at', `${thisYear}-01-01`);
+
+    if (count > 0) continue; // already scheduled
+
+    await this.scheduleBirthdaySequence(contact);
+  }
+};
+
+AutomationEngine.prototype.scheduleBirthdaySequence = async function (contact) {
+  const dob = new Date(contact.date_of_birth);
+  const thisYear = new Date().getFullYear();
+  const birthdayThisYear = new Date(thisYear, dob.getMonth(), dob.getDate());
+
+  const jobs = [
+    {
+      // Email 3 days before
+      scheduled_at: new Date(birthdayThisYear.getTime() - 3 * 86400000).toISOString(),
+      channel: 'email',
+      payload: { template: 'birthday_preview', subject: `🎂 ${contact.first_name}'s Birthday is in 3 Days!` }
+    },
+    {
+      // Email on birthday
+      scheduled_at: birthdayThisYear.toISOString(),
+      channel: 'email',
+      payload: { template: 'birthday', subject: `Happy Birthday, ${contact.first_name}! 🎉` }
+    },
+    {
+      // SMS on birthday morning
+      scheduled_at: new Date(birthdayThisYear.setHours(9, 0, 0, 0)).toISOString(),
+      channel: 'sms',
+      payload: { message: `Hi ${contact.first_name}! Wishing you a wonderful birthday from all of us at Citizens Financial 🎂 – {loName}` }
+    },
+    {
+      // Calendar reminder for LO 3 days before
+      scheduled_at: new Date(birthdayThisYear.getTime() - 3 * 86400000).toISOString(),
+      channel: 'calendar',
+      payload: {
+        event_type: 'birthday',
+        title: `🎂 ${contact.first_name} ${contact.last_name}'s Birthday`,
+        all_day: true,
+        start_time: birthdayThisYear.toISOString(),
+        end_time: birthdayThisYear.toISOString(),
+        color: AUTOMATION_CONFIG.CALENDAR_COLORS.BIRTHDAY,
+        description: `Client birthday — automated email & SMS already scheduled. Consider a personal call.`
+      }
+    }
+  ];
+
+  for (const job of jobs) {
+    await this.supabase.from('automation_queue').insert({
+      contact_id:    contact.id,
+      company_id:    contact.company_id,
+      trigger_type:  'birthday',
+      sequence_name: 'birthday',
+      ...job,
+    });
+  }
+
+  console.log(`[AutomationEngine] Birthday sequence scheduled for ${contact.first_name} ${contact.last_name}`);
+};
+
+/**
+ * INACTIVITY / RE-ENGAGEMENT TRIGGER
+ * Fires when a contact has had no activity for 30, 60, or 90 days.
+ * Each threshold fires a different-intensity re-engagement sequence.
+ *
+ * HOW TO WIRE: This runs automatically in the engine tick.
+ * You can also call triggerReEngagement(contactId) manually from the contact drawer.
+ */
+AutomationEngine.prototype.processInactivityTriggers = async function () {
+  const thresholds = [30, 60, 90];
+
+  for (const days of thresholds) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+
+    // Find contacts with no activity since the cutoff
+    const { data: contacts } = await this.supabase
+      .from('contacts')
+      .select('id, first_name, last_name, email, phone, company_id, stage, lead_score, last_activity_at')
+      .lt('last_activity_at', cutoff.toISOString())
+      .in('stage', ['New Lead', 'Contacted', 'Nurturing', 'Qualified'])  // only active pipeline stages
+      .not('email', 'is', null);
+
+    for (const contact of contacts) {
+      // Don't re-trigger if we already have a pending re-engagement for this threshold
+      const { count } = await this.supabase
+        .from('automation_queue')
+        .select('*', { count: 'exact', head: true })
+        .eq('contact_id', contact.id)
+        .eq('trigger_type', 're_engagement')
+        .eq('sequence_step', days)
+        .eq('status', 'pending');
+
+      if (count > 0) continue;
+
+      await this.scheduleReEngagementSequence(contact, days);
+    }
+  }
+};
+
+AutomationEngine.prototype.scheduleReEngagementSequence = async function (contact, dayThreshold) {
+  const now = new Date();
+  const intensity = dayThreshold === 30 ? 'warm' : dayThreshold === 60 ? 'medium' : 'urgent';
+
+  const templates = {
+    warm:   { email: 'reengagement_warm',   sms: `Hi ${contact.first_name}, just checking in! We have some great rate options available. Want a quick update? – {loName}` },
+    medium: { email: 'reengagement_medium',  sms: `${contact.first_name}, rates have shifted since we last spoke. Could save you real money. Quick chat? – {loName}` },
+    urgent: { email: 'reengagement_urgent',  sms: `${contact.first_name}, this is your last nudge from us! We'd hate to lose touch. Are you still looking to buy/refi? – {loName}` },
+  };
+
+  const t = templates[intensity];
+
+  const jobs = [
+    // Email first
+    {
+      channel: 'email',
+      sequence_step: dayThreshold,
+      scheduled_at: now.toISOString(),
+      payload: { template: t.email, subject: reEngagementSubject(contact.first_name, intensity) }
+    },
+    // SMS 2 days later if no response
+    {
+      channel: 'sms',
+      sequence_step: dayThreshold,
+      scheduled_at: new Date(now.getTime() + 2 * 86400000).toISOString(),
+      payload: { message: t.sms, condition: 'if_no_email_open' }
+    },
+  ];
+
+  // For 60+ day contacts with high lead score, escalate to AI call
+  if (dayThreshold >= 60 && (contact.lead_score || 0) >= AUTOMATION_CONFIG.AI_CALL_SCORE_THRESHOLD) {
+    jobs.push({
+      channel: 'ai_call',
+      sequence_step: dayThreshold,
+      scheduled_at: new Date(now.getTime() + 4 * 86400000).toISOString(),
+      payload: {
+        script: 'reengagement',
+        context: `Contact hasn't responded to email or SMS in ${dayThreshold} days. Score: ${contact.lead_score}.`
+      }
+    });
+  }
+
+  for (const job of jobs) {
+    await this.supabase.from('automation_queue').insert({
+      contact_id:    contact.id,
+      company_id:    contact.company_id,
+      trigger_type:  're_engagement',
+      sequence_name: `re_engagement_${dayThreshold}d`,
+      ...job,
+    });
+  }
+};
+
+/**
+ * STAGE-BASED TRIGGERS
+ * Call this whenever a contact's stage changes.
+ * HOW TO WIRE: Find your existing stage change handler and add:
+ *   await triggerOnStageChange(contact, oldStage, newStage);
+ *
+ * Example (in your contact drawer stage dropdown onChange):
+ *   const handleStageChange = async (newStage) => {
+ *     await updateContactStage(contact.id, newStage);
+ *     await automationEngine.triggerOnStageChange(contact, contact.stage, newStage);
+ *   };
+ */
+AutomationEngine.prototype.triggerOnStageChange = async function (contact, oldStage, newStage) {
+  const now = new Date();
+
+  const stageActions = {
+    'Qualified': async () => {
+      // Schedule rate presentation email immediately
+      await this.enqueueJob(contact, {
+        trigger_type:  'stage_change',
+        channel:       'email',
+        scheduled_at:  now.toISOString(),
+        payload:       { template: 'rate_presentation', subject: `${contact.first_name}, Your Custom Rate Options Are Ready` }
+      });
+      // Schedule follow-up call 2 days later
+      await this.enqueueJob(contact, {
+        trigger_type:  'stage_change',
+        channel:       'ai_call',
+        scheduled_at:  new Date(now.getTime() + 2 * 86400000).toISOString(),
+        payload:       { script: 'qualification_followup' }
+      });
+      // Calendar event: "Qualified Lead Follow-Up"
+      await this.createCalendarEvent(contact, {
+        event_type:   'follow_up',
+        title:        `📋 Follow-Up: ${contact.first_name} ${contact.last_name} — Qualified`,
+        start_time:   new Date(now.getTime() + 2 * 86400000).toISOString(),
+        end_time:     new Date(now.getTime() + 2 * 86400000 + 30 * 60000).toISOString(),
+        color:        AUTOMATION_CONFIG.CALENDAR_COLORS.FOLLOW_UP,
+        description:  `${contact.first_name} just moved to Qualified. Rate presentation sent. Follow up on their questions.`
+      });
+    },
+
+    'Contracted': async () => {
+      // Congratulations email immediately
+      await this.enqueueJob(contact, {
+        trigger_type: 'stage_change',
+        channel:      'email',
+        scheduled_at: now.toISOString(),
+        payload:      { template: 'contract_congratulations', subject: `Congratulations ${contact.first_name}! 🏠 You're Under Contract` }
+      });
+      // Calendar: Closing date reminder
+      await this.createCalendarEvent(contact, {
+        event_type:  'closing',
+        title:       `🏠 Closing: ${contact.first_name} ${contact.last_name}`,
+        start_time:  new Date(now.getTime() + 30 * 86400000).toISOString(), // estimated 30 days
+        end_time:    new Date(now.getTime() + 30 * 86400000 + 60 * 60000).toISOString(),
+        color:       AUTOMATION_CONFIG.CALENDAR_COLORS.CLOSING,
+        description: `Estimated closing date for ${contact.first_name} ${contact.last_name}`
+      });
+    },
+
+    'Converted': async () => {
+      // Post-close sequence — referral + annual review
+      await this.schedulePostCloseSequence(contact);
+    },
+
+    'Lost': async () => {
+      // Schedule 90-day win-back email
+      await this.enqueueJob(contact, {
+        trigger_type: 'win_back',
+        channel:      'email',
+        scheduled_at: new Date(now.getTime() + 90 * 86400000).toISOString(),
+        payload:      { template: 'winback', subject: `${contact.first_name}, Things Have Changed — Worth a Second Look?` }
+      });
+    },
+  };
+
+  const action = stageActions[newStage];
+  if (action) {
+    await action();
+    console.log(`[AutomationEngine] Stage trigger fired: ${oldStage} → ${newStage} for ${contact.first_name}`);
+  }
+};
+
+/**
+ * RATE CHANGE TRIGGER
+ * Call this whenever you fetch updated FRED rates.
+ * HOW TO WIRE: Find your existing fetchRates() / FRED polling function and add:
+ *   await automationEngine.triggerRateAlert(oldRate, newRate, rateType);
+ */
+AutomationEngine.prototype.triggerRateAlert = async function (oldRate, newRate, rateType = '30yr_fixed') {
+  const delta = Math.abs(newRate - oldRate);
+  if (delta < AUTOMATION_CONFIG.RATE_CHANGE_TRIGGER_BPS) return;
+
+  const direction = newRate < oldRate ? 'dropped' : 'increased';
+  const emoji = direction === 'dropped' ? '📉' : '📈';
+
+  // Get all contacts who could benefit from rate improvement
+  const { data: contacts } = await this.supabase
+    .from('contacts')
+    .select('id, first_name, email, phone, company_id, current_rate, stage')
+    .not('email', 'is', null)
+    .in('stage', ['Nurturing', 'Qualified', 'Converted']); // include existing clients for refi
+
+  const benefitingContacts = (contacts || []).filter(c => {
+    if (!c.current_rate) return direction === 'dropped'; // no existing rate = notify on drops
+    return direction === 'dropped' && c.current_rate > newRate + 0.5; // >0.5% improvement threshold
+  });
+
+  console.log(`[AutomationEngine] Rate ${direction} by ${delta}% — notifying ${benefitingContacts.length} contacts`);
+
+  for (const contact of benefitingContacts) {
+    await this.enqueueJob(contact, {
+      trigger_type: 'rate_alert',
+      channel:      'email',
+      scheduled_at: new Date().toISOString(),
+      payload: {
+        template: 'rate_update',
+        subject:  `${emoji} Rates Just ${direction === 'dropped' ? 'Dropped' : 'Updated'} — Act Now, ${contact.first_name}`,
+        data:     { rateType, oldRate, newRate, direction, delta }
+      }
+    });
+  }
+};
+
+/**
+ * NEW LEAD ONBOARDING SEQUENCE
+ * Call this when a new contact is created.
+ * HOW TO WIRE: Add to your existing saveContact() / createContact() function:
+ *   if (isNewContact) await automationEngine.triggerNewLeadSequence(newContact);
+ */
+AutomationEngine.prototype.triggerNewLeadSequence = async function (contact) {
+  const now = new Date();
+  const sequence = [
+    { day: 0,  channel: 'email',    payload: { template: 'welcome_new_lead', subject: `Welcome, ${contact.first_name}! Here's What Happens Next` }},
+    { day: 1,  channel: 'calendar', payload: { event_type: 'follow_up', title: `📞 Call ${contact.first_name} ${contact.last_name}`, color: AUTOMATION_CONFIG.CALENDAR_COLORS.FOLLOW_UP, description: 'New lead — intro call' }},
+    { day: 3,  channel: 'sms',      payload: { message: `Hi ${contact.first_name}! I'm {loName} from Citizens Financial. Just wanted to make sure you got my email. Do you have 10 mins this week for a quick call?` }},
+    { day: 7,  channel: 'email',    payload: { template: 'rate_presentation', subject: `${contact.first_name}, Here Are Your Rate Options 📊` }},
+    { day: 7,  channel: 'ai_call',  payload: { script: 'new_lead_week1', context: 'New lead — rate presentation was sent today' }},
+    { day: 14, channel: 'email',    payload: { template: 'preapproval_followup', subject: `Ready to Get Pre-Approved, ${contact.first_name}?` }},
+  ];
+
+  for (const step of sequence) {
+    await this.enqueueJob(contact, {
+      trigger_type:  'new_lead',
+      sequence_name: 'new_lead_onboarding',
+      sequence_step: step.day,
+      channel:       step.channel,
+      scheduled_at:  new Date(now.getTime() + step.day * 86400000).toISOString(),
+      payload:       step.payload,
+    });
+  }
+
+  console.log(`[AutomationEngine] New lead sequence scheduled for ${contact.first_name} ${contact.last_name}`);
+};
+
+/**
+ * POST-CLOSE / CLIENT RETENTION SEQUENCE
+ * Fires when a contact moves to "Converted" stage.
+ * Sequence: thank you → 30-day check-in → 90-day referral ask → 6-month rate review → annual review
+ */
+AutomationEngine.prototype.schedulePostCloseSequence = async function (contact) {
+  const now = new Date();
+  const sequence = [
+    { day: 7,   channel: 'email',    payload: { template: 'post_close_thankyou',  subject: `Thank You, ${contact.first_name}! 🏠 Enjoy Your New Home` }},
+    { day: 7,   channel: 'calendar', payload: { event_type: 'follow_up', title: `🤝 Post-Close Check-In: ${contact.first_name}`, color: AUTOMATION_CONFIG.CALENDAR_COLORS.FOLLOW_UP, description: '1-week post-close satisfaction check-in' }},
+    { day: 30,  channel: 'email',    payload: { template: 'post_close_30day',      subject: `How's the New Home, ${contact.first_name}? 🏡` }},
+    { day: 30,  channel: 'sms',      payload: { message: `Hey ${contact.first_name}! Hope you're settling into the new place. We'd love a review on Google if you had a good experience! – {loName}` }},
+    { day: 90,  channel: 'email',    payload: { template: 'referral_ask',          subject: `${contact.first_name}, Know Anyone Looking to Buy or Refi?` }},
+    { day: 90,  channel: 'ai_call',  payload: { script: 'referral_ask',            context: '90-day post-close referral outreach' }},
+    { day: 180, channel: 'email',    payload: { template: 'rate_review_6mo',       subject: `${contact.first_name}, Time for Your 6-Month Rate Review` }},
+    { day: 365, channel: 'email',    payload: { template: 'annual_review',         subject: `${contact.first_name}, Your Annual Mortgage Review Is Ready` }},
+    { day: 365, channel: 'calendar', payload: { event_type: 'rate_review', title: `📊 Annual Review: ${contact.first_name} ${contact.last_name}`, color: AUTOMATION_CONFIG.CALENDAR_COLORS.RATE_REVIEW, description: 'Annual mortgage review — check if refinance makes sense' }},
+  ];
+
+  for (const step of sequence) {
+    await this.enqueueJob(contact, {
+      trigger_type:  'post_close',
+      sequence_name: 'post_close_retention',
+      sequence_step: step.day,
+      channel:       step.channel,
+      scheduled_at:  new Date(now.getTime() + step.day * 86400000).toISOString(),
+      payload:       step.payload,
+    });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 5: QUEUE PROCESSOR — Runs on every tick, executes pending jobs
+// ─────────────────────────────────────────────────────────────────────────────
+
+AutomationEngine.prototype.processScheduledQueue = async function () {
+  const now = new Date().toISOString();
+
+  const { data: jobs } = await this.supabase
+    .from('automation_queue')
+    .select('*, contacts(first_name, last_name, email, phone, company_id, assigned_user_id)')
+    .eq('status', 'pending')
+    .lte('scheduled_at', now)
+    .limit(50); // process up to 50 jobs per tick
+
+  if (!jobs || jobs.length === 0) return;
+
+  console.log(`[AutomationEngine] Processing ${jobs.length} queued jobs`);
+
+  for (const job of jobs) {
+    try {
+      await this.executeJob(job);
+      await this.supabase
+        .from('automation_queue')
+        .update({ status: 'sent', executed_at: new Date().toISOString() })
+        .eq('id', job.id);
+    } catch (err) {
+      console.error(`[AutomationEngine] Job ${job.id} failed:`, err.message);
+      await this.supabase
+        .from('automation_queue')
+        .update({ status: 'failed', error: err.message })
+        .eq('id', job.id);
+    }
+  }
+};
+
+AutomationEngine.prototype.executeJob = async function (job) {
+  const contact = job.contacts;
+  switch (job.channel) {
+    case 'email':    return this.sendAutomatedEmail(contact, job);
+    case 'sms':      return this.sendAutomatedSMS(contact, job);
+    case 'ai_call':  return this.scheduleAICall(contact, job);
+    case 'calendar': return this.createCalendarEvent(contact, job.payload);
+    default:
+      throw new Error(`Unknown channel: ${job.channel}`);
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 6: EMAIL CHANNEL
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * HOW TO WIRE: This uses your existing sendClientEmail() function.
+ * Make sure sendClientEmail() is exported or accessible here.
+ *
+ * The payload.template string maps to your existing EMAIL_TEMPLATES object.
+ * You can also pass payload.customHtml for fully custom content.
+ */
+AutomationEngine.prototype.sendAutomatedEmail = async function (contact, job) {
+  const { template, subject, customHtml, data } = job.payload;
+
+  // Fetch LO info for personalization
+  const { data: loData } = await this.supabase
+    .from('users')
+    .select('full_name, email, company_name, phone')
+    .eq('id', contact.assigned_user_id)
+    .single();
+
+  const loName    = loData?.full_name     || 'Your Loan Officer';
+  const company   = loData?.company_name  || 'Citizens Financial';
+  const replyEmail = loData?.email        || '';
+
+  // Build HTML using the existing EMAIL_TEMPLATES and personalize() from App.js
+  let html = customHtml;
+  if (!html && typeof EMAIL_TEMPLATES !== 'undefined' && typeof personalize === 'function') {
+    const tmpl = EMAIL_TEMPLATES.find(t => t.id === template || t.name === template);
+    if (tmpl) html = personalize(tmpl.body, { firstName: contact.first_name, loName, company, replyEmail });
+  }
+  if (!html) html = `<p>Hi ${contact.first_name},</p><p>— ${loName}, ${company}</p>`;
+
+  // Send via Supabase edge function (background-safe path)
+  const { error: sendError } = await this.supabase.functions.invoke('send-email', {
+    body: { to: contact.email, subject, html, replyTo: replyEmail }
+  });
+  if (sendError) throw sendError;
+
+  // Log activity + track email event
+  await Promise.all([
+    this.supabase.from('activities').insert({
+      contact_id: contact.id,
+      company_id: contact.company_id,
+      type:       'email',
+      body:       `Automated email sent: "${subject}"`,
+      created_at: new Date().toISOString(),
+    }),
+    this.supabase.from('email_events').insert({
+      contact_id: contact.id,
+      event_type: 'sent',
+      metadata:   { subject, template, trigger_type: job.trigger_type },
+    }).catch(() => {}), // non-blocking if table not yet created
+  ]);
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 7: SMS CHANNEL (Twilio Integration)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * TWILIO SETUP:
+ * 1. npm install twilio
+ * 2. Add to Supabase secrets: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
+ * 3. Create a Supabase Edge Function "send-sms" (see below) to keep credentials server-side
+ *
+ * Edge Function: supabase/functions/send-sms/index.ts
+ * ────────────────────────────────────────────────────
+ * import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+ *
+ * serve(async (req) => {
+ *   const { to, body } = await req.json()
+ *   const client = Twilio(Deno.env.get('TWILIO_ACCOUNT_SID'), Deno.env.get('TWILIO_AUTH_TOKEN'))
+ *   const message = await client.messages.create({
+ *     body,
+ *     from: Deno.env.get('TWILIO_PHONE_NUMBER'),
+ *     to,
+ *   })
+ *   return new Response(JSON.stringify({ sid: message.sid, status: message.status }), { status: 200 })
+ * })
+ */
+AutomationEngine.prototype.sendAutomatedSMS = async function (contact, job) {
+  if (!contact.phone) {
+    console.warn(`[AutomationEngine] No phone for contact ${contact.id}, skipping SMS`);
+    return;
+  }
+
+  // Check opt-out list
+  const { data: optOut } = await this.supabase
+    .from('sms_optouts')
+    .select('id')
+    .eq('phone', contact.phone)
+    .single();
+  if (optOut) return;
+
+  // Check conditional send (e.g., only if email wasn't opened)
+  if (job.payload.condition === 'if_no_email_open') {
+    const { count } = await this.supabase
+      .from('email_events')
+      .select('*', { count: 'exact', head: true })
+      .eq('contact_id', contact.id)
+      .eq('event_type', 'opened')
+      .gte('created_at', new Date(Date.now() - 2 * 86400000).toISOString()); // opened in last 2 days
+    if (count > 0) {
+      console.log(`[AutomationEngine] Email was opened — skipping SMS for contact ${contact.id}`);
+      return;
+    }
+  }
+
+  // Personalize message
+  const { data: loData } = await this.supabase
+    .from('users')
+    .select('full_name, company_name')
+    .eq('id', contact.assigned_user_id)
+    .single();
+
+  const body = job.payload.message
+    .replace('{loName}',  loData?.full_name || 'Your Loan Officer')
+    .replace('{company}', loData?.company_name || 'Citizens Financial')
+    .replace('{firstName}', contact.first_name);
+
+  // TCPA compliance — only send 8am–9pm local time
+  const hour = new Date().getHours();
+  if (hour < 8 || hour >= 21) {
+    // Reschedule for 9am
+    const tomorrow9am = new Date();
+    tomorrow9am.setDate(tomorrow9am.getDate() + (hour >= 21 ? 1 : 0));
+    tomorrow9am.setHours(9, 0, 0, 0);
+    await this.supabase
+      .from('automation_queue')
+      .update({ scheduled_at: tomorrow9am.toISOString() })
+      .eq('id', job.id);
+    return;
+  }
+
+  // Call Supabase Edge Function to send SMS
+  const { data: result, error } = await this.supabase.functions.invoke('send-sms', {
+    body: { to: contact.phone, body }
+  });
+
+  if (error) throw error;
+
+  // Log SMS
+  await this.supabase.from('sms_messages').insert({
+    contact_id: contact.id,
+    company_id: contact.company_id,
+    direction:  'outbound',
+    body,
+    twilio_sid: result?.sid,
+    status:     result?.status,
+  });
+
+  // Log activity
+  await this.supabase.from('activities').insert({
+    contact_id: contact.id,
+    type:       'sms',
+    note:       `Automated SMS sent: "${body.substring(0, 80)}..."`,
+    created_at: new Date().toISOString(),
+  });
+};
+
+// Handle inbound SMS webhooks (wire this to your Twilio webhook endpoint)
+const handleInboundSMS = async (supabase, webhookBody) => {
+  const { From: fromPhone, Body: messageBody, MessageSid } = webhookBody;
+
+  // Check for opt-out keywords (TCPA required)
+  const optOutKeywords = ['STOP', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT'];
+  if (optOutKeywords.includes(messageBody.trim().toUpperCase())) {
+    await supabase.from('sms_optouts').upsert({ phone: fromPhone });
+    return { reply: 'You have been unsubscribed. Reply START to resubscribe.' };
+  }
+
+  // Find contact
+  const { data: contact } = await supabase
+    .from('contacts')
+    .select('id, first_name, company_id, assigned_user_id')
+    .eq('phone', fromPhone)
+    .single();
+
+  if (contact) {
+    // Log inbound message
+    await supabase.from('sms_messages').insert({
+      contact_id: contact.id,
+      company_id: contact.company_id,
+      direction:  'inbound',
+      body:       messageBody,
+      twilio_sid: MessageSid,
+      status:     'received',
+    });
+
+    // Log activity + notify LO
+    await supabase.from('activities').insert({
+      contact_id: contact.id,
+      type:       'sms',
+      note:       `Inbound SMS: "${messageBody}"`,
+    });
+
+    // Fire notification to assigned LO
+    await supabase.from('notifications').insert({
+      user_id:    contact.assigned_user_id,
+      type:       'inbound_sms',
+      title:      `New SMS from ${contact.first_name}`,
+      body:       messageBody.substring(0, 120),
+      contact_id: contact.id,
+      read:       false,
+    });
+
+    // Pause any pending automation sequences (they replied — human takes over)
+    await supabase
+      .from('automation_queue')
+      .update({ status: 'skipped' })
+      .eq('contact_id', contact.id)
+      .eq('status', 'pending')
+      .in('trigger_type', ['re_engagement', 'new_lead']);
+  }
+
+  return { reply: null }; // no auto-reply — human takes over
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 8: AI CALLING CHANNEL (Retell Integration)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * RETELL SETUP:
+ * 1. Ensure RETELL_API_KEY is in your Supabase secrets
+ * 2. Create call scripts in Retell dashboard for: new_lead_week1, qualification_followup, referral_ask, reengagement
+ * 3. Wire the Retell webhook back to logRetellCallResult() to capture outcomes
+ *
+ * Retell Webhook: POST /api/retell-webhook
+ *   → calls logRetellCallResult(webhookData)
+ */
+AutomationEngine.prototype.scheduleAICall = async function (contact, job) {
+  if (!contact.phone) {
+    console.warn(`[AutomationEngine] No phone for AI call — contact ${contact.id}`);
+    return;
+  }
+
+  const { script, context } = job.payload;
+
+  // Launch call via Retell (uses your existing launchCall pattern)
+  const { data: result, error } = await this.supabase.functions.invoke('retell-call', {
+    body: {
+      phone_number: contact.phone,
+      contact_id:   contact.id,
+      script_name:  script,
+      context,
+      metadata: {
+        contact_name:   `${contact.first_name} ${contact.last_name}`,
+        trigger_type:   job.trigger_type,
+        sequence_name:  job.sequence_name,
+      }
+    }
+  });
+
+  if (error) throw error;
+
+  // Log the call initiation
+  await this.supabase.from('activities').insert({
+    contact_id: contact.id,
+    type:       'call',
+    note:       `AI call initiated (${script}) — Call ID: ${result?.call_id}`,
+    created_at: new Date().toISOString(),
+  });
+
+  // Create calendar event for the call
+  const callTime = new Date();
+  await this.createCalendarEvent(contact, {
+    event_type:  'ai_call',
+    title:       `🤖 AI Call: ${contact.first_name} ${contact.last_name}`,
+    start_time:  callTime.toISOString(),
+    end_time:    new Date(callTime.getTime() + 15 * 60000).toISOString(),
+    color:       AUTOMATION_CONFIG.CALENDAR_COLORS.AI_CALL,
+    description: `Automated AI call — Script: ${script}. Context: ${context}`,
+  });
+};
+
+// Call this from your Retell webhook handler to log outcomes
+const logRetellCallResult = async (supabase, webhookData) => {
+  const { call_id, contact_id, outcome, transcript, duration_seconds, metadata } = webhookData;
+
+  // Log detailed call result
+  await supabase.from('activities').insert({
+    contact_id,
+    type:  'call',
+    note:  `AI Call completed — Outcome: ${outcome} | Duration: ${duration_seconds}s | Transcript: ${transcript?.substring(0, 300)}...`,
+  });
+
+  // Update contact lead score and stage based on outcome
+  const stageUpdates = {
+    'interested':    { stage: 'Qualified' },
+    'callback':      { follow_up_date: new Date(Date.now() + 86400000).toISOString() },
+    'not_interested': { stage: 'Lost' },
+    'voicemail':     {}, // no change, will retry
+  };
+
+  const update = stageUpdates[outcome];
+  if (update && Object.keys(update).length > 0) {
+    await supabase.from('contacts').update(update).eq('id', contact_id);
+  }
+
+  // Notify assigned LO of outcome
+  const { data: contact } = await supabase
+    .from('contacts')
+    .select('first_name, assigned_user_id')
+    .eq('id', contact_id)
+    .single();
+
+  if (contact) {
+    await supabase.from('notifications').insert({
+      user_id:    contact.assigned_user_id,
+      type:       'ai_call_result',
+      title:      `AI Call Result: ${contact.first_name} — ${outcome}`,
+      body:       `Duration: ${duration_seconds}s. ${transcript?.substring(0, 100)}`,
+      contact_id,
+      read:       false,
+    });
+  }
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 9: CALENDAR INTEGRATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Creates events in BOTH the in-app CRM calendar AND Google Calendar (if connected).
+ *
+ * HOW TO WIRE GOOGLE CALENDAR:
+ * 1. Use the existing Google OAuth token from your app (getGmailToken or separate gcal scope)
+ * 2. Request additional scope: https://www.googleapis.com/auth/calendar
+ * 3. Call this.createCalendarEvent() from any trigger — it handles both calendars automatically
+ */
+AutomationEngine.prototype.createCalendarEvent = async function (contact, eventData) {
+  const {
+    event_type, title, description,
+    start_time, end_time, all_day = false,
+    color
+  } = eventData;
+
+  // 1. Save to in-app CRM calendar
+  const { data: calEvent } = await this.supabase
+    .from('calendar_events')
+    .insert({
+      contact_id:   contact.id,
+      company_id:   contact.company_id,
+      user_id:      contact.assigned_user_id,
+      event_type,
+      title,
+      description,
+      start_time,
+      end_time,
+      all_day,
+    })
+    .select()
+    .single();
+
+  // 2. Sync to Google Calendar if user has connected
+  const googleToken = await this.getGmailToken(contact.assigned_user_id);
+  if (googleToken) {
+    try {
+      const gcalEvent = await createGoogleCalendarEvent({
+        token:  googleToken,
+        title,
+        description: `${description}\n\nContact: ${contact.first_name} ${contact.last_name}\nManaged by Citizens Financial CRM`,
+        start_time,
+        end_time,
+        all_day,
+        color,
+      });
+
+      // Store Google event ID for future updates/deletes
+      if (gcalEvent?.id && calEvent?.id) {
+        await this.supabase
+          .from('calendar_events')
+          .update({ google_event_id: gcalEvent.id })
+          .eq('id', calEvent.id);
+      }
+    } catch (gcalErr) {
+      console.warn('[AutomationEngine] Google Calendar sync failed (non-blocking):', gcalErr.message);
+    }
+  }
+};
+
+/**
+ * Google Calendar API helper
+ * Requires scope: https://www.googleapis.com/auth/calendar
+ */
+const createGoogleCalendarEvent = async ({ token, title, description, start_time, end_time, all_day, color }) => {
+  const event = {
+    summary:     title,
+    description,
+    colorId:     color,
+    start: all_day
+      ? { date: start_time.split('T')[0] }
+      : { dateTime: start_time, timeZone: 'America/Los_Angeles' },
+    end: all_day
+      ? { date: end_time.split('T')[0] }
+      : { dateTime: end_time, timeZone: 'America/Los_Angeles' },
+    reminders: {
+      useDefault: false,
+      overrides: [
+        { method: 'email',  minutes: 24 * 60 },
+        { method: 'popup',  minutes: 30 },
+      ],
+    },
+  };
+
+  const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+    method:  'POST',
+    headers: {
+      Authorization:  `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(event),
+  });
+
+  if (!res.ok) throw new Error(`Google Calendar API error: ${res.status} ${await res.text()}`);
+  return res.json();
+};
+
+/**
+ * Sync all existing contacts' upcoming dates to Google Calendar on first connect.
+ * Call this when user clicks "Connect Google Calendar" in settings.
+ */
+const syncCRMToGoogleCalendar = async (supabase, token, userId) => {
+  const { data: events } = await supabase
+    .from('calendar_events')
+    .select('*, contacts(first_name, last_name)')
+    .eq('user_id', userId)
+    .is('google_event_id', null) // not yet synced
+    .gte('start_time', new Date().toISOString()); // only future events
+
+  let synced = 0;
+  for (const event of (events || [])) {
+    try {
+      const gcalEvent = await createGoogleCalendarEvent({
+        token,
+        title:       event.title,
+        description: event.description,
+        start_time:  event.start_time,
+        end_time:    event.end_time,
+        all_day:     event.all_day,
+        color:       AUTOMATION_CONFIG.CALENDAR_COLORS[event.event_type.toUpperCase()] || '1',
+      });
+      await supabase.from('calendar_events').update({ google_event_id: gcalEvent.id }).eq('id', event.id);
+      synced++;
+    } catch (e) {
+      console.warn('[Calendar Sync] Failed for event', event.id, e.message);
+    }
+  }
+  return { synced };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 10: CHURN RISK ASSESSMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Runs on every tick. Scores each contact's churn risk (0–100).
+ * High-risk contacts automatically get escalated re-engagement and LO notifications.
+ */
+AutomationEngine.prototype.assessChurnRisk = async function () {
+  const { data: contacts } = await this.supabase
+    .from('contacts')
+    .select('id, first_name, last_name, last_activity_at, lead_score, stage, company_id, assigned_user_id')
+    .in('stage', ['Contacted', 'Nurturing', 'Qualified'])
+    .not('last_activity_at', 'is', null);
+
+  for (const contact of (contacts || [])) {
+    const daysInactive = Math.floor((Date.now() - new Date(contact.last_activity_at)) / 86400000);
+    const emailOpenRate = await this.getEmailOpenRate(contact.id);
+    const score = contact.lead_score || 0;
+
+    // Churn risk formula: weighted combination of inactivity + score drop + email engagement
+    let riskScore = 0;
+    if (daysInactive > 90) riskScore += 40;
+    else if (daysInactive > 60) riskScore += 25;
+    else if (daysInactive > 30) riskScore += 15;
+
+    if (score < 30) riskScore += 30;
+    else if (score < 50) riskScore += 15;
+
+    if (emailOpenRate < 0.1) riskScore += 20;
+    else if (emailOpenRate < 0.3) riskScore += 10;
+
+    riskScore = Math.min(100, riskScore);
+
+    // Upsert churn risk record
+    await this.supabase.from('churn_risk').upsert({
+      contact_id:   contact.id,
+      risk_score:   riskScore,
+      days_inactive: daysInactive,
+      last_contact:  contact.last_activity_at,
+      flags: {
+        no_email_open:   emailOpenRate < 0.1,
+        score_low:       score < 30,
+        long_inactive:   daysInactive > 60,
+      },
+      assessed_at: new Date().toISOString(),
+    }, { onConflict: 'contact_id' });
+
+    // Notify LO if high risk
+    if (riskScore >= 70) {
+      await this.supabase.from('notifications').upsert({
+        user_id:    contact.assigned_user_id,
+        type:       'churn_risk',
+        title:      `⚠️ At-Risk Client: ${contact.first_name} ${contact.last_name}`,
+        body:       `Risk score: ${riskScore}/100. ${daysInactive} days inactive. Consider a personal outreach.`,
+        contact_id: contact.id,
+        read:       false,
+      }, { onConflict: 'contact_id,type' });
+    }
+  }
+};
+
+AutomationEngine.prototype.getEmailOpenRate = async function (contactId) {
+  const [{ count: sent }, { count: opened }] = await Promise.all([
+    this.supabase.from('email_events').select('*', { count: 'exact', head: true }).eq('contact_id', contactId).eq('event_type', 'sent'),
+    this.supabase.from('email_events').select('*', { count: 'exact', head: true }).eq('contact_id', contactId).eq('event_type', 'opened'),
+  ]);
+  return sent > 0 ? opened / sent : 0;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 11: NOTIFICATION ENGINE (Innovative additions)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * DAILY DIGEST — Send LOs a morning summary of their pipeline
+ * HOW TO WIRE: Schedule via Supabase Edge Function cron (daily at 7:30am PST)
+ *   Schedule: 0 15 * * * (UTC = 7am PST)
+ */
+const sendDailyDigest = async (supabase, userId) => {
+  const { data: user } = await supabase.from('users').select('*').eq('id', userId).single();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const [
+    { data: hotLeads },
+    { data: birthdaysToday },
+    { data: followUpsToday },
+    { data: atRiskContacts },
+    { data: recentActivities },
+  ] = await Promise.all([
+    supabase.from('contacts').select('id, first_name, last_name, lead_score').eq('assigned_user_id', userId).gte('lead_score', 75).limit(5),
+    supabase.from('contacts').select('id, first_name, last_name').eq('assigned_user_id', userId).not('date_of_birth', 'is', null),
+    supabase.from('calendar_events').select('title, start_time, contacts(first_name, last_name)').eq('user_id', userId).gte('start_time', today.toISOString()).lt('start_time', new Date(today.getTime() + 86400000).toISOString()),
+    supabase.from('churn_risk').select('*, contacts(first_name, last_name)').gte('risk_score', 70).limit(3),
+    supabase.from('activities').select('type, note, contacts(first_name)').gte('created_at', today.toISOString()).limit(10),
+  ]);
+
+  const birthdaysFiltered = (birthdaysToday || []).filter(c => {
+    // check if birthday is today
+    return true; // simplified — implement real DOB check
+  });
+
+  const digestHtml = buildDailyDigestEmail({
+    user, hotLeads, birthdaysToday: birthdaysFiltered,
+    followUpsToday, atRiskContacts, recentActivities,
+    date: today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  });
+
+  await supabase.functions.invoke('send-email', {
+    body: { to: user.email, subject: `☀️ Your Daily Pipeline Report — ${today.toLocaleDateString()}`, html: digestHtml }
+  });
+};
+
+const buildDailyDigestEmail = ({ user, hotLeads, birthdaysToday, followUpsToday, atRiskContacts, date }) => `
+<!DOCTYPE html>
+<html>
+<head><style>
+  body { font-family: Arial, sans-serif; background: #f8f9fa; padding: 20px; }
+  .container { max-width: 600px; margin: 0 auto; background: white; border-radius: 12px; overflow: hidden; }
+  .header { background: linear-gradient(135deg, #1a3c5e, #2563eb); color: white; padding: 24px; }
+  .section { padding: 20px; border-bottom: 1px solid #eee; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+  .hot { background: #fef3c7; color: #92400e; }
+  .risk { background: #fee2e2; color: #991b1b; }
+  h3 { margin: 0 0 12px; color: #1a3c5e; }
+  .item { padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
+</style></head>
+<body>
+<div class="container">
+  <div class="header">
+    <h2 style="margin:0">☀️ Good Morning, ${user.full_name?.split(' ')[0]}!</h2>
+    <p style="margin:4px 0 0; opacity:0.85">${date} — Here's your pipeline</p>
+  </div>
+  ${birthdaysToday?.length > 0 ? `
+  <div class="section" style="background:#fff7ed">
+    <h3>🎂 Birthdays Today (${birthdaysToday.length})</h3>
+    ${birthdaysToday.map(c => `<div class="item">🎉 ${c.first_name} ${c.last_name} — automated email + SMS already sent</div>`).join('')}
+  </div>` : ''}
+  ${hotLeads?.length > 0 ? `
+  <div class="section">
+    <h3>🔥 Hot Leads to Call (Score ≥ 75)</h3>
+    ${hotLeads.map(c => `<div class="item">${c.first_name} ${c.last_name} <span class="badge hot">Score: ${c.lead_score}</span></div>`).join('')}
+  </div>` : ''}
+  ${followUpsToday?.length > 0 ? `
+  <div class="section">
+    <h3>📅 Today's Calendar (${followUpsToday.length} events)</h3>
+    ${followUpsToday.map(e => `<div class="item">${new Date(e.start_time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} — ${e.title}</div>`).join('')}
+  </div>` : ''}
+  ${atRiskContacts?.length > 0 ? `
+  <div class="section">
+    <h3>⚠️ At-Risk Clients</h3>
+    ${atRiskContacts.map(r => `<div class="item">${r.contacts?.first_name} ${r.contacts?.last_name} <span class="badge risk">Risk: ${r.risk_score}</span> — ${r.days_inactive} days inactive</div>`).join('')}
+  </div>` : ''}
+  <div class="section" style="text-align:center; color:#6b7280; font-size:13px">
+    <p>Citizens Financial CRM — Automation Engine v1.0</p>
+  </div>
+</div>
+</body>
+</html>`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 12: HELPER UTILITIES
+// ─────────────────────────────────────────────────────────────────────────────
+
+AutomationEngine.prototype.enqueueJob = async function (contact, jobData) {
+  return this.supabase.from('automation_queue').insert({
+    contact_id: contact.id,
+    company_id: contact.company_id,
+    status:     'pending',
+    ...jobData,
+  });
+};
+
+AutomationEngine.prototype.getGmailToken = async function (userId) {
+  const { data } = await this.supabase
+    .from('user_tokens')
+    .select('gmail_token')
+    .eq('user_id', userId)
+    .single();
+  return data?.gmail_token || null;
+};
+
+AutomationEngine.prototype.getEmailTemplate = async function (templateName, vars) {
+  // This maps to your existing EMAIL_TEMPLATES object in App.js
+  // Import your personalize() function and EMAIL_TEMPLATES here
+  // Return: personalize(EMAIL_TEMPLATES[templateName]?.html, vars)
+  return `<p>Template: ${templateName} for ${vars.firstName}</p>`; // placeholder
+};
+
+const reEngagementSubject = (firstName, intensity) => {
+  const subjects = {
+    warm:   `${firstName}, just checking in 👋`,
+    medium: `${firstName}, rates have shifted — this could help you`,
+    urgent: `Last chance to connect, ${firstName}`,
+  };
+  return subjects[intensity] || `Checking in, ${firstName}`;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SECTION 13: INTEGRATION CHECKLIST
+// ─────────────────────────────────────────────────────────────────────────────
+/*
+ HOW TO ADD THIS TO App.js — 6 STEPS:
+
+ STEP 1: Import at top of App.js
+   import { AutomationEngine, handleInboundSMS, logRetellCallResult,
+            syncCRMToGoogleCalendar, sendDailyDigest,
+            REQUIRED_SQL_MIGRATIONS } from './automationEngine';
+
+ STEP 2: Initialize in main component (after supabase is defined)
+   const automationEngineRef = useRef(null);
+   useEffect(() => {
+     const integrations = {
+       gmail: { getToken: useGoogleToken },  // your existing token hook
+       twilio: null,   // handled server-side via Edge Function
+       retell: null,   // handled server-side via Edge Function
+     };
+     const engine = new AutomationEngine(supabase, integrations);
+     automationEngineRef.current = engine;
+     engine.start();
+     return () => engine.stop();
+   }, []);
+
+ STEP 3: Wire to contact creation (find your saveContact / createContact function)
+   // At the end of saveContact(), after the DB insert:
+   if (isNewContact) {
+     await automationEngineRef.current.triggerNewLeadSequence(savedContact);
+   }
+
+ STEP 4: Wire to stage changes (find your stage update handler)
+   const handleStageChange = async (newStage) => {
+     const oldStage = contact.stage;
+     await updateContactStage(contact.id, newStage);
+     await automationEngineRef.current.triggerOnStageChange(contact, oldStage, newStage);
+   };
+
+ STEP 5: Wire to FRED rate fetching (find your fetchRates function)
+   // After getting new rates, compare to cached rates:
+   const prevRate = localStorage.getItem('last_30yr_rate');
+   const currRate = fredData.value;
+   if (prevRate) await automationEngineRef.current.triggerRateAlert(parseFloat(prevRate), parseFloat(currRate));
+   localStorage.setItem('last_30yr_rate', currRate);
+
+ STEP 6: Wire Google Calendar connect button (find your "Connect Google Calendar" onClick)
+   const handleGCalConnect = async (token) => {
+     setGoogleToken(token);
+     const result = await syncCRMToGoogleCalendar(supabase, token, currentUser.id);
+     toast.success(`Synced ${result.synced} events to Google Calendar!`);
+   };
+*/
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// END AUTOMATION ENGINE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+
 export default function App() {
   const [session, setSession] = useState(null);
   const [needsPassword, setNeedsPassword] = useState(false);
@@ -14272,6 +15646,22 @@ export default function App() {
     });
     return () => subscription.unsubscribe();
   }, []);
+  // ── Automation Engine — starts after login, stops on logout ──────────────
+  const automationEngineRef = useRef(null);
+  useEffect(() => {
+    if (!session) {
+      if (automationEngineRef.current) { automationEngineRef.current.stop(); automationEngineRef.current = null; window._automationEngine = null; }
+      return;
+    }
+    if (automationEngineRef.current) return; // already running
+    const engine = new AutomationEngine(supabase);
+    automationEngineRef.current = engine;
+    window._automationEngine = engine; // global ref for sub-component access
+    engine.start();
+    return () => { engine.stop(); automationEngineRef.current = null; window._automationEngine = null; };
+  }, [session]);
+  // ─────────────────────────────────────────────────────────────────────────
+
 
   const loadProfile = async (uid) => {
     console.log('[App] loadProfile called with uid:', uid);
