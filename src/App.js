@@ -512,74 +512,74 @@ function PricingProvider({ children }) {
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 const css = `
   :root {
-    --bg: #152540;
-    --surface: #1a2e4a;
-    --surface2: #112036;
-    --border: #243d5e;
-    --accent: #4d8ef0;
-    --accent2: #1e429f;
-    --success: #2ecc8a;
+    --bg: #111318;
+    --surface: #1c1f26;
+    --surface2: #15171d;
+    --border: #2a2d36;
+    --accent: #5b8dee;
+    --accent2: #3a6bcc;
+    --success: #29c78a;
     --warning: #f0b429;
     --danger: #e05252;
-    --text: #ffffff;
-    --muted: #9db8d4;
-    --sidebar-bg: #0f1c3f;
-    --sidebar-text: #c9d3e8;
-    --sidebar-active: #1a56db;
+    --text: #f0f2f5;
+    --muted: #7c8494;
+    --sidebar-bg: #0e1015;
+    --sidebar-text: #9aa0ae;
+    --sidebar-active: #5b8dee;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; }
-  h1,h2,h3 { font-family:'Cormorant Garamond','Playfair Display',serif; letter-spacing:-.01em; }
-  input,textarea,select { background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px 14px; border-radius:6px; font-size:14px; width:100%; outline:none; font-family:'Inter',system-ui,sans-serif; box-shadow:0 1px 2px rgba(0,0,0,.1); }
-  input:focus,textarea:focus,select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(26,86,219,.1); }
-  button { cursor:pointer; font-family:'Inter',system-ui,sans-serif; border:none; border-radius:6px; font-size:14px; font-weight:600; transition:all .15s; letter-spacing:.01em; }
-  .btn-primary { background:var(--accent); color:#fff; padding:10px 20px; box-shadow:0 1px 3px rgba(26,86,219,.3); }
-  .btn-primary:hover { background:#1648c5; box-shadow:0 2px 6px rgba(26,86,219,.4); }
-  .btn-secondary { background:var(--surface2); color:var(--text); padding:10px 20px; border:1px solid var(--border); box-shadow:0 1px 2px rgba(0,0,0,.1); }
+  h1,h2,h3 { font-family:'Inter',system-ui,sans-serif; letter-spacing:-.02em; font-weight:600; }
+  input,textarea,select { background:var(--surface2); border:1px solid var(--border); color:var(--text); padding:10px 14px; border-radius:8px; font-size:14px; width:100%; outline:none; font-family:'Inter',system-ui,sans-serif; transition:border-color .15s; }
+  input:focus,textarea:focus,select:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(91,141,238,.12); }
+  button { cursor:pointer; font-family:'Inter',system-ui,sans-serif; border:none; border-radius:8px; font-size:14px; font-weight:500; transition:all .15s; letter-spacing:0; }
+  .btn-primary { background:var(--accent); color:#fff; padding:10px 20px; }
+  .btn-primary:hover { background:#4a7de0; }
+  .btn-secondary { background:var(--surface2); color:var(--text); padding:10px 20px; border:1px solid var(--border); }
   .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
   .btn-danger { background:var(--danger); color:#fff; padding:8px 16px; }
   .btn-sm { padding:6px 14px; font-size:13px; }
-  label { font-size:12px; color:var(--muted); display:block; margin-bottom:5px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
+  label { font-size:11px; color:var(--muted); display:block; margin-bottom:5px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; }
   .form-group { margin-bottom:16px; }
-  .card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,.06); }
-  .badge { display:inline-block; padding:3px 10px; border-radius:4px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; }
-  .badge-blue { background:#e1effe; color:#1a56db; }
-  .badge-green { background:#def7ec; color:#057a55; }
-  .badge-yellow { background:#fdf6b2; color:#92400e; }
-  .badge-red { background:#fde8e8; color:#c81e1e; }
-  .badge-purple { background:#edebfe; color:#5521b5; }
-  .badge-accent { background:#e1effe; color:#1a56db; }
-  .badge-warning { background:#fdf6b2; color:#92400e; }
-  .tag { display:inline-block; background:#e1effe; color:#1a56db; padding:2px 8px; border-radius:4px; font-size:11px; margin:2px; font-weight:600; }
-  ::-webkit-scrollbar { width:5px; height:5px; }
-  ::-webkit-scrollbar-track { background:var(--bg); }
-  ::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:3px; }
-  .overlay { position:fixed; inset:0; background:rgba(15,28,63,.5); z-index:1000; display:flex; align-items:center; justify-content:center; }
-  .modal { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:32px; width:90%; max-width:540px; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,.4); }
-  .toast { position:fixed; bottom:24px; right:24px; background:var(--sidebar-bg); color:#fff; border-radius:8px; padding:14px 20px; z-index:999; font-size:14px; animation:slideIn .2s ease; box-shadow:0 8px 24px rgba(0,0,0,.2); }
-  @keyframes slideIn { from { transform:translateY(20px); opacity:0; } to { transform:translateY(0); opacity:1; } }
-  .sidebar { width:240px; min-height:100vh; background:var(--sidebar-bg); display:flex; flex-direction:column; position:fixed; top:0; left:0; z-index:50; box-shadow:2px 0 12px rgba(0,0,0,.15); font-family:'Inter',system-ui,sans-serif; }
-  .main { margin-left:240px; min-height:100vh; background:linear-gradient(to right, #0f1c3f 0%, #152540 20%, #1a2e4a 60%, #1e3350 100%); padding-top:52px; }
-  .topbar { position:fixed; top:0; left:240px; right:0; height:52px; background:var(--sidebar-bg); border-bottom:1px solid rgba(255,255,255,.08); display:flex; align-items:center; justify-content:space-between; padding:0 16px 0 20px; gap:4px; z-index:49; }
-  .topbar-btn { background:none; border:none; color:var(--sidebar-text); cursor:pointer; padding:7px; border-radius:6px; display:flex; align-items:center; justify-content:center; transition:background .15s; }
-  .topbar-btn:hover { background:rgba(255,255,255,.1); color:#fff; }
-  .ws-toolbar { display:flex; align-items:center; gap:8px; padding:10px 28px; border-bottom:1px solid var(--border); background:var(--surface2); flex-wrap:wrap; }
-  .ws-toolbar-btn { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:6px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; font-family:'Inter',system-ui,sans-serif; transition:all .15s; }
-  .ws-toolbar-btn:hover { background:rgba(255,255,255,.07); color:var(--text); }
-  .nav-item { display:flex; align-items:center; gap:12px; padding:10px 20px; cursor:pointer; font-size:14px; color:var(--sidebar-text); transition:all .15s; border-left:3px solid transparent; font-weight:500; }
-  .nav-item:hover { background:rgba(255,255,255,.07); color:#fff; }
-  .nav-item.active { background:rgba(26,86,219,.25); color:#fff; border-left-color:var(--sidebar-active); }
-  .header { padding:20px 32px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:var(--surface); box-shadow:0 1px 3px rgba(0,0,0,.06); }
-  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:24px; box-shadow:0 1px 3px rgba(0,0,0,.06); border-top:3px solid var(--accent); }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:20px; }
+  .badge { display:inline-block; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; letter-spacing:.02em; }
+  .badge-blue { background:rgba(91,141,238,.15); color:#7eaaff; }
+  .badge-green { background:rgba(41,199,138,.12); color:#29c78a; }
+  .badge-yellow { background:rgba(240,180,41,.12); color:#f0b429; }
+  .badge-red { background:rgba(224,82,82,.12); color:#e05252; }
+  .badge-purple { background:rgba(139,92,246,.12); color:#a78bfa; }
+  .badge-accent { background:rgba(91,141,238,.15); color:#7eaaff; }
+  .badge-warning { background:rgba(240,180,41,.12); color:#f0b429; }
+  .tag { display:inline-block; background:rgba(91,141,238,.12); color:#7eaaff; padding:2px 8px; border-radius:20px; font-size:11px; margin:2px; font-weight:500; }
+  ::-webkit-scrollbar { width:4px; height:4px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:#2a2d36; border-radius:4px; }
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:1000; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(2px); }
+  .modal { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:32px; width:90%; max-width:540px; max-height:90vh; overflow-y:auto; box-shadow:0 24px 64px rgba(0,0,0,.5); }
+  .toast { position:fixed; bottom:24px; right:24px; background:#1c1f26; color:#f0f2f5; border:1px solid var(--border); border-radius:10px; padding:13px 18px; z-index:9999; font-size:13px; font-weight:500; animation:slideIn .2s ease; box-shadow:0 8px 24px rgba(0,0,0,.4); }
+  @keyframes slideIn { from { transform:translateY(12px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+  .sidebar { width:240px; min-height:100vh; background:var(--sidebar-bg); display:flex; flex-direction:column; position:fixed; top:0; left:0; z-index:50; border-right:1px solid rgba(255,255,255,.05); font-family:'Inter',system-ui,sans-serif; }
+  .main { margin-left:240px; min-height:100vh; background:var(--bg); padding-top:52px; }
+  .topbar { position:fixed; top:0; left:240px; right:0; height:52px; background:var(--bg); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding:0 20px; gap:4px; z-index:49; }
+  .topbar-btn { background:none; border:none; color:var(--muted); cursor:pointer; padding:7px; border-radius:8px; display:flex; align-items:center; justify-content:center; transition:all .15s; }
+  .topbar-btn:hover { background:var(--surface); color:var(--text); }
+  .ws-toolbar { display:flex; align-items:center; gap:8px; padding:10px 28px; border-bottom:1px solid var(--border); background:var(--bg); flex-wrap:wrap; }
+  .ws-toolbar-btn { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:7px; background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; font-family:'Inter',system-ui,sans-serif; transition:all .15s; }
+  .ws-toolbar-btn:hover { background:var(--surface); color:var(--text); }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:7px 10px; margin:1px 8px; cursor:pointer; font-size:13.5px; color:var(--sidebar-text); transition:all .15s; border-radius:8px; font-weight:450; border-left:none; }
+  .nav-item:hover { background:rgba(255,255,255,.06); color:#dde2ec; }
+  .nav-item.active { background:rgba(91,141,238,.15); color:#8fb4f8; font-weight:500; }
+  .header { padding:20px 32px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:var(--bg); }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:24px; }
   .table { width:100%; border-collapse:collapse; }
-  .table th { text-align:left; padding:12px 16px; font-size:11px; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.08em; border-bottom:2px solid var(--border); background:var(--surface2); color:#9db8d4; }
-  .table td { padding:13px 16px; border-bottom:1px solid var(--border); font-size:14px; }
-  .table tr:hover td { background:rgba(255,255,255,.05); }
-  .drawer { position:fixed; top:0; right:0; width:440px; height:100vh; background:var(--surface); border-left:1px solid var(--border); z-index:200; overflow-y:auto; transform:translateX(100%); transition:transform .25s ease; box-shadow:-4px 0 20px rgba(0,0,0,.08); }
+  .table th { text-align:left; padding:11px 16px; font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.07em; border-bottom:1px solid var(--border); background:var(--surface2); }
+  .table td { padding:13px 16px; border-bottom:1px solid var(--border); font-size:13.5px; }
+  .table tr:hover td { background:rgba(255,255,255,.03); }
+  .drawer { position:fixed; top:0; right:0; width:440px; height:100vh; background:var(--surface); border-left:1px solid var(--border); z-index:200; overflow-y:auto; transform:translateX(100%); transition:transform .25s ease; box-shadow:-12px 0 40px rgba(0,0,0,.3); }
   .drawer.open { transform:translateX(0); }
-  .kanban-col { background:var(--surface2); border:1px solid var(--border); border-radius:8px; min-width:250px; max-width:250px; }
-  .kanban-card { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:14px; margin:8px; cursor:pointer; transition:all .15s; box-shadow:0 1px 3px rgba(0,0,0,.06); }
-  .kanban-card:hover { border-color:var(--accent); box-shadow:0 4px 12px rgba(26,86,219,.1); transform:translateY(-1px); }
+  .kanban-col { background:var(--surface2); border:1px solid var(--border); border-radius:10px; min-width:250px; max-width:250px; }
+  .kanban-card { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px; margin:8px; cursor:pointer; transition:all .15s; }
+  .kanban-card:hover { border-color:rgba(91,141,238,.4); transform:translateY(-1px); }
   @media(max-width:768px) {
     .sidebar { width:60px; }
     .sidebar .nav-label, .sidebar .brand-name { display:none; }
@@ -975,7 +975,7 @@ function AuthScreen({ onAuth }) {
       <div style={{ width:'100%', maxWidth:420, padding:20 }}>
         <div style={{ textAlign:'center', marginBottom:32 }}>
           <img src="https://www.citizensfinancial.co/wp-content/uploads/2026/01/Logo-01.png" alt="Citizens Financial" style={{ maxHeight:70, maxWidth:220, marginBottom:12, filter:'brightness(0) invert(1)' }} />
-          <div style={{ color:'#fff', fontSize:18, fontWeight:700, marginTop:8, fontFamily:"Cormorant Garamond, Playfair Display, serif" }}>Citizens Client Hub</div>
+          <div style={{ color:'#fff', fontSize:18, fontWeight:700, marginTop:8, fontFamily:"Inter,system-ui,sans-serif" }}>Citizens Client Hub</div>
           <div style={{ color:'rgba(255,255,255,.45)', fontSize:11, marginTop:6, letterSpacing:'.04em' }}>Powered by the Badges Broker</div>
         </div>
         <div className="card">
@@ -1262,7 +1262,7 @@ function ContactDrawer({ contact, onClose, onEdit, onDelete, companyId, toast, p
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
             <Avatar name={contact.full_name} size={48} />
             <div>
-              <div style={{ fontWeight:700, fontSize:18, fontFamily:"Cormorant Garamond, Playfair Display, serif" }}>{contact.full_name}</div>
+              <div style={{ fontWeight:700, fontSize:18, fontFamily:"Inter,system-ui,sans-serif" }}>{contact.full_name}</div>
               <div style={{ color:'var(--muted)', fontSize:13 }}>{contact.title} {contact.company && `@ ${contact.company}`}</div>
             </div>
           </div>
@@ -2588,7 +2588,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
           <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.1em', marginBottom:6 }}>
             {today.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}
           </div>
-          <h1 style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:30, fontWeight:700, marginBottom:8, lineHeight:1.2 }}>
+          <h1 style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:30, fontWeight:700, marginBottom:8, lineHeight:1.2 }}>
             {greeting}, {firstName}
           </h1>
           <div style={{ color:'var(--muted)', fontSize:14, display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
@@ -2647,7 +2647,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
           {/* ── WORKSPACES ── */}
           <div>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700 }}>Workspaces</div>
+              <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:18, fontWeight:700 }}>Workspaces</div>
               <span style={{ fontSize:12, color:'var(--muted)' }}>{workspaces.length} workspace{workspaces.length!==1?'s':''}</span>
             </div>
             {workspaces.length===0 ? (
@@ -2714,7 +2714,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
               <div>
                 <div style={{ fontSize:11, color:'var(--muted)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.08em', marginBottom:3 }}>Assigned to you</div>
-                <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700 }}>My Work</div>
+                <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:18, fontWeight:700 }}>My Work</div>
               </div>
               {myItems.length>0 && <span style={{ fontSize:12, color:'var(--muted)' }}>{myItems.length} item{myItems.length!==1?'s':''}</span>}
             </div>
@@ -2763,7 +2763,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
           {/* ── UPCOMING THIS WEEK ── */}
           {thisWeek.length>0 && (
             <div>
-              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700, marginBottom:14 }}>Upcoming This Week</div>
+              <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:18, fontWeight:700, marginBottom:14 }}>Upcoming This Week</div>
               <div style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', overflow:'hidden' }}>
                 {thisWeek.slice(0,8).map((item,idx)=>{
                   const ws = workspaces.find(w=>w.id===item.workspaces?.id||w.name===item.workspaces?.name);
@@ -2793,7 +2793,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
           {/* ── FUNNEL BY STAGE ── */}
           <div>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700 }}>Lead Funnel</div>
+              <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:18, fontWeight:700 }}>Lead Funnel</div>
               <span onClick={()=>onNavigate('pipeline')} style={{ fontSize:12, color:'var(--accent)', cursor:'pointer', fontWeight:600 }}>View all →</span>
             </div>
             <div className="card">
@@ -2818,7 +2818,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
 
           {/* ── TEAM ACTIVITY FEED ── */}
           <div>
-            <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700, marginBottom:14 }}>Team Activity</div>
+            <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:18, fontWeight:700, marginBottom:14 }}>Team Activity</div>
             <div style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', overflow:'hidden', maxHeight:420, overflowY:'auto' }}>
               {activityFeed.length===0 ? (
                 <div style={{ padding:'32px 16px', textAlign:'center', color:'var(--muted)', fontSize:13 }}>
@@ -2843,7 +2843,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
           {/* ── TEAM WORKLOAD (admin/manager only) ── */}
           {(profile.role==='admin'||profile.role==='manager') && workload.length>0 && (
             <div>
-              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700, marginBottom:14 }}>Team Workload</div>
+              <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:18, fontWeight:700, marginBottom:14 }}>Team Workload</div>
               <div className="card" style={{ padding:'16px 18px' }}>
                 {workload.map(({member,total,overdue})=>(
                   <div key={member.id} style={{ marginBottom:14 }}>
@@ -2864,7 +2864,7 @@ function Dashboard({ contacts, workspaces, onOpenWorkspace, profile, onCreateWor
           {/* ── RECENT CONTACTS ── */}
           <div>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
-              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700 }}>Recent Contacts</div>
+              <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:18, fontWeight:700 }}>Recent Contacts</div>
               <span onClick={()=>onNavigate('contacts')} style={{ fontSize:12, color:'var(--accent)', cursor:'pointer', fontWeight:600 }}>View all →</span>
             </div>
             <div style={{ background:'var(--surface)', borderRadius:12, border:'1px solid var(--border)', overflow:'hidden' }}>
@@ -2988,7 +2988,7 @@ function GroupSendModal({ contacts, profile, toast, onClose, onSent }) {
     <div className="overlay" onClick={onClose}>
       <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:520 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-          <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Send by Group</div>
+          <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:22, fontWeight:700 }}>Send by Group</div>
           <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
         </div>
         <div style={{ fontSize:13, color:'var(--muted)', marginBottom:20 }}>Select one or more stage groups to send a presentation to all contacts in those groups.</div>
@@ -3114,7 +3114,7 @@ function GroupImportModal({ onClose, groups, profile, toast, onImported }) {
       <div className="modal" style={{ maxWidth:560 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
           <div>
-            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Import Contact Group</div>
+            <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:22, fontWeight:700 }}>Import Contact Group</div>
             <div style={{ fontSize:13, color:'var(--muted)', marginTop:2 }}>Upload a CSV file and assign contacts to a group</div>
           </div>
           <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
@@ -3203,7 +3203,7 @@ function ContactsView({ contacts, onAdd, onSelect, toast, profile }) {
   return (
     <div style={{ padding:32 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-        <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700 }}>Contacts</div>
+        <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:26, fontWeight:700 }}>Contacts</div>
         <div style={{ display:'flex', gap:10 }}>
           {selected.length > 0 && <button className="btn-secondary" onClick={()=>setShowMassEmail(true)}>Email {selected.length} Selected</button>}
           {selected.length > 0 && <button className="btn-secondary" onClick={()=>setShowMassPresentation(true)} style={{ display:'flex', alignItems:'center', gap:6 }}>{React.cloneElement(Icons.file,{width:14,height:14})} Send Presentation</button>}
@@ -3323,7 +3323,7 @@ function LeadsView({ contacts: raw, onAdd, onSelect, onRefresh, toast, profile, 
 
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:24}}>
         <div>
-          <div style={{fontFamily:'Cormorant Garamond,Playfair Display,serif',fontSize:28,fontWeight:700}}>Leads</div>
+          <div style={{fontFamily:'Inter,system-ui,sans-serif',fontSize:28,fontWeight:700}}>Leads</div>
           <div style={{color:'var(--muted)',fontSize:13,marginTop:2}}>{contacts.length} total &middot; {filtered.length} shown</div>
         </div>
         <div style={{display:'flex',gap:8,flexWrap:'wrap',justifyContent:'flex-end'}}>
@@ -3882,7 +3882,7 @@ function AIPipelineView({ contacts, onSelect, profile, toast }) {
 
       {/* Header */}
       <div style={{ marginBottom:24 }}>
-        <h1 style={{ fontFamily:'Cormorant Garamond, serif', fontSize:30, fontWeight:700, margin:0 }}>AI Pipeline</h1>
+        <h1 style={{ fontFamily:'Inter,system-ui,sans-serif', fontSize:30, fontWeight:700, margin:0 }}>AI Pipeline</h1>
         <p style={{ color:'var(--muted)', fontSize:13, margin:'4px 0 0' }}>
           AI-ranked leads with smart next-action recommendations and 1-click stage progression
         </p>
@@ -4182,7 +4182,7 @@ function TeamView({ profile, toast }) {
 
   return (
     <div style={{ padding:28, maxWidth:700 }}>
-      <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700, marginBottom:24 }}>Team</div>
+      <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:26, fontWeight:700, marginBottom:24 }}>Team</div>
       <div className="card" style={{ marginBottom:20 }}>
         <div style={{ fontWeight:600, marginBottom:12 }}>Invite Team Member</div>
         <div style={{ display:'flex', gap:10 }}>
@@ -4252,7 +4252,7 @@ function BrandingView({ profile, onBrandUpdate, toast }) {
 
   return (
     <div style={{ padding:28, maxWidth:500 }}>
-      <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700, marginBottom:24 }}>Branding</div>
+      <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:26, fontWeight:700, marginBottom:24 }}>Branding</div>
       <div className="card">
         <div className="form-group"><label>Company Name</label><input value={form.company_name} onChange={e=>set('company_name',e.target.value)} /></div>
         <div className="form-group"><label>Logo URL (direct image link)</label><input value={form.logo_url} onChange={e=>set('logo_url',e.target.value)} placeholder="https://yoursite.com/logo.png" /></div>
@@ -4405,7 +4405,7 @@ function InputModal({ title, placeholder, defaultValue='', onConfirm, onClose })
   return (
     <div className="overlay" style={{ zIndex:500 }}>
       <div className="modal" style={{ maxWidth:420 }}>
-        <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:18, fontWeight:700, marginBottom:16 }}>{title}</div>
+        <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:18, fontWeight:700, marginBottom:16 }}>{title}</div>
         <input autoFocus value={value} onChange={e=>setValue(e.target.value)}
           placeholder={placeholder}
           onKeyDown={e=>{ if(e.key==='Enter'&&value.trim()){onConfirm(value.trim());onClose();} if(e.key==='Escape')onClose(); }}
@@ -4470,7 +4470,7 @@ function StatusManager({ workspaceId, companyId, statuses, onUpdate, onClose }) 
     <div className="overlay" style={{ zIndex:400 }}>
       <div className="modal" style={{ maxWidth:560, maxHeight:'85vh', overflowY:'auto' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-          <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:20, fontWeight:700 }}>Manage Statuses</div>
+          <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:20, fontWeight:700 }}>Manage Statuses</div>
           <button onClick={onClose} style={{ background:'none', color:'var(--muted)', fontSize:20, border:'none', cursor:'pointer' }}>✕</button>
         </div>
 
@@ -4878,7 +4878,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
           onClick={()=>setShowWsSwitcher(o=>!o)}
           onMouseOver={e=>{ e.currentTarget.style.background='rgba(255,255,255,.06)'; e.currentTarget.style.borderColor='var(--border)'; }}
           onMouseOut={e=>{ e.currentTarget.style.background=''; e.currentTarget.style.borderColor='transparent'; }}>
-          <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:24, fontWeight:700 }}>{workspace.name}</div>
+          <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:24, fontWeight:700 }}>{workspace.name}</div>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" style={{ transform:showWsSwitcher?'rotate(180deg)':'rotate(0)', transition:'transform .2s' }}><polyline points="6 9 12 15 18 9"/></svg>
         </div>
         {profile.role==='admin' && <>
@@ -5360,7 +5360,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24 }}>
               {/* Items by Status */}
               <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
-                <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Status</div>
+                <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Status</div>
                 {Object.entries(statusCounts).length===0 && <div style={{ color:'var(--muted)', fontSize:13 }}>No items yet</div>}
                 <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                   {Object.entries(statusCounts).sort((a,b)=>b[1]-a[1]).map(([status,count])=>{
@@ -5382,7 +5382,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
 
               {/* Items by Priority */}
               <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
-                <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Priority</div>
+                <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Priority</div>
                 <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                   {Object.entries(PRIORITY_COLORS).map(([p,color])=>(
                     <div key={p} style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -5399,7 +5399,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
 
               {/* Items by Group */}
               <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
-                <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Group</div>
+                <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Group</div>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:10 }}>
                   {groups.map(g=>(
                     <div key={g.id} style={{ background:'var(--surface2)', borderRadius:8, padding:'12px 16px', borderLeft:`4px solid ${g.color}`, flex:'1 1 120px', minWidth:120 }}>
@@ -5413,7 +5413,7 @@ function WorkspaceView({ workspace, profile, toast, onRename, onDelete, allWorks
               {/* Items by Lender */}
               {Object.keys(lenderCounts).length>0 && (
                 <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:20 }}>
-                  <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Lender</div>
+                  <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:16, fontWeight:700, marginBottom:16 }}>Items by Lender</div>
                   <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                     {Object.entries(lenderCounts).sort((a,b)=>b[1]-a[1]).slice(0,6).map(([lender,count])=>(
                       <div key={lender}>
@@ -6280,9 +6280,9 @@ function ItemDetailPanel({ item: initialItem, group, statuses, teamMembers, prof
             <input autoFocus value={item.name} onChange={e=>setItem(i=>({...i,name:e.target.value}))}
               onBlur={()=>{ updateField('name',item.name); setEditingField(null); }}
               onKeyDown={e=>{ if(e.key==='Enter'){updateField('name',item.name);setEditingField(null);} if(e.key==='Escape')setEditingField(null); }}
-              style={{ flex:1, fontSize:18, fontWeight:700, fontFamily:"Cormorant Garamond, Playfair Display, serif", background:'transparent', border:'none', borderBottom:'2px solid var(--accent)', outline:'none', color:'var(--text)', padding:'2px 0' }} />
+              style={{ flex:1, fontSize:18, fontWeight:700, fontFamily:"Inter,system-ui,sans-serif", background:'transparent', border:'none', borderBottom:'2px solid var(--accent)', outline:'none', color:'var(--text)', padding:'2px 0' }} />
           ) : (
-            <div onClick={()=>setEditingField('name')} style={{ flex:1, fontSize:18, fontWeight:700, fontFamily:"Cormorant Garamond, Playfair Display, serif", cursor:'text', lineHeight:1.3 }} title="Click to edit">{item.name}</div>
+            <div onClick={()=>setEditingField('name')} style={{ flex:1, fontSize:18, fontWeight:700, fontFamily:"Inter,system-ui,sans-serif", cursor:'text', lineHeight:1.3 }} title="Click to edit">{item.name}</div>
           )}
           <button onClick={onClose} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:20, cursor:'pointer', flexShrink:0, padding:4, borderRadius:4 }}
             onMouseOver={e=>e.currentTarget.style.background='rgba(255,255,255,.1)'}
@@ -6666,7 +6666,7 @@ function UpdatesPanel({ item, profile, onClose, toast }) {
       {/* Header */}
       <div style={{ padding:'20px 24px', borderBottom:'1px solid var(--border)' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
-          <div style={{ fontWeight:700, fontSize:16, fontFamily:"Cormorant Garamond, Playfair Display, serif" }}>{item.name}</div>
+          <div style={{ fontWeight:700, fontSize:16, fontFamily:"Inter,system-ui,sans-serif" }}>{item.name}</div>
           <button onClick={onClose} style={{ background:'none', color:'var(--muted)', fontSize:20, border:'none', cursor:'pointer' }}>✕</button>
         </div>
         {item.status && <div style={{ display:'inline-block', background:item.status_color||'#4d8ef0', color:'#fff', padding:'3px 10px', borderRadius:4, fontSize:12, fontWeight:600, marginBottom:10 }}>{item.status}</div>}
@@ -6840,7 +6840,7 @@ function TrashArchiveView({ profile, workspaces, toast }) {
 
   return (
     <div style={{ padding:32 }}>
-      <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700, marginBottom:6 }}>
+      <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:26, fontWeight:700, marginBottom:6 }}>
         {tab==='archive' ? <span style={{display:'flex',alignItems:'center',gap:5}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg> Archive</span> : <span style={{display:'flex',alignItems:'center',gap:5}}><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg> Trash</span>}
       </div>
       <div style={{ color:'var(--muted)', fontSize:13, marginBottom:24 }}>
@@ -7433,7 +7433,7 @@ function CalendarView({ profile, workspaces, toast }) {
       <div style={{ marginBottom:20 }}>
         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:12 }}>
           <div>
-            <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:26, fontWeight:700 }}>Team Calendar</div>
+            <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:26, fontWeight:700 }}>Team Calendar</div>
             <div style={{ color:'var(--muted)', fontSize:13, marginTop:2 }}>
               {profile.role==='admin'||profile.role==='manager' ? 'All team events and loan deadlines' : 'Your events and shared team events'}
             </div>
@@ -7479,7 +7479,7 @@ function CalendarView({ profile, workspaces, toast }) {
       {/* ── MONTH NAV ── */}
       <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:16 }}>
         <button onClick={prevMonth} style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', padding:'6px 12px', borderRadius:6, fontSize:16, cursor:'pointer', lineHeight:1 }}>‹</button>
-        <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:22, fontWeight:700, minWidth:220 }}>{MONTHS[month]} {year}</div>
+        <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:22, fontWeight:700, minWidth:220 }}>{MONTHS[month]} {year}</div>
         <button onClick={nextMonth} style={{ background:'var(--surface2)', border:'1px solid var(--border)', color:'var(--text)', padding:'6px 12px', borderRadius:6, fontSize:16, cursor:'pointer', lineHeight:1 }}>›</button>
         <button onClick={()=>{ setYear(today.getFullYear()); setMonth(today.getMonth()); }} style={{ background:'none', border:'1px solid var(--border)', color:'var(--muted)', padding:'5px 12px', borderRadius:6, fontSize:12, cursor:'pointer', fontFamily:'inherit', marginLeft:4 }}>Today</button>
 
@@ -7601,7 +7601,7 @@ function CalendarView({ profile, workspaces, toast }) {
           <div className="event-modal" onClick={e=>e.stopPropagation()}>
             {/* Header */}
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <div style={{ fontFamily:"Cormorant Garamond, Playfair Display, serif", fontSize:20, fontWeight:700 }}>{editEvent ? 'Edit Event' : 'New Event'}</div>
+              <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:20, fontWeight:700 }}>{editEvent ? 'Edit Event' : 'New Event'}</div>
               <button onClick={()=>{setShowModal(false);setEditEvent(null);setForm(blankForm);}} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer', lineHeight:1, padding:4 }}>×</button>
             </div>
 
@@ -7900,7 +7900,7 @@ function SlideRenderer({ slide, index, total, companyName='Citizens Financial' }
       </div>
       <div style={{ background:`linear-gradient(135deg,${CF.navy} 0%,#1a3464 100%)`, padding:'28px 52px 32px', flexShrink:0, ...anim(0) }}>
         <div style={{ fontSize:11, color:'rgba(255,255,255,.4)', fontWeight:700, textTransform:'uppercase', letterSpacing:'.14em', marginBottom:10 }}>Personalized Mortgage Analysis</div>
-        <div style={{ fontFamily:"Cormorant Garamond,Georgia,serif", fontSize:36, fontWeight:700, color:'#fff', lineHeight:1.2 }}>
+        <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:36, fontWeight:700, color:'#fff', lineHeight:1.2 }}>
           Hi, <span style={{ color:'#6ee7b7' }}>{slide.borrowerName||'{{name}}'}</span>! Here are some highlights<br/>
           <span style={{ color:'rgba(255,255,255,.75)' }}>to help you make your </span>
           <span style={{ color:'#6ee7b7' }}>{slide.loanPurpose||'loan'}</span>
@@ -7913,9 +7913,9 @@ function SlideRenderer({ slide, index, total, companyName='Citizens Financial' }
             <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:i===0?CF.green:CF.navy }} />
             <Pill label={c.badge} green={i===0} />
             <div style={{ fontSize:11, color:CF.muted, fontWeight:700, textTransform:'uppercase', letterSpacing:'.07em' }}>OPTION 1</div>
-            <div style={{ fontFamily:"Cormorant Garamond,Georgia,serif", fontSize:20, fontWeight:700, color:CF.navy, lineHeight:1.15 }}>{c.loanAmount}</div>
+            <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:20, fontWeight:700, color:CF.navy, lineHeight:1.15 }}>{c.loanAmount}</div>
             <div style={{ fontSize:14, fontWeight:700, color:CF.text }}>{c.product}</div>
-            <div style={{ marginTop:'auto', fontSize:24, fontWeight:900, color:CF.green, fontFamily:"Cormorant Garamond,Georgia,serif" }}>{c.value}</div>
+            <div style={{ marginTop:'auto', fontSize:24, fontWeight:900, color:CF.green, fontFamily:"Inter,system-ui,sans-serif" }}>{c.value}</div>
           </div>
         ))}
       </div>
@@ -7951,7 +7951,7 @@ function SlideRenderer({ slide, index, total, companyName='Citizens Financial' }
             <Pill label="Most Monthly Savings" green />
             <div style={{ color:'rgba(255,255,255,.4)', fontSize:11, textTransform:'uppercase', letterSpacing:'.07em', marginTop:16, marginBottom:4 }}>vs current loan · Option 1</div>
             <div style={{ color:'rgba(255,255,255,.65)', fontSize:13, marginBottom:18 }}>Citizens Financial {slide.loanProduct}</div>
-            <div style={{ fontFamily:"Cormorant Garamond,Georgia,serif", fontSize:64, fontWeight:900, color:'#6ee7b7', lineHeight:1, letterSpacing:'-.02em' }}>{slide.monthlySavings}</div>
+            <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:64, fontWeight:900, color:'#6ee7b7', lineHeight:1, letterSpacing:'-.02em' }}>{slide.monthlySavings}</div>
             <div style={{ color:'rgba(255,255,255,.45)', fontSize:13, marginTop:10 }}>saved every month</div>
             <div style={{ marginTop:28, paddingTop:20, borderTop:'1px solid rgba(255,255,255,.1)' }}>
               <div style={{ fontSize:11, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:'.06em', marginBottom:8 }}>Loan Product</div>
@@ -7959,7 +7959,7 @@ function SlideRenderer({ slide, index, total, companyName='Citizens Financial' }
             </div>
           </div>
           <div style={{ flex:1, padding:'36px 60px', display:'flex', flexDirection:'column' }}>
-            <div style={{ fontFamily:"Cormorant Garamond,Georgia,serif", fontSize:28, fontWeight:700, color:CF.text, marginBottom:10, ...anim(100) }}>Total Monthly Payments</div>
+            <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:28, fontWeight:700, color:CF.text, marginBottom:10, ...anim(100) }}>Total Monthly Payments</div>
             <div style={{ display:'flex', gap:20, marginBottom:28, fontSize:12, ...anim(150) }}>
               {[['#0c1a35','Principal'],['#7c3aed','Interest'],['#10b981','HOA, PMI, Ins.'],['#f59e0b','Taxes']].map(([c,l])=>(
                 <span key={l} style={{ display:'flex', alignItems:'center', gap:6, color:CF.muted }}>
@@ -8005,14 +8005,14 @@ function SlideRenderer({ slide, index, total, companyName='Citizens Financial' }
           <div style={{ color:'rgba(255,255,255,.5)', fontSize:13 }}>Interest Savings Analysis</div>
         </div>
         <div style={{ flex:1, display:'flex', flexDirection:'column', padding:'28px 52px 52px', gap:18 }}>
-          <div style={{ fontFamily:"Cormorant Garamond,Georgia,serif", fontSize:30, fontWeight:700, color:CF.text, ...anim(0) }}>Interest Savings Over Loan Life</div>
+          <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:30, fontWeight:700, color:CF.text, ...anim(0) }}>Interest Savings Over Loan Life</div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:18, flex:1 }}>
             {(slide.metrics||[]).map((m,i)=>(
               <div key={i} style={{ background:CF.white, border:`1px solid ${CF.border}`, borderRadius:14, padding:'22px 24px', display:'flex', flexDirection:'column', boxShadow:'0 2px 12px rgba(0,0,0,.05)', position:'relative', overflow:'hidden', ...anim(80+i*80) }}>
                 <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:i===0?CF.green:CF.navy }} />
                 <Pill label={m.badge} green={i===0} />
                 <div style={{ fontSize:12, color:CF.muted, marginTop:10, marginBottom:12, lineHeight:1.5 }}>{m.label}</div>
-                <div style={{ fontFamily:"Cormorant Garamond,Georgia,serif", fontSize:44, fontWeight:900, color:CF.green, lineHeight:1, letterSpacing:'-.01em', marginBottom:8 }}>{m.value}</div>
+                <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:44, fontWeight:900, color:CF.green, lineHeight:1, letterSpacing:'-.01em', marginBottom:8 }}>{m.value}</div>
                 <div style={{ fontSize:12, color:CF.muted, lineHeight:1.6, marginTop:'auto', paddingTop:10, borderTop:`1px solid ${CF.border}` }}>{m.description}</div>
               </div>
             ))}
@@ -8049,7 +8049,7 @@ function SlideRenderer({ slide, index, total, companyName='Citizens Financial' }
           <Pill label="Quickest Breakeven" green />
           <div style={{ color:'rgba(255,255,255,.4)', fontSize:11, textTransform:'uppercase', letterSpacing:'.07em', marginTop:16, marginBottom:4 }}>Option 1</div>
           <div style={{ color:'rgba(255,255,255,.65)', fontSize:13, marginBottom:18 }}>Citizens Financial</div>
-          <div style={{ fontFamily:"Cormorant Garamond,Georgia,serif", fontSize:60, fontWeight:900, color:'#6ee7b7', lineHeight:1 }}>{slide.breakevenMonths}</div>
+          <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:60, fontWeight:900, color:'#6ee7b7', lineHeight:1 }}>{slide.breakevenMonths}</div>
           <div style={{ color:'rgba(255,255,255,.45)', fontSize:13, marginTop:10 }}>to break even on costs</div>
           <div style={{ marginTop:28, paddingTop:20, borderTop:'1px solid rgba(255,255,255,.12)' }}>
             <div style={{ fontSize:10, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:12 }}>Net Cost (Year 7)</div>
@@ -8062,7 +8062,7 @@ function SlideRenderer({ slide, index, total, companyName='Citizens Financial' }
           </div>
         </div>
         <div style={{ flex:1, padding:'36px 56px', display:'flex', flexDirection:'column' }}>
-          <div style={{ fontFamily:"Cormorant Garamond,Georgia,serif", fontSize:28, fontWeight:700, color:CF.text, marginBottom:24, ...anim(100) }}>Cumulative Cost Over Time</div>
+          <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:28, fontWeight:700, color:CF.text, marginBottom:24, ...anim(100) }}>Cumulative Cost Over Time</div>
           <div style={{ flex:1, background:CF.light, borderRadius:12, border:`1px solid ${CF.border}`, padding:'24px 28px', display:'flex', flexDirection:'column', justifyContent:'flex-end', gap:10 }}>
             {[1,2,3,4,5,6,7].map((yr,i)=>(
               <div key={yr} style={{ display:'flex', alignItems:'center', gap:14, fontSize:12 }}>
@@ -8096,7 +8096,7 @@ function SlideRenderer({ slide, index, total, companyName='Citizens Financial' }
       </div>
       <div style={{ flex:1, padding:'24px 52px 48px', display:'flex', flexDirection:'column', overflow:'hidden' }}>
         <div style={{ marginBottom:16, ...anim(0) }}>
-          <div style={{ fontFamily:"Cormorant Garamond,Georgia,serif", fontSize:30, fontWeight:700, color:CF.text }}>True Cost Comparison</div>
+          <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:30, fontWeight:700, color:CF.text }}>True Cost Comparison</div>
           <div style={{ fontSize:13, color:CF.muted, marginTop:4 }}>Take an in-depth look at each loan option.</div>
         </div>
         <div style={{ flex:1, border:`1px solid ${CF.border}`, borderRadius:12, overflow:'hidden', ...anim(80) }}>
@@ -8130,7 +8130,7 @@ function SlideRenderer({ slide, index, total, companyName='Citizens Financial' }
       <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'48px 80px', position:'relative' }}>
         <div style={anim(0)}><Logo h={42} /></div>
         <div style={{ width:48, height:3, background:CF.green, borderRadius:2, margin:'22px auto 26px', ...anim(80) }} />
-        <div style={{ fontFamily:"Cormorant Garamond,Georgia,serif", fontSize:48, fontWeight:700, color:'#fff', textAlign:'center', lineHeight:1.2, maxWidth:700, marginBottom:18, ...anim(120) }}>
+        <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:48, fontWeight:700, color:'#fff', textAlign:'center', lineHeight:1.2, maxWidth:700, marginBottom:18, ...anim(120) }}>
           {slide.title||'Ready to Move Forward?'}
         </div>
         <div style={{ fontSize:16, color:'rgba(255,255,255,.6)', textAlign:'center', maxWidth:540, lineHeight:1.8, marginBottom:36, ...anim(180) }}>{slide.body}</div>
@@ -8326,11 +8326,11 @@ function PublicPresentationViewer({ token }) {
                 <div style={{ display:'flex', gap:16 }}>
                   <div>
                     <div style={{ fontSize:10, color:'rgba(255,255,255,.4)', marginBottom:2 }}>Monthly P&I</div>
-                    <div style={{ fontSize:18, fontWeight:900, color:'#6ee7b7', fontFamily:"Cormorant Garamond,serif" }}>{liveMP>0?liveFmt(liveMP):'—'}</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:'#6ee7b7', fontFamily:"Inter,system-ui,sans-serif" }}>{liveMP>0?liveFmt(liveMP):'—'}</div>
                   </div>
                   <div>
                     <div style={{ fontSize:10, color:'rgba(255,255,255,.4)', marginBottom:2 }}>Total Interest</div>
-                    <div style={{ fontSize:18, fontWeight:900, color:'#6ee7b7', fontFamily:"Cormorant Garamond,serif" }}>{liveTotalInt>0?liveFmt(liveTotalInt):'—'}</div>
+                    <div style={{ fontSize:18, fontWeight:900, color:'#6ee7b7', fontFamily:"Inter,system-ui,sans-serif" }}>{liveTotalInt>0?liveFmt(liveTotalInt):'—'}</div>
                   </div>
                 </div>
                 {liveSlides && <div style={{ fontSize:10, color:'rgba(26,154,92,.8)', marginTop:8 }}>↑ Presentation updated live</div>}
@@ -8485,7 +8485,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent, pr
       <div onClick={e=>e.stopPropagation()} style={{ width:'min(700px,95vw)', background:'var(--surface)', borderRadius:20, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', overflow:'hidden' }}>
         <div style={{ background:'#0c1a35', padding:'28px 36px', display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
           <div>
-            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:26, fontWeight:700, color:'#fff', lineHeight:1.2 }}>Build Presentation</div>
+            <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:26, fontWeight:700, color:'#fff', lineHeight:1.2 }}>Build Presentation</div>
             {contact && <div style={{ color:'rgba(255,255,255,.4)', fontSize:14, marginTop:4 }}>for {contact.full_name}</div>}
           </div>
           <button onClick={onClose} style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.7)', width:34, height:34, borderRadius:8, cursor:'pointer', fontSize:20, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>✕</button>
@@ -8498,7 +8498,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent, pr
             <div style={{ width:54, height:54, borderRadius:14, background:'linear-gradient(135deg,#1a9a5c,#0d7a47)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:18, boxShadow:'0 6px 20px rgba(26,154,92,.25)' }}>
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
             </div>
-            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:21, fontWeight:700, color:'var(--text)', marginBottom:8 }}>Generate Presentation</div>
+            <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:21, fontWeight:700, color:'var(--text)', marginBottom:8 }}>Generate Presentation</div>
             <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.7, marginBottom:18 }}>Enter loan details and instantly get a fully branded, interactive Citizens Financial presentation with animated charts and live scenario sliders.</div>
             <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
               {['Cover','Payment analysis','Savings breakdown','True cost table','Live sliders','Closing CTA'].map(t=>(
@@ -8513,7 +8513,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent, pr
             <div style={{ width:54, height:54, borderRadius:14, background:'linear-gradient(135deg,#0c1a35,#1e3a70)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:18, boxShadow:'0 6px 20px rgba(12,26,53,.2)' }}>
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
             </div>
-            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:21, fontWeight:700, color:'var(--text)', marginBottom:8 }}>From Template</div>
+            <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:21, fontWeight:700, color:'var(--text)', marginBottom:8 }}>From Template</div>
             <div style={{ fontSize:13, color:'var(--muted)', lineHeight:1.7, marginBottom:18 }}>Choose a pre-built slide deck or PDF from your template library and send it directly to your client.</div>
             <div style={{ display:'flex', alignItems:'center', gap:8 }}>
               <div style={{ width:8, height:8, borderRadius:'50%', background:templates.length>0?'#1a9a5c':'#94a3b8', flexShrink:0 }} />
@@ -8533,7 +8533,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent, pr
       <div onClick={e=>e.stopPropagation()} style={{ width:'min(640px,95vw)', background:'var(--surface)', borderRadius:20, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', overflow:'hidden', maxHeight:'85vh', display:'flex', flexDirection:'column' }}>
         <div style={{ background:'#0c1a35', padding:'24px 32px', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0 }}>
           <div>
-            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700, color:'#fff' }}>Choose Template</div>
+            <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:22, fontWeight:700, color:'#fff' }}>Choose Template</div>
             {contact && <div style={{ color:'rgba(255,255,255,.4)', fontSize:13, marginTop:2 }}>for {contact.full_name}</div>}
           </div>
           <button onClick={onClose} style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.7)', width:34, height:34, borderRadius:8, cursor:'pointer', fontSize:20, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
@@ -8579,7 +8579,7 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent, pr
       <div onClick={e=>e.stopPropagation()} style={{ width:'min(620px,95vw)', background:'var(--surface)', borderRadius:20, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', overflow:'hidden' }}>
         <div style={{ background:'#0c1a35', padding:'24px 32px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <div>
-            <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700, color:'#fff' }}>Loan Details</div>
+            <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:22, fontWeight:700, color:'#fff' }}>Loan Details</div>
             {contact && <div style={{ color:'rgba(255,255,255,.4)', fontSize:13, marginTop:2 }}>Presentation for {contact.full_name}</div>}
             <div style={{ display:'flex', gap:6, marginTop:6, flexWrap:'wrap' }}>
               {pricingRate && <span style={{ fontSize:11, padding:'2px 8px', borderRadius:4, background:'rgba(26,154,92,.25)', color:'#4ade80', fontWeight:700 }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Rate from Pricing Engine: {pricingRate.rate}%</span>}
@@ -8709,8 +8709,8 @@ function PresentationBuilderModal({ contact, profile, onClose, toast, onSent, pr
               <div style={{ background:'rgba(26,154,92,.1)', border:'1px solid rgba(26,154,92,.2)', borderRadius:8, padding:'8px 14px', whiteSpace:'nowrap' }}>
                 <div style={{ fontSize:9, color:'rgba(255,255,255,.3)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:5 }}>Live Estimates</div>
                 <div style={{ display:'flex', gap:14 }}>
-                  <div><div style={{ fontSize:9, color:'rgba(255,255,255,.3)', marginBottom:1 }}>Monthly P&I</div><div style={{ fontSize:15, fontWeight:900, color:'#6ee7b7', fontFamily:"Cormorant Garamond,serif" }}>{liveMp>0?liveFmt(liveMp):'—'}</div></div>
-                  <div><div style={{ fontSize:9, color:'rgba(255,255,255,.3)', marginBottom:1 }}>Total Interest</div><div style={{ fontSize:15, fontWeight:900, color:'#6ee7b7', fontFamily:"Cormorant Garamond,serif" }}>{liveInt>0?liveFmt(liveInt):'—'}</div></div>
+                  <div><div style={{ fontSize:9, color:'rgba(255,255,255,.3)', marginBottom:1 }}>Monthly P&I</div><div style={{ fontSize:15, fontWeight:900, color:'#6ee7b7', fontFamily:"Inter,system-ui,sans-serif" }}>{liveMp>0?liveFmt(liveMp):'—'}</div></div>
+                  <div><div style={{ fontSize:9, color:'rgba(255,255,255,.3)', marginBottom:1 }}>Total Interest</div><div style={{ fontSize:15, fontWeight:900, color:'#6ee7b7', fontFamily:"Inter,system-ui,sans-serif" }}>{liveInt>0?liveFmt(liveInt):'—'}</div></div>
                 </div>
               </div>
             </div>
@@ -8915,7 +8915,7 @@ function MassPresentationModal({ contacts, profile, onClose, toast, onSent }) {
       <div style={{ width:56, height:56, borderRadius:'50%', background:'rgba(26,154,92,.1)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px' }}>
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#1a9a5c" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
       </div>
-      <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:24, fontWeight:700, marginBottom:8 }}>Presentations Sent!</div>
+      <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:24, fontWeight:700, marginBottom:8 }}>Presentations Sent!</div>
       <div style={{ color:'var(--muted)', fontSize:14, marginBottom:24 }}>Each contact received a personalized presentation link via email.</div>
       <button className="btn-primary" onClick={onClose}>Done</button>
     </div></div>
@@ -8925,7 +8925,7 @@ function MassPresentationModal({ contacts, profile, onClose, toast, onSent }) {
   if(step==='sending') return (
     <div className="overlay"><div className="modal" style={{ textAlign:'center', maxWidth:420 }}>
       <div style={{ width:52, height:52, borderRadius:'50%', border:'3px solid rgba(26,154,92,.15)', borderTopColor:'#1a9a5c', animation:'spin 1s linear infinite', margin:'0 auto 20px' }} />
-      <div style={{ fontFamily:"Cormorant Garamath,serif", fontSize:20, fontWeight:700, marginBottom:16 }}>Sending Presentations…</div>
+      <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:20, fontWeight:700, marginBottom:16 }}>Sending Presentations…</div>
       <div style={{ height:8, background:'var(--border)', borderRadius:4, overflow:'hidden', marginBottom:10 }}>
         <div style={{ height:'100%', width:progress+'%', background:'#1a9a5c', borderRadius:4, transition:'width .4s' }} />
       </div>
@@ -9003,7 +9003,7 @@ function MassPresentationModal({ contacts, profile, onClose, toast, onSent }) {
         {/* Header */}
         <div style={{ background:'#0c1a35', padding:'24px 32px', display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexShrink:0 }}>
           <div>
-            <div style={{ fontFamily:"Cormorant Garamath,serif", fontSize:24, fontWeight:700, color:'#fff' }}>Mass Send Presentation</div>
+            <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:24, fontWeight:700, color:'#fff' }}>Mass Send Presentation</div>
             <div style={{ fontSize:13, color:'rgba(255,255,255,.4)', marginTop:4 }}>{withEmail.length} of {contacts.length} contacts have email addresses</div>
           </div>
           <button onClick={onClose} style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.7)', width:34, height:34, borderRadius:8, cursor:'pointer', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
@@ -9226,7 +9226,7 @@ function PresentationsPage({ profile, toast }) {
   return (
     <div style={{ padding:32 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
-        <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:26, fontWeight:700 }}>Presentations</div>
+        <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:26, fontWeight:700 }}>Presentations</div>
         {profile.role==='admin' && tab==='templates' && (
           <button className="btn-primary btn-sm" onClick={()=>setShowUpload(true)}>+ Add Template</button>
         )}
@@ -9333,7 +9333,7 @@ function PresentationsPage({ profile, toast }) {
         <div className="overlay" onClick={()=>setShowUpload(false)}>
           <div className="modal" onClick={e=>e.stopPropagation()} style={{ maxWidth:580 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-              <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700 }}>Add Template</div>
+              <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:22, fontWeight:700 }}>Add Template</div>
               <button onClick={()=>setShowUpload(false)} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:22, cursor:'pointer' }}>✕</button>
             </div>
             {/* Type selector */}
@@ -9598,7 +9598,7 @@ function MISMOImportModal({ onClose, onImport, toast }) {
       <div style={{ width:'min(700px,95vw)', background:'var(--surface)', borderRadius:20, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', maxHeight:'90vh', display:'flex', flexDirection:'column' }}>
         <div style={{ background:'linear-gradient(135deg,#0c1a35,#1a3a6e)', padding:'22px 28px', display:'flex', justifyContent:'space-between', alignItems:'center', flexShrink:0, borderRadius:'20px 20px 0 0' }}>
           <div>
-            <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:22, fontWeight:700, color:'#fff' }}>Import MISMO Loan File</div>
+            <div style={{ fontFamily:'Inter,system-ui,sans-serif', fontSize:22, fontWeight:700, color:'#fff' }}>Import MISMO Loan File</div>
             <div style={{ fontSize:12, color:'rgba(255,255,255,.5)', marginTop:3 }}>MISMO 3.4 · Calyx Point · Encompass · BytePro · MortgageBot</div>
           </div>
           <button onClick={onClose} style={{ background:'rgba(255,255,255,.08)', border:'1px solid rgba(255,255,255,.12)', color:'rgba(255,255,255,.7)', width:34, height:34, borderRadius:8, cursor:'pointer', fontSize:18, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
@@ -9777,7 +9777,7 @@ function PricingEnginePanel({ onClose, onApplyRate, preset }) {
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             </div>
             <div>
-              <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:19, fontWeight:700, color:'#fff', letterSpacing:'.01em' }}>Pricing Engine</div>
+              <div style={{ fontFamily:'Inter,system-ui,sans-serif', fontSize:19, fontWeight:700, color:'#fff', letterSpacing:'.01em' }}>Pricing Engine</div>
               <div style={{ fontSize:11, color:'rgba(255,255,255,.4)' }}>Live rate &amp; point scenarios</div>
             </div>
           </div>
@@ -10343,7 +10343,7 @@ Respond with well-structured answers using bullet points and headers. Be concise
           <img src={HANNAH_PHOTO} alt="Hannah" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
         </div>
         <div>
-          <div style={{ fontFamily:"Cormorant Garamond,serif", fontSize:22, fontWeight:700, color:'#fff' }}>Hannah</div>
+          <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:22, fontWeight:700, color:'#fff' }}>Hannah</div>
           <div style={{ fontSize:12, color:'rgba(255,255,255,.4)', display:'flex', alignItems:'center', gap:6 }}>
             <div style={{ width:7, height:7, borderRadius:'50%', background:'#1a9a5c', boxShadow:'0 0 6px #1a9a5c' }} />
             Citizens Financial AI Assistant · Always available
@@ -10645,7 +10645,7 @@ function RateCompareView({ toast, onOpenPricing }) {
         padding:'20px 16px', overflowY:'auto', display:'flex', flexDirection:'column', gap:12 }}>
 
         <div>
-          <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:22, fontWeight:700, color:'var(--text)' }}>PPE Search</div>
+          <div style={{ fontFamily:'Inter,system-ui,sans-serif', fontSize:22, fontWeight:700, color:'var(--text)' }}>PPE Search</div>
           <div style={{ fontSize:11, color:'var(--muted)', marginTop:2 }}>
             {ALL_LENDERS.length} lenders · eligibility-filtered
           </div>
@@ -11128,7 +11128,7 @@ function LenderPortalsView({ toast }) {
         {/* Header */}
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:28 }}>
           <div>
-            <h1 style={{ fontFamily:'Cormorant Garamond,serif', fontSize:32, fontWeight:700, margin:0, letterSpacing:'-.01em', color:'var(--text)' }}>Lender Portals</h1>
+            <h1 style={{ fontFamily:'Inter,system-ui,sans-serif', fontSize:32, fontWeight:700, margin:0, letterSpacing:'-.01em', color:'var(--text)' }}>Lender Portals</h1>
             <div style={{ color:'var(--muted)', fontSize:14, marginTop:4 }}>Secure access to all pricing &amp; submission portals · credentials encrypted</div>
           </div>
           <button onClick={() => setShowAdd(true)} style={{ background:'linear-gradient(135deg,#0f1c3f,#1a56db)', color:'#fff', border:'none', borderRadius:9, padding:'10px 20px', fontWeight:700, fontSize:13, cursor:'pointer', fontFamily:'inherit', display:'flex', alignItems:'center', gap:8 }}>
@@ -11257,7 +11257,7 @@ function LenderPortalsView({ toast }) {
           <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,.65)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }} onClick={() => setShowAdd(false)}>
             <div onClick={e => e.stopPropagation()} style={{ width:'min(520px,95vw)', background:'var(--card)', borderRadius:18, border:'1px solid var(--border)', boxShadow:'0 32px 80px rgba(0,0,0,.5)', overflow:'hidden' }}>
               <div style={{ background:'linear-gradient(135deg,#0c1a35,#1a3a6e)', padding:'20px 26px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:20, fontWeight:700, color:'#fff' }}>Add Lender Portal</div>
+                <div style={{ fontFamily:'Inter,system-ui,sans-serif', fontSize:20, fontWeight:700, color:'#fff' }}>Add Lender Portal</div>
                 <button onClick={() => setShowAdd(false)} style={{ background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', color:'#fff', width:30, height:30, borderRadius:7, cursor:'pointer', fontSize:16, display:'flex', alignItems:'center', justifyContent:'center' }}>✕</button>
               </div>
               <div style={{ padding:'22px 26px', display:'flex', flexDirection:'column', gap:12 }}>
@@ -11507,7 +11507,7 @@ function PresentationGenerator({ qualData, onBack, onSendToLead, toast: toastFn 
       <div style={{ padding:'80px 0', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg)', minHeight:'calc(100vh - 52px)' }}>
         <div style={{ textAlign:'center', maxWidth:420 }}>
           <div style={{ width:64, height:64, margin:'0 auto 24px', borderRadius:'50%', border:'3px solid var(--border)', borderTop:'3px solid var(--accent)', animation:'spin 1s linear infinite' }} />
-          <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:26, fontWeight:700, color:'var(--text)', marginBottom:6 }}>Building Presentation</div>
+          <div style={{ fontFamily:'Inter,system-ui,sans-serif', fontSize:26, fontWeight:700, color:'var(--text)', marginBottom:6 }}>Building Presentation</div>
           <div style={{ fontSize:13, color:'var(--muted)', marginBottom:32 }}>Personalized for {qualData.borrowerName}</div>
           <div style={{ background:'var(--surface)', border:'1px solid var(--border)', borderRadius:12, padding:'18px 22px', textAlign:'left' }}>
             {LOAD_STEPS.map((s, i) => (
@@ -11544,7 +11544,7 @@ function PresentationGenerator({ qualData, onBack, onSendToLead, toast: toastFn 
             </button>
           )}
           <div>
-            <div style={{ fontFamily:'Cormorant Garamond,serif', fontSize:26, fontWeight:700, color:'var(--text)' }}>Loan Presentation</div>
+            <div style={{ fontFamily:'Inter,system-ui,sans-serif', fontSize:26, fontWeight:700, color:'var(--text)' }}>Loan Presentation</div>
             <div style={{ fontSize:13, color:'var(--muted)' }}>
               {qualData.borrowerName}
               {qualData.phone && ` · ${qualData.phone}`}
@@ -12486,7 +12486,7 @@ function CampaignsView({ contacts, profile, toast, onOpenPricing, onGeneratePres
       {/* Header */}
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:24}}>
         <div>
-          <h1 style={{fontFamily:"Cormorant Garamond,serif",fontSize:28,fontWeight:700,margin:0}}>Campaigns</h1>
+          <h1 style={{fontFamily:"Inter,system-ui,sans-serif",fontSize:28,fontWeight:700,margin:0}}>Campaigns</h1>
           <p style={{color:'var(--muted)',fontSize:13,margin:'4px 0 0'}}>Email and SMS outreach — single sends or mass campaigns</p>
         </div>
         <div style={{display:'flex',gap:10}}>
@@ -12655,7 +12655,7 @@ function CampaignsView({ contacts, profile, toast, onOpenPricing, onGeneratePres
             {/* Wizard header */}
             <div style={{background: wizard.type==='email'?'linear-gradient(135deg,#1e3a8a,#3b82f6)':'linear-gradient(135deg,#14532d,#22c55e)',padding:'22px 28px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
               <div>
-                <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:22,fontWeight:700,color:'#fff'}}>
+                <div style={{fontFamily:"Inter,system-ui,sans-serif",fontSize:22,fontWeight:700,color:'#fff'}}>
                   {wizard.type==='email'?'📧 New Email Campaign':'📱 New SMS Campaign'}
                 </div>
                 <div style={{fontSize:13,color:'rgba(255,255,255,.6)',marginTop:3}}>
@@ -12861,7 +12861,7 @@ function CampaignsView({ contacts, profile, toast, onOpenPricing, onGeneratePres
                 <div style={{width:64,height:64,borderRadius:'50%',background:'rgba(26,154,92,.12)',display:'flex',alignItems:'center',justifyContent:'center',margin:'0 auto 16px'}}>
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#1a9a5c" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
-                <div style={{fontFamily:"Cormorant Garamond,serif",fontSize:26,fontWeight:700,marginBottom:8}}>Campaign Sent!</div>
+                <div style={{fontFamily:"Inter,system-ui,sans-serif",fontSize:26,fontWeight:700,marginBottom:8}}>Campaign Sent!</div>
                 <div style={{fontSize:14,color:'var(--muted)',marginBottom:6}}>
                   Successfully sent to <strong style={{color:'var(--text)'}}>{sentCount}</strong> contact{sentCount!==1?'s':''}
                 </div>
@@ -13169,7 +13169,7 @@ function AutomationView({ contacts, profile, toast, onOpenPricing, onGeneratePre
       {/* Header */}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:24 }}>
         <div>
-          <h1 style={{ fontFamily:"Cormorant Garamond, serif", fontSize:28, fontWeight:700, margin:0 }}>
+          <h1 style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:28, fontWeight:700, margin:0 }}>
             AI Automation Engine
           </h1>
           <p style={{ color:'var(--muted)', fontSize:13, margin:'4px 0 0' }}>
@@ -13825,7 +13825,7 @@ Respond with well-structured answers using bullet points and headers. Be concise
               <img src={HANNAH_PHOTO} alt="Hannah" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
             </div>
             <div>
-              <div style={{ fontFamily:"Cormorant Garamath,serif", fontSize:16, fontWeight:700, color:'#fff', lineHeight:1.2 }}>Hannah</div>
+              <div style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:16, fontWeight:700, color:'#fff', lineHeight:1.2 }}>Hannah</div>
               <div style={{ fontSize:11, color:'rgba(255,255,255,.4)' }}>CRM assistance · Loan programs · Instant answers</div>
             </div>
             <div style={{ marginLeft:'auto', width:8, height:8, borderRadius:'50%', background:'#1a9a5c', boxShadow:'0 0 6px #1a9a5c' }} />
@@ -13967,7 +13967,7 @@ function LeadScoringView({ contacts, profile, toast }) {
     <div style={{ padding:24, maxWidth:1100, margin:'0 auto' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:24 }}>
         <div>
-          <h1 style={{ fontFamily:"Cormorant Garamond, serif", fontSize:28, fontWeight:700, margin:0 }}>Lead Scoring</h1>
+          <h1 style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:28, fontWeight:700, margin:0 }}>Lead Scoring</h1>
           <p style={{ color:'var(--muted)', fontSize:13, margin:'4px 0 0' }}>AI-computed scores from 0–100 based on stage, engagement, credit, loan amount, and timeline</p>
         </div>
         <div style={{ display:'flex', gap:10 }}>
@@ -14103,7 +14103,7 @@ function LiveTransferDashboard({ profile, toast }) {
   return (
     <div style={{ padding:24, maxWidth:1100, margin:'0 auto' }}>
       <div style={{ marginBottom:24 }}>
-        <h1 style={{ fontFamily:"Cormorant Garamond, serif", fontSize:28, fontWeight:700, margin:0 }}>Live Transfer Center</h1>
+        <h1 style={{ fontFamily:"Inter,system-ui,sans-serif", fontSize:28, fontWeight:700, margin:0 }}>Live Transfer Center</h1>
         <p style={{ color:'var(--muted)', fontSize:13, margin:'4px 0 0' }}>Real-time agent queue for hot leads requiring human conversation</p>
       </div>
 
@@ -14449,7 +14449,7 @@ export default function App() {
       <style>{`:root { --accent: ${accentColor}; }`}</style>
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* Sidebar */}
       <div className="sidebar">
