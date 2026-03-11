@@ -14974,8 +14974,8 @@ AutomationEngine.prototype.sendAutomatedSMS = async function (contact, job) {
     return;
   }
 
-  // Call Supabase Edge Function to send SMS
-  const { data: result, error } = await this.supabase.functions.invoke('send-sms', {
+  // Call Supabase Edge Function to send SMS (function is named 'twilio-sms', routes via /send path)
+  const { data: result, error } = await this.supabase.functions.invoke('twilio-sms/send', {
     body: { to: contact.phone, body }
   });
 
@@ -15079,18 +15079,22 @@ AutomationEngine.prototype.scheduleAICall = async function (contact, job) {
 
   const { script, context } = job.payload;
 
-  // Launch call via Retell (uses your existing launchCall pattern)
+  // Launch call via Retell — function expects: to_number, agent_id, contact_name, context
+  // Map script names to your Retell Agent IDs (create these in your Retell dashboard)
+  const RETELL_AGENT_IDS = {
+    'new_lead_week1':         Deno?.env?.get('RETELL_AGENT_NEW_LEAD')         || 'agent_placeholder_new_lead',
+    'qualification_followup': Deno?.env?.get('RETELL_AGENT_QUALIFICATION')    || 'agent_placeholder_qualification',
+    'referral_ask':           Deno?.env?.get('RETELL_AGENT_REFERRAL')         || 'agent_placeholder_referral',
+    'reengagement':           Deno?.env?.get('RETELL_AGENT_REENGAGEMENT')     || 'agent_placeholder_reengagement',
+  };
+  const agent_id = RETELL_AGENT_IDS[script] || script; // fallback: use script name directly if it's already an agent ID
+
   const { data: result, error } = await this.supabase.functions.invoke('retell-call', {
     body: {
-      phone_number: contact.phone,
-      contact_id:   contact.id,
-      script_name:  script,
-      context,
-      metadata: {
-        contact_name:   `${contact.first_name} ${contact.last_name}`,
-        trigger_type:   job.trigger_type,
-        sequence_name:  job.sequence_name,
-      }
+      to_number:    contact.phone,
+      agent_id,
+      contact_name: `${contact.first_name} ${contact.last_name}`,
+      context:      context || '',
     }
   });
 
